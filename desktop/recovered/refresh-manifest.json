@@ -1,12 +1,12 @@
 {
-  "sourceType": "app-asar",
-  "dmgPath": null,
-  "dmgSha256": null,
-  "appAsarPath": "/home/amwill/Applications/codex-app/codex-dmg/Codex.app/Contents/Resources/app.asar",
-  "appAsarSha256": "a802d73d077494c8b7d7462042ff091badabcc038dadbfc1096e7d9dd9bc1ad5",
+  "sourceType": "dmg",
+  "dmgPath": "/home/amwill/Applications/codex-app/Codex.dmg",
+  "dmgSha256": "a9dd0b0b1a05686ed1f0092cbb1325773859dedf75ab31b35ca46656b2b92cb6",
+  "appAsarPath": "/tmp/codex-dmg-refresh-F1ctUd/Codex Installer/Codex.app/Contents/Resources/app.asar",
+  "appAsarSha256": "60b2365abaffec2e494fd720e17bf63fe6a4b351e0d6ac8b110c68d2e4d25a83",
   "outputRoot": "/home/amwill/Applications/codex-app/desktop/recovered/app-asar-extracted",
-  "version": "26.422.21637",
-  "buildNumber": "2056",
+  "version": "26.429.20946",
+  "buildNumber": "2312",
   "electronVersion": "41.2.0",
   "main": ".vite/build/bootstrap.js",
   "patchSummary": {
@@ -89,19 +89,13 @@
           "reason": null
         },
         {
-          "label": "linux hides native menu for custom title bar 1",
+          "label": "linux hides native menu for custom title bar auto-hide",
           "patched": true,
           "skipped": false,
           "reason": null
         },
         {
-          "label": "linux hides native menu for custom title bar 2",
-          "patched": true,
-          "skipped": false,
-          "reason": null
-        },
-        {
-          "label": "linux hides native menu for custom title bar 3",
+          "label": "linux hides native menu for custom title bar remove-menu",
           "patched": true,
           "skipped": false,
           "reason": null
@@ -189,9 +183,9 @@
           },
           {
             "label": "apps page openInBrowser callback requests native external browser",
-            "patched": true,
-            "skipped": false,
-            "reason": null
+            "patched": false,
+            "skipped": true,
+            "reason": "apps page openInBrowser callback requests native external browser replacement already present"
           },
           {
             "label": "apps page install url requests native external browser",
@@ -220,25 +214,25 @@
         ]
       },
       "pluginsCards": {
-        "patched": true,
+        "patched": false,
         "results": [
           {
             "label": "plugin install app connect requests native external browser",
-            "patched": true,
-            "skipped": false,
-            "reason": null
+            "patched": false,
+            "skipped": true,
+            "reason": "plugin install app connect requests native external browser replacement already present"
           },
           {
             "label": "plugin install direct install url requests native external browser",
-            "patched": true,
-            "skipped": false,
-            "reason": null
+            "patched": false,
+            "skipped": true,
+            "reason": "plugin install direct install url requests native external browser replacement already present"
           },
           {
             "label": "plugin install browser fallback opens install url",
-            "patched": true,
-            "skipped": false,
-            "reason": null
+            "patched": false,
+            "skipped": true,
+            "reason": "plugin install browser fallback opens install url replacement already present"
           }
         ]
       }

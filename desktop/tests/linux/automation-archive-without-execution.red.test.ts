@@ -27,14 +27,16 @@ describe('Automation run archive regression gate (RED)', () => {
   test('worktree automations derive starting state from the active branch and fall back to HEAD', () => {
     const mainSource = readRecoveredMainBundle();
 
-    expect(mainSource).toContain('async function Dt(e,n,r){let i=(await n.getWorktreeRepository(e,r))?.root;');
-    expect(mainSource).toContain('branchName:(await t.Rt(i,r))?.branch??`HEAD`');
+    expect(mainSource).toMatch(
+      /async function [A-Za-z_$][\w$]*\(e,n,r\)\{let i=\(await n\.getWorktreeRepository\(e,r\)\)\?\.root;/,
+    );
+    expect(mainSource).toMatch(/branchName:\(await t\.Rt\(i,r\)\)\?\.branch\?\?`HEAD`/);
     expect(mainSource).toContain('{type:`branch`,branchName:`HEAD`}');
     expect(mainSource).toContain(
       'E=n.executionEnvironment===`worktree`&&!_&&(await o.getWorktreeRepository(v,l))?.root!=null',
     );
-    expect(mainSource).toContain(
-      'let e=await Dt(v,o,l),r=await t.It({gitManager:o,workspaceRoot:v,startingState:e,localEnvironmentConfigPath:n.localEnvironmentConfigPath,appServerClient:l});',
+    expect(mainSource).toMatch(
+      /let e=await [A-Za-z_$][\w$]*\(v,o,l\),r=await t\.It\(\{gitManager:o,workspaceRoot:v,startingState:e,localEnvironmentConfigPath:n\.localEnvironmentConfigPath,appServerClient:l\}\);/,
     );
   });
 });

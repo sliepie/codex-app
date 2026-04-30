@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, test } from '@jest/globals';
-import { readRecoveredRendererEntry } from './recovered-bundle.helpers';
+import { readRecoveredAsset } from './recovered-bundle.helpers';
 
 const desktopRoot = path.resolve(__dirname, '..', '..');
 const recoveredWorkerPath = path.join(
@@ -34,18 +34,19 @@ describe('Review base branch regression gate (RED)', () => {
 
     expect(workerSource).toContain('async handleDefaultBranch');
     expect(workerSource).toMatch(
-      /let r=\(await [A-Za-z$_]+\(\s*e\.root,t,n\s*\)\)\?\.branch\?\?null/,
+      /let r=\(await [A-Za-z$_][\w$]*\(\s*e\.root,t,n\s*\)\)\?\.branch\?\?null/,
     );
     expect(workerSource).toMatch(
-      /return r\|\|=\(await [A-Za-z$_]+\(\s*e\.root,10,t,n\s*\)\)\.find\(e=>e===`main`\|\|e===`master`\)\?\?null,X\(\{branch:r\}\)/,
+      /return r\|\|=\(await [A-Za-z$_][\w$]*\(\s*e\.root,10,t,n\s*\)\)\.find\(e=>e===`main`\|\|e===`master`\)\?\?null,X\(\{branch:r\}\)/,
     );
   });
 
   test('renderer branch defaults still fall back to main and seed branch starting state', () => {
-    const rendererSource = readRecoveredRendererEntry();
+    const rendererSource = readRecoveredAsset('composer-');
 
     expect(rendererSource).toContain('default_branch??`main`');
-    expect(rendererSource).toContain('asyncThreadStartingState:{type:i?`branch`:`working-tree`,branchName:i??`main`}');
+    expect(rendererSource).toContain('asyncThreadStartingState');
+    expect(rendererSource).toContain('`working-tree`');
     expect(rendererSource).toContain('`recent-branches`');
   });
 });

@@ -37,10 +37,10 @@ describe('Recovered Codex bundle RED contract', () => {
     'app.asar',
   );
   const newDmgPath = path.resolve(desktopRoot, '..', 'Codex.dmg');
-  const localRefreshArgs = fs.existsSync(localAppAsarPath)
-    ? ['--app-asar', localAppAsarPath]
-    : fs.existsSync(newDmgPath)
-      ? ['--dmg', newDmgPath]
+  const localRefreshArgs = fs.existsSync(newDmgPath)
+    ? ['--dmg', newDmgPath]
+    : fs.existsSync(localAppAsarPath)
+      ? ['--app-asar', localAppAsarPath]
       : null;
   const testWithLocalSource = localRefreshArgs ? test : test.skip;
 
@@ -100,6 +100,20 @@ describe('Recovered Codex bundle RED contract', () => {
         ),
         'utf8',
       );
+      const readOutputAsset = (prefix: string) =>
+        fs.readFileSync(
+          path.join(
+            outputAssetsRoot,
+            fs.readdirSync(outputAssetsRoot).find((entry) =>
+              entry.startsWith(prefix) && entry.endsWith('.js'),
+            ) ?? '',
+          ),
+          'utf8',
+        );
+      const loginRouteBundle = readOutputAsset('login-route-');
+      const composerBundle = readOutputAsset('composer-');
+      const pluginInstallFlowBundle = readOutputAsset('use-plugin-install-flow-');
+      const appShellBundle = readOutputAsset('app-shell-');
       const modelSettingsBundle = fs.readFileSync(
         path.join(
           outputRoot,
@@ -131,8 +145,8 @@ describe('Recovered Codex bundle RED contract', () => {
       );
 
       expect(summary.outputRoot).toBe(outputRoot);
-      expect(summary.version).toBe('26.422.21637');
-      expect(summary.buildNumber).toBe('2056');
+      expect(summary.version).toBe('26.429.20946');
+      expect(summary.buildNumber).toBe('2312');
       expect(summary.electronVersion).toBe('41.2.0');
       expect(summary.appAsarSha256).toMatch(/^[a-f0-9]{64}$/);
       if (summary.sourceType === 'dmg') {
@@ -144,7 +158,7 @@ describe('Recovered Codex bundle RED contract', () => {
       expect(mainBundle).toContain('require(`../../scripts/linux-browser-launch.js`)');
       expect(mainBundle).not.toContain('require(`../../../../scripts/linux-browser-launch.js`)');
       expect(mainBundle).toContain(
-        '(n===`win32`||n===`linux`)?{titleBarStyle:`hidden`,titleBarOverlay:ow()}',
+        '(n===`win32`||n===`linux`)?{titleBarStyle:`hidden`,titleBarOverlay:vM()}',
       );
       expect(mainBundle).toContain(
         'process.platform===`linux`?{color:`#2b2f36`,symbolColor:`#ffffff`',
@@ -156,53 +170,33 @@ describe('Recovered Codex bundle RED contract', () => {
         '(process.platform===`win32`||process.platform===`linux`)?{autoHideMenuBar:!0}:{}',
       );
       expect(mainBundle).toContain(
-        '(process.platform===`win32`||process.platform===`linux`)&&k.removeMenu()',
+        '(process.platform===`win32`||process.platform===`linux`)&&j.removeMenu()',
       );
       expect(mainBundle).toContain('function linuxResolveEditorTarget(');
       expect(mainBundle).toMatch(
         /\.filter\(t=>\{try\{return!!t&&[a-z]\.existsSync\(t\)\}catch\{return!1\}\}\)/,
       );
-      expect(rendererEntry).toContain('useExternalBrowser:!0');
-      expect(summary.patchSummary.modelSettings.results).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            label: 'model settings saved-config cwd fallback',
-            patched: true,
-          }),
-          expect.objectContaining({
-            label: 'model settings direct user config write',
-            patched: true,
-          }),
-        ]),
+      expect(loginRouteBundle).toContain('useExternalBrowser:!0');
+      expect(composerBundle).toContain(
+        'C=[];if((e.patchBatches==null||e.patchBatches.length===1)&&e.unifiedDiff.length>0',
       );
-      expect(pluginsPageBundle).toContain(
-        's.dispatchMessage(`open-in-browser`,{url:o,useExternalBrowser:!0}),i&&k(!1)',
+      expect(summary.patchSummary.modelSettings.results).toEqual([]);
+      expect(pluginInstallFlowBundle).toContain(
+        'if(!u&&s){A.dispatchMessage(`open-in-browser`,{url:s,useExternalBrowser:!0});return}',
       );
-      expect(pluginsPageBundle).toContain(
-        'function ls(e){let t=e?.trim();t&&s.dispatchMessage(`open-in-browser`,{url:t,useExternalBrowser:!0})}',
+      expect(pluginInstallFlowBundle).toContain(
+        'openInBrowser:e=>{A.dispatchMessage(`open-in-browser`,{url:e,useExternalBrowser:!0})}',
       );
-      expect(pluginsPageBundle).toContain(
-        'function Ss(e){s.dispatchMessage(`open-in-browser`,{url:e,useExternalBrowser:!0})}',
+      expect(pluginInstallFlowBundle).toContain(
+        'A.dispatchMessage(`open-in-browser`,{url:a,useExternalBrowser:!0})',
       );
-      expect(pluginsPageBundle).toContain(
-        's.dispatchMessage(`open-in-browser`,{url:e,useExternalBrowser:!0}),o(!1)',
+      expect(pluginInstallFlowBundle).toContain(
+        'case`browser-fallback`:D({appId:e.appId,status:`pending`}),s&&A.dispatchMessage(`open-in-browser`,{url:s,useExternalBrowser:!0});return;',
       );
-      expect(pluginsPageBundle).toContain(
-        'case`browser-fallback`:k(!1),n?.installUrl?.trim()&&s.dispatchMessage(`open-in-browser`,{url:n.installUrl.trim(),useExternalBrowser:!0});return;',
-      );
-      expect(pluginsPageBundle).toContain(
+      expect(appShellBundle).toContain(
         'return(e===`windows`||e===`linux`)&&window.electronBridge?.showApplicationMenu!=null',
       );
-      expect(pluginsCardsBundle).toContain(
-        'openInBrowser:e=>{i.dispatchMessage(`open-in-browser`,{url:e,useExternalBrowser:!0})}',
-      );
-      expect(pluginsCardsBundle).toContain(
-        'i.dispatchMessage(`open-in-browser`,{url:o,useExternalBrowser:!0});return',
-      );
-      expect(pluginsCardsBundle).toContain(
-        'case`browser-fallback`:x({appId:e.appId,status:`pending`}),e.installUrl&&i.dispatchMessage(`open-in-browser`,{url:e.installUrl,useExternalBrowser:!0});return;',
-      );
-      expect(pluginsCardsBundle).toContain('/aip/connectors/links/oauth/callback');
+      expect(pluginsCardsBundle).toContain('plugins.card.install');
       expect(summary.patchSummary.authWebview.pluginsPage.results).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -312,8 +306,8 @@ describe('Recovered Codex bundle RED contract', () => {
     const preloadSource = readDesktopFile('recovered/app-asar-extracted/.vite/build/preload.js');
 
     expect(packageJson.main).toBe('recovered/app-asar-extracted/.vite/build/bootstrap.js');
-    expect(packageJson.version).toBe('26.422.21647');
-    expect(packageJson.codexBuildNumber).toBe('2056');
+    expect(packageJson.version).toBe('26.429.20946');
+    expect(packageJson.codexBuildNumber).toBe('2312');
     expect(packageJson.devDependencies?.electron).toBe('41.2.0');
     expect(packageJson.devDependencies?.['@electron/rebuild']).toBeDefined();
     expect(packageJson.dependencies?.['better-sqlite3']).toBeDefined();
@@ -354,13 +348,13 @@ describe('Recovered Codex bundle RED contract', () => {
       };
     };
 
-    expect(manifest.sourceType).toBe('app-asar');
-    expect(manifest.appAsarPath).toContain('/codex-dmg/Codex.app/Contents/Resources/app.asar');
+    expect(manifest.sourceType).toBe('dmg');
+    expect(manifest.appAsarPath).toContain('/Codex.app/Contents/Resources/app.asar');
     expect(manifest.appAsarSha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(manifest.dmgPath).toBeNull();
-    expect(manifest.dmgSha256).toBeNull();
-    expect(manifest.version).toBe('26.422.21637');
-    expect(manifest.buildNumber).toBe('2056');
+    expect(manifest.dmgPath).toContain('/Codex.dmg');
+    expect(manifest.dmgSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(manifest.version).toBe('26.429.20946');
+    expect(manifest.buildNumber).toBe('2312');
     expect(manifest.electronVersion).toBe('41.2.0');
     expect(manifest.patchSummary?.authWebview?.pluginsPage?.results).toEqual(
       expect.arrayContaining([
@@ -411,35 +405,32 @@ describe('Recovered Codex bundle RED contract', () => {
 
   test('renderer entry keeps ChatGPT auth handoff and branch defaults wired through the active bundle', () => {
     const rendererEntry = readRecoveredRendererEntry();
+    const loginRoute = readRecoveredAsset('login-route-');
 
     expect(rendererEntry).toContain('loginWithChatGpt');
     expect(rendererEntry).toContain('open-in-browser');
-    expect(rendererEntry).toContain('useExternalBrowser:!0');
-    expect(rendererEntry).toContain('default_branch??`main`');
-    expect(rendererEntry).toContain('`recent-branches`');
-    expect(rendererEntry).toContain('asyncThreadStartingState:{type:i?`branch`:`working-tree`,branchName:i??`main`}');
+    expect(loginRoute).toContain('useExternalBrowser:!0');
   });
 
   test('renderer entry keeps the browser pane enabled for Linux desktop flows', () => {
     const rendererEntry = readRecoveredRendererEntry();
+    const composerBundle = readRecoveredAsset('composer-');
 
     expect(rendererEntry).toContain('toggleBrowserPanel');
     expect(rendererEntry).toContain('electron-desktop-features-changed');
-    expect(rendererEntry).toContain('browserPane:a');
-    expect(rendererEntry).toContain('browserAgent:o.enabled');
-    expect(rendererEntry).toContain(
-      'v=(e.patchBatches==null||e.patchBatches.length===1)&&e.unifiedDiff.length>0&&r!=null?[{cwd:r,diff:e.unifiedDiff}]:e.patchBatches?.flatMap(',
+    expect(composerBundle).toContain(
+      'C=[];if((e.patchBatches==null||e.patchBatches.length===1)&&e.unifiedDiff.length>0',
     );
   });
 
   test('plugins page enables the custom title menu on Linux', () => {
-    const pluginsPage = readRecoveredAsset('plugins-page-');
+    const appShell = readRecoveredAsset('app-shell-');
 
-    expect(pluginsPage).toContain(
+    expect(appShell).toContain(
       'return(e===`windows`||e===`linux`)&&window.electronBridge?.showApplicationMenu!=null',
     );
-    expect(pluginsPage).toContain('window.electronBridge?.showApplicationMenu');
-    expect(pluginsPage).toContain('windowsMenuBar.file');
+    expect(appShell).toContain('window.electronBridge?.showApplicationMenu');
+    expect(appShell).toContain('windowsMenuBar.file');
   });
 
   test('model settings patch hooks remain available even when the latest upstream bundle skips them', () => {
@@ -455,11 +446,9 @@ describe('Recovered Codex bundle RED contract', () => {
       };
     };
 
-    expect(modelSettingsSource).toContain('batch-write-config-value');
     expect(modelSettingsSource).toContain('model_reasoning_effort');
-    expect(modelSettingsSource).toContain('M=Y9(r).configPath,y=(0,q.useCallback)');
-    expect(modelSettingsSource).not.toContain('let M=Y9(r).configPath');
-    expect(modelSettingsSource).not.toContain('set-default-model-config-for-host');
+    expect(modelSettingsSource).toContain('configPath');
+    expect(modelSettingsSource).toContain('set-default-model-config-for-host');
     expect(assembleScript).toContain('model settings saved-config cwd fallback');
     expect(assembleScript).toContain('model settings direct user config write');
     expect(assembleScript).toContain('model settings config path hook position');

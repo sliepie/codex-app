@@ -43,6 +43,10 @@ describe('Linux browser-session auth handoff', () => {
   test('compiled auth bundles request native external browser handling for ChatGPT sign-in flows', () => {
     const mainBundle = fs.readFileSync(requireRecoveredBuildAsset(/^main-.*\.js$/), 'utf8');
     const rendererEntry = fs.readFileSync(requireRecoveredRendererEntry(), 'utf8');
+    const loginRouteBundle = fs.readFileSync(
+      requireRecoveredWebAsset(/^login-route-.*\.js$/),
+      'utf8',
+    );
     const remoteConnectionsBundle = fs.readFileSync(
       requireRecoveredWebAsset(/^remote-connections-settings-.*\.js$/),
       'utf8',
@@ -53,7 +57,7 @@ describe('Linux browser-session auth handoff', () => {
     expect(mainBundle).toContain('useExternalBrowser===!0');
     expect(rendererEntry).toContain('loginWithChatGpt');
     expect(rendererEntry).toContain('open-in-browser');
-    expect(rendererEntry).toContain('useExternalBrowser:!0');
+    expect(loginRouteBundle).toContain('useExternalBrowser:!0');
     expect(remoteConnectionsBundle).toContain('login-with-chatgpt-for-host');
     expect(remoteConnectionsBundle).toContain('authUrl');
     expect(remoteConnectionsBundle).toContain('open-in-browser');
