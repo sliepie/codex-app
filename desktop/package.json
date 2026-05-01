@@ -9,22 +9,16 @@
   "codexBuildFlavor": "prod",
   "codexBuildNumber": "2312",
   "scripts": {
-    "rebuild:natives": "electron-rebuild -f -w better-sqlite3,node-pty",
+    "rebuild:natives": "electron-rebuild -f --only better-sqlite3",
     "start": "npm run rebuild:natives && electron-forge start",
     "package": "npm run rebuild:natives && electron-forge package",
-    "assemble:codex-runtime": "node ./scripts/assemble-codex-runtime.mjs",
-    "build:codex:linux": "node ./scripts/build-codex-linux-runtime.mjs",
-    "stage:codex-package": "node ./scripts/stage-codex-package.mjs",
+    "package:win:arm64": "npm run rebuild:natives && electron-forge package --platform win32 --arch arm64",
+    "refresh:recovered": "node ./scripts/refresh-recovered-from-dmg.mjs",
     "make": "npm run rebuild:natives && electron-forge make",
-    "make:linux": "npm run rebuild:natives && electron-forge make --platform linux",
-    "make:linux:arm64:deb": "npm run rebuild:natives && CODEX_LINUX_HELPER_ARCH=linux-arm64 electron-forge make --platform linux --arch arm64 --targets deb",
+    "make:win:arm64": "npm run package:win:arm64 && npm run zip:win:arm64",
+    "zip:win:arm64": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/zip-windows-arm64.ps1",
     "publish": "npm run rebuild:natives && electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx .",
-    "test": "node ./tests/linux/run-jest.cjs",
-    "test:linux": "node ./tests/linux/run-jest.cjs --runInBand",
-    "test:linux:codex-package": "node ./tests/linux/run-jest.cjs ./tests/linux/codex-package.red.test.ts --runInBand",
-    "test:linux:ci": "node ./tests/linux/run-jest.cjs --ci --runInBand",
-    "test:linux:red": "node ./tests/linux/run-jest.cjs --runInBand --runTestsByPath ./tests/linux/linux-regression.contract.test.ts"
+    "lint": "eslint --ext .ts,.tsx ."
   },
   "keywords": [
     "electron",
@@ -35,17 +29,12 @@
   "license": "UNLICENSED",
   "devDependencies": {
     "@electron-forge/cli": "^7.11.1",
-    "@electron-forge/maker-deb": "^7.11.1",
-    "@electron-forge/maker-rpm": "^7.11.1",
-    "@electron-forge/maker-squirrel": "^7.11.1",
     "@electron-forge/maker-zip": "^7.11.1",
     "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
     "@electron-forge/plugin-fuses": "^7.11.1",
     "@electron-forge/shared-types": "^7.11.1",
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.3",
-    "@reforged/maker-appimage": "^5.2.0",
-    "@types/electron-squirrel-startup": "^1.0.2",
     "@types/jest": "^30.0.0",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
@@ -59,7 +48,6 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",
-    "electron-squirrel-startup": "^1.0.1",
     "node-pty": "^1.1.0",
     "tslib": "^2.8.1"
   }

@@ -1,27 +1,32 @@
-# codex-app
+# codex-app-win-arm64
 
-![Codex app screenshot](docs/images/codex-app-screenshot.png)
+Codex desktop app packaging and release repository for Windows ARM64.
 
-Codex desktop app packaging and release repository.
-
-This repo tracks the Linux packaging pipeline for Codex and publishes installable release artifacts.
+This repo tracks an Electron-based Windows ARM64 packaging pipeline that keeps
+the recovered Codex app payload in git and builds release ZIP artifacts from a
+native Windows ARM64 GitHub Actions runner.
 
 ## Layout
 
-- `desktop/`: Electron Forge workspace used to build Linux release packages
-- `codex/`: canonical current upstream payload root used for the active Linux refresh line
+- `desktop/`: Electron Forge workspace used to build Windows ARM64 release ZIPs.
+- `desktop/recovered/app-asar-extracted/`: recovered Codex app payload used by
+  the active packaging line.
+- `codex/`: canonical upstream payload root kept for comparison and refresh work.
 
 GitHub release artifacts:
-- Install from GitHub Releases using packaged artifacts (`.AppImage` / `.deb` / `.rpm`).
-- Built Linux installers are release-only outputs and are not tracked in git.
-- Current Linux artifact versioning follows the embedded Electron app version `26.422.21647`; the embedded build number is `2056`.
-- Release tags like `v26.422.21647` trigger `.github/workflows/linux-release.yml`.
 
-Arch Linux / Yay:
-- AUR metadata lives in `packaging/aur/openai-codex-desktop-bin`.
-- The AUR package is a `-bin` package that downloads the published GitHub `.deb`, verifies its SHA-256, and repackages it for pacman.
-- Do not commit generated AUR source downloads or `*.pkg.tar.*` package outputs.
+- Release tags like `v26.429.20946` trigger `.github/workflows/windows-arm64-release.yml`.
+- Built ZIPs are release-only outputs and are not tracked in git.
+- The app expects the Codex CLI path to be supplied by the runtime environment;
+  this package does not vendor the CLI helper binaries into Electron resources.
 
-## Notes
+## Local Build
 
-- Built installers and packaging outputs are release artifacts and should not be committed to git.
+From `desktop/`:
+
+```powershell
+npm ci
+npm run make:win:arm64
+```
+
+The ZIP output is written under `desktop/out/make`.

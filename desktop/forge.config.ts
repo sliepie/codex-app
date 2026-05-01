@@ -1,71 +1,18 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
-import path from 'node:path';
 
-import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
-import { MakerDeb } from '@electron-forge/maker-deb';
-import { MakerRpm } from '@electron-forge/maker-rpm';
 import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
 import {
-  applyRecoveredLinuxHelperEnv,
   closeRecoveredWebviewDevServer,
   ensureRecoveredWebviewDevServer,
 } from './dev/recovered-webview-dev-server';
-import { CODEX_PROTOCOL_MIME_TYPE } from './src/main/linux/protocol-registration';
-
-const linuxIconRoot = path.resolve(__dirname, 'assets/icons');
-const linuxPackagerIcon = path.join(linuxIconRoot, 'codex-logo-512.png');
-const linuxDesktopEntryRoot = path.resolve(__dirname, 'assets/linux');
-const linuxDebDesktopTemplate = path.join(
-  linuxDesktopEntryRoot,
-  'codex-deb.desktop.ejs',
-);
-const linuxAppImageDesktopFile = path.join(
-  linuxDesktopEntryRoot,
-  'codex-appimage.desktop',
-);
-const linuxAppImageIconSet = {
-  default: '512x512',
-  strict: true,
-  '32x32': path.join(linuxIconRoot, 'codex-logo-32.png'),
-  '64x64': path.join(linuxIconRoot, 'codex-logo-64.png'),
-  '128x128': path.join(linuxIconRoot, 'codex-logo-128.png'),
-  '256x256': path.join(linuxIconRoot, 'codex-logo-256.png'),
-  '512x512': path.join(linuxIconRoot, 'codex-logo-512.png'),
-};
-const supportedLinuxHelperResourceDirs = new Set(['linux-x64', 'linux-arm64']);
-
-function resolveLinuxHelperResourceDir(): string {
-  const requested = process.env.CODEX_LINUX_HELPER_ARCH ?? 'linux-x64';
-
-  if (!supportedLinuxHelperResourceDirs.has(requested)) {
-    throw new Error(
-      `Unsupported CODEX_LINUX_HELPER_ARCH "${requested}". ` +
-        `Expected one of: ${Array.from(supportedLinuxHelperResourceDirs).join(', ')}`,
-    );
-  }
-
-  return requested;
-}
-
-const linuxHelperResourceRoot = path.resolve(
-  __dirname,
-  'resources',
-  'bin',
-  resolveLinuxHelperResourceDir(),
-);
 
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    icon: linuxPackagerIcon,
-    extraResource: [
-      path.join(linuxHelperResourceRoot, 'codex'),
-      path.join(linuxHelperResourceRoot, 'rg'),
-    ],
     ignore: (file) => {
       if (!file) {
         return false;
@@ -89,8 +36,6 @@ const config: ForgeConfig = {
         '/node_modules',
         '/node_modules/node-pty',
         '/node_modules/better-sqlite3',
-        '/scripts/linux-browser-launch.js',
-        '/resources',
       ].some((allowedPath) => file.startsWith(allowedPath));
     },
     protocols: [
@@ -100,10 +45,12 @@ const config: ForgeConfig = {
       },
     ],
   },
-  rebuildConfig: {},
+  rebuildConfig: {
+    onlyModules: ['better-sqlite3'],
+    ignoreModules: ['node-pty'],
+  },
   hooks: {
     preStart: async () => {
-      applyRecoveredLinuxHelperEnv();
       await ensureRecoveredWebviewDevServer();
     },
     postStart: async (_forgeConfig, appProcess) => {
@@ -113,44 +60,7 @@ const config: ForgeConfig = {
     },
   },
   makers: [
-    new MakerSquirrel({}),
-    new MakerZIP({}, ['darwin']),
-    new MakerDeb(
-      {
-        mimeType: [CODEX_PROTOCOL_MIME_TYPE],
-        options: {
-          bin: 'Codex',
-          categories: ['Development'],
-          desktopTemplate: linuxDebDesktopTemplate,
-          icon: linuxPackagerIcon,
-        },
-      },
-      ['linux'],
-    ),
-    new MakerRpm(
-      {
-        mimeType: [CODEX_PROTOCOL_MIME_TYPE],
-        options: {
-          bin: 'Codex',
-          categories: ['Development'],
-          icon: linuxPackagerIcon,
-        },
-      },
-      ['linux'],
-    ),
-    {
-      name: '@reforged/maker-appimage',
-      platforms: ['linux'],
-      config: {
-        options: {
-          bin: 'Codex',
-          categories: ['Development'],
-          desktopFile: linuxAppImageDesktopFile,
-          icon: linuxAppImageIconSet,
-          mimeType: [CODEX_PROTOCOL_MIME_TYPE],
-        },
-      },
-    },
+    new MakerZIP({}, ['win32']),
   ],
   plugins: [
     new AutoUnpackNativesPlugin({}),

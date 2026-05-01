@@ -1,9 +1,0 @@
-[Desktop Entry]
-Version=1.5
-Type=Application
-Name=Codex
-Exec=Codex %u
-Icon=codex-desktop
-Categories=Development;
-MimeType=x-scheme-handler/codex;
-StartupNotify=true
