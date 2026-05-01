@@ -10,9 +10,16 @@ if (-not (Test-Path -LiteralPath $packageRoot)) {
 
 $version = $env:CODEX_RELEASE_VERSION
 if ([string]::IsNullOrWhiteSpace($version)) {
-    $packageJson = Get-Content -LiteralPath (Join-Path $desktopRoot "package.json") -Raw |
-        ConvertFrom-Json
-    $version = $packageJson.version
+    $releaseInfoPath = Join-Path $desktopRoot ".cache\codex-app\latest-release.json"
+    if (-not (Test-Path -LiteralPath $releaseInfoPath)) {
+        throw "Missing hydrated Codex app release info: $releaseInfoPath"
+    }
+
+    $releaseInfo = Get-Content -LiteralPath $releaseInfoPath -Raw | ConvertFrom-Json
+    $version = $releaseInfo.version
+}
+if ([string]::IsNullOrWhiteSpace($version)) {
+    throw "Missing Codex release version."
 }
 
 New-Item -ItemType Directory -Force -Path $assetRoot | Out-Null

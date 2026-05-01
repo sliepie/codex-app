@@ -1,13 +1,12 @@
 {
   "name": "codex-desktop",
   "productName": "Codex",
-  "version": "26.429.20946",
+  "version": "0.0.0",
   "description": "Codex",
   "main": "recovered/app-asar-extracted/.vite/build/bootstrap.js",
   "private": true,
   "author": "OpenAI",
   "codexBuildFlavor": "prod",
-  "codexBuildNumber": "2312",
   "scripts": {
     "rebuild:natives": "electron-rebuild -f --only better-sqlite3",
     "hydrate:app": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/hydrate-codex-app.ps1",

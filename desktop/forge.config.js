@@ -1,10 +1,19 @@
 const { AutoUnpackNativesPlugin } = require('@electron-forge/plugin-auto-unpack-natives');
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const releaseInfoPath = path.join(__dirname, '.cache', 'codex-app', 'latest-release.json');
+const releaseInfo = fs.existsSync(releaseInfoPath)
+  ? JSON.parse(fs.readFileSync(releaseInfoPath, 'utf8'))
+  : null;
 
 const config = {
   packagerConfig: {
     asar: true,
+    appVersion: releaseInfo?.version,
+    buildVersion: releaseInfo?.buildNumber,
     ignore: (file) => {
       if (!file) {
         return false;
