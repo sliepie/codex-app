@@ -1,2 +1,0 @@
-import{_ as e,qr as t}from"./vscode-api-Cq49c5Gl.js";import{t as n}from"./persisted-signal-DdRKzKeP.js";var r=t(e,`hidden`),i=n(`has-seen-remote-connections-home-announcement`,!1);export{r as n,i as t};
-//# sourceMappingURL=remote-connections-onboarding-signals-7CoVuTqw.js.map

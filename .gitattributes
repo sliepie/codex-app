@@ -1,2 +1,1 @@
-desktop/resources/bin/linux-x64/codex filter=lfs diff=lfs merge=lfs -text
-codex/app/resources/codex filter=lfs diff=lfs merge=lfs -text
+# This repository intentionally does not track app payloads or helper binaries.

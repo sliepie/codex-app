@@ -1,24 +1,21 @@
 # codex-app-win-arm64
 
-Codex desktop app packaging and release repository for Windows ARM64.
+Codex desktop app packaging for Windows ARM64.
 
-This repo tracks an Electron-based Windows ARM64 packaging pipeline that keeps
-the recovered Codex app payload in git and builds release ZIP artifacts from a
-native Windows ARM64 GitHub Actions runner.
+This repo builds a Windows ARM64 Electron package from the official Codex app
+payload version recorded in `codex-app-version.json`. It does not track the
+extracted Codex app payload, Windows Store package resources, Electron output,
+or Codex CLI helper binaries.
 
 ## Layout
 
-- `desktop/`: Electron Forge workspace used to build Windows ARM64 release ZIPs.
-- `desktop/recovered/app-asar-extracted/`: recovered Codex app payload used by
-  the active packaging line.
-- `codex/`: canonical upstream payload root kept for comparison and refresh work.
-
-GitHub release artifacts:
-
-- Release tags like `v26.429.20946` trigger `.github/workflows/windows-arm64-release.yml`.
-- Built ZIPs are release-only outputs and are not tracked in git.
-- The app expects the Codex CLI path to be supplied by the runtime environment;
-  this package does not vendor the CLI helper binaries into Electron resources.
+- `codex-app-version.json`: Codex app version and official appcast URL.
+- `desktop/`: minimal Electron Forge packaging workspace.
+- `desktop/scripts/hydrate-codex-app.ps1`: downloads the matching upstream
+  Codex app ZIP from the appcast and extracts `app.asar`.
+- `desktop/scripts/refresh-recovered-from-dmg.mjs`: extracts the app payload
+  into `desktop/recovered/app-asar-extracted/`.
+- `desktop/scripts/zip-windows-arm64.ps1`: zips the packaged Windows ARM64 app.
 
 ## Local Build
 
@@ -29,4 +26,6 @@ npm ci
 npm run make:win:arm64
 ```
 
-The ZIP output is written under `desktop/out/make`.
+The build hydrates `desktop/recovered/app-asar-extracted/` from the official
+appcast before packaging. The ZIP output is written under
+`desktop/out/release-assets/`.

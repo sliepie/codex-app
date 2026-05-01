@@ -1,2 +1,0 @@
-import{sn as e}from"./vscode-api-Cq49c5Gl.js";import{t}from"./use-auth-C02AaUWN.js";import{t as n}from"./use-global-state-BskHB3H6.js";import{n as r}from"./use-window-type-DtYfqBCs.js";function i(){let{data:i,isLoading:a}=n(e.NUX_2025_09_15),{authMethod:o}=t();if(r()!==`extension`)return`none`;if(!a){if(i)return`none`;switch(o){case`chatgptAuthTokens`:case`chatgpt`:return`2025-09-15-full-chatgpt-auth`;case`apikey`:case`agentIdentity`:case`copilot`:return`2025-09-15-apikey-auth`;case null:return`none`}}}export{i as t};
-//# sourceMappingURL=use-nux-C3yuC7AJ.js.map
