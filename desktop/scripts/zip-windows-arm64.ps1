@@ -30,7 +30,12 @@ if (Test-Path -LiteralPath $assetPath) {
     Remove-Item -LiteralPath $assetPath -Force
 }
 
-Compress-Archive -LiteralPath (Join-Path $packageRoot "*") -DestinationPath $assetPath
+$packageContents = Get-ChildItem -LiteralPath $packageRoot -Force
+if ($packageContents.Count -eq 0) {
+    throw "Windows ARM64 package root is empty: $packageRoot"
+}
+
+Compress-Archive -Path $packageContents.FullName -DestinationPath $assetPath
 
 @"
 Windows ARM64 artifact in this release:
