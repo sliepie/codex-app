@@ -12,6 +12,8 @@ CLI helper binaries.
 - `desktop/`: minimal Electron Forge packaging workspace.
 - `desktop/scripts/hydrate-codex-app.ps1`: downloads the latest upstream Codex
   app ZIP from the appcast and extracts `app.asar`.
+- `desktop/scripts/hydrate-codex-cli.ps1`: downloads the latest Windows ARM64
+  Codex CLI and helper binaries from `openai/codex`.
 - `desktop/scripts/refresh-recovered-from-dmg.mjs`: extracts the app payload
   into `desktop/recovered/app-asar-extracted/`.
 - `desktop/scripts/zip-windows-arm64.ps1`: zips the packaged Windows ARM64 app.
@@ -26,5 +28,6 @@ npm run make:win:arm64
 ```
 
 The build hydrates `desktop/recovered/app-asar-extracted/` from the official
-appcast before packaging. The ZIP output is written under
+appcast and downloads the Windows ARM64 Codex CLI resources before packaging.
+The ZIP output is written under
 `desktop/out/release-assets/`.

@@ -61,6 +61,11 @@ const config = {
     asar: true,
     appVersion: releaseInfo?.version,
     buildVersion: releaseInfo?.buildNumber,
+    extraResource: [
+      'resources/codex.exe',
+      'resources/codex-windows-sandbox-setup.exe',
+      'resources/codex-command-runner.exe',
+    ],
     ignore: (file) => {
       if (!file) {
         return false;
