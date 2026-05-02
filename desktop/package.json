@@ -11,11 +11,12 @@
   },
   "codexBuildFlavor": "prod",
   "scripts": {
-    "rebuild:natives": "electron-rebuild -f --only better-sqlite3",
+    "rebuild:natives": "electron-rebuild -f --arch arm64 --only better-sqlite3",
     "hydrate:app": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/hydrate-codex-app.ps1",
     "hydrate:cli": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/hydrate-codex-cli.ps1",
     "package:win:arm64": "npm run hydrate:app && npm run hydrate:cli && npm run rebuild:natives && electron-forge package --platform win32 --arch arm64",
     "refresh:recovered": "node ./scripts/refresh-recovered-from-dmg.mjs",
+    "make:win:arm64:ci": "npm run hydrate:app && npm run hydrate:cli && electron-forge make --platform win32 --arch arm64",
     "make:win:arm64": "npm run hydrate:app && npm run hydrate:cli && npm run rebuild:natives && electron-forge make --platform win32 --arch arm64"
   },
   "keywords": [

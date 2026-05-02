@@ -74,10 +74,30 @@ jobs:
         working-directory: desktop
         run: npm ci
 
+      - name: Restore better-sqlite3 native cache
+        id: better-sqlite3-native
+        if: github.event_name != 'schedule' || steps.build-marker.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: desktop/node_modules/better-sqlite3/build/Release
+          key: windows-arm64-better-sqlite3-${{ runner.os }}-${{ hashFiles('.node-version', 'desktop/package.json', 'desktop/package-lock.json') }}
+
+      - name: Rebuild better-sqlite3 native module
+        if: (github.event_name != 'schedule' || steps.build-marker.outputs.cache-hit != 'true') && steps.better-sqlite3-native.outputs.cache-hit != 'true'
+        working-directory: desktop
+        run: npm run rebuild:natives
+
+      - name: Save better-sqlite3 native cache
+        if: (github.event_name != 'schedule' || steps.build-marker.outputs.cache-hit != 'true') && steps.better-sqlite3-native.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: desktop/node_modules/better-sqlite3/build/Release
+          key: windows-arm64-better-sqlite3-${{ runner.os }}-${{ hashFiles('.node-version', 'desktop/package.json', 'desktop/package-lock.json') }}
+
       - name: Make Windows ARM64 ZIP
         if: github.event_name != 'schedule' || steps.build-marker.outputs.cache-hit != 'true'
         working-directory: desktop
-        run: npm run make:win:arm64
+        run: npm run make:win:arm64:ci
 
       - name: Upload Windows ARM64 artifact
         if: github.event_name != 'schedule' || steps.build-marker.outputs.cache-hit != 'true'
