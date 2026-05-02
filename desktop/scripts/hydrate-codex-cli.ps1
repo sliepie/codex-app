@@ -1,5 +1,5 @@
 param(
-    [string] $ReleaseApiUrl = "https://api.github.com/repos/openai/codex/releases/latest",
+    [string] $CodexRepo = "openai/codex",
     [string] $CacheRoot,
     [switch] $Force
 )
@@ -15,7 +15,16 @@ $resourcesRoot = Join-Path $desktopRoot "resources"
 New-Item -ItemType Directory -Force -Path $CacheRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $resourcesRoot | Out-Null
 
-$release = Invoke-RestMethod -Uri $ReleaseApiUrl
+if ([string]::IsNullOrWhiteSpace($CodexRepo)) {
+    throw "Missing Codex GitHub repository."
+}
+
+$releaseJson = & gh release view --repo $CodexRepo --json tagName,name,url,assets 2>&1
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to resolve latest Codex release from $CodexRepo. $releaseJson"
+}
+
+$release = $releaseJson | ConvertFrom-Json
 $assetsByName = @{}
 foreach ($asset in $release.assets) {
     $assetsByName[$asset.name] = $asset
@@ -39,7 +48,7 @@ $requiredAssets = @(
 $hydratedAssets = @()
 foreach ($requiredAsset in $requiredAssets) {
     $asset = $assetsByName[$requiredAsset.AssetName]
-    if ($null -eq $asset -or [string]::IsNullOrWhiteSpace($asset.browser_download_url)) {
+    if ($null -eq $asset -or [string]::IsNullOrWhiteSpace($asset.url)) {
         throw "Missing Codex release asset: $($requiredAsset.AssetName)"
     }
 
@@ -50,24 +59,24 @@ foreach ($requiredAsset in $requiredAssets) {
         Remove-Item -LiteralPath $downloadPath -Force
     }
     if (-not (Test-Path -LiteralPath $downloadPath)) {
-        Invoke-WebRequest -UseBasicParsing -Uri $asset.browser_download_url -OutFile $downloadPath
+        Invoke-WebRequest -UseBasicParsing -Uri $asset.url -OutFile $downloadPath
     }
 
     Copy-Item -LiteralPath $downloadPath -Destination $outputPath -Force
     $hydratedAssets += [ordered] @{
         assetName = $requiredAsset.AssetName
         outputName = $requiredAsset.OutputName
-        downloadUrl = $asset.browser_download_url
+        downloadUrl = $asset.url
         size = $asset.size
     }
 }
 
 $releaseInfoPath = Join-Path $CacheRoot "latest-release.json"
 [ordered] @{
-    tagName = $release.tag_name
+    tagName = $release.tagName
     name = $release.name
-    htmlUrl = $release.html_url
+    htmlUrl = $release.url
     assets = $hydratedAssets
 } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $releaseInfoPath
 
-Write-Output "Hydrated Codex CLI $($release.tag_name) into $resourcesRoot"
+Write-Output "Hydrated Codex CLI $($release.tagName) into $resourcesRoot"

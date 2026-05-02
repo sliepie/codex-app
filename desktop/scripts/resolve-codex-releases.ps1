@@ -1,6 +1,6 @@
 param(
     [string] $AppcastUrl = "https://persistent.oaistatic.com/codex-app-prod/appcast.xml",
-    [string] $ReleaseApiUrl = "https://api.github.com/repos/openai/codex/releases/latest"
+    [string] $CodexCliRepo = "openai/codex"
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,8 +22,8 @@ function Write-GitHubOutput {
 if ([string]::IsNullOrWhiteSpace($AppcastUrl)) {
     throw "Missing Codex appcast URL."
 }
-if ([string]::IsNullOrWhiteSpace($ReleaseApiUrl)) {
-    throw "Missing Codex CLI release API URL."
+if ([string]::IsNullOrWhiteSpace($CodexCliRepo)) {
+    throw "Missing Codex CLI GitHub repository."
 }
 
 [xml] $appcast = (Invoke-WebRequest -UseBasicParsing -Uri $AppcastUrl).Content
@@ -46,14 +46,19 @@ if ($null -ne $buildNode) {
     $buildNumber = $buildNode.InnerText
 }
 
-$cliRelease = Invoke-RestMethod -Uri $ReleaseApiUrl
-if ([string]::IsNullOrWhiteSpace($cliRelease.tag_name)) {
+$cliReleaseJson = & gh release view --repo $CodexCliRepo --json tagName 2>&1
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to resolve latest Codex CLI release from $CodexCliRepo. $cliReleaseJson"
+}
+
+$cliRelease = $cliReleaseJson | ConvertFrom-Json
+if ([string]::IsNullOrWhiteSpace($cliRelease.tagName)) {
     throw "The selected Codex CLI release does not have a tag name."
 }
 
 $appVersion = $versionNode.InnerText
-$cliTag = $cliRelease.tag_name
-$releaseTag = $appVersion
+$cliTag = $cliRelease.tagName
+$releaseTag = "codex-app-$appVersion"
 $buildMarkerKey = "windows-arm64-built-app-$appVersion-build-$buildNumber"
 $hydrationCacheKey = "windows-arm64-hydrated-app-$appVersion-build-$buildNumber-cli-$cliTag"
 
