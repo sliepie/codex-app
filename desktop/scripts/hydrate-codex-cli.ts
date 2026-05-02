@@ -1,10 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { createWriteStream } from "node:fs";
 import fs from "node:fs";
 import path from "node:path";
-import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import { fileURLToPath } from "node:url";
 
 type ReleaseAsset = {
   name: string;
@@ -30,9 +26,7 @@ type Options = {
   force: boolean;
 };
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const desktopRoot = path.resolve(__dirname, "..");
+const desktopRoot = process.cwd();
 
 const requiredAssets: RequiredAsset[] = [
   {
@@ -83,7 +77,7 @@ async function downloadFile(url: string, outputPath: string): Promise<void> {
     throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
   }
 
-  await pipeline(Readable.fromWeb(response.body), createWriteStream(outputPath));
+  fs.writeFileSync(outputPath, Buffer.from(await response.arrayBuffer()));
 }
 
 async function main(): Promise<void> {

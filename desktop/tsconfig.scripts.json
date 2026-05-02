@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "rootDir": "scripts",
+    "outDir": ".cache/scripts",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["scripts/hydrate-codex-app.ts", "scripts/hydrate-codex-cli.ts"]
+}
