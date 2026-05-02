@@ -10,9 +10,9 @@ CLI helper binaries.
 ## Layout
 
 - `desktop/`: minimal Electron Forge packaging workspace.
-- `desktop/scripts/hydrate-codex-app.ps1`: downloads the latest upstream Codex
+- `desktop/scripts/hydrate-codex-app.ts`: downloads the latest upstream Codex
   app ZIP from the appcast and extracts `app.asar`.
-- `desktop/scripts/hydrate-codex-cli.ps1`: downloads the latest Windows ARM64
+- `desktop/scripts/hydrate-codex-cli.ts`: downloads the latest Windows ARM64
   Codex CLI and helper binaries from `openai/codex`.
 - `desktop/scripts/refresh-recovered-from-dmg.mjs`: extracts the app payload
   into `desktop/recovered/app-asar-extracted/`.
@@ -23,7 +23,7 @@ CLI helper binaries.
 
 From `desktop/`:
 
-```powershell
+```shell
 fnm install 22
 fnm use 22
 npm ci

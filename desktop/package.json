@@ -12,8 +12,8 @@
   "codexBuildFlavor": "prod",
   "scripts": {
     "rebuild:natives": "electron-rebuild -f --arch arm64 --only better-sqlite3",
-    "hydrate:app": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/hydrate-codex-app.ps1",
-    "hydrate:cli": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/hydrate-codex-cli.ps1",
+    "hydrate:app": "tsx ./scripts/hydrate-codex-app.ts",
+    "hydrate:cli": "tsx ./scripts/hydrate-codex-cli.ts",
     "package:win:arm64": "npm run hydrate:app && npm run hydrate:cli && npm run rebuild:natives && electron-forge package --platform win32 --arch arm64",
     "refresh:recovered": "node ./scripts/refresh-recovered-from-dmg.mjs",
     "make:win:arm64:ci": "npm run hydrate:app && npm run hydrate:cli && electron-forge make --platform win32 --arch arm64",
@@ -34,7 +34,9 @@
     "@electron/asar": "^3.4.1",
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.3",
-    "electron": "41.2.0"
+    "electron": "41.2.0",
+    "extract-zip": "^2.0.1",
+    "tsx": "^4.21.0"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",
