@@ -98,6 +98,23 @@ jobs:
             runId = "${{ github.run_id }}"
           } | ConvertTo-Json | Set-Content -Path .github/build-markers/windows-arm64/latest.json
 
+      - name: Tag new scheduled release
+        if: github.event_name == 'schedule' && steps.build-marker.outputs.cache-hit != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.upstream.outputs.release_tag }}" "${{ github.sha }}"
+          git push origin "${{ steps.upstream.outputs.release_tag }}"
+
+      - name: Publish scheduled GitHub release
+        if: github.event_name == 'schedule' && steps.build-marker.outputs.cache-hit != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.upstream.outputs.release_tag }}
+          name: codex-app-windows-arm64 ${{ steps.upstream.outputs.release_tag }}
+          files: |
+            desktop/out/make/zip/win32/arm64/*.zip
+
       - name: Save build marker
         if: steps.build-marker.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4

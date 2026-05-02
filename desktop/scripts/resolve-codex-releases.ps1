@@ -53,12 +53,14 @@ if ([string]::IsNullOrWhiteSpace($cliRelease.tag_name)) {
 
 $appVersion = $versionNode.InnerText
 $cliTag = $cliRelease.tag_name
+$releaseTag = "v$appVersion-cli-$cliTag"
 $buildMarkerKey = "windows-arm64-built-app-$appVersion-build-$buildNumber-cli-$cliTag"
 $hydrationCacheKey = "windows-arm64-hydrated-app-$appVersion-build-$buildNumber-cli-$cliTag"
 
 Write-GitHubOutput -Name "codex_app_version" -Value $appVersion
 Write-GitHubOutput -Name "codex_app_build" -Value $buildNumber
 Write-GitHubOutput -Name "codex_cli_tag" -Value $cliTag
+Write-GitHubOutput -Name "release_tag" -Value $releaseTag
 Write-GitHubOutput -Name "build_marker_key" -Value $buildMarkerKey
 Write-GitHubOutput -Name "hydration_cache_key" -Value $hydrationCacheKey
 
@@ -66,4 +68,5 @@ Write-GitHubOutput -Name "hydration_cache_key" -Value $hydrationCacheKey
     codexAppVersion = $appVersion
     codexAppBuild = $buildNumber
     codexCliTag = $cliTag
+    releaseTag = $releaseTag
 } | ConvertTo-Json
