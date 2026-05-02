@@ -233,6 +233,8 @@ const config = {
       'resources/codex.exe',
       'resources/codex-windows-sandbox-setup.exe',
       'resources/codex-command-runner.exe',
+      'resources/node.exe',
+      'resources/rg.exe',
     ],
     ignore: (file) => {
       if (!file) {
