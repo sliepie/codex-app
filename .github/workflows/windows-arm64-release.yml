@@ -26,10 +26,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
       - name: Resolve upstream release versions
         id: upstream
         working-directory: desktop
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/resolve-codex-releases.ps1
+        run: node ./scripts/resolve-codex-releases.mjs
 
       - name: Check build marker
         id: build-marker
@@ -44,14 +51,6 @@ jobs:
         if: env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit == 'true'
         run: |
           Write-Output "Codex app ${{ steps.upstream.outputs.codex_app_version }} build ${{ steps.upstream.outputs.codex_app_build }} with CLI ${{ steps.upstream.outputs.codex_cli_tag }} was already built."
-
-      - name: Setup Node.js
-        if: env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true'
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: .node-version
-          cache: npm
-          cache-dependency-path: desktop/package-lock.json
 
       - name: Restore Electron cache
         if: env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true'
