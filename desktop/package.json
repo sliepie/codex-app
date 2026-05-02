@@ -11,14 +11,13 @@
   },
   "codexBuildFlavor": "prod",
   "scripts": {
-    "rebuild:natives": "electron-rebuild -f --arch arm64 --only better-sqlite3",
     "build:scripts": "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json",
     "hydrate:app": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-app.js",
     "hydrate:cli": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-cli.js",
-    "package:win:arm64": "npm run hydrate:app && npm run hydrate:cli && npm run rebuild:natives && electron-forge package --platform win32 --arch arm64",
+    "package:win:arm64": "npm run hydrate:app && npm run hydrate:cli && electron-forge package --platform win32 --arch arm64",
     "refresh:recovered": "node ./scripts/refresh-recovered-from-dmg.mjs",
     "make:win:arm64:ci": "npm run hydrate:app && npm run hydrate:cli && electron-forge make --platform win32 --arch arm64",
-    "make:win:arm64": "npm run hydrate:app && npm run hydrate:cli && npm run rebuild:natives && electron-forge make --platform win32 --arch arm64"
+    "make:win:arm64": "npm run hydrate:app && npm run hydrate:cli && electron-forge make --platform win32 --arch arm64"
   },
   "keywords": [
     "electron",
@@ -38,9 +37,5 @@
     "electron": "41.2.0",
     "extract-zip": "^2.0.1"
   },
-  "dependencies": {
-    "better-sqlite3": "^12.8.0",
-    "node-pty": "^1.1.0",
-    "tslib": "^2.8.1"
-  }
+  "dependencies": {}
 }

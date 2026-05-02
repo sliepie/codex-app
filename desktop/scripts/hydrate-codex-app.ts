@@ -101,6 +101,147 @@ async function downloadFile(url: string, outputPath: string): Promise<void> {
   fs.writeFileSync(outputPath, Buffer.from(await response.arrayBuffer()));
 }
 
+function listPackageRoots(nodeModulesRoot: string): string[] {
+  if (!fs.existsSync(nodeModulesRoot)) {
+    return [];
+  }
+
+  const packageRoots = [];
+  for (const entry of fs.readdirSync(nodeModulesRoot, { withFileTypes: true })) {
+    const entryPath = path.join(nodeModulesRoot, entry.name);
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    if (entry.name.startsWith("@")) {
+      for (const scopedEntry of fs.readdirSync(entryPath, { withFileTypes: true })) {
+        if (scopedEntry.isDirectory()) {
+          packageRoots.push(path.join(entryPath, scopedEntry.name));
+        }
+      }
+      continue;
+    }
+
+    packageRoots.push(entryPath);
+  }
+
+  return packageRoots;
+}
+
+function hasNativePayload(packageRoot: string): boolean {
+  if (
+    fs.existsSync(path.join(packageRoot, "binding.gyp")) ||
+    fs.existsSync(path.join(packageRoot, "prebuilds"))
+  ) {
+    return true;
+  }
+
+  const entries = fs.readdirSync(packageRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    const entryPath = path.join(packageRoot, entry.name);
+    if (entry.isDirectory() && entry.name !== "node_modules") {
+      if (hasNativePayload(entryPath)) {
+        return true;
+      }
+      continue;
+    }
+
+    if (
+      entry.isFile() &&
+      [".node", ".dll", ".dylib", ".so", ".exe"].includes(path.extname(entry.name))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function findNativeNodeModules(recoveredRoot: string): { name: string; version: string }[] {
+  const nodeModulesRoot = path.join(recoveredRoot, "node_modules");
+  const nativeModules = [];
+
+  for (const packageRoot of listPackageRoots(nodeModulesRoot)) {
+    if (!hasNativePayload(packageRoot)) {
+      continue;
+    }
+
+    const packageJsonPath = path.join(packageRoot, "package.json");
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as {
+      name?: string;
+      version?: string;
+    };
+    if (!packageJson.name || !packageJson.version) {
+      throw new Error(`Native Node module is missing name or version: ${packageJsonPath}`);
+    }
+
+    nativeModules.push({ name: packageJson.name, version: packageJson.version });
+  }
+
+  return nativeModules.sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function getInstalledPackageVersion(packageName: string): string | undefined {
+  const packageJsonPath = path.join(
+    desktopRoot,
+    "node_modules",
+    ...packageName.split("/"),
+    "package.json",
+  );
+  if (!fs.existsSync(packageJsonPath)) {
+    return undefined;
+  }
+
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as { version?: string };
+  return packageJson.version;
+}
+
+function runNpm(args: string[]): void {
+  const npmExecPath = process.env.npm_execpath;
+  if (npmExecPath && fs.existsSync(npmExecPath)) {
+    execFileSync(process.execPath, [npmExecPath, ...args], {
+      cwd: desktopRoot,
+      stdio: "inherit",
+    });
+    return;
+  }
+
+  execFileSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    args,
+    { cwd: desktopRoot, shell: process.platform === "win32", stdio: "inherit" },
+  );
+}
+
+function syncNativeNodeModules(recoveredRoot: string): void {
+  const nativeModules = findNativeNodeModules(recoveredRoot);
+  if (nativeModules.length === 0) {
+    console.log("Hydrated app has no native Node modules.");
+    return;
+  }
+
+  const missingOrOutdatedModules = nativeModules.filter(
+    (nativeModule) => getInstalledPackageVersion(nativeModule.name) !== nativeModule.version,
+  );
+
+  if (missingOrOutdatedModules.length > 0) {
+    runNpm([
+      "install",
+      "--no-save",
+      "--package-lock=false",
+      "--no-audit",
+      "--fund=false",
+      ...missingOrOutdatedModules.map(
+        (nativeModule) => `${nativeModule.name}@${nativeModule.version}`,
+      ),
+    ]);
+  }
+
+  const nativeModuleNames = nativeModules.map((nativeModule) => nativeModule.name);
+  runNpm(["rebuild", ...nativeModuleNames, "--arch=arm64", "--target_arch=arm64"]);
+  console.log(`Synced native Node modules for Windows ARM64: ${nativeModuleNames.join(", ")}`);
+}
+
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   if (!options.appcastUrl.trim()) {
@@ -165,6 +306,7 @@ async function main(): Promise<void> {
     ],
     { stdio: "inherit" },
   );
+  syncNativeNodeModules(recoveredRoot);
 
   fs.writeFileSync(
     releaseInfoPath,

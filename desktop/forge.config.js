@@ -9,6 +9,12 @@ const releaseInfoPath = path.join(__dirname, '.cache', 'codex-app', 'latest-rele
 const releaseInfo = fs.existsSync(releaseInfoPath)
   ? JSON.parse(fs.readFileSync(releaseInfoPath, 'utf8'))
   : null;
+const recoveredNodeModulesRoot = path.join(
+  __dirname,
+  'recovered',
+  'app-asar-extracted',
+  'node_modules',
+);
 
 function getReleaseVersion() {
   if (typeof releaseInfo?.version !== 'string' || releaseInfo.version.trim() === '') {
@@ -18,51 +24,203 @@ function getReleaseVersion() {
   return releaseInfo.version;
 }
 
-const runtimeNodeModules = new Set([
-  'base64-js',
-  'better-sqlite3',
-  'bindings',
-  'bl',
-  'buffer',
-  'decompress-response',
-  'deep-extend',
-  'detect-libc',
-  'end-of-stream',
-  'expand-template',
-  'file-uri-to-path',
-  'fs-constants',
-  'github-from-package',
-  'ieee754',
-  'inherits',
-  'minimist',
-  'mimic-response',
-  'mkdirp-classic',
-  'napi-build-utils',
-  'node-abi',
-  'node-addon-api',
-  'node-pty',
-  'once',
-  'prebuild-install',
-  'pump',
-  'rc',
-  'readable-stream',
-  'safe-buffer',
-  'semver',
-  'simple-concat',
-  'simple-get',
-  'string_decoder',
-  'strip-json-comments',
-  'tar-fs',
-  'tar-stream',
-  'tslib',
-  'tunnel-agent',
-  'util-deprecate',
-  'wrappy',
-]);
+function listPackageRoots(nodeModulesRoot) {
+  if (!fs.existsSync(nodeModulesRoot)) {
+    return [];
+  }
 
-function isRuntimeNodeModule(file) {
-  const match = file.match(/^\/node_modules\/((?:@[^/]+\/)?[^/]+)/);
-  return match ? runtimeNodeModules.has(match[1]) : file === '/node_modules';
+  const packageRoots = [];
+  for (const entry of fs.readdirSync(nodeModulesRoot, { withFileTypes: true })) {
+    const entryPath = path.join(nodeModulesRoot, entry.name);
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    if (entry.name.startsWith('@')) {
+      for (const scopedEntry of fs.readdirSync(entryPath, { withFileTypes: true })) {
+        if (scopedEntry.isDirectory()) {
+          packageRoots.push(path.join(entryPath, scopedEntry.name));
+        }
+      }
+      continue;
+    }
+
+    packageRoots.push(entryPath);
+  }
+
+  return packageRoots;
+}
+
+function readPackageJson(packageRoot) {
+  return JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
+}
+
+function hasNativePayload(packageRoot) {
+  if (
+    fs.existsSync(path.join(packageRoot, 'binding.gyp')) ||
+    fs.existsSync(path.join(packageRoot, 'prebuilds'))
+  ) {
+    return true;
+  }
+
+  for (const entry of fs.readdirSync(packageRoot, { withFileTypes: true })) {
+    const entryPath = path.join(packageRoot, entry.name);
+    if (entry.isDirectory() && entry.name !== 'node_modules') {
+      if (hasNativePayload(entryPath)) {
+        return true;
+      }
+      continue;
+    }
+
+    if (
+      entry.isFile() &&
+      ['.node', '.dll', '.dylib', '.so', '.exe'].includes(path.extname(entry.name))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function findNativePackageNames(nodeModulesRoot) {
+  return new Set(
+    listPackageRoots(nodeModulesRoot)
+      .filter((packageRoot) => hasNativePayload(packageRoot))
+      .map((packageRoot) => readPackageJson(packageRoot).name),
+  );
+}
+
+function packagerPathForPackage(nodeModulesRoot, packageName) {
+  const packageRoot = path.join(nodeModulesRoot, ...packageName.split('/'));
+  const relativePath = path.relative(__dirname, packageRoot).replace(/\\/g, '/');
+  return `/${relativePath}`;
+}
+
+function findInstalledPackageRoot(packageName, fromDirectory) {
+  let currentDirectory = fromDirectory;
+  while (currentDirectory.startsWith(__dirname)) {
+    const candidate = path.join(currentDirectory, 'node_modules', ...packageName.split('/'));
+    if (fs.existsSync(path.join(candidate, 'package.json'))) {
+      return candidate;
+    }
+
+    const parentDirectory = path.dirname(currentDirectory);
+    if (parentDirectory === currentDirectory) {
+      break;
+    }
+    currentDirectory = parentDirectory;
+  }
+
+  return null;
+}
+
+function collectInstalledRuntimePackagePaths(packageNames) {
+  const packagePaths = new Set();
+  const seenPackageRoots = new Set();
+  const pendingPackages = [...packageNames].map((packageName) => ({
+    packageName,
+    fromDirectory: __dirname,
+    optional: false,
+  }));
+
+  while (pendingPackages.length > 0) {
+    const nextPackage = pendingPackages.pop();
+    const packageRoot = findInstalledPackageRoot(nextPackage.packageName, nextPackage.fromDirectory);
+    if (!packageRoot) {
+      if (nextPackage.optional) {
+        continue;
+      }
+      throw new Error(`Missing installed runtime Node module: ${nextPackage.packageName}`);
+    }
+    if (seenPackageRoots.has(packageRoot)) {
+      continue;
+    }
+
+    seenPackageRoots.add(packageRoot);
+    packagePaths.add(`/${path.relative(__dirname, packageRoot).replace(/\\/g, '/')}`);
+
+    const packageJson = readPackageJson(packageRoot);
+    for (const packageName of Object.keys(packageJson.dependencies ?? {})) {
+      pendingPackages.push({ packageName, fromDirectory: packageRoot, optional: false });
+    }
+    for (const packageName of Object.keys(packageJson.optionalDependencies ?? {})) {
+      pendingPackages.push({ packageName, fromDirectory: packageRoot, optional: true });
+    }
+  }
+
+  return packagePaths;
+}
+
+const nativePackageNames = findNativePackageNames(recoveredNodeModulesRoot);
+const recoveredNativePackagePaths = new Set(
+  [...nativePackageNames].map((packageName) =>
+    packagerPathForPackage(recoveredNodeModulesRoot, packageName),
+  ),
+);
+const installedRuntimePackagePaths = collectInstalledRuntimePackagePaths(nativePackageNames);
+
+function matchesPath(file, targetPath) {
+  return file === targetPath || file.startsWith(`${targetPath}/`);
+}
+
+function isRecoveredNativeNodeModule(file) {
+  for (const packagePath of recoveredNativePackagePaths) {
+    if (matchesPath(file, packagePath)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isRecoveredNodeModule(file) {
+  return (
+    matchesPath(file, '/recovered/app-asar-extracted/node_modules') &&
+    !isRecoveredNativeNodeModule(file)
+  );
+}
+
+function isInstalledRuntimeNodeModule(file) {
+  if (file === '/node_modules') {
+    return true;
+  }
+
+  for (const packagePath of installedRuntimePackagePaths) {
+    if (matchesPath(file, packagePath)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isForeignPrebuild(file) {
+  const match = file.match(/^\/node_modules\/(?:@[^/]+\/)?[^/]+\/prebuilds\/([^/]+)/);
+  return Boolean(match && match[1] !== 'win32-arm64');
+}
+
+function isPackageFile(file) {
+  if (
+    [
+      '/recovered',
+      '/recovered/app-asar-extracted',
+      '/recovered/app-asar-extracted/node_modules',
+    ].includes(file)
+  ) {
+    return true;
+  }
+
+  return [
+    '/recovered/app-asar-extracted/.vite',
+    '/recovered/app-asar-extracted/native-menu-locales',
+    '/recovered/app-asar-extracted/webview',
+    '/recovered/app-asar-extracted/skills',
+    '/recovered/app-asar-extracted/package.json',
+    '/package.json',
+  ].some((allowedPath) => file.startsWith(allowedPath)) ||
+    isRecoveredNodeModule(file) ||
+    isInstalledRuntimeNodeModule(file);
 }
 
 const config = {
@@ -70,6 +228,7 @@ const config = {
     asar: true,
     appVersion: releaseInfo?.version,
     buildVersion: releaseInfo?.buildNumber,
+    prune: false,
     extraResource: [
       'resources/codex.exe',
       'resources/codex-windows-sandbox-setup.exe',
@@ -79,25 +238,13 @@ const config = {
       if (!file) {
         return false;
       }
+      const normalizedFile = file.replace(/\\/g, '/');
 
-      if (file.startsWith('/recovered/app-asar-extracted/node_modules')) {
+      if (isRecoveredNativeNodeModule(normalizedFile) || isForeignPrebuild(normalizedFile)) {
         return true;
       }
 
-      if (file.startsWith('/node_modules/node-pty/prebuilds')) {
-        return true;
-      }
-
-      return ![
-        '/recovered',
-        '/recovered/app-asar-extracted/.vite',
-        '/recovered/app-asar-extracted/webview',
-        '/recovered/app-asar-extracted/skills',
-        '/recovered/app-asar-extracted/package.json',
-        '/package.json',
-        '/node_modules/node-pty',
-        '/node_modules/better-sqlite3',
-      ].some((allowedPath) => file.startsWith(allowedPath)) || isRuntimeNodeModule(file);
+      return !isPackageFile(normalizedFile);
     },
     protocols: [
       {
@@ -105,10 +252,6 @@ const config = {
         schemes: ['codex'],
       },
     ],
-  },
-  rebuildConfig: {
-    onlyModules: ['better-sqlite3'],
-    ignoreModules: ['node-pty'],
   },
   makers: [new MakerZIP({}, ['win32'])],
   hooks: {
