@@ -12,7 +12,7 @@
   "codexBuildFlavor": "prod",
   "scripts": {
     "rebuild:natives": "electron-rebuild -f --arch arm64 --only better-sqlite3",
-    "build:scripts": "tsgo -p tsconfig.scripts.json",
+    "build:scripts": "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json",
     "hydrate:app": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-app.js",
     "hydrate:cli": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-cli.js",
     "package:win:arm64": "npm run hydrate:app && npm run hydrate:cli && npm run rebuild:natives && electron-forge package --platform win32 --arch arm64",
@@ -35,7 +35,6 @@
     "@electron/asar": "^3.4.1",
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.3",
-    "@typescript/native-preview": "7.0.0-dev.20260421.2",
     "electron": "41.2.0",
     "extract-zip": "^2.0.1"
   },
