@@ -3,6 +3,8 @@ name: Windows ARM64 Release Artifacts
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "**"
     tags:
       - "v*"
 
