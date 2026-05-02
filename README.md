@@ -16,18 +16,20 @@ CLI helper binaries.
   Codex CLI and helper binaries from `openai/codex`.
 - `desktop/scripts/refresh-recovered-from-dmg.mjs`: extracts the app payload
   into `desktop/recovered/app-asar-extracted/`.
-- `desktop/scripts/zip-windows-arm64.ps1`: zips the packaged Windows ARM64 app.
+- `desktop/forge.config.js`: packages the app and creates the Windows ARM64
+  ZIP with Electron Forge.
 
 ## Local Build
 
 From `desktop/`:
 
 ```powershell
+fnm install 22
+fnm use 22
 npm ci
 npm run make:win:arm64
 ```
 
 The build hydrates `desktop/recovered/app-asar-extracted/` from the official
 appcast and downloads the Windows ARM64 Codex CLI resources before packaging.
-The ZIP output is written under
-`desktop/out/release-assets/`.
+The ZIP output is written under `desktop/out/make/zip/win32/arm64/`.

@@ -6,6 +6,9 @@
   "main": "recovered/app-asar-extracted/.vite/build/bootstrap.js",
   "private": true,
   "author": "OpenAI",
+  "engines": {
+    "node": "22.x"
+  },
   "codexBuildFlavor": "prod",
   "scripts": {
     "rebuild:natives": "electron-rebuild -f --only better-sqlite3",
@@ -13,8 +16,7 @@
     "hydrate:cli": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/hydrate-codex-cli.ps1",
     "package:win:arm64": "npm run hydrate:app && npm run hydrate:cli && npm run rebuild:natives && electron-forge package --platform win32 --arch arm64",
     "refresh:recovered": "node ./scripts/refresh-recovered-from-dmg.mjs",
-    "make:win:arm64": "npm run package:win:arm64 && npm run zip:win:arm64",
-    "zip:win:arm64": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/zip-windows-arm64.ps1"
+    "make:win:arm64": "npm run hydrate:app && npm run hydrate:cli && npm run rebuild:natives && electron-forge make --platform win32 --arch arm64"
   },
   "keywords": [
     "electron",
@@ -25,6 +27,7 @@
   "license": "UNLICENSED",
   "devDependencies": {
     "@electron-forge/cli": "^7.11.1",
+    "@electron-forge/maker-zip": "^7.11.1",
     "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
     "@electron-forge/plugin-fuses": "^7.11.1",
     "@electron/asar": "^3.4.1",

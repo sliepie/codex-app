@@ -1,5 +1,6 @@
 const { AutoUnpackNativesPlugin } = require('@electron-forge/plugin-auto-unpack-natives');
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
+const { MakerZIP } = require('@electron-forge/maker-zip');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -8,6 +9,14 @@ const releaseInfoPath = path.join(__dirname, '.cache', 'codex-app', 'latest-rele
 const releaseInfo = fs.existsSync(releaseInfoPath)
   ? JSON.parse(fs.readFileSync(releaseInfoPath, 'utf8'))
   : null;
+
+function getReleaseVersion() {
+  if (typeof releaseInfo?.version !== 'string' || releaseInfo.version.trim() === '') {
+    throw new Error(`Missing hydrated Codex app release info: ${releaseInfoPath}`);
+  }
+
+  return releaseInfo.version;
+}
 
 const runtimeNodeModules = new Set([
   'base64-js',
@@ -100,6 +109,32 @@ const config = {
   rebuildConfig: {
     onlyModules: ['better-sqlite3'],
     ignoreModules: ['node-pty'],
+  },
+  makers: [new MakerZIP({}, ['win32'])],
+  hooks: {
+    postMake: async (_forgeConfig, makeResults) => {
+      const releaseVersion = getReleaseVersion();
+
+      return makeResults.map((result) => ({
+        ...result,
+        artifacts: result.artifacts.map((artifact) => {
+          if (path.extname(artifact) !== '.zip') {
+            return artifact;
+          }
+
+          const destination = path.join(
+            path.dirname(artifact),
+            `codex-app-windows-arm64-v${releaseVersion}.zip`,
+          );
+          if (fs.existsSync(destination)) {
+            fs.rmSync(destination, { force: true });
+          }
+
+          fs.renameSync(artifact, destination);
+          return destination;
+        }),
+      }));
+    },
   },
   plugins: [
     new AutoUnpackNativesPlugin({}),

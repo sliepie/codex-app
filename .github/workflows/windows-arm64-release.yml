@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-windows-arm64:
-    runs-on: windows-11-arm
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: desktop/package-lock.json
 
@@ -28,21 +28,16 @@ jobs:
         working-directory: desktop
         run: npm ci
 
-      - name: Package Windows ARM64 app
+      - name: Make Windows ARM64 ZIP
         working-directory: desktop
-        run: npm run package:win:arm64
-
-      - name: Create Windows ARM64 ZIP
-        working-directory: desktop
-        shell: pwsh
-        run: npm run zip:win:arm64
+        run: npm run make:win:arm64
 
       - name: Upload Windows ARM64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: codex-app-windows-arm64
           path: |
-            desktop/out/release-assets/*
+            desktop/out/make/zip/win32/arm64/*.zip
           if-no-files-found: error
 
       - name: Publish GitHub release assets (tags only)
@@ -51,4 +46,4 @@ jobs:
         with:
           name: codex-app-windows-arm64 ${{ github.ref_name }}
           files: |
-            desktop/out/release-assets/*
+            desktop/out/make/zip/win32/arm64/*.zip
