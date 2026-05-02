@@ -1,6 +1,8 @@
 name: Windows ARM64 Release Artifacts
 
 on:
+  schedule:
+    - cron: "0 0,12 * * *"
   workflow_dispatch:
   push:
     branches:
@@ -14,33 +16,95 @@ permissions:
 jobs:
   build-windows-arm64:
     runs-on: windows-latest
+    env:
+      ELECTRON_CACHE: ${{ github.workspace }}\.cache\electron
+    concurrency:
+      group: windows-arm64-release-${{ github.ref }}
+      cancel-in-progress: false
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve upstream release versions
+        id: upstream
+        working-directory: desktop
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/resolve-codex-releases.ps1
+
+      - name: Check scheduled build marker
+        id: scheduled-build-marker
+        if: github.event_name == 'schedule'
+        uses: actions/cache/restore@v4
+        with:
+          path: .github/build-markers/windows-arm64
+          key: ${{ steps.upstream.outputs.build_marker_key }}
+          lookup-only: true
+
+      - name: Skip unchanged scheduled release
+        if: github.event_name == 'schedule' && steps.scheduled-build-marker.outputs.cache-hit == 'true'
+        run: |
+          Write-Output "Codex app ${{ steps.upstream.outputs.codex_app_version }} build ${{ steps.upstream.outputs.codex_app_build }} with CLI ${{ steps.upstream.outputs.codex_cli_tag }} was already built."
+
       - name: Setup Node.js
+        if: github.event_name != 'schedule' || steps.scheduled-build-marker.outputs.cache-hit != 'true'
         uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: desktop/package-lock.json
 
+      - name: Restore Electron cache
+        if: github.event_name != 'schedule' || steps.scheduled-build-marker.outputs.cache-hit != 'true'
+        uses: actions/cache@v4
+        with:
+          path: .cache/electron
+          key: windows-arm64-electron-${{ runner.os }}-${{ hashFiles('desktop/package-lock.json') }}
+
+      - name: Restore hydrated release cache
+        if: github.event_name != 'schedule' || steps.scheduled-build-marker.outputs.cache-hit != 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            desktop/.cache/codex-app
+            desktop/.cache/codex-cli
+          key: ${{ steps.upstream.outputs.hydration_cache_key }}
+
       - name: Install dependencies
+        if: github.event_name != 'schedule' || steps.scheduled-build-marker.outputs.cache-hit != 'true'
         working-directory: desktop
         run: npm ci
 
       - name: Make Windows ARM64 ZIP
+        if: github.event_name != 'schedule' || steps.scheduled-build-marker.outputs.cache-hit != 'true'
         working-directory: desktop
         run: npm run make:win:arm64
 
       - name: Upload Windows ARM64 artifact
+        if: github.event_name != 'schedule' || steps.scheduled-build-marker.outputs.cache-hit != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: codex-app-windows-arm64
           path: |
             desktop/out/make/zip/win32/arm64/*.zip
           if-no-files-found: error
+
+      - name: Write scheduled build marker
+        if: github.event_name == 'schedule' && steps.scheduled-build-marker.outputs.cache-hit != 'true'
+        run: |
+          New-Item -ItemType Directory -Force -Path .github/build-markers/windows-arm64 | Out-Null
+          @{
+            codexAppVersion = "${{ steps.upstream.outputs.codex_app_version }}"
+            codexAppBuild = "${{ steps.upstream.outputs.codex_app_build }}"
+            codexCliTag = "${{ steps.upstream.outputs.codex_cli_tag }}"
+            runId = "${{ github.run_id }}"
+          } | ConvertTo-Json | Set-Content -Path .github/build-markers/windows-arm64/latest.json
+
+      - name: Save scheduled build marker
+        if: github.event_name == 'schedule' && steps.scheduled-build-marker.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .github/build-markers/windows-arm64
+          key: ${{ steps.upstream.outputs.build_marker_key }}
 
       - name: Publish GitHub release assets (tags only)
         if: startsWith(github.ref, 'refs/tags/')
