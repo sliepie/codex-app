@@ -24,6 +24,7 @@ type RequiredAsset = {
 
 type Options = {
   codexRepo: string;
+  codexTag?: string;
   ripgrepRepo: string;
   nodeDistBaseUrl: string;
   cacheRoot: string;
@@ -69,8 +70,12 @@ function hasFlag(argv: string[], ...names: string[]): boolean {
 function parseOptions(argv: string[]): Options {
   return {
     codexRepo: readOption(argv, "--codex-repo", "-CodexRepo") ?? "openai/codex",
-    ripgrepRepo: readOption(argv, "--ripgrep-repo", "-RipgrepRepo") ?? "BurntSushi/ripgrep",
-    nodeDistBaseUrl: readOption(argv, "--node-dist-base-url", "-NodeDistBaseUrl") ?? "https://nodejs.org/dist",
+    codexTag: readOption(argv, "--codex-tag", "-CodexTag"),
+    ripgrepRepo:
+      readOption(argv, "--ripgrep-repo", "-RipgrepRepo") ?? "BurntSushi/ripgrep",
+    nodeDistBaseUrl:
+      readOption(argv, "--node-dist-base-url", "-NodeDistBaseUrl") ??
+      "https://nodejs.org/dist",
     cacheRoot:
       readOption(argv, "--cache-root", "-CacheRoot") ??
       path.join(desktopRoot, ".cache", "codex-cli"),
@@ -161,6 +166,23 @@ function findMacNodePath(): string {
   return nodePath;
 }
 
+function findMacCodexPath(): string {
+  const { version } = readCodexAppReleaseInfo();
+  const codexPath = path.join(
+    codexAppCacheRoot,
+    `extract-${version}`,
+    "Codex.app",
+    "Contents",
+    "Resources",
+    "codex",
+  );
+  if (!fs.existsSync(codexPath)) {
+    throw new Error(`Missing bundled macOS Codex executable: ${codexPath}`);
+  }
+
+  return codexPath;
+}
+
 function readBundledNodeVersion(): string {
   const binaryText = fs.readFileSync(findMacNodePath()).toString("latin1");
   const counts = new Map<string, number>();
@@ -178,6 +200,22 @@ function readBundledNodeVersion(): string {
   }
 
   return version;
+}
+
+function readBundledCodexCliVersion(): string {
+  const binaryText = fs.readFileSync(findMacCodexPath()).toString("latin1");
+  const version = binaryText.match(
+    /cli_version[^0-9]*([0-9]+\.[0-9]+\.[0-9]+(?:-(?:alpha|beta|rc)\.[0-9]+)?)/,
+  )?.[1];
+  if (!version) {
+    throw new Error("Could not detect bundled macOS Codex CLI version.");
+  }
+
+  return version;
+}
+
+function resolveCodexReleaseTag(options: Options): string {
+  return options.codexTag ?? `rust-v${readBundledCodexCliVersion()}`;
 }
 
 async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<ReleaseAsset> {
@@ -276,11 +314,21 @@ async function main(): Promise<void> {
 
   const releaseJson = execFileSync(
     "gh",
-    ["release", "view", "--repo", options.codexRepo, "--json", "tagName,name,url,assets"],
+    [
+      "release",
+      "view",
+      resolveCodexReleaseTag(options),
+      "--repo",
+      options.codexRepo,
+      "--json",
+      "tagName,name,url,assets",
+    ],
     { encoding: "utf8" },
   );
   const release = JSON.parse(releaseJson) as ReleaseInfo;
   const assetsByName = new Map(release.assets.map((asset) => [asset.name, asset]));
+  const releaseCacheRoot = path.join(options.cacheRoot, release.tagName);
+  fs.mkdirSync(releaseCacheRoot, { recursive: true });
 
   const hydratedAssets = [];
   for (const requiredAsset of requiredAssets) {
@@ -289,7 +337,7 @@ async function main(): Promise<void> {
       throw new Error(`Missing Codex release asset: ${requiredAsset.assetName}`);
     }
 
-    const downloadPath = path.join(options.cacheRoot, requiredAsset.assetName);
+    const downloadPath = path.join(releaseCacheRoot, requiredAsset.assetName);
     const outputPath = path.join(resourcesRoot, requiredAsset.outputName);
 
     if (options.force) {

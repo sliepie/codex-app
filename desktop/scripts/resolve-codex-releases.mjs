@@ -1,10 +1,8 @@
-import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 
 const appcastUrl =
   process.env.CODEX_APPCAST_URL ??
   "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
-const codexCliRepo = process.env.CODEX_CLI_REPO ?? "openai/codex";
 
 function fail(message) {
   throw new Error(message);
@@ -42,18 +40,7 @@ const appVersion = firstMatch(
 );
 const buildNumber =
   item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim() ?? "";
-
-const cliReleaseJson = execFileSync(
-  "gh",
-  ["release", "view", "--repo", codexCliRepo, "--json", "tagName"],
-  { encoding: "utf8" },
-);
-const cliRelease = JSON.parse(cliReleaseJson);
-if (!cliRelease.tagName) {
-  fail("The selected Codex CLI release does not have a tag name.");
-}
-
-const cliTag = cliRelease.tagName;
+const cliTag = "matched-to-app";
 const releaseTag = `codex-app-${appVersion}`;
 const buildMarkerKey = `windows-arm64-built-app-${appVersion}-build-${buildNumber}`;
 const hydrationCacheKey = `windows-arm64-hydrated-app-${appVersion}-build-${buildNumber}-cli-${cliTag}`;
