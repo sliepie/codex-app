@@ -15,6 +15,7 @@ desktop/.cache/
 node_modules/
 desktop/node_modules/
 desktop/out/
+out/
 desktop/dist/
 desktop/.vite/
 desktop/.webpack/

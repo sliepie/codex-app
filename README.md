@@ -20,6 +20,7 @@ CLI helper binaries.
   into `desktop/recovered/app-asar-extracted/`.
 - `desktop/forge.config.js`: packages the app and creates the Windows ARM64
   ZIP with Electron Forge.
+- `docs/windows/`: Windows MSIX, signing, and App Installer update notes
 
 ## Local Build
 
@@ -52,3 +53,6 @@ The updater installs or upgrades the official Microsoft Store Codex app
 (`9PLM9XGG6VKS`), copies `node_repl.exe`, writes provenance metadata next to
 the binary, and uninstalls Codex only if the script installed it into a
 previously missing state.
+
+- Built installers and packaging outputs are release artifacts and should not be committed to git.
+- Windows self-signed MSIX/App Installer work is documented in `docs/windows/self-signed-msix-updates.md`.
