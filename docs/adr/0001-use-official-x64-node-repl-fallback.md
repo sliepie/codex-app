@@ -16,7 +16,7 @@ Codex Desktop expects a `node_repl` resource binary for Node REPL tool support. 
 
 Use the latest official closed-source x64 `node_repl.exe` as a committed vendored fallback until a Windows ARM64 `node_repl` can be compiled, downloaded, or otherwise obtained.
 
-Hydration may install or upgrade the official Microsoft Store Codex app (`9PLM9XGG6VKS`), copy `node_repl.exe` from the installed package location, and uninstall Codex afterward only if the script installed it into a previously missing state. `node_repl.exe` updates must always come from that official Microsoft Store package; local manual paths, copied package folders, appcast artifacts, GitHub release assets, npm packages, and other non-Store sources are not valid update sources.
+Hydration may install or upgrade the official Microsoft Store Codex app (`9PLM9XGG6VKS`), copy `node_repl.exe` from the installed package location, and uninstall Codex afterward only if the script installed it into a previously missing state. `node_repl.exe` updates must always come from that official Microsoft Store package with the `OpenAI.Codex` package identity; `OpenAI.Codex.Arm64Dev`, local manual paths, copied package folders, appcast artifacts, GitHub release assets, npm packages, and other non-Store sources are not valid update sources.
 
 Commit `node_repl.exe` to this repo at `desktop/resources/node_repl.exe`. The updater should also write provenance metadata with the source package identity and SHA-256 digest.
 
