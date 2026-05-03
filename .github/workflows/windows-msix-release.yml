@@ -36,11 +36,20 @@ permissions:
 
 jobs:
   build-sign-publish:
-    runs-on: windows-latest
+    runs-on: ${{ inputs.package_architecture == 'arm64' && 'windows-11-arm' || 'windows-latest' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
 
       - name: Validate Azure Artifact Signing inputs
         shell: pwsh
@@ -66,6 +75,34 @@ jobs:
               throw "Missing required secret: $name"
             }
           }
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build Windows app payload
+        shell: pwsh
+        env:
+          PACKAGE_ARCHITECTURE: ${{ inputs.package_architecture }}
+        run: |
+          Push-Location "$env:GITHUB_WORKSPACE/desktop"
+          try {
+            npm run package -- --platform win32 --arch $env:PACKAGE_ARCHITECTURE
+          }
+          finally {
+            Pop-Location
+          }
+
+          $packageRoot = Join-Path $env:GITHUB_WORKSPACE "desktop/out/Codex-win32-$env:PACKAGE_ARCHITECTURE"
+          $entryPoint = Join-Path $packageRoot 'Codex.exe'
+          if (-not (Test-Path -Path $entryPoint -PathType Leaf)) {
+            throw "Electron Forge did not produce the expected Windows entrypoint: $entryPoint"
+          }
+
+          $payloadAppRoot = Join-Path $env:GITHUB_WORKSPACE 'codex/app'
+          Remove-Item -Path $payloadAppRoot -Recurse -Force
+          New-Item -ItemType Directory -Path $payloadAppRoot -Force | Out-Null
+          Copy-Item -Path (Join-Path $packageRoot '*') -Destination $payloadAppRoot -Recurse -Force
 
       - name: Stage package payload
         shell: pwsh

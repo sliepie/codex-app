@@ -36,11 +36,20 @@ permissions:
 
 jobs:
   build-sign-publish:
-    runs-on: windows-latest
+    runs-on: ${{ inputs.package_architecture == 'arm64' && 'windows-11-arm' || 'windows-latest' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
 
       - name: Validate self-signed signing inputs
         shell: pwsh
@@ -61,11 +70,37 @@ jobs:
         env:
           SELF_SIGNED_PFX_BASE64: ${{ secrets.SELF_SIGNED_PFX_BASE64 }}
         run: |
+          $pfxBytes = [System.Convert]::FromBase64String($env:SELF_SIGNED_PFX_BASE64 -replace '\s', '')
           New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE/out/windows/signing" -Force | Out-Null
-          [System.IO.File]::WriteAllBytes(
-            "$env:GITHUB_WORKSPACE/out/windows/signing/CodexSelfSigned.pfx",
-            [System.Convert]::FromBase64String($env:SELF_SIGNED_PFX_BASE64)
-          )
+          [System.IO.File]::WriteAllBytes("$env:GITHUB_WORKSPACE/out/windows/signing/CodexSelfSigned.pfx", $pfxBytes)
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build Windows app payload
+        shell: pwsh
+        env:
+          PACKAGE_ARCHITECTURE: ${{ inputs.package_architecture }}
+        run: |
+          Push-Location "$env:GITHUB_WORKSPACE/desktop"
+          try {
+            npm run package -- --platform win32 --arch $env:PACKAGE_ARCHITECTURE
+          }
+          finally {
+            Pop-Location
+          }
+
+          $packageRoot = Join-Path $env:GITHUB_WORKSPACE "desktop/out/Codex-win32-$env:PACKAGE_ARCHITECTURE"
+          $entryPoint = Join-Path $packageRoot 'Codex.exe'
+          if (-not (Test-Path -Path $entryPoint -PathType Leaf)) {
+            throw "Electron Forge did not produce the expected Windows entrypoint: $entryPoint"
+          }
+
+          $payloadAppRoot = Join-Path $env:GITHUB_WORKSPACE 'codex/app'
+          Remove-Item -Path $payloadAppRoot -Recurse -Force
+          New-Item -ItemType Directory -Path $payloadAppRoot -Force | Out-Null
+          Copy-Item -Path (Join-Path $packageRoot '*') -Destination $payloadAppRoot -Recurse -Force
 
       - name: Build self-signed MSIX
         shell: pwsh
@@ -87,6 +122,12 @@ jobs:
             -CertificatePassword $password `
             -OutputDirectory "$env:GITHUB_WORKSPACE/out/windows/self-signed" `
             -ExportCertificate
+
+      - name: Remove temporary PFX
+        if: always()
+        shell: pwsh
+        run: |
+          Remove-Item -Path "$env:GITHUB_WORKSPACE/out/windows/signing/CodexSelfSigned.pfx" -Force -ErrorAction SilentlyContinue
 
       - name: Generate App Installer file
         shell: pwsh

@@ -37,6 +37,9 @@ yarn-error.log*
 pnpm-debug.log*
 .env
 .env.*
+*.pfx
+*.p12
+*.key
 
 # OS/editor junk
 .DS_Store
