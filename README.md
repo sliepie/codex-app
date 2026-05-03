@@ -20,7 +20,7 @@ CLI helper binaries.
   into `desktop/recovered/app-asar-extracted/`.
 - `desktop/forge.config.js`: packages the app and creates the Windows ARM64
   ZIP with Electron Forge.
-- `docs/windows/`: Windows MSIX, signing, and App Installer update notes
+- `docs/windows/`: Windows self-signed MSIX and App Installer update notes
 
 ## Local Build
 
