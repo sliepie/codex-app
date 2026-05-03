@@ -32,6 +32,7 @@ Then validate, update docs if the binary changed, commit on a feature branch, pu
 - Keep every resource binary ARM64 unless it cannot be compiled, downloaded, or otherwise obtained for Windows ARM64.
 - `desktop/resources/node_repl.exe` is the only accepted x64 resource-binary exception for now.
 - Refresh `node_repl.exe` only from the official Microsoft Store Codex package for product ID `9PLM9XGG6VKS` through `npm run update:node-repl`.
+- The package identity must be the official Store package `OpenAI.Codex`; do not use `OpenAI.Codex.Arm64Dev` or any local/dev-modified package identity.
 - Do not replace the vendored binary from an arbitrary local path, a copied WindowsApps path, the macOS appcast, GitHub release assets, npm packages, or any non-Store source.
 - The only acceptable source path is the installed package location resolved from the official Microsoft Store package that the updater installed or upgraded.
 - The updater may temporarily install or upgrade the Store Codex app. It must uninstall Codex only if it installed it into a previously missing state.
