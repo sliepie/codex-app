@@ -1,30 +1,25 @@
 {
   "name": "codex-desktop",
   "productName": "Codex",
-  "version": "26.429.20946",
+  "version": "0.0.0",
   "description": "Codex",
   "main": "recovered/app-asar-extracted/.vite/build/bootstrap.js",
   "private": true,
   "author": "OpenAI",
+  "engines": {
+    "node": "22.x"
+  },
   "codexBuildFlavor": "prod",
-  "codexBuildNumber": "2312",
   "scripts": {
-    "rebuild:natives": "electron-rebuild -f -w better-sqlite3,node-pty",
-    "start": "npm run rebuild:natives && electron-forge start",
-    "package": "npm run rebuild:natives && electron-forge package",
-    "assemble:codex-runtime": "node ./scripts/assemble-codex-runtime.mjs",
-    "build:codex:linux": "node ./scripts/build-codex-linux-runtime.mjs",
-    "stage:codex-package": "node ./scripts/stage-codex-package.mjs",
-    "make": "npm run rebuild:natives && electron-forge make",
-    "make:linux": "npm run rebuild:natives && electron-forge make --platform linux",
-    "make:linux:arm64:deb": "npm run rebuild:natives && CODEX_LINUX_HELPER_ARCH=linux-arm64 electron-forge make --platform linux --arch arm64 --targets deb",
-    "publish": "npm run rebuild:natives && electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx .",
-    "test": "node ./tests/linux/run-jest.cjs",
-    "test:linux": "node ./tests/linux/run-jest.cjs --runInBand",
-    "test:linux:codex-package": "node ./tests/linux/run-jest.cjs ./tests/linux/codex-package.red.test.ts --runInBand",
-    "test:linux:ci": "node ./tests/linux/run-jest.cjs --ci --runInBand",
-    "test:linux:red": "node ./tests/linux/run-jest.cjs --runInBand --runTestsByPath ./tests/linux/linux-regression.contract.test.ts"
+    "build:scripts": "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json",
+    "hydrate:app": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-app.js",
+    "hydrate:cli": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-cli.js",
+    "hydrate:app:compiled": "node ./.cache/scripts/hydrate-codex-app.js",
+    "hydrate:cli:compiled": "node ./.cache/scripts/hydrate-codex-cli.js",
+    "package:win:arm64": "npm run build:scripts && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge package --platform win32 --arch arm64",
+    "refresh:recovered": "node ./scripts/refresh-recovered-from-dmg.mjs",
+    "make:win:arm64:ci": "npm run build:scripts && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge make --platform win32 --arch arm64",
+    "make:win:arm64": "npm run build:scripts && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge make --platform win32 --arch arm64"
   },
   "keywords": [
     "electron",
@@ -35,32 +30,14 @@
   "license": "UNLICENSED",
   "devDependencies": {
     "@electron-forge/cli": "^7.11.1",
-    "@electron-forge/maker-deb": "^7.11.1",
-    "@electron-forge/maker-rpm": "^7.11.1",
-    "@electron-forge/maker-squirrel": "^7.11.1",
     "@electron-forge/maker-zip": "^7.11.1",
     "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
     "@electron-forge/plugin-fuses": "^7.11.1",
-    "@electron-forge/shared-types": "^7.11.1",
+    "@electron/asar": "^3.4.1",
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.3",
-    "@reforged/maker-appimage": "^5.2.0",
-    "@types/electron-squirrel-startup": "^1.0.2",
-    "@types/jest": "^30.0.0",
-    "@typescript-eslint/eslint-plugin": "^5.62.0",
-    "@typescript-eslint/parser": "^5.62.0",
     "electron": "41.2.0",
-    "eslint": "^8.57.1",
-    "eslint-plugin-import": "^2.32.0",
-    "jest": "^30.3.0",
-    "ts-jest": "^29.4.6",
-    "typescript": "~4.5.4",
-    "vite": "^8.0.3"
+    "extract-zip": "^2.0.1"
   },
-  "dependencies": {
-    "better-sqlite3": "^12.8.0",
-    "electron-squirrel-startup": "^1.0.1",
-    "node-pty": "^1.1.0",
-    "tslib": "^2.8.1"
-  }
+  "dependencies": {}
 }

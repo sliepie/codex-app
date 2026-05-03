@@ -6,11 +6,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import asar from '@electron/asar';
 
-import {
-  normalizeNativeModules,
-  patchExtractedCodexApp,
-} from './assemble-codex-runtime.mjs';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const desktopRoot = path.resolve(__dirname, '..');
@@ -143,8 +138,6 @@ async function main() {
     const upstreamPackage = JSON.parse(
       fs.readFileSync(path.join(extractedAppRoot, 'package.json'), 'utf8'),
     );
-    const patchSummary = patchExtractedCodexApp(extractedAppRoot);
-    const nativeModuleSummary = normalizeNativeModules(extractedAppRoot);
 
     syncExactDirectory(extractedAppRoot, outputRoot);
 
@@ -159,8 +152,6 @@ async function main() {
       buildNumber: upstreamPackage.buildNumber ?? upstreamPackage.codexBuildNumber ?? null,
       electronVersion: upstreamPackage.devDependencies?.electron ?? null,
       main: upstreamPackage.main ?? null,
-      patchSummary,
-      nativeModuleSummary,
       tempRoot: keepTemp ? tempRoot : null,
     };
 

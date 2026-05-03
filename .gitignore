@@ -3,6 +3,10 @@ Codex.dmg
 codex-dmg/
 codex-windows/
 Codex-extracted-*/
+codex/
+desktop/recovered/
+desktop/resources/
+desktop/.cache/
 
 # Node / Electron build outputs
 node_modules/
