@@ -12,7 +12,7 @@ This is the production Windows path for a non-Store Codex MSIX release:
 
 The `.msix` can live on GitHub Releases. The `.appinstaller` should have a stable URL because Windows uses that URL for future update checks. GitHub Pages is a better fit for that stable endpoint than a per-tag release URL.
 
-This workflow expects a complete Windows payload under `codex/`. The current manifest declares `app\Codex.exe`; if the checkout only contains supporting DLLs/resources and not that executable, the workflow stops before packing. Hydrate or build the Windows payload first, then rerun the workflow.
+The Windows workflows build the Electron `win32` payload on the GitHub runner, copy it into the staged MSIX payload, then pack and sign the MSIX. The committed `codex/` folder still owns the MSIX manifest and package assets; generated Electron binaries such as `Codex.exe` remain build outputs and are not committed. `arm64` builds run on GitHub's `windows-11-arm` runner; `x64` builds use `windows-latest`.
 
 ## Eligibility and cost
 
