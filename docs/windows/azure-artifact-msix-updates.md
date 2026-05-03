@@ -40,7 +40,9 @@ Use it when:
 
 Do not use it as the public release path. Public users will see trust failures unless they install your certificate first.
 
-Create a self-signed MSIX locally:
+The repo does not create the certificate. Create the self-signed PFX outside the repo once, keep it private, and pass it to the packaging script or GitHub workflow. The `.cer` is the public certificate; it can be shared so target machines can trust packages signed by the private PFX.
+
+Create a self-signed MSIX locally with an existing PFX:
 
 ```powershell
 $password = Read-Host -AsSecureString 'PFX password'
@@ -51,14 +53,28 @@ $password = Read-Host -AsSecureString 'PFX password'
   -Publisher 'CN=Codex Local Test' `
   -Version '26.429.20946.0' `
   -Architecture 'arm64' `
+  -CertificatePath './secrets/CodexSelfSigned.pfx' `
   -CertificatePassword $password `
   -OutputDirectory './out/windows/self-signed' `
-  -TrustCertificate
+  -ExportCertificate
 ```
 
-Omit `-TrustCertificate` when you only want to create the `.cer` and `.pfx` without modifying the current user's certificate stores. Use `-TrustCertificate` only on machines where you intentionally want to trust packages signed by that generated certificate.
+`-ExportCertificate` writes `CodexSelfSigned.cer` next to the `.msix` as a release asset. The script does not create a PFX and does not import anything into the current user's certificate stores.
 
-This script stops before certificate creation if the staged payload is incomplete. In this checkout, `AppxManifest.xml` declares `app\Codex.exe`, so the payload must contain that file before MakeAppx can produce a valid package.
+This script stops before packing if the staged payload is incomplete. In this checkout, `AppxManifest.xml` declares `app\Codex.exe`, so the payload must contain that file before MakeAppx can produce a valid package.
+
+The GitHub self-signed workflow expects these repository secrets:
+
+- `SELF_SIGNED_PFX_BASE64`: base64-encoded PFX bytes.
+- `SELF_SIGNED_PFX_PASSWORD`: PFX password.
+
+On PowerShell, encode a local PFX for the secret value like this:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\path\to\CodexSelfSigned.pfx'))
+```
+
+Never commit the PFX or its password. Only distribute the exported `.cer`.
 
 ## Required Azure inputs
 

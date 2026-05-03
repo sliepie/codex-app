@@ -16,12 +16,15 @@ param(
     [string] $Architecture,
 
     [Parameter(Mandatory = $true)]
+    [string] $CertificatePath,
+
+    [Parameter(Mandatory = $true)]
     [securestring] $CertificatePassword,
 
     [Parameter(Mandatory = $true)]
     [string] $OutputDirectory,
 
-    [switch] $TrustCertificate
+    [switch] $ExportCertificate
 )
 
 Set-StrictMode -Version Latest
@@ -72,19 +75,21 @@ if (-not (Test-Path -Path $SourcePath -PathType Container)) {
     throw "SourcePath '$SourcePath' does not exist."
 }
 
-$sourceRoot = Resolve-Path -Path $SourcePath
+if (-not (Test-Path -Path $CertificatePath -PathType Leaf)) {
+    throw "CertificatePath '$CertificatePath' does not exist. Create the self-signed PFX outside this script and pass it in."
+}
+
+$sourceRoot = (Resolve-Path -Path $SourcePath).Path
+$certificateFile = (Resolve-Path -Path $CertificatePath).Path
 $stageRoot = Join-Path $OutputDirectory 'stage'
 $assetRoot = Join-Path $OutputDirectory 'release-assets'
-$certRoot = Join-Path $OutputDirectory 'cert'
 $manifestPath = Join-Path $stageRoot 'AppxManifest.xml'
 $entryPointPath = Join-Path $stageRoot 'app/Codex.exe'
 $msixPath = Join-Path $assetRoot "Codex-$Architecture-self-signed.msix"
-$pfxPath = Join-Path $certRoot 'CodexSelfSigned.pfx'
-$cerPath = Join-Path $certRoot 'CodexSelfSigned.cer'
+$cerPath = Join-Path $assetRoot 'CodexSelfSigned.cer'
 
 New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $assetRoot -Force | Out-Null
-New-Item -ItemType Directory -Path $certRoot -Force | Out-Null
 
 Copy-Item -Path (Join-Path $sourceRoot '*') -Destination $stageRoot -Recurse -Force
 
@@ -108,19 +113,22 @@ $identity.Version = $Version
 $identity.ProcessorArchitecture = $Architecture
 $manifest.Save($manifestPath)
 
-$certificate = New-SelfSignedCertificate `
-    -Type Custom `
-    -KeyUsage DigitalSignature `
-    -Subject $Publisher `
-    -CertStoreLocation 'Cert:\CurrentUser\My' `
-    -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}') `
-    -FriendlyName 'Codex self-signed MSIX test certificate'
+$certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+    $certificateFile,
+    $CertificatePassword,
+    [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable
+)
 
-Export-PfxCertificate -Cert $certificate -FilePath $pfxPath -Password $CertificatePassword | Out-Null
-Export-Certificate -Cert $certificate -FilePath $cerPath | Out-Null
+if ($certificate.Subject -ne $Publisher) {
+    throw "Certificate subject '$($certificate.Subject)' must exactly match manifest Publisher '$Publisher'."
+}
 
-if ($TrustCertificate) {
-    Import-Certificate -FilePath $cerPath -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
+if (-not $certificate.HasPrivateKey) {
+    throw "CertificatePath '$CertificatePath' does not contain a private key. Pass a PFX, not a CER."
+}
+
+if ($ExportCertificate) {
+    [System.IO.File]::WriteAllBytes($cerPath, $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
 }
 
 $makeAppx = Get-LatestWindowsSdkTool -ToolName 'makeappx.exe'
@@ -133,7 +141,7 @@ if ($LASTEXITCODE -ne 0) {
 
 $plainTextPassword = ConvertTo-PlainText -Value $CertificatePassword
 try {
-    & $signTool sign /fd SHA256 /f $pfxPath /p $plainTextPassword $msixPath
+    & $signTool sign /fd SHA256 /f $certificateFile /p $plainTextPassword $msixPath
     if ($LASTEXITCODE -ne 0) {
         throw "signtool sign failed with exit code $LASTEXITCODE"
     }
@@ -143,11 +151,7 @@ finally {
 }
 
 Write-Host "Wrote $msixPath"
-Write-Host "Wrote $cerPath"
-Write-Host "Wrote $pfxPath"
-if ($TrustCertificate) {
-    Write-Host 'Installed the public certificate into Cert:\CurrentUser\TrustedPeople'
+if ($ExportCertificate) {
+    Write-Host "Wrote $cerPath"
 }
-else {
-    Write-Host 'Certificate was not installed. Import the .cer into Trusted People before installing the MSIX on a target machine.'
-}
+Write-Host 'No certificate was created or trusted. Keep the PFX private and distribute only the CER.'
