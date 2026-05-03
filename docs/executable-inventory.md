@@ -1,6 +1,6 @@
 # Codex App Executable Inventory
 
-Date: 2026-05-02
+Date: 2026-05-03
 
 ## Source Artifacts
 
@@ -10,6 +10,7 @@ Date: 2026-05-02
 | Windows ARM64 output | `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64-v26.429.30905.zip` |
 | Windows package directory | `desktop/out/Codex-win32-arm64` |
 | macOS extracted app | `desktop/.cache/codex-app/extract-26.429.30905/Codex.app` |
+| Vendored Node REPL fallback | `desktop/resources/node_repl.exe` from `OpenAI.Codex_26.429.3425.0_x64__2p2nqsd0c76g0` |
 
 ## Version Match
 
@@ -20,13 +21,14 @@ Date: 2026-05-02
 | Electron | refresh manifest = `41.2.0` | `desktop/package.json` dependency = `41.2.0` | Match |
 | Codex CLI | release payload = `rust-v0.128.0` | `resources/codex.exe --version` = `codex-cli 0.128.0` | Match |
 | CLI helper binaries | release payload = `rust-v0.128.0` | Windows helper `FileVersion` = `0.128.0` | Match |
+| Node REPL fallback | Store package `OpenAI.Codex_26.429.3425.0_x64__2p2nqsd0c76g0` | `resources/node_repl.exe` SHA-256 = `8af0555f7581e2bb0a42497ff08f1c2af4b9af8c2cfe4c369efd94fa8a916274` | Explicit x64 exception |
 
 ## Architecture Summary
 
 | Artifact | Executable count | Architecture result |
 | --- | ---: | --- |
 | macOS source app | 36 Mach-O files | 31 `arm64`, 5 Sparkle universal `fat(2)` files |
-| Windows ARM64 output | 12 PE files | 12 `ARM64` |
+| Windows ARM64 output | 13 PE files | 12 `ARM64`, 1 explicit `x64` exception (`resources/node_repl.exe`) |
 | Rebuilt native module cache | 1 PE file | `better_sqlite3.node` is `ARM64`; `.forge-meta` is `arm64--145` |
 
 The produced Windows package contains no `.node` files in `resources/app.asar` and no `resources/app.asar.unpacked` directory. The local native cache is rebuilt for ARM64, but no native module is emitted as a separate file in the produced package.
@@ -86,6 +88,7 @@ The produced Windows package contains no `.node` files in `resources/app.asar` a
 | `resources/codex-command-runner.exe` | `ARM64` | `0.128.0` |
 | `resources/codex-windows-sandbox-setup.exe` | `ARM64` | `0.128.0` |
 | `resources/codex.exe` | `ARM64` | `0.128.0`; CLI reports `codex-cli 0.128.0` |
+| `resources/node_repl.exe` | `x64` | Vendored from `OpenAI.Codex_26.429.3425.0_x64__2p2nqsd0c76g0`; SHA-256 `8af0555f7581e2bb0a42497ff08f1c2af4b9af8c2cfe4c369efd94fa8a916274` |
 | `vk_swiftshader.dll` | `ARM64` | `5.0.0` |
 | `vulkan-1.dll` | `ARM64` | Vulkan Loader |
 

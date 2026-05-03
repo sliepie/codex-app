@@ -19,7 +19,8 @@
     "package:win:arm64": "npm run build:scripts && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge package --platform win32 --arch arm64",
     "refresh:recovered": "node ./scripts/refresh-recovered-from-dmg.mjs",
     "make:win:arm64:ci": "npm run build:scripts && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge make --platform win32 --arch arm64",
-    "make:win:arm64": "npm run build:scripts && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge make --platform win32 --arch arm64"
+    "make:win:arm64": "npm run build:scripts && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge make --platform win32 --arch arm64",
+    "update:node-repl": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-node-repl.ps1"
   },
   "keywords": [
     "electron",
