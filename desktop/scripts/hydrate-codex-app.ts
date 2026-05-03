@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import extract from "extract-zip";
@@ -10,7 +11,20 @@ type Options = {
   force: boolean;
 };
 
+type NativeNodeModule = {
+  name: string;
+  version: string;
+};
+
+type PackageJson = {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  version?: string;
+};
+
 const desktopRoot = process.cwd();
+const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-node-modules");
 
 function readOption(argv: string[], ...names: string[]): string | undefined {
   for (const name of names) {
@@ -157,7 +171,7 @@ function hasNativePayload(packageRoot: string): boolean {
   return false;
 }
 
-function findNativeNodeModules(recoveredRoot: string): { name: string; version: string }[] {
+function findNativeNodeModules(recoveredRoot: string): NativeNodeModule[] {
   const nodeModulesRoot = path.join(recoveredRoot, "node_modules");
   const nativeModules = [];
 
@@ -181,19 +195,212 @@ function findNativeNodeModules(recoveredRoot: string): { name: string; version: 
   return nativeModules.sort((left, right) => left.name.localeCompare(right.name));
 }
 
+function packageRoot(root: string, packageName: string): string {
+  return path.join(root, "node_modules", ...packageName.split("/"));
+}
+
+function readPackageJson(packageRootPath: string): PackageJson {
+  return JSON.parse(fs.readFileSync(path.join(packageRootPath, "package.json"), "utf8")) as PackageJson;
+}
+
 function getInstalledPackageVersion(packageName: string): string | undefined {
-  const packageJsonPath = path.join(
-    desktopRoot,
-    "node_modules",
-    ...packageName.split("/"),
-    "package.json",
-  );
-  if (!fs.existsSync(packageJsonPath)) {
+  const packageRootPath = packageRoot(desktopRoot, packageName);
+  if (!fs.existsSync(path.join(packageRootPath, "package.json"))) {
     return undefined;
   }
 
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as { version?: string };
-  return packageJson.version;
+  return readPackageJson(packageRootPath).version;
+}
+
+function findInstalledPackageRoot(packageName: string, fromDirectory: string): string | undefined {
+  let currentDirectory = fromDirectory;
+  while (currentDirectory.startsWith(desktopRoot)) {
+    const candidate = packageRoot(currentDirectory, packageName);
+    if (fs.existsSync(path.join(candidate, "package.json"))) {
+      return candidate;
+    }
+
+    const parentDirectory = path.dirname(currentDirectory);
+    if (parentDirectory === currentDirectory) {
+      break;
+    }
+    currentDirectory = parentDirectory;
+  }
+
+  return undefined;
+}
+
+function collectRuntimePackageRoots(packageNames: string[]): string[] {
+  const packageRoots = [];
+  const seenPackageRoots = new Set<string>();
+  const pendingPackages = packageNames.map((packageName) => ({
+    packageName,
+    fromDirectory: desktopRoot,
+    optional: false,
+  }));
+
+  while (pendingPackages.length > 0) {
+    const nextPackage = pendingPackages.pop();
+    if (!nextPackage) {
+      break;
+    }
+
+    const packageRootPath = findInstalledPackageRoot(
+      nextPackage.packageName,
+      nextPackage.fromDirectory,
+    );
+    if (!packageRootPath) {
+      if (nextPackage.optional) {
+        continue;
+      }
+      throw new Error(`Missing installed runtime Node module: ${nextPackage.packageName}`);
+    }
+    if (seenPackageRoots.has(packageRootPath)) {
+      continue;
+    }
+
+    seenPackageRoots.add(packageRootPath);
+    packageRoots.push(packageRootPath);
+
+    const packageJson = readPackageJson(packageRootPath);
+    for (const packageName of Object.keys(packageJson.dependencies ?? {})) {
+      pendingPackages.push({ packageName, fromDirectory: packageRootPath, optional: false });
+    }
+    for (const packageName of Object.keys(packageJson.optionalDependencies ?? {})) {
+      pendingPackages.push({ packageName, fromDirectory: packageRootPath, optional: true });
+    }
+  }
+
+  return packageRoots;
+}
+
+function readRuntimeElectronVersion(recoveredRoot: string): string {
+  const packageJson = readPackageJson(recoveredRoot);
+  const electronVersion = packageJson.devDependencies?.electron ?? packageJson.dependencies?.electron;
+  if (!electronVersion) {
+    throw new Error("Hydrated app package.json does not list its Electron version.");
+  }
+  return electronVersion;
+}
+
+function runtimeCacheKey(nativeModules: NativeNodeModule[], electronVersion: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(JSON.stringify({ electronVersion, nativeModules, target: "win32-arm64", version: 1 }))
+    .digest("hex");
+}
+
+function runtimeCacheNodeModulesRoot(
+  nativeModules: NativeNodeModule[],
+  electronVersion: string,
+): string {
+  return path.join(
+    runtimeNodeModulesCacheRoot,
+    runtimeCacheKey(nativeModules, electronVersion),
+    "node_modules",
+  );
+}
+
+function copyPackageRoot(sourcePackageRoot: string, destinationNodeModulesRoot: string): void {
+  const relativePackageRoot = path.relative(
+    path.join(desktopRoot, "node_modules"),
+    sourcePackageRoot,
+  );
+  const destinationPackageRoot = path.join(destinationNodeModulesRoot, relativePackageRoot);
+  fs.mkdirSync(path.dirname(destinationPackageRoot), { recursive: true });
+  fs.cpSync(sourcePackageRoot, destinationPackageRoot, { recursive: true, force: true });
+}
+
+function restoreNativeNodeModulesFromCache(
+  nativeModules: NativeNodeModule[],
+  electronVersion: string,
+): boolean {
+  const cacheNodeModulesRoot = runtimeCacheNodeModulesRoot(nativeModules, electronVersion);
+  if (!fs.existsSync(cacheNodeModulesRoot)) {
+    return false;
+  }
+
+  fs.mkdirSync(path.join(desktopRoot, "node_modules"), { recursive: true });
+  fs.cpSync(cacheNodeModulesRoot, path.join(desktopRoot, "node_modules"), {
+    recursive: true,
+    force: true,
+  });
+  return true;
+}
+
+function saveNativeNodeModulesToCache(
+  nativeModules: NativeNodeModule[],
+  electronVersion: string,
+): void {
+  const cacheNodeModulesRoot = runtimeCacheNodeModulesRoot(nativeModules, electronVersion);
+  fs.rmSync(cacheNodeModulesRoot, { recursive: true, force: true });
+  fs.mkdirSync(cacheNodeModulesRoot, { recursive: true });
+
+  for (const packageRootPath of collectRuntimePackageRoots(
+    nativeModules.map((nativeModule) => nativeModule.name),
+  )) {
+    copyPackageRoot(packageRootPath, cacheNodeModulesRoot);
+  }
+}
+
+function shouldValidatePePayload(filePath: string): boolean {
+  const normalized = filePath.replaceAll(path.sep, "/");
+  if (![".dll", ".exe", ".node"].includes(path.extname(filePath))) {
+    return false;
+  }
+
+  if (/(?:^|\/)(?:darwin-[^/]+|linux-[^/]+|win32-x64|win10-x64)(?:\/|$)/.test(normalized)) {
+    return false;
+  }
+
+  const prebuildMatch = normalized.match(/\/prebuilds\/([^/]+)\//);
+  return !prebuildMatch || prebuildMatch[1] === "win32-arm64";
+}
+
+function isArm64Pe(filePath: string): boolean {
+  const bytes = fs.readFileSync(filePath);
+  if (bytes.length < 0x40 || bytes[0] !== 0x4d || bytes[1] !== 0x5a) {
+    return true;
+  }
+
+  const peOffset = bytes.readInt32LE(0x3c);
+  if (peOffset + 6 > bytes.length) {
+    return false;
+  }
+
+  return bytes.readUInt16LE(peOffset + 4) === 0xaa64;
+}
+
+function hasArm64RuntimePayload(packageRootPath: string): boolean {
+  for (const entry of fs.readdirSync(packageRootPath, { withFileTypes: true })) {
+    const entryPath = path.join(packageRootPath, entry.name);
+    if (entry.isDirectory()) {
+      if (!hasArm64RuntimePayload(entryPath)) {
+        return false;
+      }
+      continue;
+    }
+
+    if (entry.isFile() && shouldValidatePePayload(entryPath) && !isArm64Pe(entryPath)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function nativeNodeModulesReady(nativeModules: NativeNodeModule[]): boolean {
+  for (const nativeModule of nativeModules) {
+    const packageRootPath = packageRoot(desktopRoot, nativeModule.name);
+    if (getInstalledPackageVersion(nativeModule.name) !== nativeModule.version) {
+      return false;
+    }
+    if (!hasArm64RuntimePayload(packageRootPath)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function runNpm(args: string[]): void {
@@ -220,6 +427,26 @@ function syncNativeNodeModules(recoveredRoot: string): void {
     return;
   }
 
+  const electronVersion = readRuntimeElectronVersion(recoveredRoot);
+
+  if (
+    !nativeNodeModulesReady(nativeModules) &&
+    restoreNativeNodeModulesFromCache(nativeModules, electronVersion)
+  ) {
+    console.log("Restored native Node modules from cache.");
+  }
+  if (nativeNodeModulesReady(nativeModules)) {
+    if (!fs.existsSync(runtimeCacheNodeModulesRoot(nativeModules, electronVersion))) {
+      saveNativeNodeModulesToCache(nativeModules, electronVersion);
+    }
+    console.log(
+      `Native Node modules already match Windows ARM64: ${
+        nativeModules.map((nativeModule) => nativeModule.name).join(", ")
+      }`,
+    );
+    return;
+  }
+
   const missingOrOutdatedModules = nativeModules.filter(
     (nativeModule) => getInstalledPackageVersion(nativeModule.name) !== nativeModule.version,
   );
@@ -239,6 +466,7 @@ function syncNativeNodeModules(recoveredRoot: string): void {
 
   const nativeModuleNames = nativeModules.map((nativeModule) => nativeModule.name);
   runNpm(["rebuild", ...nativeModuleNames, "--arch=arm64", "--target_arch=arm64"]);
+  saveNativeNodeModulesToCache(nativeModules, electronVersion);
   console.log(`Synced native Node modules for Windows ARM64: ${nativeModuleNames.join(", ")}`);
 }
 

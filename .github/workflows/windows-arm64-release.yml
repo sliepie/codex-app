@@ -66,6 +66,7 @@ jobs:
           path: |
             desktop/.cache/codex-app
             desktop/.cache/codex-cli
+            desktop/.cache/runtime-node-modules
           key: ${{ steps.upstream.outputs.hydration_cache_key }}
 
       - name: Install dependencies

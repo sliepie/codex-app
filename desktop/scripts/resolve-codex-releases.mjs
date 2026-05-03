@@ -43,7 +43,7 @@ const buildNumber =
 const cliTag = "matched-to-app";
 const releaseTag = `codex-app-${appVersion}`;
 const buildMarkerKey = `windows-arm64-built-app-${appVersion}-build-${buildNumber}`;
-const hydrationCacheKey = `windows-arm64-hydrated-app-${appVersion}-build-${buildNumber}-cli-${cliTag}`;
+const hydrationCacheKey = `windows-arm64-hydrated-v2-app-${appVersion}-build-${buildNumber}-cli-${cliTag}`;
 
 githubOutput("codex_app_version", appVersion);
 githubOutput("codex_app_build", buildNumber);
