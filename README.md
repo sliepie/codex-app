@@ -18,7 +18,7 @@ CLI helper binaries.
   into `desktop/recovered/app-asar-extracted/`.
 - `desktop/forge.config.js`: packages the app and creates the Windows ARM64
   ZIP with Electron Forge.
-- `docs/windows/`: Windows MSIX, signing, and App Installer update notes
+- `docs/windows/`: Windows self-signed MSIX and App Installer update notes
 
 ## Local Build
 
@@ -36,4 +36,4 @@ appcast and downloads the Windows ARM64 Codex CLI resources before packaging.
 The ZIP output is written under `desktop/out/make/zip/win32/arm64/`.
 
 - Built installers and packaging outputs are release artifacts and should not be committed to git.
-- Windows MSIX/App Installer work is documented in `docs/windows/azure-artifact-msix-updates.md`.
+- Windows self-signed MSIX/App Installer work is documented in `docs/windows/self-signed-msix-updates.md`.

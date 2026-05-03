@@ -40,12 +40,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           lfs: true
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -153,14 +153,14 @@ jobs:
             -OutputPath "$env:GITHUB_WORKSPACE/out/windows/self-signed/release-assets/Codex.appinstaller"
 
       - name: Upload workflow artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: codex-windows-self-signed-msix
           path: out/windows/self-signed/release-assets/*
           if-no-files-found: error
 
       - name: Publish GitHub release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag_name }}
           name: codex-app windows self-signed ${{ inputs.tag_name }}
