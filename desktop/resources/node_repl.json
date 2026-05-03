@@ -1,0 +1,18 @@
+{
+  "source": {
+    "kind": "microsoft-store",
+    "productId": "9PLM9XGG6VKS",
+    "wingetSource": "msstore"
+  },
+  "packageIdentity": {
+    "name": "OpenAI.Codex.Arm64Dev",
+    "fullName": "OpenAI.Codex.Arm64Dev_26.429.3425.0_arm64__2p2nqsd0c76g0",
+    "familyName": "OpenAI.Codex.Arm64Dev_2p2nqsd0c76g0",
+    "version": "26.429.3425.0",
+    "publisher": "CN=50BDFD77-8903-4850-9FFE-6E8522F64D5B",
+    "signatureKind": 1
+  },
+  "sourceRelativePath": "app/resources/node_repl.exe",
+  "vendoredRelativePath": "resources/node_repl.exe",
+  "sha256": "8af0555f7581e2bb0a42497ff08f1c2af4b9af8c2cfe4c369efd94fa8a916274"
+}

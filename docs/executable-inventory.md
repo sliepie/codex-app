@@ -1,6 +1,6 @@
 # Codex App Executable Inventory
 
-Date: 2026-05-02
+Date: 2026-05-03
 
 ## Source Artifacts
 
@@ -10,6 +10,19 @@ Date: 2026-05-02
 | Windows ARM64 output | `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64-v26.429.30905.zip` |
 | Windows package directory | `desktop/out/Codex-win32-arm64` |
 | macOS extracted app | `desktop/.cache/codex-app/extract-26.429.30905/Codex.app` |
+| Vendored `node_repl.exe` fallback | Microsoft Store Codex product `9PLM9XGG6VKS` |
+
+## Vendored Store Fallback
+
+| Artifact | Value |
+| --- | --- |
+| Path | `desktop/resources/node_repl.exe` |
+| Metadata | `desktop/resources/node_repl.json` |
+| Source package | `OpenAI.Codex.Arm64Dev_26.429.3425.0_arm64__2p2nqsd0c76g0` |
+| Source package family | `OpenAI.Codex.Arm64Dev_2p2nqsd0c76g0` |
+| Source relative path | `app/resources/node_repl.exe` |
+| SHA-256 | `8af0555f7581e2bb0a42497ff08f1c2af4b9af8c2cfe4c369efd94fa8a916274` |
+| PE architecture | `x64` |
 
 ## Version Match
 
