@@ -53,3 +53,7 @@ This repo uses the default Matt Pocock skills triage labels. See `docs/agents/tr
 ### Domain docs
 
 This repo uses a single-context domain-doc layout. See `docs/agents/domain.md`.
+
+### Repo-local skills
+
+Use `.agents/skills/node-repl-update/SKILL.md` when refreshing the vendored `node_repl.exe` fallback.
