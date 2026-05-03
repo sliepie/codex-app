@@ -28,6 +28,38 @@ Current Microsoft guidance says:
 
 So for a European natural person, this is not currently the cheap public-trust path. For a European legal entity, the Basic SKU is the likely low-cost route. If only an individual European identity is available, use an OV code-signing certificate or Microsoft Store distribution instead.
 
+## Self-signed route
+
+Self-signing is the cheapest route for local installs and controlled testing. It does not create a public trust chain. Every target Windows user must trust the generated certificate before installing the MSIX.
+
+Use it when:
+
+- You are installing only on your own machines.
+- You are testing the package/update mechanics before paying for a public-trust signer.
+- You can explicitly import the `.cer` into `Cert:\CurrentUser\TrustedPeople` or deploy it through device management.
+
+Do not use it as the public release path. Public users will see trust failures unless they install your certificate first.
+
+Create a self-signed MSIX locally:
+
+```powershell
+$password = Read-Host -AsSecureString 'PFX password'
+
+./packaging/windows/New-SelfSignedCodexMsix.ps1 `
+  -SourcePath './codex' `
+  -PackageName 'Local.Codex' `
+  -Publisher 'CN=Codex Local Test' `
+  -Version '26.429.20946.0' `
+  -Architecture 'arm64' `
+  -CertificatePassword $password `
+  -OutputDirectory './out/windows/self-signed' `
+  -TrustCertificate
+```
+
+Omit `-TrustCertificate` when you only want to create the `.cer` and `.pfx` without modifying the current user's certificate stores. Use `-TrustCertificate` only on machines where you intentionally want to trust packages signed by that generated certificate.
+
+This script stops before certificate creation if the staged payload is incomplete. In this checkout, `AppxManifest.xml` declares `app\Codex.exe`, so the payload must contain that file before MakeAppx can produce a valid package.
+
 ## Required Azure inputs
 
 The release workflow intentionally requires these values instead of guessing:
