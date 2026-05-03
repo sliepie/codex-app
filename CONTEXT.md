@@ -28,7 +28,7 @@ A refresh path that installs or upgrades the official Microsoft Store Codex app,
 - **Resource binaries** should be ARM64 unless they cannot be compiled, downloaded, or otherwise obtained for Windows ARM64.
 - **`node_repl`** is a **Vendored resource binary** until a Windows ARM64 binary can be compiled, downloaded, or otherwise obtained.
 - **`node_repl`** may use the latest official closed-source x64 binary from an **Official package source**, even when that fallback version does not match the macOS appcast version exactly.
-- A **Temporary Store-install scrape** refreshes the vendored `desktop/resources/node_repl.exe` binary.
+- A **Temporary Store-install scrape** refreshes the vendored `desktop/resources/node_repl.exe` binary from the official Microsoft Store package for product ID `9PLM9XGG6VKS`; non-Store sources are not valid for `node_repl` updates.
 
 ## Example dialogue
 
