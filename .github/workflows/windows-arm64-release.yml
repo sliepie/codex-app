@@ -4,6 +4,32 @@ on:
   schedule:
     - cron: "0 0,12 * * *"
   workflow_dispatch:
+    inputs:
+      publish_self_signed_msix:
+        description: Build and publish a self-signed MSIX alongside the ARM64 artifact
+        required: false
+        default: false
+        type: boolean
+      package_version:
+        description: Four-part MSIX version, for example 26.429.20946.0
+        required: false
+        type: string
+      package_name:
+        description: MSIX package identity name
+        required: false
+        type: string
+      package_publisher:
+        description: MSIX publisher subject matching the self-signed PFX, for example CN=Codex Local Test
+        required: false
+        type: string
+      appinstaller_uri:
+        description: Stable public URL where Codex.appinstaller will be hosted
+        required: false
+        type: string
+      self_signed_release_tag:
+        description: GitHub release tag to publish self-signed assets to, for example v26.429.20946
+        required: false
+        type: string
   push:
     branches:
       - "**"
@@ -18,6 +44,8 @@ jobs:
       ELECTRON_CACHE: ${{ github.workspace }}\.cache\electron
       GH_TOKEN: ${{ github.token }}
       IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+      PACKAGE_ARCHITECTURE: arm64
+      PUBLISH_SELF_SIGNED_MSIX: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_self_signed_msix }}
     concurrency:
       group: windows-arm64-release-${{ github.ref }}
       cancel-in-progress: false
@@ -87,6 +115,95 @@ jobs:
           path: |
             desktop/out/make/zip/win32/arm64/*.zip
           if-no-files-found: error
+
+      - name: Validate self-signed MSIX inputs
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ inputs.package_version }}
+          PACKAGE_NAME: ${{ inputs.package_name }}
+          PACKAGE_PUBLISHER: ${{ inputs.package_publisher }}
+          APPINSTALLER_URI: ${{ inputs.appinstaller_uri }}
+          SELF_SIGNED_RELEASE_TAG: ${{ inputs.self_signed_release_tag }}
+        run: |
+          $missing = @()
+          foreach ($name in @('PACKAGE_VERSION', 'PACKAGE_NAME', 'PACKAGE_PUBLISHER', 'APPINSTALLER_URI', 'SELF_SIGNED_RELEASE_TAG')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              $missing += $name
+            }
+          }
+
+          if ($missing.Count -gt 0) {
+            throw "Missing required self-signed MSIX input(s): $($missing -join ', ')"
+          }
+
+      - name: Decode self-signed PFX
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        working-directory: desktop
+        env:
+          SELF_SIGNED_PFX_BASE64: ${{ secrets.SELF_SIGNED_PFX_BASE64 }}
+          SELF_SIGNED_PFX_PASSWORD: ${{ secrets.SELF_SIGNED_PFX_PASSWORD }}
+        run: npm run decode:self-signed-pfx -- --output "${{ github.workspace }}\out\windows\signing\CodexSelfSigned.pfx"
+
+      - name: Prepare self-signed MSIX payload
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        working-directory: desktop
+        run: npm run prepare:self-signed-msix-payload -- --package-root "${{ github.workspace }}\desktop\out\Codex-win32-${{ env.PACKAGE_ARCHITECTURE }}" --output-root "${{ github.workspace }}\codex"
+
+      - name: Build self-signed MSIX
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        shell: pwsh
+        env:
+          PACKAGE_NAME: ${{ inputs.package_name }}
+          PACKAGE_PUBLISHER: ${{ inputs.package_publisher }}
+          PACKAGE_VERSION: ${{ inputs.package_version }}
+          SELF_SIGNED_PFX_PASSWORD: ${{ secrets.SELF_SIGNED_PFX_PASSWORD }}
+        run: |
+          $password = ConvertTo-SecureString -String $env:SELF_SIGNED_PFX_PASSWORD -AsPlainText -Force
+          ./packaging/windows/New-SelfSignedCodexMsix.ps1 `
+            -SourcePath "$env:GITHUB_WORKSPACE/codex" `
+            -PackageName $env:PACKAGE_NAME `
+            -Publisher $env:PACKAGE_PUBLISHER `
+            -Version $env:PACKAGE_VERSION `
+            -Architecture $env:PACKAGE_ARCHITECTURE `
+            -CertificatePath "$env:GITHUB_WORKSPACE/out/windows/signing/CodexSelfSigned.pfx" `
+            -CertificatePassword $password `
+            -OutputDirectory "$env:GITHUB_WORKSPACE/out/windows/self-signed" `
+            -ExportCertificate
+
+      - name: Remove temporary PFX
+        if: always() && env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        shell: pwsh
+        run: |
+          Remove-Item -Path "$env:GITHUB_WORKSPACE/out/windows/signing/CodexSelfSigned.pfx" -Force -ErrorAction SilentlyContinue
+
+      - name: Generate self-signed App Installer file
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        working-directory: desktop
+        env:
+          PACKAGE_NAME: ${{ inputs.package_name }}
+          PACKAGE_PUBLISHER: ${{ inputs.package_publisher }}
+          PACKAGE_VERSION: ${{ inputs.package_version }}
+          APPINSTALLER_URI: ${{ inputs.appinstaller_uri }}
+          SELF_SIGNED_RELEASE_TAG: ${{ inputs.self_signed_release_tag }}
+        run: npm run write:self-signed-appinstaller -- --package-name "$env:PACKAGE_NAME" --publisher "$env:PACKAGE_PUBLISHER" --version "$env:PACKAGE_VERSION" --architecture "${{ env.PACKAGE_ARCHITECTURE }}" --package-uri "https://github.com/${{ github.repository }}/releases/download/$env:SELF_SIGNED_RELEASE_TAG/Codex-${{ env.PACKAGE_ARCHITECTURE }}-self-signed.msix" --appinstaller-uri "$env:APPINSTALLER_URI" --output "${{ github.workspace }}\out\windows\self-signed\release-assets\Codex.appinstaller"
+
+      - name: Upload self-signed MSIX artifacts
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: codex-windows-self-signed-msix
+          path: out/windows/self-signed/release-assets/*
+          if-no-files-found: error
+
+      - name: Publish self-signed GitHub release assets
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
+        with:
+          tag_name: ${{ inputs.self_signed_release_tag }}
+          name: codex-app windows self-signed ${{ inputs.self_signed_release_tag }}
+          draft: true
+          files: out/windows/self-signed/release-assets/*
 
       - name: Write build marker
         if: env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit != 'true'
