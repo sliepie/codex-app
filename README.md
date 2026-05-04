@@ -7,6 +7,11 @@ Codex app payload in the production appcast. It does not track the extracted
 Codex app payload, Windows Store package resources, Electron output, or Codex
 CLI helper binaries.
 
+The appcast is the official Electron update feed for the Codex desktop app. It
+is small metadata that points at the current upstream desktop ZIP; this repo
+uses it to find and hydrate the app payload during a build instead of committing
+that payload to git.
+
 ## Install the self-signed Windows ARM64 build
 
 The current self-signed build is published through GitHub Pages:
@@ -32,8 +37,8 @@ update Codex.
 ## Layout
 
 - `desktop/`: minimal Electron Forge packaging workspace.
-- `desktop/scripts/hydrate-codex-app.ts`: downloads the latest upstream Codex
-  app ZIP from the appcast and extracts `app.asar`.
+- `desktop/scripts/hydrate-codex-app.ts`: reads the official Electron update
+  feed, downloads the latest upstream Codex app ZIP, and extracts `app.asar`.
 - `desktop/scripts/hydrate-codex-cli.ts`: downloads the latest Windows ARM64
   Codex CLI and helper binaries from `openai/codex`.
 - `desktop/scripts/update-node-repl.ps1`: refreshes the vendored x64
