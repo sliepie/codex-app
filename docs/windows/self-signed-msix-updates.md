@@ -4,13 +4,14 @@ This is the Windows path for a self-signed non-Store Codex MSIX release:
 
 1. Build the Electron `win32` payload on the GitHub runner.
 2. Copy the generated app payload into the staged MSIX package folder.
-3. Remove stale generated package-signature files from the staged copy.
-4. Update `AppxManifest.xml` with the release identity, publisher, architecture, and four-part MSIX version.
-5. Pack the staged folder into an unsigned `.msix`.
-6. Sign the `.msix` with an existing self-signed PFX supplied through GitHub secrets.
-7. Export the public `.cer` next to the `.msix`.
-8. Generate a `.appinstaller` file that points to the GitHub Release `.msix`.
-9. Publish the `.msix`, `.cer`, and `.appinstaller` as draft release assets.
+3. Stage the required MSIX manifest and logo assets without committing generated `codex/` payload files.
+4. Remove stale generated package-signature files from the staged copy.
+5. Update `AppxManifest.xml` with the release identity, publisher, architecture, and four-part MSIX version.
+6. Pack the staged folder into an unsigned `.msix`.
+7. Sign the `.msix` with an existing self-signed PFX supplied through GitHub secrets.
+8. Export the public `.cer` next to the `.msix`.
+9. Generate a `.appinstaller` file that points to the GitHub Release `.msix`.
+10. Publish the `.msix`, `.cer`, and `.appinstaller` as draft release assets.
 
 The repo does not create the certificate. Create the self-signed PFX outside the repo once, keep it private, and pass it to the packaging script or GitHub workflow. The `.cer` is public and can be shared so target machines can trust packages signed by the private PFX.
 
@@ -31,7 +32,7 @@ On PowerShell, encode a local PFX for the secret value like this:
 
 Never commit the PFX or its password. Only distribute the exported `.cer`.
 
-The workflow builds `arm64` packages on GitHub's `windows-11-arm` runner and `x64` packages on `windows-latest`.
+The workflow builds `arm64` packages on GitHub's `windows-11-arm` runner, matching the repo's existing Windows ARM64 release workflow and hydration scripts.
 
 ## Local generation
 
