@@ -228,8 +228,10 @@ const config = {
     asar: true,
     appVersion: releaseInfo?.version,
     buildVersion: releaseInfo?.buildNumber,
+    icon: path.join(__dirname, 'assets', 'windows', 'icon.ico'),
     prune: false,
     extraResource: [
+      'assets/windows/icon.ico',
       'resources/codex.exe',
       'resources/codex-windows-sandbox-setup.exe',
       'resources/codex-command-runner.exe',
