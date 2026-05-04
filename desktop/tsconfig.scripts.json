@@ -10,5 +10,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["scripts/hydrate-codex-app.ts", "scripts/hydrate-codex-cli.ts"]
+  "include": [
+    "scripts/decode-self-signed-pfx.ts",
+    "scripts/hydrate-codex-app.ts",
+    "scripts/hydrate-codex-cli.ts",
+    "scripts/prepare-self-signed-msix-payload.ts",
+    "scripts/write-self-signed-appinstaller.ts"
+  ]
 }

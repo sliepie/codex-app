@@ -1,0 +1,91 @@
+param(
+    [Parameter(Mandatory = $true)]
+    [string] $PackageName,
+
+    [Parameter(Mandatory = $true)]
+    [string] $Publisher,
+
+    [Parameter(Mandatory = $true)]
+    [uri] $AppInstallerUri,
+
+    [Parameter(Mandatory = $true)]
+    [securestring] $CertificatePassword,
+
+    [Parameter(Mandatory = $true)]
+    [string] $OutputDirectory,
+
+    [int] $ValidYears = 3,
+
+    [string] $FileNamePrefix = 'CodexSelfSigned',
+
+    [switch] $KeepInStore
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+if ($Publisher -notmatch '^CN=') {
+    throw "Publisher '$Publisher' should be a certificate subject such as CN=Codex Local Test."
+}
+
+if ($PackageName -eq 'OpenAI.Codex') {
+    throw "PackageName must not be OpenAI.Codex. Use a distinct package identity for self-signed builds."
+}
+
+if ($ValidYears -lt 1) {
+    throw 'ValidYears must be at least 1.'
+}
+
+$outputRoot = (New-Item -ItemType Directory -Path $OutputDirectory -Force).FullName
+
+$pfxPath = Join-Path $outputRoot "$FileNamePrefix.pfx"
+$cerPath = Join-Path $outputRoot "$FileNamePrefix.cer"
+$base64Path = Join-Path $outputRoot "$FileNamePrefix.pfx.base64.txt"
+$valuesPath = Join-Path $outputRoot "$FileNamePrefix.github-values.txt"
+$pagesBaseUrl = $AppInstallerUri.AbsoluteUri.Substring(0, $AppInstallerUri.AbsoluteUri.LastIndexOf('/'))
+
+$certificate = New-SelfSignedCertificate `
+    -Type CodeSigningCert `
+    -Subject $Publisher `
+    -FriendlyName "$PackageName self-signed MSIX signing certificate" `
+    -KeyAlgorithm RSA `
+    -KeyLength 2048 `
+    -HashAlgorithm SHA256 `
+    -CertStoreLocation 'Cert:\CurrentUser\My' `
+    -NotAfter (Get-Date).AddYears($ValidYears)
+
+try {
+    Export-PfxCertificate -Cert $certificate -FilePath $pfxPath -Password $CertificatePassword -Force | Out-Null
+    Export-Certificate -Cert $certificate -FilePath $cerPath -Force | Out-Null
+
+    [Convert]::ToBase64String([IO.File]::ReadAllBytes($pfxPath)) |
+        Set-Content -Path $base64Path -Encoding ascii
+
+    @"
+GitHub repository variables:
+SELF_SIGNED_PACKAGE_NAME=$PackageName
+SELF_SIGNED_PACKAGE_PUBLISHER=$Publisher
+SELF_SIGNED_APPINSTALLER_URI=$($AppInstallerUri.AbsoluteUri)
+SELF_SIGNED_PAGES_BASE_URL=$pagesBaseUrl
+
+GitHub repository secrets:
+SELF_SIGNED_PFX_BASE64=<contents of $([IO.Path]::GetFileName($base64Path))>
+SELF_SIGNED_PFX_PASSWORD=<the password passed to this script>
+
+Public trust file:
+$([IO.Path]::GetFileName($cerPath))
+"@ | Set-Content -Path $valuesPath -Encoding utf8
+}
+finally {
+    if (-not $KeepInStore) {
+        Remove-Item -Path "Cert:\CurrentUser\My\$($certificate.Thumbprint)" -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Host "Wrote $pfxPath"
+Write-Host "Wrote $cerPath"
+Write-Host "Wrote $base64Path"
+Write-Host "Wrote $valuesPath"
+if (-not $KeepInStore) {
+    Write-Host 'Removed the generated certificate from Cert:\CurrentUser\My. Import the CER on target machines to trust signed MSIX packages.'
+}
