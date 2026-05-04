@@ -24,8 +24,8 @@ function readOption(argv: string[], name: string): string | undefined {
   return value;
 }
 
-function requireOption(argv: string[], name: string): string {
-  const value = readOption(argv, name);
+function requireOption(argv: string[], name: string, envName?: string): string {
+  const value = readOption(argv, name) ?? (envName ? process.env[envName] : undefined);
   if (!value) {
     throw new Error(`Missing required option: ${name}`);
   }
@@ -34,12 +34,12 @@ function requireOption(argv: string[], name: string): string {
 
 function parseOptions(argv: string[]): Options {
   return {
-    packageName: requireOption(argv, "--package-name"),
-    publisher: requireOption(argv, "--publisher"),
-    version: requireOption(argv, "--version"),
+    packageName: requireOption(argv, "--package-name", "PACKAGE_NAME"),
+    publisher: requireOption(argv, "--publisher", "PACKAGE_PUBLISHER"),
+    version: requireOption(argv, "--version", "PACKAGE_VERSION"),
     architecture: requireOption(argv, "--architecture"),
-    packageUri: requireOption(argv, "--package-uri"),
-    appInstallerUri: requireOption(argv, "--appinstaller-uri"),
+    packageUri: requireOption(argv, "--package-uri", "PACKAGE_URI"),
+    appInstallerUri: requireOption(argv, "--appinstaller-uri", "APPINSTALLER_URI"),
     outputPath: path.resolve(requireOption(argv, "--output")),
   };
 }

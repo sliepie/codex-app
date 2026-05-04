@@ -212,7 +212,8 @@ jobs:
           PACKAGE_VERSION: ${{ inputs.package_version || format('{0}.0', steps.upstream.outputs.codex_app_version) }}
           APPINSTALLER_URI: ${{ inputs.appinstaller_uri || vars.SELF_SIGNED_APPINSTALLER_URI }}
           PAGES_BASE_URL: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}
-        run: npm run write:self-signed-appinstaller -- --package-name "$env:PACKAGE_NAME" --publisher "$env:PACKAGE_PUBLISHER" --version "$env:PACKAGE_VERSION" --architecture "${{ env.PACKAGE_ARCHITECTURE }}" --package-uri "$env:PAGES_BASE_URL/Codex-${{ env.PACKAGE_ARCHITECTURE }}-self-signed.msix" --appinstaller-uri "$env:APPINSTALLER_URI" --output "${{ github.workspace }}\out\windows\self-signed\release-assets\Codex.appinstaller"
+          PACKAGE_URI: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}/Codex-${{ env.PACKAGE_ARCHITECTURE }}-self-signed.msix
+        run: npm run write:self-signed-appinstaller -- --architecture "${{ env.PACKAGE_ARCHITECTURE }}" --output "${{ github.workspace }}\out\windows\self-signed\release-assets\Codex.appinstaller"
 
       - name: Upload self-signed MSIX artifacts
         if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
