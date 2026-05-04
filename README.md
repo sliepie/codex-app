@@ -60,6 +60,9 @@ npm ci
 npm run make:win:arm64
 ```
 
+`fnm` is Fast Node Manager. It installs and switches to the Node.js version
+used by the Electron packaging workspace before `npm ci` runs.
+
 The build hydrates `desktop/recovered/app-asar-extracted/` from the official
 appcast and downloads the Windows ARM64 Codex CLI resources before packaging.
 The ZIP output is written under `desktop/out/make/zip/win32/arm64/`.
