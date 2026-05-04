@@ -32,13 +32,15 @@ Set these repository secrets:
 - `SELF_SIGNED_PFX_BASE64`: base64-encoded PFX bytes.
 - `SELF_SIGNED_PFX_PASSWORD`: PFX password.
 
+Use a distinct package identity for self-signed builds. Do not use `OpenAI.Codex`; that identity belongs to the official app package.
+
 Generate those values with:
 
 ```powershell
 $password = Read-Host -AsSecureString 'PFX password'
 
 ./packaging/windows/New-SelfSignedCodexSigningCertificate.ps1 `
-  -PackageName 'OpenAI.Codex' `
+  -PackageName 'Sliepie.Codex.SelfSigned' `
   -Publisher 'CN=Codex Local Test' `
   -AppInstallerUri 'https://sliepie.github.io/codex-app/Codex.appinstaller' `
   -CertificatePassword $password `

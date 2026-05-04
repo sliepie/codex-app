@@ -28,6 +28,10 @@ if ($Publisher -notmatch '^CN=') {
     throw "Publisher '$Publisher' should be a certificate subject such as CN=Codex Local Test."
 }
 
+if ($PackageName -eq 'OpenAI.Codex') {
+    throw "PackageName must not be OpenAI.Codex. Use a distinct package identity for self-signed builds."
+}
+
 if ($ValidYears -lt 1) {
     throw 'ValidYears must be at least 1.'
 }
