@@ -45,7 +45,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
       PACKAGE_ARCHITECTURE: arm64
-      PUBLISH_SELF_SIGNED_MSIX: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_self_signed_msix }}
+      PUBLISH_SELF_SIGNED_MSIX: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.publish_self_signed_msix) }}
     concurrency:
       group: windows-arm64-release-${{ github.ref }}
       cancel-in-progress: false
@@ -116,15 +116,38 @@ jobs:
             desktop/out/make/zip/win32/arm64/*.zip
           if-no-files-found: error
 
+      - name: Publish GitHub release
+        if: env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit != 'true'
+        run: |
+          $zip = Get-ChildItem -Path "desktop/out/make/zip/win32/arm64/*.zip" | Select-Object -First 1
+          if ($null -eq $zip) {
+            throw "No Windows ARM64 ZIP was produced."
+          }
+
+          $tag = "${{ steps.upstream.outputs.release_tag }}"
+          gh release view $tag --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $zip.FullName --repo "${{ github.repository }}" --clobber
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to upload Windows ARM64 ZIP to existing release $tag."
+            }
+          }
+          else {
+            gh release create $tag $zip.FullName --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "codex-app-windows-arm64 $tag"
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to create GitHub release $tag."
+            }
+          }
+
       - name: Validate self-signed MSIX inputs
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         shell: pwsh
         env:
-          PACKAGE_VERSION: ${{ inputs.package_version }}
-          PACKAGE_NAME: ${{ inputs.package_name }}
-          PACKAGE_PUBLISHER: ${{ inputs.package_publisher }}
-          APPINSTALLER_URI: ${{ inputs.appinstaller_uri }}
-          SELF_SIGNED_RELEASE_TAG: ${{ inputs.self_signed_release_tag }}
+          PACKAGE_VERSION: ${{ inputs.package_version || format('{0}.0', steps.upstream.outputs.codex_app_version) }}
+          PACKAGE_NAME: ${{ inputs.package_name || vars.SELF_SIGNED_PACKAGE_NAME }}
+          PACKAGE_PUBLISHER: ${{ inputs.package_publisher || vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
+          APPINSTALLER_URI: ${{ inputs.appinstaller_uri || vars.SELF_SIGNED_APPINSTALLER_URI }}
+          SELF_SIGNED_RELEASE_TAG: ${{ inputs.self_signed_release_tag || steps.upstream.outputs.release_tag }}
         run: |
           $missing = @()
           foreach ($name in @('PACKAGE_VERSION', 'PACKAGE_NAME', 'PACKAGE_PUBLISHER', 'APPINSTALLER_URI', 'SELF_SIGNED_RELEASE_TAG')) {
@@ -138,7 +161,7 @@ jobs:
           }
 
       - name: Decode self-signed PFX
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         working-directory: desktop
         env:
           SELF_SIGNED_PFX_BASE64: ${{ secrets.SELF_SIGNED_PFX_BASE64 }}
@@ -146,17 +169,17 @@ jobs:
         run: npm run decode:self-signed-pfx -- --output "${{ github.workspace }}\out\windows\signing\CodexSelfSigned.pfx"
 
       - name: Prepare self-signed MSIX payload
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         working-directory: desktop
         run: npm run prepare:self-signed-msix-payload -- --package-root "${{ github.workspace }}\desktop\out\Codex-win32-${{ env.PACKAGE_ARCHITECTURE }}" --output-root "${{ github.workspace }}\codex"
 
       - name: Build self-signed MSIX
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         shell: pwsh
         env:
-          PACKAGE_NAME: ${{ inputs.package_name }}
-          PACKAGE_PUBLISHER: ${{ inputs.package_publisher }}
-          PACKAGE_VERSION: ${{ inputs.package_version }}
+          PACKAGE_NAME: ${{ inputs.package_name || vars.SELF_SIGNED_PACKAGE_NAME }}
+          PACKAGE_PUBLISHER: ${{ inputs.package_publisher || vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
+          PACKAGE_VERSION: ${{ inputs.package_version || format('{0}.0', steps.upstream.outputs.codex_app_version) }}
           SELF_SIGNED_PFX_PASSWORD: ${{ secrets.SELF_SIGNED_PFX_PASSWORD }}
         run: |
           $password = ConvertTo-SecureString -String $env:SELF_SIGNED_PFX_PASSWORD -AsPlainText -Force
@@ -172,24 +195,24 @@ jobs:
             -ExportCertificate
 
       - name: Remove temporary PFX
-        if: always() && env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        if: always() && env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         shell: pwsh
         run: |
           Remove-Item -Path "$env:GITHUB_WORKSPACE/out/windows/signing/CodexSelfSigned.pfx" -Force -ErrorAction SilentlyContinue
 
       - name: Generate self-signed App Installer file
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         working-directory: desktop
         env:
-          PACKAGE_NAME: ${{ inputs.package_name }}
-          PACKAGE_PUBLISHER: ${{ inputs.package_publisher }}
-          PACKAGE_VERSION: ${{ inputs.package_version }}
-          APPINSTALLER_URI: ${{ inputs.appinstaller_uri }}
-          SELF_SIGNED_RELEASE_TAG: ${{ inputs.self_signed_release_tag }}
+          PACKAGE_NAME: ${{ inputs.package_name || vars.SELF_SIGNED_PACKAGE_NAME }}
+          PACKAGE_PUBLISHER: ${{ inputs.package_publisher || vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
+          PACKAGE_VERSION: ${{ inputs.package_version || format('{0}.0', steps.upstream.outputs.codex_app_version) }}
+          APPINSTALLER_URI: ${{ inputs.appinstaller_uri || vars.SELF_SIGNED_APPINSTALLER_URI }}
+          SELF_SIGNED_RELEASE_TAG: ${{ inputs.self_signed_release_tag || steps.upstream.outputs.release_tag }}
         run: npm run write:self-signed-appinstaller -- --package-name "$env:PACKAGE_NAME" --publisher "$env:PACKAGE_PUBLISHER" --version "$env:PACKAGE_VERSION" --architecture "${{ env.PACKAGE_ARCHITECTURE }}" --package-uri "https://github.com/${{ github.repository }}/releases/download/$env:SELF_SIGNED_RELEASE_TAG/Codex-${{ env.PACKAGE_ARCHITECTURE }}-self-signed.msix" --appinstaller-uri "$env:APPINSTALLER_URI" --output "${{ github.workspace }}\out\windows\self-signed\release-assets\Codex.appinstaller"
 
       - name: Upload self-signed MSIX artifacts
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codex-windows-self-signed-msix
@@ -197,13 +220,22 @@ jobs:
           if-no-files-found: error
 
       - name: Publish self-signed GitHub release assets
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
-        with:
-          tag_name: ${{ inputs.self_signed_release_tag }}
-          name: codex-app windows self-signed ${{ inputs.self_signed_release_tag }}
-          draft: true
-          files: out/windows/self-signed/release-assets/*
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
+        env:
+          SELF_SIGNED_RELEASE_TAG: ${{ inputs.self_signed_release_tag || steps.upstream.outputs.release_tag }}
+        run: |
+          gh release view $env:SELF_SIGNED_RELEASE_TAG --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:SELF_SIGNED_RELEASE_TAG --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "codex-app windows self-signed $env:SELF_SIGNED_RELEASE_TAG" --draft
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to create self-signed release $env:SELF_SIGNED_RELEASE_TAG."
+            }
+          }
+
+          gh release upload $env:SELF_SIGNED_RELEASE_TAG out/windows/self-signed/release-assets/* --repo "${{ github.repository }}" --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to upload self-signed release assets to $env:SELF_SIGNED_RELEASE_TAG."
+          }
 
       - name: Write build marker
         if: env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit != 'true'
@@ -215,15 +247,6 @@ jobs:
             codexCliTag = "${{ steps.upstream.outputs.codex_cli_tag }}"
             runId = "${{ github.run_id }}"
           } | ConvertTo-Json | Set-Content -Path .github/build-markers/windows-arm64/latest.json
-
-      - name: Publish GitHub release
-        if: env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit != 'true'
-        run: |
-          $zip = Get-ChildItem -Path "desktop/out/make/zip/win32/arm64/*.zip" | Select-Object -First 1
-          if ($null -eq $zip) {
-            throw "No Windows ARM64 ZIP was produced."
-          }
-          gh release create "${{ steps.upstream.outputs.release_tag }}" $zip.FullName --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "codex-app-windows-arm64 ${{ steps.upstream.outputs.release_tag }}"
 
       - name: Save build marker
         if: env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit != 'true'

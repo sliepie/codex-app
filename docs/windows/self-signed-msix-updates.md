@@ -13,26 +13,48 @@ This is the Windows path for a self-signed non-Store Codex MSIX release:
 9. Generate a `.appinstaller` file that points to the GitHub Release `.msix`.
 10. Publish the `.msix`, `.cer`, and `.appinstaller` as draft release assets.
 
-The repo does not create the certificate. Create the self-signed PFX outside the repo once, keep it private, and pass it to the packaging script or GitHub workflow. The `.cer` is public and can be shared so target machines can trust packages signed by the private PFX.
+Create the self-signed PFX with `packaging/windows/New-SelfSignedCodexSigningCertificate.ps1`, keep the PFX private, and pass it to the GitHub workflow through secrets. The `.cer` is public and can be shared so target machines can trust packages signed by the private PFX.
 
 Self-signing is cheap and useful for local installs or controlled testing. It is not a public trust chain. Every target Windows user must trust the `.cer` before installing the MSIX.
 
-## GitHub inputs
+## GitHub configuration
 
-The `Windows Self-Signed MSIX Release` workflow expects these repository secrets:
+Main release builds in `Windows ARM64 Release Artifacts` always build and publish the self-signed MSIX path when the release build is not skipped by the build marker. Manual workflow runs can also opt in with `publish_self_signed_msix`.
+
+Set these repository variables:
+
+- `SELF_SIGNED_PACKAGE_NAME`: MSIX package identity name.
+- `SELF_SIGNED_PACKAGE_PUBLISHER`: certificate subject, for example `CN=Codex Local Test`.
+- `SELF_SIGNED_APPINSTALLER_URI`: stable public URL where `Codex.appinstaller` will be hosted.
+
+Set these repository secrets:
 
 - `SELF_SIGNED_PFX_BASE64`: base64-encoded PFX bytes.
 - `SELF_SIGNED_PFX_PASSWORD`: PFX password.
 
-On PowerShell, encode a local PFX for the secret value like this:
+Generate those values with:
 
 ```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\path\to\CodexSelfSigned.pfx'))
+$password = Read-Host -AsSecureString 'PFX password'
+
+./packaging/windows/New-SelfSignedCodexSigningCertificate.ps1 `
+  -PackageName 'OpenAI.Codex' `
+  -Publisher 'CN=Codex Local Test' `
+  -AppInstallerUri 'https://sliepie.github.io/codex-app/Codex.appinstaller' `
+  -CertificatePassword $password `
+  -OutputDirectory './out/windows/signing'
 ```
 
-Never commit the PFX or its password. Only distribute the exported `.cer`.
+The script writes:
 
-The workflow builds `arm64` packages on GitHub's `windows-11-arm` runner, matching the repo's existing Windows ARM64 release workflow and hydration scripts.
+- `CodexSelfSigned.pfx`: private signing certificate. Do not commit it.
+- `CodexSelfSigned.cer`: public trust certificate for target machines.
+- `CodexSelfSigned.pfx.base64.txt`: value for `SELF_SIGNED_PFX_BASE64`.
+- `CodexSelfSigned.github-values.txt`: variable and secret checklist.
+
+Never commit the PFX, its base64 text, or its password. Only distribute the exported `.cer`.
+
+The workflow builds `arm64` packages on GitHub's Windows runner, matching the repo's existing Windows ARM64 release workflow and hydration scripts.
 
 ## Local generation
 
