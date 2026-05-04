@@ -7,11 +7,38 @@ Codex app payload in the production appcast. It does not track the extracted
 Codex app payload, Windows Store package resources, Electron output, or Codex
 CLI helper binaries.
 
+The appcast is the official Electron update feed for the Codex desktop app. It
+is small metadata that points at the current upstream desktop ZIP; this repo
+uses it to find and hydrate the app payload during a build instead of committing
+that payload to git.
+
+## Install the self-signed Windows ARM64 build
+
+The current self-signed build is published through GitHub Pages:
+
+- Certificate: https://sliepie.github.io/codex-app/CodexSelfSigned.cer
+- App Installer: https://sliepie.github.io/codex-app/Codex.appinstaller
+
+Install the certificate before opening the App Installer file. Windows App
+Installer validates the MSIX signature first and will not install the app until
+the self-signed certificate is trusted by the machine.
+
+Run this from an elevated PowerShell prompt:
+
+```powershell
+Import-Certificate `
+  -FilePath .\CodexSelfSigned.cer `
+  -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+```
+
+After the certificate is installed, open `Codex.appinstaller` to install or
+update Codex.
+
 ## Layout
 
 - `desktop/`: minimal Electron Forge packaging workspace.
-- `desktop/scripts/hydrate-codex-app.ts`: downloads the latest upstream Codex
-  app ZIP from the appcast and extracts `app.asar`.
+- `desktop/scripts/hydrate-codex-app.ts`: reads the official Electron update
+  feed, downloads the latest upstream Codex app ZIP, and extracts `app.asar`.
 - `desktop/scripts/hydrate-codex-cli.ts`: downloads the latest Windows ARM64
   Codex CLI and helper binaries from `openai/codex`.
 - `desktop/scripts/update-node-repl.ps1`: refreshes the vendored x64
@@ -32,6 +59,9 @@ fnm use 22
 npm ci
 npm run make:win:arm64
 ```
+
+`fnm` is Fast Node Manager. It installs and switches to the Node.js version
+used by the Electron packaging workspace before `npm ci` runs.
 
 The build hydrates `desktop/recovered/app-asar-extracted/` from the official
 appcast and downloads the Windows ARM64 Codex CLI resources before packaging.
