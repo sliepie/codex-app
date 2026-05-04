@@ -14,7 +14,8 @@ that payload to git.
 
 ## Install the self-signed Windows ARM64 build
 
-The current self-signed build is published through GitHub Pages:
+The current self-signed App Installer update channel is published through
+GitHub Pages:
 
 - Certificate: https://sliepie.github.io/codex-app/CodexSelfSigned.cer
 - App Installer: https://sliepie.github.io/codex-app/Codex.appinstaller
@@ -33,6 +34,16 @@ Import-Certificate `
 
 After the certificate is installed, open `Codex.appinstaller` to install or
 update Codex.
+
+The latest GitHub Release also exposes direct download links:
+
+- ZIP: https://github.com/sliepie/codex-app/releases/latest/download/codex-app-windows-arm64.zip
+- Certificate: https://github.com/sliepie/codex-app/releases/latest/download/CodexSelfSigned.cer
+- App Installer: https://github.com/sliepie/codex-app/releases/latest/download/Codex.appinstaller
+- MSIX: https://github.com/sliepie/codex-app/releases/latest/download/Codex-arm64-self-signed.msix
+
+The ZIP does not need App Installer or the certificate. Extract it and run
+`Codex.exe` directly from the extracted folder.
 
 ## Layout
 

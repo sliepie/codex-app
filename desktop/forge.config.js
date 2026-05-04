@@ -5,24 +5,12 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const releaseInfoPath = path.join(__dirname, '.cache', 'codex-app', 'latest-release.json');
-const releaseInfo = fs.existsSync(releaseInfoPath)
-  ? JSON.parse(fs.readFileSync(releaseInfoPath, 'utf8'))
-  : null;
 const recoveredNodeModulesRoot = path.join(
   __dirname,
   'recovered',
   'app-asar-extracted',
   'node_modules',
 );
-
-function getReleaseVersion() {
-  if (typeof releaseInfo?.version !== 'string' || releaseInfo.version.trim() === '') {
-    throw new Error(`Missing hydrated Codex app release info: ${releaseInfoPath}`);
-  }
-
-  return releaseInfo.version;
-}
 
 function listPackageRoots(nodeModulesRoot) {
   if (!fs.existsSync(nodeModulesRoot)) {
@@ -261,8 +249,6 @@ const config = {
   makers: [new MakerZIP({}, ['win32'])],
   hooks: {
     postMake: async (_forgeConfig, makeResults) => {
-      const releaseVersion = getReleaseVersion();
-
       return makeResults.map((result) => ({
         ...result,
         artifacts: result.artifacts.map((artifact) => {
@@ -272,7 +258,7 @@ const config = {
 
           const destination = path.join(
             path.dirname(artifact),
-            `codex-app-windows-arm64-v${releaseVersion}.zip`,
+            'codex-app-windows-arm64.zip',
           );
           if (fs.existsSync(destination)) {
             fs.rmSync(destination, { force: true });
