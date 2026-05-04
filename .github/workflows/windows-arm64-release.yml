@@ -36,6 +36,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  pages: write
 
 jobs:
   build-windows-arm64:
@@ -147,10 +149,11 @@ jobs:
           PACKAGE_NAME: ${{ inputs.package_name || vars.SELF_SIGNED_PACKAGE_NAME }}
           PACKAGE_PUBLISHER: ${{ inputs.package_publisher || vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
           APPINSTALLER_URI: ${{ inputs.appinstaller_uri || vars.SELF_SIGNED_APPINSTALLER_URI }}
+          PAGES_BASE_URL: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}
           SELF_SIGNED_RELEASE_TAG: ${{ inputs.self_signed_release_tag || steps.upstream.outputs.release_tag }}
         run: |
           $missing = @()
-          foreach ($name in @('PACKAGE_VERSION', 'PACKAGE_NAME', 'PACKAGE_PUBLISHER', 'APPINSTALLER_URI', 'SELF_SIGNED_RELEASE_TAG')) {
+          foreach ($name in @('PACKAGE_VERSION', 'PACKAGE_NAME', 'PACKAGE_PUBLISHER', 'APPINSTALLER_URI', 'PAGES_BASE_URL', 'SELF_SIGNED_RELEASE_TAG')) {
             if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
               $missing += $name
             }
@@ -208,8 +211,8 @@ jobs:
           PACKAGE_PUBLISHER: ${{ inputs.package_publisher || vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
           PACKAGE_VERSION: ${{ inputs.package_version || format('{0}.0', steps.upstream.outputs.codex_app_version) }}
           APPINSTALLER_URI: ${{ inputs.appinstaller_uri || vars.SELF_SIGNED_APPINSTALLER_URI }}
-          SELF_SIGNED_RELEASE_TAG: ${{ inputs.self_signed_release_tag || steps.upstream.outputs.release_tag }}
-        run: npm run write:self-signed-appinstaller -- --package-name "$env:PACKAGE_NAME" --publisher "$env:PACKAGE_PUBLISHER" --version "$env:PACKAGE_VERSION" --architecture "${{ env.PACKAGE_ARCHITECTURE }}" --package-uri "https://github.com/${{ github.repository }}/releases/download/$env:SELF_SIGNED_RELEASE_TAG/Codex-${{ env.PACKAGE_ARCHITECTURE }}-self-signed.msix" --appinstaller-uri "$env:APPINSTALLER_URI" --output "${{ github.workspace }}\out\windows\self-signed\release-assets\Codex.appinstaller"
+          PAGES_BASE_URL: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}
+        run: npm run write:self-signed-appinstaller -- --package-name "$env:PACKAGE_NAME" --publisher "$env:PACKAGE_PUBLISHER" --version "$env:PACKAGE_VERSION" --architecture "${{ env.PACKAGE_ARCHITECTURE }}" --package-uri "$env:PAGES_BASE_URL/Codex-${{ env.PACKAGE_ARCHITECTURE }}-self-signed.msix" --appinstaller-uri "$env:APPINSTALLER_URI" --output "${{ github.workspace }}\out\windows\self-signed\release-assets\Codex.appinstaller"
 
       - name: Upload self-signed MSIX artifacts
         if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
@@ -218,6 +221,18 @@ jobs:
           name: codex-windows-self-signed-msix
           path: out/windows/self-signed/release-assets/*
           if-no-files-found: error
+
+      - name: Upload self-signed Pages artifact
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit != 'true'
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+        with:
+          path: out/windows/self-signed/release-assets
+
+      - name: Deploy self-signed update channel to Pages
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit != 'true'
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+        with:
+          artifact_name: github-pages
 
       - name: Publish self-signed GitHub release assets
         if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')

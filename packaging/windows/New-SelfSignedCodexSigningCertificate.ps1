@@ -42,6 +42,7 @@ $pfxPath = Join-Path $OutputDirectory "$FileNamePrefix.pfx"
 $cerPath = Join-Path $OutputDirectory "$FileNamePrefix.cer"
 $base64Path = Join-Path $OutputDirectory "$FileNamePrefix.pfx.base64.txt"
 $valuesPath = Join-Path $OutputDirectory "$FileNamePrefix.github-values.txt"
+$pagesBaseUrl = $AppInstallerUri.AbsoluteUri.Substring(0, $AppInstallerUri.AbsoluteUri.LastIndexOf('/'))
 
 $certificate = New-SelfSignedCertificate `
     -Type CodeSigningCert `
@@ -65,6 +66,7 @@ GitHub repository variables:
 SELF_SIGNED_PACKAGE_NAME=$PackageName
 SELF_SIGNED_PACKAGE_PUBLISHER=$Publisher
 SELF_SIGNED_APPINSTALLER_URI=$($AppInstallerUri.AbsoluteUri)
+SELF_SIGNED_PAGES_BASE_URL=$pagesBaseUrl
 
 GitHub repository secrets:
 SELF_SIGNED_PFX_BASE64=<contents of $([IO.Path]::GetFileName($base64Path))>
