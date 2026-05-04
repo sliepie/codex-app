@@ -7,6 +7,28 @@ Codex app payload in the production appcast. It does not track the extracted
 Codex app payload, Windows Store package resources, Electron output, or Codex
 CLI helper binaries.
 
+## Install the self-signed Windows ARM64 build
+
+The current self-signed build is published through GitHub Pages:
+
+- Certificate: https://sliepie.github.io/codex-app/CodexSelfSigned.cer
+- App Installer: https://sliepie.github.io/codex-app/Codex.appinstaller
+
+Install the certificate before opening the App Installer file. Windows App
+Installer validates the MSIX signature first and will not install the app until
+the self-signed certificate is trusted by the machine.
+
+Run this from an elevated PowerShell prompt:
+
+```powershell
+Import-Certificate `
+  -FilePath .\CodexSelfSigned.cer `
+  -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+```
+
+After the certificate is installed, open `Codex.appinstaller` to install or
+update Codex.
+
 ## Layout
 
 - `desktop/`: minimal Electron Forge packaging workspace.

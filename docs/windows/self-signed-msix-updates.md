@@ -18,6 +18,25 @@ Create the self-signed PFX with `packaging/windows/New-SelfSignedCodexSigningCer
 
 Self-signing is cheap and useful for local installs or controlled testing. It is not a public trust chain. Every target Windows user must trust the `.cer` before installing the MSIX.
 
+## Install the published build
+
+Install the public certificate before opening the App Installer file:
+
+```powershell
+Import-Certificate `
+  -FilePath .\CodexSelfSigned.cer `
+  -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+```
+
+Run that command from an elevated PowerShell prompt after downloading
+`CodexSelfSigned.cer` from GitHub Pages or the GitHub Release. App Installer
+does not search the current user's certificate store when it verifies package
+identity, so importing into `Cert:\CurrentUser\...` is not enough.
+
+After the certificate is trusted, open
+`https://sliepie.github.io/codex-app/Codex.appinstaller` to install or update
+Codex.
+
 ## GitHub configuration
 
 Main release builds in `Windows ARM64 Release Artifacts` always build and publish the self-signed MSIX path when the release build is not skipped by the build marker. Manual workflow runs can also opt in with `publish_self_signed_msix`.
@@ -136,6 +155,7 @@ Generate a local App Installer file after you know the release URLs:
 ## References
 
 - Microsoft Learn: https://learn.microsoft.com/windows/msix/package/sign-msix-package-guide
+- Microsoft Learn: https://learn.microsoft.com/windows/msix/app-installer/troubleshoot-appinstaller-issues
 - Microsoft Learn: https://learn.microsoft.com/windows/msix/app-installer/update-settings
 - Microsoft Learn: https://learn.microsoft.com/windows/msix/app-installer/installing-windows10-apps-web
 - Electron Forge: https://www.electronforge.io/config/makers/msix
