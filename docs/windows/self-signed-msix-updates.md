@@ -56,7 +56,7 @@ The script writes:
 - `CodexSelfSigned.pfx.base64.txt`: value for `SELF_SIGNED_PFX_BASE64`.
 - `CodexSelfSigned.github-values.txt`: variable and secret checklist, including the Pages base URL.
 
-Never commit the PFX, its base64 text, or its password. Only distribute the exported `.cer`.
+Never commit the PFX, its base64 text, or its password. The public trust certificate is committed at `packaging/windows/certs/CodexSelfSigned.cer` and should match the private PFX stored in GitHub secrets.
 
 The workflow builds `arm64` packages on GitHub's Windows runner, matching the repo's existing Windows ARM64 release workflow and hydration scripts.
 
