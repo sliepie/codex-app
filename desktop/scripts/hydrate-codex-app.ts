@@ -286,7 +286,7 @@ function readRuntimeElectronVersion(recoveredRoot: string): string {
 function runtimeCacheKey(nativeModules: NativeNodeModule[], electronVersion: string): string {
   return crypto
     .createHash("sha256")
-    .update(JSON.stringify({ electronVersion, nativeModules, target: "win32-arm64", version: 1 }))
+    .update(JSON.stringify({ electronVersion, nativeModules, target: "win32-arm64", version: 2 }))
     .digest("hex");
 }
 
@@ -420,6 +420,37 @@ function runNpm(args: string[]): void {
   );
 }
 
+function runElectronRebuild(nativeModuleNames: string[], electronVersion: string): void {
+  const electronRebuildCli = path.join(
+    desktopRoot,
+    "node_modules",
+    "@electron",
+    "rebuild",
+    "lib",
+    "cli.js",
+  );
+  if (!fs.existsSync(electronRebuildCli)) {
+    throw new Error(`Missing electron-rebuild CLI: ${electronRebuildCli}`);
+  }
+
+  execFileSync(
+    process.execPath,
+    [
+      electronRebuildCli,
+      "--version",
+      electronVersion,
+      "--arch",
+      "arm64",
+      "--module-dir",
+      desktopRoot,
+      "--which-module",
+      nativeModuleNames.join(","),
+      "--force",
+    ],
+    { cwd: desktopRoot, stdio: "inherit" },
+  );
+}
+
 function syncNativeNodeModules(recoveredRoot: string): void {
   const nativeModules = findNativeNodeModules(recoveredRoot);
   if (nativeModules.length === 0) {
@@ -465,7 +496,7 @@ function syncNativeNodeModules(recoveredRoot: string): void {
   }
 
   const nativeModuleNames = nativeModules.map((nativeModule) => nativeModule.name);
-  runNpm(["rebuild", ...nativeModuleNames, "--arch=arm64", "--target_arch=arm64"]);
+  runElectronRebuild(nativeModuleNames, electronVersion);
   saveNativeNodeModulesToCache(nativeModules, electronVersion);
   console.log(`Synced native Node modules for Windows ARM64: ${nativeModuleNames.join(", ")}`);
 }
