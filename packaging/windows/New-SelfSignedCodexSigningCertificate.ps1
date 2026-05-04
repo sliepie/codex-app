@@ -36,12 +36,12 @@ if ($ValidYears -lt 1) {
     throw 'ValidYears must be at least 1.'
 }
 
-New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+$outputRoot = (New-Item -ItemType Directory -Path $OutputDirectory -Force).FullName
 
-$pfxPath = Join-Path $OutputDirectory "$FileNamePrefix.pfx"
-$cerPath = Join-Path $OutputDirectory "$FileNamePrefix.cer"
-$base64Path = Join-Path $OutputDirectory "$FileNamePrefix.pfx.base64.txt"
-$valuesPath = Join-Path $OutputDirectory "$FileNamePrefix.github-values.txt"
+$pfxPath = Join-Path $outputRoot "$FileNamePrefix.pfx"
+$cerPath = Join-Path $outputRoot "$FileNamePrefix.cer"
+$base64Path = Join-Path $outputRoot "$FileNamePrefix.pfx.base64.txt"
+$valuesPath = Join-Path $outputRoot "$FileNamePrefix.github-values.txt"
 $pagesBaseUrl = $AppInstallerUri.AbsoluteUri.Substring(0, $AppInstallerUri.AbsoluteUri.LastIndexOf('/'))
 
 $certificate = New-SelfSignedCertificate `
