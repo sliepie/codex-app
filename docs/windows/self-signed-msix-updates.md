@@ -41,8 +41,10 @@ Codex.
 
 Main release builds in `Windows ARM64 Release Artifacts` build and publish the
 ZIP plus self-signed MSIX/App Installer path when the release build is not
-skipped by the build marker. Manual workflow runs always rebuild and publish the
-same release assets for the currently resolved upstream Codex app version.
+skipped by the build marker. Manual workflow runs against `main` always rebuild
+and publish the same release assets for the currently resolved upstream Codex
+app version. Manual workflow runs against other branches build artifacts only
+and do not publish GitHub Release or Pages assets.
 
 Set these repository variables:
 

@@ -19,9 +19,9 @@ jobs:
     env:
       ELECTRON_CACHE: ${{ github.workspace }}\.cache\electron
       GH_TOKEN: ${{ github.token }}
-      IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+      IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
       PACKAGE_ARCHITECTURE: arm64
-      PUBLISH_SELF_SIGNED_MSIX: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+      PUBLISH_SELF_SIGNED_MSIX: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
       USE_BUILD_MARKER: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     concurrency:
       group: windows-arm64-release-${{ github.ref }}
