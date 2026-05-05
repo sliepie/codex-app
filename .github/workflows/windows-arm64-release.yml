@@ -233,6 +233,24 @@ jobs:
           path: out/windows/self-signed/release-assets/*
           if-no-files-found: error
 
+      - name: Publish self-signed GitHub release assets
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && steps.release-build.outputs.skip_build != 'true'
+        env:
+          SELF_SIGNED_RELEASE_TAG: ${{ steps.upstream.outputs.release_tag }}
+        run: |
+          gh release view $env:SELF_SIGNED_RELEASE_TAG --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:SELF_SIGNED_RELEASE_TAG --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "codex-app windows self-signed $env:SELF_SIGNED_RELEASE_TAG" --draft
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to create self-signed release $env:SELF_SIGNED_RELEASE_TAG."
+            }
+          }
+
+          gh release upload $env:SELF_SIGNED_RELEASE_TAG out/windows/self-signed/release-assets/* --repo "${{ github.repository }}" --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to upload self-signed release assets to $env:SELF_SIGNED_RELEASE_TAG."
+          }
+
       - name: Archive self-signed Pages artifact
         if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && steps.release-build.outputs.skip_build != 'true'
         shell: bash
@@ -265,24 +283,6 @@ jobs:
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
         with:
           artifact_name: github-pages
-
-      - name: Publish self-signed GitHub release assets
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && steps.release-build.outputs.skip_build != 'true'
-        env:
-          SELF_SIGNED_RELEASE_TAG: ${{ steps.upstream.outputs.release_tag }}
-        run: |
-          gh release view $env:SELF_SIGNED_RELEASE_TAG --repo "${{ github.repository }}" *> $null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $env:SELF_SIGNED_RELEASE_TAG --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "codex-app windows self-signed $env:SELF_SIGNED_RELEASE_TAG" --draft
-            if ($LASTEXITCODE -ne 0) {
-              throw "Failed to create self-signed release $env:SELF_SIGNED_RELEASE_TAG."
-            }
-          }
-
-          gh release upload $env:SELF_SIGNED_RELEASE_TAG out/windows/self-signed/release-assets/* --repo "${{ github.repository }}" --clobber
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to upload self-signed release assets to $env:SELF_SIGNED_RELEASE_TAG."
-          }
 
       - name: Write build marker
         if: env.USE_BUILD_MARKER == 'true' && steps.build-marker.outputs.cache-hit != 'true'
