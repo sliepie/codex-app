@@ -39,7 +39,10 @@ Codex.
 
 ## GitHub configuration
 
-Main release builds in `Windows ARM64 Release Artifacts` always build and publish the self-signed MSIX path when the release build is not skipped by the build marker. Manual workflow runs can also opt in with `publish_self_signed_msix`.
+Main release builds in `Windows ARM64 Release Artifacts` build and publish the
+ZIP plus self-signed MSIX/App Installer path when the release build is not
+skipped by the build marker. Manual workflow runs always rebuild and publish the
+same release assets for the currently resolved upstream Codex app version.
 
 Set these repository variables:
 
