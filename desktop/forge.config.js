@@ -257,6 +257,7 @@ const config = {
       'resources/codex-command-runner.exe',
       'resources/node_repl.exe',
       'resources/node.exe',
+      'resources/plugins',
       'resources/rg.exe',
     ],
     afterCopy: [
