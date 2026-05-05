@@ -90,7 +90,7 @@ jobs:
       - name: Skip unchanged release
         if: steps.release-build.outputs.skip_build == 'true'
         run: |
-          Write-Output "Codex app ${{ steps.upstream.outputs.codex_app_version }} build ${{ steps.upstream.outputs.codex_app_build }} with CLI ${{ steps.upstream.outputs.codex_cli_tag }} was already built."
+          Write-Output "Codex app ${{ steps.upstream.outputs.release_version }} build ${{ steps.upstream.outputs.codex_app_build }} with CLI ${{ steps.upstream.outputs.codex_cli_tag }} was already built."
 
       - name: Restore Electron cache
         if: steps.release-build.outputs.skip_build != 'true'
@@ -155,7 +155,7 @@ jobs:
         if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && steps.release-build.outputs.skip_build != 'true'
         shell: pwsh
         env:
-          PACKAGE_VERSION: ${{ format('{0}.0', steps.upstream.outputs.codex_app_version) }}
+          PACKAGE_VERSION: ${{ steps.upstream.outputs.release_version }}
           PACKAGE_NAME: ${{ vars.SELF_SIGNED_PACKAGE_NAME }}
           PACKAGE_PUBLISHER: ${{ vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
           APPINSTALLER_URI: ${{ vars.SELF_SIGNED_APPINSTALLER_URI }}
@@ -192,7 +192,7 @@ jobs:
         env:
           PACKAGE_NAME: ${{ vars.SELF_SIGNED_PACKAGE_NAME }}
           PACKAGE_PUBLISHER: ${{ vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
-          PACKAGE_VERSION: ${{ format('{0}.0', steps.upstream.outputs.codex_app_version) }}
+          PACKAGE_VERSION: ${{ steps.upstream.outputs.release_version }}
           SELF_SIGNED_PFX_PASSWORD: ${{ secrets.SELF_SIGNED_PFX_PASSWORD }}
         run: |
           $password = ConvertTo-SecureString -String $env:SELF_SIGNED_PFX_PASSWORD -AsPlainText -Force
@@ -219,7 +219,7 @@ jobs:
         env:
           PACKAGE_NAME: ${{ vars.SELF_SIGNED_PACKAGE_NAME }}
           PACKAGE_PUBLISHER: ${{ vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
-          PACKAGE_VERSION: ${{ format('{0}.0', steps.upstream.outputs.codex_app_version) }}
+          PACKAGE_VERSION: ${{ steps.upstream.outputs.release_version }}
           APPINSTALLER_URI: ${{ vars.SELF_SIGNED_APPINSTALLER_URI }}
           PAGES_BASE_URL: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}
           PACKAGE_URI: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}/Codex-${{ env.PACKAGE_ARCHITECTURE }}-self-signed.msix
@@ -292,6 +292,8 @@ jobs:
             codexAppVersion = "${{ steps.upstream.outputs.codex_app_version }}"
             codexAppBuild = "${{ steps.upstream.outputs.codex_app_build }}"
             codexCliTag = "${{ steps.upstream.outputs.codex_cli_tag }}"
+            repoReleaseRevision = "${{ steps.upstream.outputs.repo_release_revision }}"
+            releaseVersion = "${{ steps.upstream.outputs.release_version }}"
             runId = "${{ github.run_id }}"
           } | ConvertTo-Json | Set-Content -Path .github/build-markers/windows-arm64/latest.json
 
