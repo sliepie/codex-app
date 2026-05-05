@@ -134,6 +134,25 @@ test("patches function ranges when bundle literals contain braces", () => {
   assert.match(mainBundle, /async function qp\(client\)\{return!0\}/);
 });
 
+test("patches function ranges when regex literals follow keywords", () => {
+  const recoveredRoot = createRecoveredFixture();
+  fs.writeFileSync(
+    path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
+    "function zx(config){return /}/.test(`}`)||typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){return!0}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  assert.equal(report.patches.at(-2).name, "enable workspace dependencies static gate");
+  assert.equal(report.patches.at(-2).status, "applied");
+  assert.equal(report.patches.at(-1).name, "enable workspace dependencies app-server feature check");
+  assert.equal(report.patches.at(-1).status, "already-applied");
+});
+
 test("does not let one main-bundle gate marker fail the other gate patch", () => {
   const recoveredRoot = createRecoveredFixture();
   fs.writeFileSync(

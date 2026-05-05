@@ -211,17 +211,54 @@ function skipRegexLiteral(source: string, start: number): number {
   throw new Error("Unable to find end of regex literal.");
 }
 
-function canStartRegex(previousSignificantCharacter: string | undefined): boolean {
+const regexPrefixKeywords = new Set([
+  "await",
+  "case",
+  "delete",
+  "else",
+  "in",
+  "instanceof",
+  "of",
+  "return",
+  "throw",
+  "typeof",
+  "void",
+  "yield",
+]);
+
+function previousSignificantToken(source: string, index: number): string | undefined {
+  let cursor = index - 1;
+  while (cursor >= 0 && /\s/.test(source[cursor] ?? "")) {
+    cursor -= 1;
+  }
+  if (cursor < 0) {
+    return undefined;
+  }
+
+  const character = source[cursor];
+  if (/[A-Za-z0-9_$]/.test(character ?? "")) {
+    let start = cursor;
+    while (start > 0 && /[A-Za-z0-9_$]/.test(source[start - 1] ?? "")) {
+      start -= 1;
+    }
+    return source.slice(start, cursor + 1);
+  }
+
+  return character;
+}
+
+function canStartRegex(source: string, index: number): boolean {
+  const previousToken = previousSignificantToken(source, index);
   return (
-    previousSignificantCharacter == null ||
-    "({[=,:;!&|?+-*~^<>".includes(previousSignificantCharacter)
+    previousToken == null ||
+    regexPrefixKeywords.has(previousToken) ||
+    "({[=,:;!&|?+-*~^<>".includes(previousToken)
   );
 }
 
 function skipTemplateExpression(source: string, start: number): number {
   let depth = 1;
   let index = start;
-  let previousSignificantCharacter = "{";
 
   while (index < source.length && depth > 0) {
     const character = source[index];
@@ -243,9 +280,8 @@ function skipTemplateExpression(source: string, start: number): number {
       index = skipBlockComment(source, index);
       continue;
     }
-    if (character === "/" && canStartRegex(previousSignificantCharacter)) {
+    if (character === "/" && canStartRegex(source, index)) {
       index = skipRegexLiteral(source, index);
-      previousSignificantCharacter = "/";
       continue;
     }
 
@@ -253,9 +289,6 @@ function skipTemplateExpression(source: string, start: number): number {
       depth += 1;
     } else if (character === "}") {
       depth -= 1;
-    }
-    if (!/\s/.test(character ?? "")) {
-      previousSignificantCharacter = character;
     }
     index += 1;
   }
@@ -348,7 +381,6 @@ function findFunctionRanges(source: string): FunctionRange[] {
   while ((match = functionPattern.exec(source)) !== null) {
     let depth = 1;
     let index = functionPattern.lastIndex;
-    let previousSignificantCharacter = "{";
     while (index < source.length && depth > 0) {
       const character = source[index];
       const next = source[index + 1];
@@ -368,9 +400,8 @@ function findFunctionRanges(source: string): FunctionRange[] {
         index = skipBlockComment(source, index);
         continue;
       }
-      if (character === "/" && canStartRegex(previousSignificantCharacter)) {
+      if (character === "/" && canStartRegex(source, index)) {
         index = skipRegexLiteral(source, index);
-        previousSignificantCharacter = "/";
         continue;
       }
 
@@ -378,9 +409,6 @@ function findFunctionRanges(source: string): FunctionRange[] {
         depth += 1;
       } else if (character === "}") {
         depth -= 1;
-      }
-      if (!/\s/.test(character ?? "")) {
-        previousSignificantCharacter = character;
       }
       index += 1;
     }
