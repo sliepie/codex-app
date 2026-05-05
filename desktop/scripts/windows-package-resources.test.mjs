@@ -102,7 +102,7 @@ function createAppResourcesFixture() {
   return appResourcesRoot;
 }
 
-test("generates Windows bundled plugin resources except latex-tectonic", () => {
+test("generates Windows bundled plugin resources except macOS-only plugins", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
 
@@ -119,10 +119,9 @@ test("generates Windows bundled plugin resources except latex-tectonic", () => {
   );
   assert.deepEqual(
     marketplace.plugins.map((plugin) => plugin.name),
-    ["browser-use", "computer-use"],
+    ["browser-use"],
   );
   assert.equal(marketplace.plugins[0].source.path, "./plugins/browser-use");
-  assert.equal(marketplace.plugins[1].source.path, "./plugins/computer-use");
 
   assert.equal(
     fs.existsSync(
@@ -134,13 +133,8 @@ test("generates Windows bundled plugin resources except latex-tectonic", () => {
     true,
   );
   assert.equal(
-    fs.existsSync(
-      path.join(
-        destinationPluginsRoot,
-        "openai-bundled/plugins/computer-use/skills/computer/SKILL.md",
-      ),
-    ),
-    true,
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/computer-use")),
+    false,
   );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex-tectonic")),

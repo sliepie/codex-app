@@ -48,7 +48,7 @@ const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-no
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
 const browserUsePluginName = "browser-use";
 const openAiBundledMarketplaceName = "openai-bundled";
-const excludedBundledPluginNames = new Set(["latex-tectonic"]);
+const excludedBundledPluginNames = new Set(["computer-use", "latex-tectonic"]);
 const requiredBundledPluginNames = new Set([browserUsePluginName]);
 
 function readOption(argv: string[], ...names: string[]): string | undefined {

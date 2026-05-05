@@ -30,6 +30,10 @@ type FunctionRange = {
   end: number;
 };
 
+type ReplaceWithPatchersOptions = {
+  missingTargetMarkers?: string[];
+};
+
 class PatchFailure extends Error {
   result: PatchResult;
 
@@ -119,10 +123,6 @@ function countOccurrences(text: string, value: string): number {
 
 function exactPatch(target: string, replacement: string): SourcePatcher {
   return (source) => {
-    if (source.includes(replacement) && !source.includes(target)) {
-      return { source, status: "already-applied", matcher: "exact" };
-    }
-
     const count = countOccurrences(source, target);
     if (count === 0) {
       return undefined;
@@ -137,6 +137,156 @@ function exactPatch(target: string, replacement: string): SourcePatcher {
       matcher: "exact",
     };
   };
+}
+
+function skipQuotedString(source: string, start: number): number {
+  const quote = source[start];
+  let index = start + 1;
+
+  while (index < source.length) {
+    const character = source[index];
+    if (character === "\\") {
+      index += 2;
+      continue;
+    }
+    if (character === quote) {
+      return index + 1;
+    }
+    index += 1;
+  }
+
+  throw new Error("Unable to find end of string literal.");
+}
+
+function skipLineComment(source: string, start: number): number {
+  const end = source.indexOf("\n", start + 2);
+  return end === -1 ? source.length : end + 1;
+}
+
+function skipBlockComment(source: string, start: number): number {
+  const end = source.indexOf("*/", start + 2);
+  if (end === -1) {
+    throw new Error("Unable to find end of block comment.");
+  }
+  return end + 2;
+}
+
+function skipRegexLiteral(source: string, start: number): number {
+  let escaped = false;
+  let inCharacterClass = false;
+  let index = start + 1;
+
+  while (index < source.length) {
+    const character = source[index];
+    if (escaped) {
+      escaped = false;
+      index += 1;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      index += 1;
+      continue;
+    }
+    if (character === "[") {
+      inCharacterClass = true;
+      index += 1;
+      continue;
+    }
+    if (character === "]") {
+      inCharacterClass = false;
+      index += 1;
+      continue;
+    }
+    if (character === "/" && !inCharacterClass) {
+      index += 1;
+      while (/[A-Za-z]/.test(source[index] ?? "")) {
+        index += 1;
+      }
+      return index;
+    }
+    index += 1;
+  }
+
+  throw new Error("Unable to find end of regex literal.");
+}
+
+function canStartRegex(previousSignificantCharacter: string | undefined): boolean {
+  return (
+    previousSignificantCharacter == null ||
+    "({[=,:;!&|?+-*~^<>".includes(previousSignificantCharacter)
+  );
+}
+
+function skipTemplateExpression(source: string, start: number): number {
+  let depth = 1;
+  let index = start;
+  let previousSignificantCharacter = "{";
+
+  while (index < source.length && depth > 0) {
+    const character = source[index];
+    const next = source[index + 1];
+
+    if (character === "'" || character === "\"") {
+      index = skipQuotedString(source, index);
+      continue;
+    }
+    if (character === "`") {
+      index = skipTemplateLiteral(source, index);
+      continue;
+    }
+    if (character === "/" && next === "/") {
+      index = skipLineComment(source, index);
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      index = skipBlockComment(source, index);
+      continue;
+    }
+    if (character === "/" && canStartRegex(previousSignificantCharacter)) {
+      index = skipRegexLiteral(source, index);
+      previousSignificantCharacter = "/";
+      continue;
+    }
+
+    if (character === "{") {
+      depth += 1;
+    } else if (character === "}") {
+      depth -= 1;
+    }
+    if (!/\s/.test(character ?? "")) {
+      previousSignificantCharacter = character;
+    }
+    index += 1;
+  }
+
+  if (depth !== 0) {
+    throw new Error("Unable to find end of template expression.");
+  }
+
+  return index;
+}
+
+function skipTemplateLiteral(source: string, start: number): number {
+  let index = start + 1;
+
+  while (index < source.length) {
+    const character = source[index];
+    if (character === "\\") {
+      index += 2;
+      continue;
+    }
+    if (character === "`") {
+      return index + 1;
+    }
+    if (character === "$" && source[index + 1] === "{") {
+      index = skipTemplateExpression(source, index + 2);
+      continue;
+    }
+    index += 1;
+  }
+
+  throw new Error("Unable to find end of template literal.");
 }
 
 function regexPatch(
@@ -198,12 +348,39 @@ function findFunctionRanges(source: string): FunctionRange[] {
   while ((match = functionPattern.exec(source)) !== null) {
     let depth = 1;
     let index = functionPattern.lastIndex;
+    let previousSignificantCharacter = "{";
     while (index < source.length && depth > 0) {
       const character = source[index];
+      const next = source[index + 1];
+      if (character === "'" || character === "\"") {
+        index = skipQuotedString(source, index);
+        continue;
+      }
+      if (character === "`") {
+        index = skipTemplateLiteral(source, index);
+        continue;
+      }
+      if (character === "/" && next === "/") {
+        index = skipLineComment(source, index);
+        continue;
+      }
+      if (character === "/" && next === "*") {
+        index = skipBlockComment(source, index);
+        continue;
+      }
+      if (character === "/" && canStartRegex(previousSignificantCharacter)) {
+        index = skipRegexLiteral(source, index);
+        previousSignificantCharacter = "/";
+        continue;
+      }
+
       if (character === "{") {
         depth += 1;
       } else if (character === "}") {
         depth -= 1;
+      }
+      if (!/\s/.test(character ?? "")) {
+        previousSignificantCharacter = character;
       }
       index += 1;
     }
@@ -261,6 +438,7 @@ function replaceWithPatchers(
   filePath: string,
   name: string,
   patchers: SourcePatcher[],
+  options: ReplaceWithPatchersOptions = {},
 ): PatchResult {
   const reportFile = toReportPath(recoveredRoot, filePath);
   const original = fs.readFileSync(filePath, "utf8");
@@ -295,6 +473,19 @@ function replaceWithPatchers(
     };
   }
 
+  const presentMarkers = (options.missingTargetMarkers ?? []).filter((marker) =>
+    original.includes(marker),
+  );
+  if (presentMarkers.length > 0) {
+    const result = {
+      file: reportFile,
+      name,
+      status: "failed-required" as const,
+      reason: `Gate target was not found, but required marker(s) are still present: ${presentMarkers.join(", ")}`,
+    };
+    throw new PatchFailure(result, result.reason);
+  }
+
   return {
     file: reportFile,
     name,
@@ -318,6 +509,7 @@ function patchSettingsPage(recoveredRoot: string): PatchResult[] {
           "$1!0",
         ),
       ],
+      { missingTargetMarkers: ["1981165915"] },
     ),
   ];
 }
@@ -337,6 +529,7 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
           "$1!0",
         ),
       ],
+      { missingTargetMarkers: ["1981165915"] },
     ),
     replaceWithPatchers(
       recoveredRoot,
@@ -354,6 +547,7 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
           /workspace_dependencies:!0/,
         ),
       ],
+      { missingTargetMarkers: [".groupName===`Test`"] },
     ),
   ];
 }
@@ -376,6 +570,7 @@ function patchAgentSettings(recoveredRoot: string): PatchResult[] {
           "$1!0,$2!0",
         ),
       ],
+      { missingTargetMarkers: ["2106641128"] },
     ),
   ];
 }
@@ -399,6 +594,7 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
           (range) => `function ${range.name}(${range.args}){return!0}`,
         ),
       ],
+      { missingTargetMarkers: ["workspace_dependencies"] },
     ),
     replaceWithPatchers(
       recoveredRoot,
@@ -415,6 +611,7 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
           (range) => `${range.asyncPrefix}function ${range.name}(${range.args}){return!0}`,
         ),
       ],
+      { missingTargetMarkers: ["workspace_dependencies"] },
     ),
   ];
 }
