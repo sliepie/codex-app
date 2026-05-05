@@ -1,13 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 
-type PatchStatus = "applied" | "already-applied";
+type PatchStatus = "applied" | "already-applied" | "assumed-enabled" | "failed-required";
 
 type PatchResult = {
   file: string;
   name: string;
   status: PatchStatus;
-  matcher: string;
+  matcher?: string;
+  reason?: string;
 };
 
 const desktopRoot = process.cwd();
@@ -29,6 +30,20 @@ type FunctionRange = {
   end: number;
 };
 
+class PatchFailure extends Error {
+  result: PatchResult;
+
+  constructor(result: PatchResult, cause: unknown) {
+    super(`${result.name}: ${errorMessage(cause)}`);
+    this.name = "PatchFailure";
+    this.result = result;
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function readOption(argv: string[], ...names: string[]): string | undefined {
   for (const name of names) {
     const index = argv.indexOf(name);
@@ -41,6 +56,21 @@ function readOption(argv: string[], ...names: string[]): string | undefined {
     }
   }
   return undefined;
+}
+
+function toReportPath(root: string, filePath: string): string {
+  const resolvedRoot = path.resolve(root);
+  const resolvedFile = path.resolve(filePath);
+  const relative = path.relative(resolvedRoot, resolvedFile);
+
+  if (!relative) {
+    return ".";
+  }
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error(`Cannot report path outside recovered app root: ${filePath}`);
+  }
+
+  return relative.replaceAll(path.sep, path.posix.sep);
 }
 
 function findFile(root: string, pattern: RegExp): string {
@@ -60,12 +90,14 @@ function findFile(root: string, pattern: RegExp): string {
         continue;
       }
 
+      pattern.lastIndex = 0;
       if (entry.isFile() && pattern.test(entry.name)) {
         matches.push(entryPath);
       }
     }
   }
 
+  matches.sort();
   if (matches.length !== 1) {
     throw new Error(
       `Expected exactly one recovered bundle file matching ${pattern}, found ${matches.length}.`,
@@ -83,10 +115,6 @@ function countOccurrences(text: string, value: string): number {
     index = text.indexOf(value, index + value.length);
   }
   return count;
-}
-
-function relativeFile(filePath: string): string {
-  return path.relative(desktopRoot, filePath);
 }
 
 function exactPatch(target: string, replacement: string): SourcePatcher {
@@ -114,12 +142,14 @@ function exactPatch(target: string, replacement: string): SourcePatcher {
 function regexPatch(
   pattern: RegExp,
   replacement: string | ((match: RegExpExecArray) => string),
-  alreadyApplied: RegExp,
+  alreadyApplied?: RegExp,
 ): SourcePatcher {
   return (source) => {
-    alreadyApplied.lastIndex = 0;
+    if (alreadyApplied) {
+      alreadyApplied.lastIndex = 0;
+    }
     pattern.lastIndex = 0;
-    if (alreadyApplied.test(source) && !pattern.test(source)) {
+    if (alreadyApplied?.test(source) && !pattern.test(source)) {
       return { source, status: "already-applied", matcher: "semantic" };
     }
     pattern.lastIndex = 0;
@@ -227,13 +257,28 @@ function functionContainingAllPatch(
 }
 
 function replaceWithPatchers(
+  recoveredRoot: string,
   filePath: string,
   name: string,
   patchers: SourcePatcher[],
 ): PatchResult {
+  const reportFile = toReportPath(recoveredRoot, filePath);
   const original = fs.readFileSync(filePath, "utf8");
   for (const patcher of patchers) {
-    const result = patcher(original);
+    let result: SourcePatchResult | undefined;
+    try {
+      result = patcher(original);
+    } catch (error) {
+      throw new PatchFailure(
+        {
+          file: reportFile,
+          name,
+          status: "failed-required",
+          reason: errorMessage(error),
+        },
+        error,
+      );
+    }
     if (!result) {
       continue;
     }
@@ -243,14 +288,19 @@ function replaceWithPatchers(
     }
 
     return {
-      file: relativeFile(filePath),
+      file: reportFile,
       name,
       status: result.status,
       matcher: result.matcher,
     };
   }
 
-  throw new Error(`Unable to find patch target for ${name} in ${filePath}.`);
+  return {
+    file: reportFile,
+    name,
+    status: "assumed-enabled",
+    reason: "Gate target was not found; assuming upstream removed or enabled this gate.",
+  };
 }
 
 function patchSettingsPage(recoveredRoot: string): PatchResult[] {
@@ -258,6 +308,7 @@ function patchSettingsPage(recoveredRoot: string): PatchResult[] {
 
   return [
     replaceWithPatchers(
+      recoveredRoot,
       filePath,
       "enable keyboard shortcuts settings section",
       [
@@ -265,7 +316,6 @@ function patchSettingsPage(recoveredRoot: string): PatchResult[] {
         regexPatch(
           new RegExp(String.raw`\b(${identifierPattern}=)${identifierPattern}\(\`1981165915\`\)`, "g"),
           "$1!0",
-          new RegExp(String.raw`\b${identifierPattern}=!0`),
         ),
       ],
     ),
@@ -277,6 +327,7 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
 
   return [
     replaceWithPatchers(
+      recoveredRoot,
       filePath,
       "enable keyboard shortcuts command menu entries",
       [
@@ -284,11 +335,11 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
         regexPatch(
           new RegExp(String.raw`\b(${identifierPattern}=)${identifierPattern}\(\`1981165915\`\)`, "g"),
           "$1!0",
-          new RegExp(String.raw`\b${identifierPattern}=!0`),
         ),
       ],
     ),
     replaceWithPatchers(
+      recoveredRoot,
       filePath,
       "include workspace dependencies in default feature map",
       [
@@ -312,6 +363,7 @@ function patchAgentSettings(recoveredRoot: string): PatchResult[] {
 
   return [
     replaceWithPatchers(
+      recoveredRoot,
       filePath,
       "show beta feature group and workspace dependencies section",
       [
@@ -322,7 +374,6 @@ function patchAgentSettings(recoveredRoot: string): PatchResult[] {
             "g",
           ),
           "$1!0,$2!0",
-          new RegExp(String.raw`\b${identifierPattern}=!0,${identifierPattern}=!0`),
         ),
       ],
     ),
@@ -334,6 +385,7 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
 
   return [
     replaceWithPatchers(
+      recoveredRoot,
       filePath,
       "enable workspace dependencies static gate",
       [
@@ -349,6 +401,7 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
       ],
     ),
     replaceWithPatchers(
+      recoveredRoot,
       filePath,
       "enable workspace dependencies app-server feature check",
       [
@@ -373,7 +426,7 @@ function writePatchReport(reportPath: string, recoveredRoot: string, patches: Pa
     JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
-        target: recoveredRoot,
+        target: path.basename(path.resolve(recoveredRoot)),
         patches,
       },
       null,
@@ -394,21 +447,42 @@ function main(): void {
     throw new Error(`Recovered app root does not exist: ${recoveredRoot}`);
   }
 
-  const results = [
-    ...patchSettingsPage(recoveredRoot),
-    ...patchIndex(recoveredRoot),
-    ...patchAgentSettings(recoveredRoot),
-    ...patchMainBundle(recoveredRoot),
-  ];
+  const results: PatchResult[] = [];
+  try {
+    results.push(...patchSettingsPage(recoveredRoot));
+    results.push(...patchIndex(recoveredRoot));
+    results.push(...patchAgentSettings(recoveredRoot));
+    results.push(...patchMainBundle(recoveredRoot));
+  } catch (error) {
+    if (error instanceof PatchFailure) {
+      results.push(error.result);
+    } else {
+      results.push({
+        file: ".",
+        name: "patch Windows self-signed bundle",
+        status: "failed-required",
+        reason: errorMessage(error),
+      });
+    }
+
+    if (reportPath) {
+      writePatchReport(reportPath, recoveredRoot, results);
+    }
+    throw error;
+  }
+
+  const summary = results
+    .map((result) => {
+      const matcher = result.matcher ? `, ${result.matcher}` : "";
+      const reason = result.reason ? ` - ${result.reason}` : "";
+      return `${result.status}: ${result.name} (${result.file}${matcher})${reason}`;
+    })
+    .join("\n");
+  console.log(`Patched Windows self-signed bundle:\n${summary}`);
 
   if (reportPath) {
     writePatchReport(reportPath, recoveredRoot, results);
   }
-
-  const summary = results
-    .map((result) => `${result.status}: ${result.name} (${result.file}, ${result.matcher})`)
-    .join("\n");
-  console.log(`Patched Windows self-signed bundle:\n${summary}`);
 }
 
 main();

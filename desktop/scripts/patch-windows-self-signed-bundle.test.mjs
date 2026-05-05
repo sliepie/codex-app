@@ -55,6 +55,47 @@ function runPatcher(recoveredRoot, reportPath) {
   });
 }
 
+test("writes patch report file paths relative to the recovered app root", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  assert.deepEqual(
+    report.patches.map((patch) => patch.file),
+    [
+      "webview/assets/settings-page-fixture.js",
+      "webview/assets/index-fixture.js",
+      "webview/assets/index-fixture.js",
+      "webview/assets/agent-settings-fixture.js",
+      ".vite/build/main-fixture.js",
+      ".vite/build/main-fixture.js",
+    ],
+  );
+  assert.ok(report.patches.every((patch) => !path.isAbsolute(patch.file)));
+  assert.ok(report.patches.every((patch) => !patch.file.includes("..")));
+});
+
+test("reports a missing gate target as assumed enabled and continues", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const indexPath = path.join(recoveredRoot, "webview", "assets", "index-fixture.js");
+  fs.writeFileSync(indexPath, "let unrelated=!0;", "utf8");
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  assert.equal(report.patches[1].name, "enable keyboard shortcuts command menu entries");
+  assert.equal(report.patches[1].status, "assumed-enabled");
+  assert.equal(report.patches[1].file, "webview/assets/index-fixture.js");
+  assert.match(report.patches[1].reason, /Gate target was not found/);
+  assert.equal(report.patches.at(-1).name, "enable workspace dependencies app-server feature check");
+  assert.equal(report.patches.at(-1).status, "applied");
+});
+
 test("patches self-signed Windows gates when upstream minifier names change", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -98,17 +139,31 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
-test("reports self-signed Windows gate patches as already applied on a second run", () => {
+test("does not fail or rewrite when self-signed Windows gate patches run again", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
 
   const first = runPatcher(recoveredRoot, reportPath);
   assert.equal(first.status, 0, first.stderr || first.stdout);
+  const files = [
+    path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
+    path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
+  ];
+  const before = new Map(files.map((file) => [file, fs.readFileSync(file, "utf8")]));
 
   const second = runPatcher(recoveredRoot, reportPath);
 
   assert.equal(second.status, 0, second.stderr || second.stdout);
+  for (const file of files) {
+    assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
+  }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   assert.equal(report.patches.length, 6);
-  assert.ok(report.patches.every((patch) => patch.status === "already-applied"));
+  assert.ok(
+    report.patches.every((patch) =>
+      ["already-applied", "assumed-enabled"].includes(patch.status),
+    ),
+  );
 });
