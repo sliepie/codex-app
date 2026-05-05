@@ -12,6 +12,7 @@
   "codexBuildFlavor": "prod",
   "scripts": {
     "build:scripts": "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json",
+    "test:patch-windows-self-signed-bundle": "npm run build:scripts && node --test scripts/patch-windows-self-signed-bundle.test.mjs",
     "hydrate:app": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-app.js",
     "hydrate:cli": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-cli.js",
     "hydrate:app:compiled": "node ./.cache/scripts/hydrate-codex-app.js",

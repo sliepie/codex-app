@@ -7,9 +7,27 @@ type PatchResult = {
   file: string;
   name: string;
   status: PatchStatus;
+  matcher: string;
 };
 
 const desktopRoot = process.cwd();
+const identifierPattern = String.raw`[A-Za-z_$][\w$]*`;
+
+type SourcePatchResult = {
+  source: string;
+  status: PatchStatus;
+  matcher: string;
+};
+
+type SourcePatcher = (source: string) => SourcePatchResult | undefined;
+type FunctionRange = {
+  asyncPrefix: string;
+  name: string;
+  args: string;
+  body: string;
+  start: number;
+  end: number;
+};
 
 function readOption(argv: string[], ...names: string[]): string | undefined {
   for (const name of names) {
@@ -67,37 +85,189 @@ function countOccurrences(text: string, value: string): number {
   return count;
 }
 
-function replaceExact(
+function relativeFile(filePath: string): string {
+  return path.relative(desktopRoot, filePath);
+}
+
+function exactPatch(target: string, replacement: string): SourcePatcher {
+  return (source) => {
+    if (source.includes(replacement) && !source.includes(target)) {
+      return { source, status: "already-applied", matcher: "exact" };
+    }
+
+    const count = countOccurrences(source, target);
+    if (count === 0) {
+      return undefined;
+    }
+    if (count !== 1) {
+      throw new Error(`Expected exactly one exact target, found ${count}.`);
+    }
+
+    return {
+      source: source.replace(target, replacement),
+      status: "applied",
+      matcher: "exact",
+    };
+  };
+}
+
+function regexPatch(
+  pattern: RegExp,
+  replacement: string | ((match: RegExpExecArray) => string),
+  alreadyApplied: RegExp,
+): SourcePatcher {
+  return (source) => {
+    alreadyApplied.lastIndex = 0;
+    pattern.lastIndex = 0;
+    if (alreadyApplied.test(source) && !pattern.test(source)) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+    pattern.lastIndex = 0;
+
+    const matches = Array.from(source.matchAll(pattern));
+    if (matches.length === 0) {
+      return undefined;
+    }
+    if (matches.length !== 1) {
+      throw new Error(`Expected exactly one semantic target, found ${matches.length}.`);
+    }
+
+    const match = matches[0];
+    const nextSource =
+      typeof replacement === "string"
+        ? source.replace(pattern, replacement)
+        : source.slice(0, match.index) +
+          replacement(match) +
+          source.slice((match.index ?? 0) + match[0].length);
+
+    return {
+      source: nextSource,
+      status: nextSource === source ? "already-applied" : "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
+function alreadyAppliedPatch(evidence: string | RegExp): SourcePatcher {
+  return (source) => {
+    const applied =
+      typeof evidence === "string" ? source.includes(evidence) : evidence.test(source);
+    if (!applied) {
+      return undefined;
+    }
+
+    return { source, status: "already-applied", matcher: "semantic" };
+  };
+}
+
+function findFunctionRanges(source: string): FunctionRange[] {
+  const ranges: FunctionRange[] = [];
+  const functionPattern = /\b(async\s+)?function\s+([A-Za-z_$][\w$]*)\(([^)]*)\)\{/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = functionPattern.exec(source)) !== null) {
+    let depth = 1;
+    let index = functionPattern.lastIndex;
+    while (index < source.length && depth > 0) {
+      const character = source[index];
+      if (character === "{") {
+        depth += 1;
+      } else if (character === "}") {
+        depth -= 1;
+      }
+      index += 1;
+    }
+
+    if (depth !== 0) {
+      throw new Error(`Unable to find end of function ${match[2]}.`);
+    }
+
+    ranges.push({
+      asyncPrefix: match[1] ?? "",
+      name: match[2],
+      args: match[3],
+      body: source.slice(functionPattern.lastIndex, index - 1),
+      start: match.index,
+      end: index,
+    });
+  }
+
+  return ranges;
+}
+
+function functionContainingAllPatch(
+  markers: string[],
+  alreadyApplied: RegExp,
+  replacement: (range: FunctionRange) => string,
+): SourcePatcher {
+  return (source) => {
+    if (alreadyApplied.test(source) && !markers.some((marker) => source.includes(marker))) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+
+    const matches = findFunctionRanges(source).filter((range) =>
+      markers.every((marker) => range.body.includes(marker)),
+    );
+    if (matches.length === 0) {
+      return undefined;
+    }
+    if (matches.length !== 1) {
+      throw new Error(
+        `Expected exactly one function containing ${markers.join(", ")}, found ${matches.length}.`,
+      );
+    }
+
+    const match = matches[0];
+    return {
+      source: source.slice(0, match.start) + replacement(match) + source.slice(match.end),
+      status: "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
+function replaceWithPatchers(
   filePath: string,
   name: string,
-  target: string,
-  replacement: string,
+  patchers: SourcePatcher[],
 ): PatchResult {
   const original = fs.readFileSync(filePath, "utf8");
-  if (original.includes(replacement) && !original.includes(target)) {
-    return { file: path.relative(desktopRoot, filePath), name, status: "already-applied" };
+  for (const patcher of patchers) {
+    const result = patcher(original);
+    if (!result) {
+      continue;
+    }
+
+    if (result.source !== original) {
+      fs.writeFileSync(filePath, result.source, "utf8");
+    }
+
+    return {
+      file: relativeFile(filePath),
+      name,
+      status: result.status,
+      matcher: result.matcher,
+    };
   }
 
-  const count = countOccurrences(original, target);
-  if (count !== 1) {
-    throw new Error(
-      `Expected exactly one target for ${name} in ${filePath}, found ${count}.`,
-    );
-  }
-
-  fs.writeFileSync(filePath, original.replace(target, replacement), "utf8");
-  return { file: path.relative(desktopRoot, filePath), name, status: "applied" };
+  throw new Error(`Unable to find patch target for ${name} in ${filePath}.`);
 }
 
 function patchSettingsPage(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(path.join(recoveredRoot, "webview", "assets"), /^settings-page-.*\.js$/);
 
   return [
-    replaceExact(
+    replaceWithPatchers(
       filePath,
       "enable keyboard shortcuts settings section",
-      "h=E(`1981165915`)",
-      "h=!0",
+      [
+        exactPatch("h=E(`1981165915`)", "h=!0"),
+        regexPatch(
+          new RegExp(String.raw`\b(${identifierPattern}=)${identifierPattern}\(\`1981165915\`\)`, "g"),
+          "$1!0",
+          new RegExp(String.raw`\b${identifierPattern}=!0`),
+        ),
+      ],
     ),
   ];
 }
@@ -106,17 +276,33 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(path.join(recoveredRoot, "webview", "assets"), /^index-.*\.js$/);
 
   return [
-    replaceExact(
+    replaceWithPatchers(
       filePath,
       "enable keyboard shortcuts command menu entries",
-      "y=ms(`1981165915`)",
-      "y=!0",
+      [
+        exactPatch("y=ms(`1981165915`)", "y=!0"),
+        regexPatch(
+          new RegExp(String.raw`\b(${identifierPattern}=)${identifierPattern}\(\`1981165915\`\)`, "g"),
+          "$1!0",
+          new RegExp(String.raw`\b${identifierPattern}=!0`),
+        ),
+      ],
     ),
-    replaceExact(
+    replaceWithPatchers(
       filePath,
       "include workspace dependencies in default feature map",
-      "return{...t,...n,[xE]:ps(e,SE)&&gs(e,bE).groupName===`Test`,...r}",
-      "return{...t,...n,workspace_dependencies:!0,[xE]:ps(e,SE)&&gs(e,bE).groupName===`Test`,...r}",
+      [
+        exactPatch(
+          "return{...t,...n,[xE]:ps(e,SE)&&gs(e,bE).groupName===`Test`,...r}",
+          "return{...t,...n,workspace_dependencies:!0,[xE]:ps(e,SE)&&gs(e,bE).groupName===`Test`,...r}",
+        ),
+        alreadyAppliedPatch("workspace_dependencies:!0"),
+        regexPatch(
+          /return\{([^{}]*?)(\[[^\]]+\]:[^{}]*?\.groupName===`Test`)(,\.\.\.[^{}]+?)\}/g,
+          (match) => `return{${match[1]}workspace_dependencies:!0,${match[2]}${match[3]}}`,
+          /workspace_dependencies:!0/,
+        ),
+      ],
     ),
   ];
 }
@@ -125,11 +311,20 @@ function patchAgentSettings(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(path.join(recoveredRoot, "webview", "assets"), /^agent-settings-.*\.js$/);
 
   return [
-    replaceExact(
+    replaceWithPatchers(
       filePath,
       "show beta feature group and workspace dependencies section",
-      "s=oe(W),c=oe(`2106641128`)",
-      "s=!0,c=!0",
+      [
+        exactPatch("s=oe(W),c=oe(`2106641128`)", "s=!0,c=!0"),
+        regexPatch(
+          new RegExp(
+            String.raw`\b(${identifierPattern}=)${identifierPattern}\(${identifierPattern}\),(${identifierPattern}=)${identifierPattern}\(\`2106641128\`\)`,
+            "g",
+          ),
+          "$1!0,$2!0",
+          new RegExp(String.raw`\b${identifierPattern}=!0,${identifierPattern}=!0`),
+        ),
+      ],
     ),
   ];
 }
@@ -138,25 +333,62 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(path.join(recoveredRoot, ".vite", "build"), /^main-.*\.js$/);
 
   return [
-    replaceExact(
+    replaceWithPatchers(
       filePath,
       "enable workspace dependencies static gate",
-      "function ap(e){return typeof e!=`object`||!e?!1:Object.entries(e).some(([e,t])=>e===`workspace_dependencies`&&t===!0)}",
-      "function ap(e){return!0}",
+      [
+        exactPatch(
+          "function ap(e){return typeof e!=`object`||!e?!1:Object.entries(e).some(([e,t])=>e===`workspace_dependencies`&&t===!0)}",
+          "function ap(e){return!0}",
+        ),
+        functionContainingAllPatch(
+          ["Object.entries", "workspace_dependencies"],
+          /\bfunction\s+[A-Za-z_$][\w$]*\([^)]*\)\{return!0\}/,
+          (range) => `function ${range.name}(${range.args}){return!0}`,
+        ),
+      ],
     ),
-    replaceExact(
+    replaceWithPatchers(
       filePath,
       "enable workspace dependencies app-server feature check",
-      "async function op(e){let t=async n=>{let r=await e.sendAppServerRequest(`experimentalFeature/list`,{cursor:n,limit:100});return r.data.some(e=>e.name===`workspace_dependencies`&&e.enabled===!0)?!0:r.nextCursor==null?!1:t(r.nextCursor)};return t(null)}",
-      "async function op(e){return!0}",
+      [
+        exactPatch(
+          "async function op(e){let t=async n=>{let r=await e.sendAppServerRequest(`experimentalFeature/list`,{cursor:n,limit:100});return r.data.some(e=>e.name===`workspace_dependencies`&&e.enabled===!0)?!0:r.nextCursor==null?!1:t(r.nextCursor)};return t(null)}",
+          "async function op(e){return!0}",
+        ),
+        functionContainingAllPatch(
+          ["sendAppServerRequest(`experimentalFeature/list`", "workspace_dependencies"],
+          /\basync\s+function\s+[A-Za-z_$][\w$]*\([^)]*\)\{return!0\}/,
+          (range) => `${range.asyncPrefix}function ${range.name}(${range.args}){return!0}`,
+        ),
+      ],
     ),
   ];
 }
 
+function writePatchReport(reportPath: string, recoveredRoot: string, patches: PatchResult[]): void {
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+  fs.writeFileSync(
+    reportPath,
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        target: recoveredRoot,
+        patches,
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+}
+
 function main(): void {
+  const argv = process.argv.slice(2);
   const recoveredRoot =
-    readOption(process.argv.slice(2), "--recovered-root", "-RecoveredRoot") ??
+    readOption(argv, "--recovered-root", "-RecoveredRoot") ??
     path.join(desktopRoot, "recovered", "app-asar-extracted");
+  const reportPath = readOption(argv, "--report-json", "-ReportJson");
 
   if (!fs.existsSync(recoveredRoot)) {
     throw new Error(`Recovered app root does not exist: ${recoveredRoot}`);
@@ -169,8 +401,12 @@ function main(): void {
     ...patchMainBundle(recoveredRoot),
   ];
 
+  if (reportPath) {
+    writePatchReport(reportPath, recoveredRoot, results);
+  }
+
   const summary = results
-    .map((result) => `${result.status}: ${result.name} (${result.file})`)
+    .map((result) => `${result.status}: ${result.name} (${result.file}, ${result.matcher})`)
     .join("\n");
   console.log(`Patched Windows self-signed bundle:\n${summary}`);
 }
