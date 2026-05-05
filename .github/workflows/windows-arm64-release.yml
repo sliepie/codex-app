@@ -233,11 +233,32 @@ jobs:
           path: out/windows/self-signed/release-assets/*
           if-no-files-found: error
 
+      - name: Archive self-signed Pages artifact
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && steps.release-build.outputs.skip_build != 'true'
+        shell: bash
+        env:
+          INPUT_PATH: out/windows/self-signed/release-assets
+        run: |
+          echo ::group::Archive artifact
+          tar \
+            --dereference --hard-dereference \
+            --directory "$INPUT_PATH" \
+            -cvf "$RUNNER_TEMP\artifact.tar" \
+            --exclude=.git \
+            --exclude=.github \
+            --exclude=.[^/]* \
+            --force-local \
+            "."
+          echo ::endgroup::
+
       - name: Upload self-signed Pages artifact
         if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && steps.release-build.outputs.skip_build != 'true'
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          path: out/windows/self-signed/release-assets
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Deploy self-signed update channel to Pages
         if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && steps.release-build.outputs.skip_build != 'true'
