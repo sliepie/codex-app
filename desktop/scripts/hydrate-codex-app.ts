@@ -501,6 +501,18 @@ function syncNativeNodeModules(recoveredRoot: string): void {
   console.log(`Synced native Node modules for Windows ARM64: ${nativeModuleNames.join(", ")}`);
 }
 
+function patchWindowsSelfSignedBundle(recoveredRoot: string): void {
+  execFileSync(
+    process.execPath,
+    [
+      path.join(desktopRoot, ".cache", "scripts", "patch-windows-self-signed-bundle.js"),
+      "--recovered-root",
+      recoveredRoot,
+    ],
+    { stdio: "inherit" },
+  );
+}
+
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   if (!options.appcastUrl.trim()) {
@@ -565,6 +577,7 @@ async function main(): Promise<void> {
     ],
     { stdio: "inherit" },
   );
+  patchWindowsSelfSignedBundle(recoveredRoot);
   syncNativeNodeModules(recoveredRoot);
 
   fs.writeFileSync(
