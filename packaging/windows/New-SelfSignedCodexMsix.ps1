@@ -135,6 +135,28 @@ if ($ExportCertificate) {
     [System.IO.File]::WriteAllBytes($cerPath, $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
 }
 
+$priConfigPath = Join-Path $OutputDirectory 'priconfig.xml'
+$priPath = Join-Path $stageRoot 'resources.pri'
+Remove-Item -Path $priConfigPath -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $priPath -Force -ErrorAction SilentlyContinue
+
+$makePri = Get-LatestWindowsSdkTool -ToolName 'makepri.exe'
+& $makePri createconfig /cf $priConfigPath /dq lang-en-US /o
+if ($LASTEXITCODE -ne 0) {
+    throw "makepri createconfig failed with exit code $LASTEXITCODE"
+}
+
+& $makePri new /pr $stageRoot /cf $priConfigPath /mn $manifestPath /of $priPath /o
+if ($LASTEXITCODE -ne 0) {
+    throw "makepri new failed with exit code $LASTEXITCODE"
+}
+
+if (-not (Test-Path -Path $priPath -PathType Leaf)) {
+    throw "makepri did not create resources.pri."
+}
+
+Remove-Item -Path $priConfigPath -Force -ErrorAction SilentlyContinue
+
 $makeAppx = Get-LatestWindowsSdkTool -ToolName 'makeappx.exe'
 $signTool = Get-LatestWindowsSdkTool -ToolName 'signtool.exe'
 
