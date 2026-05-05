@@ -16,14 +16,6 @@ const recoveredNodeModulesRoot = path.join(
   'node_modules',
 );
 
-function getReleaseVersion() {
-  if (typeof releaseInfo?.version !== 'string' || releaseInfo.version.trim() === '') {
-    throw new Error(`Missing hydrated Codex app release info: ${releaseInfoPath}`);
-  }
-
-  return releaseInfo.version;
-}
-
 function listPackageRoots(nodeModulesRoot) {
   if (!fs.existsSync(nodeModulesRoot)) {
     return [];
@@ -261,8 +253,6 @@ const config = {
   makers: [new MakerZIP({}, ['win32'])],
   hooks: {
     postMake: async (_forgeConfig, makeResults) => {
-      const releaseVersion = getReleaseVersion();
-
       return makeResults.map((result) => ({
         ...result,
         artifacts: result.artifacts.map((artifact) => {
@@ -272,7 +262,7 @@ const config = {
 
           const destination = path.join(
             path.dirname(artifact),
-            `codex-app-windows-arm64-v${releaseVersion}.zip`,
+            'codex-app-windows-arm64.zip',
           );
           if (fs.existsSync(destination)) {
             fs.rmSync(destination, { force: true });
