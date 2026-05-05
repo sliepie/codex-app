@@ -79,7 +79,7 @@ fs.writeFileSync(
   </Capabilities>
   <Applications>
     <Application Id="App" Executable="app\\Codex.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="Codex" Description="Codex" Square44x44Logo="assets\\Square44x44Logo.png" Square150x150Logo="assets\\Square150x150Logo.png" BackgroundColor="#3143FF" />
+      <uap:VisualElements DisplayName="Codex" Description="Codex" Square44x44Logo="assets\\Square44x44Logo.png" Square150x150Logo="assets\\Square150x150Logo.png" BackgroundColor="transparent" />
     </Application>
   </Applications>
   <mp:PhoneIdentity PhoneProductId="53bf120e-f20a-474e-892d-d87c803a0e39" PhonePublisherId="7d1e4745-d434-4fde-a9ef-c9c97f199413" />
