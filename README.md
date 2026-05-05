@@ -111,3 +111,8 @@ previously missing state.
 
 - Built installers and packaging outputs are release artifacts and should not be committed to git.
 - Windows self-signed MSIX/App Installer work is documented in `docs/windows/self-signed-msix-updates.md`.
+
+## Disclaimer
+
+This repository and its Windows ARM64 release artifacts are unofficial. They are
+not affiliated with, endorsed by, or supported by OpenAI.
