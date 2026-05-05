@@ -4,32 +4,6 @@ on:
   schedule:
     - cron: "0 0,12 * * *"
   workflow_dispatch:
-    inputs:
-      publish_self_signed_msix:
-        description: Build and publish a self-signed MSIX alongside the ARM64 artifact
-        required: false
-        default: false
-        type: boolean
-      package_version:
-        description: Four-part MSIX version, for example 26.429.20946.0
-        required: false
-        type: string
-      package_name:
-        description: MSIX package identity name
-        required: false
-        type: string
-      package_publisher:
-        description: MSIX publisher subject matching the self-signed PFX, for example CN=Codex Local Test
-        required: false
-        type: string
-      appinstaller_uri:
-        description: Stable public URL where Codex.appinstaller will be hosted
-        required: false
-        type: string
-      self_signed_release_tag:
-        description: GitHub release tag to publish self-signed assets to, for example v26.429.20946
-        required: false
-        type: string
   push:
     branches:
       - "**"
@@ -45,9 +19,10 @@ jobs:
     env:
       ELECTRON_CACHE: ${{ github.workspace }}\.cache\electron
       GH_TOKEN: ${{ github.token }}
-      IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+      IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
       PACKAGE_ARCHITECTURE: arm64
-      PUBLISH_SELF_SIGNED_MSIX: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.publish_self_signed_msix) }}
+      PUBLISH_SELF_SIGNED_MSIX: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+      USE_BUILD_MARKER: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     concurrency:
       group: windows-arm64-release-${{ github.ref }}
       cancel-in-progress: false
@@ -70,7 +45,7 @@ jobs:
 
       - name: Check build marker
         id: build-marker
-        if: env.IS_RELEASE_EVENT == 'true'
+        if: env.USE_BUILD_MARKER == 'true'
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .github/build-markers/windows-arm64
@@ -78,19 +53,19 @@ jobs:
           lookup-only: true
 
       - name: Skip unchanged release
-        if: env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit == 'true'
+        if: env.USE_BUILD_MARKER == 'true' && steps.build-marker.outputs.cache-hit == 'true'
         run: |
           Write-Output "Codex app ${{ steps.upstream.outputs.codex_app_version }} build ${{ steps.upstream.outputs.codex_app_build }} with CLI ${{ steps.upstream.outputs.codex_cli_tag }} was already built."
 
       - name: Restore Electron cache
-        if: env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true'
+        if: env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true'
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .cache/electron
           key: windows-arm64-electron-${{ runner.os }}-${{ hashFiles('desktop/package-lock.json') }}
 
       - name: Restore hydrated release cache
-        if: env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true'
+        if: env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true'
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
@@ -100,17 +75,17 @@ jobs:
           key: ${{ steps.upstream.outputs.hydration_cache_key }}
 
       - name: Install dependencies
-        if: env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true'
+        if: env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true'
         working-directory: desktop
         run: npm ci
 
       - name: Make Windows ARM64 ZIP
-        if: env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true'
+        if: env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true'
         working-directory: desktop
         run: npm run make:win:arm64:ci
 
       - name: Upload Windows ARM64 artifact
-        if: env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true'
+        if: env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codex-app-windows-arm64
@@ -119,7 +94,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub release
-        if: env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit != 'true'
+        if: env.IS_RELEASE_EVENT == 'true' && (env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         run: |
           $zip = Get-ChildItem -Path "desktop/out/make/zip/win32/arm64/*.zip" | Select-Object -First 1
           if ($null -eq $zip) {
@@ -142,15 +117,15 @@ jobs:
           }
 
       - name: Validate self-signed MSIX inputs
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         shell: pwsh
         env:
-          PACKAGE_VERSION: ${{ inputs.package_version || format('{0}.0', steps.upstream.outputs.codex_app_version) }}
-          PACKAGE_NAME: ${{ inputs.package_name || vars.SELF_SIGNED_PACKAGE_NAME }}
-          PACKAGE_PUBLISHER: ${{ inputs.package_publisher || vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
-          APPINSTALLER_URI: ${{ inputs.appinstaller_uri || vars.SELF_SIGNED_APPINSTALLER_URI }}
+          PACKAGE_VERSION: ${{ format('{0}.0', steps.upstream.outputs.codex_app_version) }}
+          PACKAGE_NAME: ${{ vars.SELF_SIGNED_PACKAGE_NAME }}
+          PACKAGE_PUBLISHER: ${{ vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
+          APPINSTALLER_URI: ${{ vars.SELF_SIGNED_APPINSTALLER_URI }}
           PAGES_BASE_URL: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}
-          SELF_SIGNED_RELEASE_TAG: ${{ inputs.self_signed_release_tag || steps.upstream.outputs.release_tag }}
+          SELF_SIGNED_RELEASE_TAG: ${{ steps.upstream.outputs.release_tag }}
         run: |
           $missing = @()
           foreach ($name in @('PACKAGE_VERSION', 'PACKAGE_NAME', 'PACKAGE_PUBLISHER', 'APPINSTALLER_URI', 'PAGES_BASE_URL', 'SELF_SIGNED_RELEASE_TAG')) {
@@ -164,7 +139,7 @@ jobs:
           }
 
       - name: Decode self-signed PFX
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         working-directory: desktop
         env:
           SELF_SIGNED_PFX_BASE64: ${{ secrets.SELF_SIGNED_PFX_BASE64 }}
@@ -172,17 +147,17 @@ jobs:
         run: npm run decode:self-signed-pfx -- --output "${{ github.workspace }}\out\windows\signing\CodexSelfSigned.pfx"
 
       - name: Prepare self-signed MSIX payload
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         working-directory: desktop
         run: npm run prepare:self-signed-msix-payload -- --package-root "${{ github.workspace }}\desktop\out\Codex-win32-${{ env.PACKAGE_ARCHITECTURE }}" --output-root "${{ github.workspace }}\codex"
 
       - name: Build self-signed MSIX
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         shell: pwsh
         env:
-          PACKAGE_NAME: ${{ inputs.package_name || vars.SELF_SIGNED_PACKAGE_NAME }}
-          PACKAGE_PUBLISHER: ${{ inputs.package_publisher || vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
-          PACKAGE_VERSION: ${{ inputs.package_version || format('{0}.0', steps.upstream.outputs.codex_app_version) }}
+          PACKAGE_NAME: ${{ vars.SELF_SIGNED_PACKAGE_NAME }}
+          PACKAGE_PUBLISHER: ${{ vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
+          PACKAGE_VERSION: ${{ format('{0}.0', steps.upstream.outputs.codex_app_version) }}
           SELF_SIGNED_PFX_PASSWORD: ${{ secrets.SELF_SIGNED_PFX_PASSWORD }}
         run: |
           $password = ConvertTo-SecureString -String $env:SELF_SIGNED_PFX_PASSWORD -AsPlainText -Force
@@ -198,25 +173,25 @@ jobs:
             -ExportCertificate
 
       - name: Remove temporary PFX
-        if: always() && env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
+        if: always() && env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         shell: pwsh
         run: |
           Remove-Item -Path "$env:GITHUB_WORKSPACE/out/windows/signing/CodexSelfSigned.pfx" -Force -ErrorAction SilentlyContinue
 
       - name: Generate self-signed App Installer file
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         working-directory: desktop
         env:
-          PACKAGE_NAME: ${{ inputs.package_name || vars.SELF_SIGNED_PACKAGE_NAME }}
-          PACKAGE_PUBLISHER: ${{ inputs.package_publisher || vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
-          PACKAGE_VERSION: ${{ inputs.package_version || format('{0}.0', steps.upstream.outputs.codex_app_version) }}
-          APPINSTALLER_URI: ${{ inputs.appinstaller_uri || vars.SELF_SIGNED_APPINSTALLER_URI }}
+          PACKAGE_NAME: ${{ vars.SELF_SIGNED_PACKAGE_NAME }}
+          PACKAGE_PUBLISHER: ${{ vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
+          PACKAGE_VERSION: ${{ format('{0}.0', steps.upstream.outputs.codex_app_version) }}
+          APPINSTALLER_URI: ${{ vars.SELF_SIGNED_APPINSTALLER_URI }}
           PAGES_BASE_URL: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}
           PACKAGE_URI: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}/Codex-${{ env.PACKAGE_ARCHITECTURE }}-self-signed.msix
         run: npm run write:self-signed-appinstaller -- --architecture "${{ env.PACKAGE_ARCHITECTURE }}" --output "${{ github.workspace }}\out\windows\self-signed\release-assets\Codex.appinstaller"
 
       - name: Upload self-signed MSIX artifacts
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codex-windows-self-signed-msix
@@ -224,21 +199,21 @@ jobs:
           if-no-files-found: error
 
       - name: Upload self-signed Pages artifact
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: out/windows/self-signed/release-assets
 
       - name: Deploy self-signed update channel to Pages
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
         with:
           artifact_name: github-pages
 
       - name: Publish self-signed GitHub release assets
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.IS_RELEASE_EVENT != 'true' || steps.build-marker.outputs.cache-hit != 'true')
+        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && (env.USE_BUILD_MARKER != 'true' || steps.build-marker.outputs.cache-hit != 'true')
         env:
-          SELF_SIGNED_RELEASE_TAG: ${{ inputs.self_signed_release_tag || steps.upstream.outputs.release_tag }}
+          SELF_SIGNED_RELEASE_TAG: ${{ steps.upstream.outputs.release_tag }}
         run: |
           gh release view $env:SELF_SIGNED_RELEASE_TAG --repo "${{ github.repository }}" *> $null
           if ($LASTEXITCODE -ne 0) {
@@ -254,7 +229,7 @@ jobs:
           }
 
       - name: Write build marker
-        if: env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit != 'true'
+        if: env.USE_BUILD_MARKER == 'true' && steps.build-marker.outputs.cache-hit != 'true'
         run: |
           New-Item -ItemType Directory -Force -Path .github/build-markers/windows-arm64 | Out-Null
           @{
@@ -265,7 +240,7 @@ jobs:
           } | ConvertTo-Json | Set-Content -Path .github/build-markers/windows-arm64/latest.json
 
       - name: Save build marker
-        if: env.IS_RELEASE_EVENT == 'true' && steps.build-marker.outputs.cache-hit != 'true'
+        if: env.USE_BUILD_MARKER == 'true' && steps.build-marker.outputs.cache-hit != 'true'
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .github/build-markers/windows-arm64
