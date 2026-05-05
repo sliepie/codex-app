@@ -408,13 +408,13 @@ function functionContainingAllPatch(
   replacement: (range: FunctionRange) => string,
 ): SourcePatcher {
   return (source) => {
-    if (alreadyApplied.test(source) && !markers.some((marker) => source.includes(marker))) {
-      return { source, status: "already-applied", matcher: "semantic" };
-    }
-
     const matches = findFunctionRanges(source).filter((range) =>
       markers.every((marker) => range.body.includes(marker)),
     );
+    if (alreadyApplied.test(source) && matches.length === 0) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+
     if (matches.length === 0) {
       return undefined;
     }
@@ -473,15 +473,16 @@ function replaceWithPatchers(
     };
   }
 
-  const presentMarkers = (options.missingTargetMarkers ?? []).filter((marker) =>
-    original.includes(marker),
-  );
-  if (presentMarkers.length > 0) {
+  const missingTargetMarkers = options.missingTargetMarkers ?? [];
+  if (
+    missingTargetMarkers.length > 0 &&
+    missingTargetMarkers.every((marker) => original.includes(marker))
+  ) {
     const result = {
       file: reportFile,
       name,
       status: "failed-required" as const,
-      reason: `Gate target was not found, but required marker(s) are still present: ${presentMarkers.join(", ")}`,
+      reason: `Gate target was not found, but required marker(s) are still present: ${missingTargetMarkers.join(", ")}`,
     };
     throw new PatchFailure(result, result.reason);
   }
@@ -594,7 +595,7 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
           (range) => `function ${range.name}(${range.args}){return!0}`,
         ),
       ],
-      { missingTargetMarkers: ["workspace_dependencies"] },
+      { missingTargetMarkers: ["Object.entries", "workspace_dependencies"] },
     ),
     replaceWithPatchers(
       recoveredRoot,
@@ -611,7 +612,12 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
           (range) => `${range.asyncPrefix}function ${range.name}(${range.args}){return!0}`,
         ),
       ],
-      { missingTargetMarkers: ["workspace_dependencies"] },
+      {
+        missingTargetMarkers: [
+          "sendAppServerRequest(`experimentalFeature/list`",
+          "workspace_dependencies",
+        ],
+      },
     ),
   ];
 }

@@ -134,6 +134,25 @@ test("patches function ranges when bundle literals contain braces", () => {
   assert.match(mainBundle, /async function qp\(client\)\{return!0\}/);
 });
 
+test("does not let one main-bundle gate marker fail the other gate patch", () => {
+  const recoveredRoot = createRecoveredFixture();
+  fs.writeFileSync(
+    path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
+    "function zx(config){return!0}async function qp(client){let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  assert.equal(report.patches.at(-2).name, "enable workspace dependencies static gate");
+  assert.equal(report.patches.at(-2).status, "already-applied");
+  assert.equal(report.patches.at(-1).name, "enable workspace dependencies app-server feature check");
+  assert.equal(report.patches.at(-1).status, "applied");
+});
+
 test("patches self-signed Windows gates when upstream minifier names change", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
