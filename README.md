@@ -1,11 +1,15 @@
-# codex-app-win-arm64
+# Codex App Windows ARM64 releases
 
-Codex desktop app packaging for Windows ARM64.
+This repo tracks official Codex desktop app releases and publishes Windows
+ARM64 builds from them. It follows the upstream desktop release feed, hydrates
+the matching app payload, adds the Windows ARM64 runtime resources, and builds
+release artifacts for direct ZIP use and self-signed MSIX/App Installer
+installation.
 
-This repo builds a Windows ARM64 Electron package from the latest official
-Codex app payload in the production appcast. It does not track the extracted
-Codex app payload, Windows Store package resources, Electron output, or Codex
-CLI helper binaries.
+The repo does not commit the extracted Codex app payload, Windows Store package
+resources, Electron output, or Codex CLI helper binaries. Those are release
+inputs or build outputs, so they are hydrated during the build instead of being
+tracked in git.
 
 The appcast is the official Electron update feed for the Codex desktop app. It
 is small metadata that points at the current upstream desktop ZIP; this repo
