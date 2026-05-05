@@ -7,12 +7,13 @@ This is the Windows path for a self-signed non-Store Codex MSIX release:
 3. Stage the required MSIX manifest and logo assets without committing generated `codex/` payload files.
 4. Remove stale generated package-signature files from the staged copy.
 5. Update `AppxManifest.xml` with the release identity, publisher, architecture, and four-part MSIX version.
-6. Pack the staged folder into an unsigned `.msix`.
-7. Sign the `.msix` with an existing self-signed PFX supplied through GitHub secrets.
-8. Export the public `.cer` next to the `.msix`.
-9. Generate a `.appinstaller` file that points to the GitHub Pages `.msix`.
-10. Publish the `.msix`, `.cer`, and `.appinstaller` to GitHub Pages for App Installer updates.
-11. Publish the same files as GitHub Release assets for archive/manual download.
+6. Generate `resources.pri` so Windows can resolve the target-size unplated icon assets.
+7. Pack the staged folder into an unsigned `.msix`.
+8. Sign the `.msix` with an existing self-signed PFX supplied through GitHub secrets.
+9. Export the public `.cer` next to the `.msix`.
+10. Generate a `.appinstaller` file that points to the GitHub Pages `.msix`.
+11. Publish the `.msix`, `.cer`, and `.appinstaller` to GitHub Pages for App Installer updates.
+12. Publish the same files as GitHub Release assets for archive/manual download.
 
 Create the self-signed PFX with `packaging/windows/New-SelfSignedCodexSigningCertificate.ps1`, keep the PFX private, and pass it to the GitHub workflow through secrets. The `.cer` is public and can be shared so target machines can trust packages signed by the private PFX.
 
