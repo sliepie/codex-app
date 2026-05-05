@@ -6,9 +6,6 @@ the matching app payload, adds the Windows ARM64 runtime resources, and builds
 release artifacts for direct ZIP use and self-signed MSIX/App Installer
 installation.
 
-Disclaimer: this repository and its Windows ARM64 release artifacts are
-unofficial. They are not affiliated with, endorsed by, or supported by OpenAI.
-
 The repo does not commit the extracted Codex app payload, Windows Store package
 resources, Electron output, or Codex CLI helper binaries. Those are release
 inputs or build outputs, so they are hydrated during the build instead of being
@@ -114,3 +111,8 @@ previously missing state.
 
 - Built installers and packaging outputs are release artifacts and should not be committed to git.
 - Windows self-signed MSIX/App Installer work is documented in `docs/windows/self-signed-msix-updates.md`.
+
+## Disclaimer
+
+This repository and its Windows ARM64 release artifacts are unofficial. They are
+not affiliated with, endorsed by, or supported by OpenAI.
