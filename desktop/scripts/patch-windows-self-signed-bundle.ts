@@ -13,6 +13,8 @@ type PatchResult = {
 
 const desktopRoot = process.cwd();
 const identifierPattern = String.raw`[A-Za-z_$][\w$]*`;
+const workspaceDependencyFeatureMapAppliedPattern =
+  /return\{(?=[^{}]*workspace_dependencies:!0)(?=[^{}]*\[[^\]]+\]:[^{}]*?\.groupName===`Test`)[^{}]*\}/;
 
 type SourcePatchResult = {
   source: string;
@@ -569,11 +571,11 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
           "return{...t,...n,[xE]:ps(e,SE)&&gs(e,bE).groupName===`Test`,...r}",
           "return{...t,...n,workspace_dependencies:!0,[xE]:ps(e,SE)&&gs(e,bE).groupName===`Test`,...r}",
         ),
-        alreadyAppliedPatch("workspace_dependencies:!0"),
+        alreadyAppliedPatch(workspaceDependencyFeatureMapAppliedPattern),
         regexPatch(
           /return\{([^{}]*?)(\[[^\]]+\]:[^{}]*?\.groupName===`Test`)(,\.\.\.[^{}]+?)\}/g,
           (match) => `return{${match[1]}workspace_dependencies:!0,${match[2]}${match[3]}}`,
-          /workspace_dependencies:!0/,
+          workspaceDependencyFeatureMapAppliedPattern,
         ),
       ],
       { missingTargetMarkers: [".groupName===`Test`"] },

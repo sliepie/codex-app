@@ -172,6 +172,29 @@ test("does not let one main-bundle gate marker fail the other gate patch", () =>
   assert.equal(report.patches.at(-1).status, "applied");
 });
 
+test("keeps workspace dependency feature-map already-applied evidence contextual", () => {
+  const recoveredRoot = createRecoveredFixture();
+  fs.writeFileSync(
+    path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
+    "let commandGate=FeatureGate(`1981165915`);const unrelated={workspace_dependencies:!0};function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===`Test`,...rest}}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const featureMapPatch = report.patches.find(
+    (patch) => patch.name === "include workspace dependencies in default feature map",
+  );
+  assert.equal(featureMapPatch?.status, "applied");
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
+    /return\{\.\.\.base,\.\.\.remote,workspace_dependencies:!0,\[workspaceKey\]:/,
+  );
+});
+
 test("patches self-signed Windows gates when upstream minifier names change", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
