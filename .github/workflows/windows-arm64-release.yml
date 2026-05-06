@@ -17,12 +17,12 @@ jobs:
   build-windows-arm64:
     runs-on: windows-latest
     env:
-      ELECTRON_CACHE: ${{ github.workspace }}\.cache\electron
       GH_TOKEN: ${{ github.token }}
       IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
       PACKAGE_ARCHITECTURE: arm64
       PUBLISH_SELF_SIGNED_MSIX: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
       USE_BUILD_MARKER: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+      electron_config_cache: ${{ github.workspace }}\.cache\electron
     concurrency:
       group: windows-arm64-release-${{ github.ref }}
       cancel-in-progress: false
