@@ -42,6 +42,7 @@ type FunctionRange = {
 
 type ReplaceWithPatchersOptions = {
   missingTargetMarkers?: string[];
+  required?: boolean;
 };
 
 class PatchFailure extends Error {
@@ -560,6 +561,16 @@ function replaceWithPatchers(
   }
 
   const missingTargetMarkers = options.missingTargetMarkers ?? [];
+  if (options.required) {
+    const result = {
+      file: reportFile,
+      name,
+      status: "failed-required" as const,
+      reason: "Required patch target was not found.",
+    };
+    throw new PatchFailure(result, result.reason);
+  }
+
   if (
     missingTargetMarkers.length > 0 &&
     missingTargetMarkers.every((marker) => original.includes(marker))
@@ -647,7 +658,10 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
         ),
         alreadyAppliedPatch(windowsMenuBarVisibilitySyncAppliedPattern),
       ],
-      { missingTargetMarkers: ["MAC_MENU_BAR_ENABLED", "mac-menu-bar-enabled-changed"] },
+      {
+        missingTargetMarkers: ["MAC_MENU_BAR_ENABLED", "mac-menu-bar-enabled-changed"],
+        required: true,
+      },
     ),
   ];
 }

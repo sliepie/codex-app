@@ -106,7 +106,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
 test("reports a missing gate target as assumed enabled and continues", () => {
   const recoveredRoot = createRecoveredFixture();
   const indexPath = path.join(recoveredRoot, "webview", "assets", "index-fixture.js");
-  fs.writeFileSync(indexPath, "let unrelated=!0;", "utf8");
+  fs.writeFileSync(indexPath, "let unrelated=!0,menuSync=`codex.windowsMenuBarVisible`;", "utf8");
   const reportPath = path.join(recoveredRoot, "patch-report.json");
 
   const result = runPatcher(recoveredRoot, reportPath);
@@ -137,6 +137,27 @@ test("fails when a required gate marker remains but no patcher matches", () => {
   assert.equal(report.patches[0].name, "enable keyboard shortcuts settings section");
   assert.equal(report.patches[0].status, "failed-required");
   assert.match(report.patches[0].reason, /required marker\(s\) are still present: 1981165915/);
+});
+
+test("fails when the Windows menu bar visibility sync target is missing", () => {
+  const recoveredRoot = createRecoveredFixture();
+  fs.writeFileSync(
+    path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
+    "let commandGate=FeatureGate(`1981165915`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===`Test`,...rest}}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.notEqual(result.status, 0);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "sync Windows menu bar visibility setting",
+  );
+  assert.ok(patch);
+  assert.equal(patch.status, "failed-required");
+  assert.match(patch.reason, /Required patch target was not found/);
 });
 
 test("patches function ranges when bundle literals contain braces", () => {
@@ -201,7 +222,7 @@ test("keeps workspace dependency feature-map already-applied evidence contextual
   const recoveredRoot = createRecoveredFixture();
   fs.writeFileSync(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    "let commandGate=FeatureGate(`1981165915`);const unrelated={workspace_dependencies:!0};function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===`Test`,...rest}}",
+    "let commandGate=FeatureGate(`1981165915`);const unrelated={workspace_dependencies:!0};let menuSync=`codex.windowsMenuBarVisible`;function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===`Test`,...rest}}",
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
