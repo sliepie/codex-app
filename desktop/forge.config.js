@@ -248,6 +248,9 @@ const config = {
     asar: true,
     appVersion: releaseInfo?.version,
     buildVersion: releaseInfo?.buildNumber,
+    download: process.env.electron_config_cache
+      ? { cacheRoot: process.env.electron_config_cache }
+      : undefined,
     icon: path.join(__dirname, 'assets', 'windows', 'icon.ico'),
     prune: false,
     extraResource: [
