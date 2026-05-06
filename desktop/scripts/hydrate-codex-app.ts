@@ -23,8 +23,33 @@ type PackageJson = {
   version?: string;
 };
 
+type MarketplacePlugin = {
+  name?: string;
+  source?: {
+    source?: string;
+    path?: string;
+  };
+  [key: string]: unknown;
+};
+
+type MarketplaceJson = {
+  name?: string;
+  interface?: unknown;
+  plugins?: MarketplacePlugin[];
+  [key: string]: unknown;
+};
+
+type PluginJson = {
+  name?: string;
+};
+
 const desktopRoot = process.cwd();
 const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-node-modules");
+const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
+const browserUsePluginName = "browser-use";
+const openAiBundledMarketplaceName = "openai-bundled";
+const excludedBundledPluginNames = new Set(["computer-use", "latex-tectonic"]);
+const requiredBundledPluginNames = new Set([browserUsePluginName]);
 
 function readOption(argv: string[], ...names: string[]): string | undefined {
   for (const name of names) {
@@ -104,6 +129,157 @@ function findAppAsar(root: string): string | undefined {
     }
   }
   return undefined;
+}
+
+function readJsonFile<T>(filePath: string): T {
+  return JSON.parse(fs.readFileSync(filePath, "utf8")) as T;
+}
+
+function isPathInside(parentPath: string, childPath: string): boolean {
+  const relativePath = path.relative(path.resolve(parentPath), path.resolve(childPath));
+  return relativePath === "" || (
+    relativePath !== ".." &&
+    !relativePath.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relativePath)
+  );
+}
+
+function resolveLocalMarketplacePath(root: string, relativeSourcePath: string): string {
+  if (!relativeSourcePath.trim()) {
+    throw new Error("Bundled plugin marketplace source path is empty.");
+  }
+  if (path.isAbsolute(relativeSourcePath)) {
+    throw new Error(`Bundled plugin marketplace source path must be relative: ${relativeSourcePath}`);
+  }
+
+  const resolvedPath = path.resolve(root, relativeSourcePath);
+  if (!isPathInside(root, resolvedPath)) {
+    throw new Error(`Bundled plugin marketplace source path escapes its root: ${relativeSourcePath}`);
+  }
+
+  return resolvedPath;
+}
+
+function requireBundledPluginName(plugin: MarketplacePlugin, marketplacePath: string): string {
+  if (!plugin.name) {
+    throw new Error(`Bundled plugin marketplace has an entry without a name: ${marketplacePath}`);
+  }
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(plugin.name)) {
+    throw new Error(`Bundled plugin marketplace has an unsafe plugin name: ${plugin.name}`);
+  }
+  return plugin.name;
+}
+
+function packagedPluginSourcePath(pluginName: string): string {
+  return `./plugins/${pluginName}`;
+}
+
+export function syncBundledPluginResources(
+  appResourcesRoot: string,
+  destinationPluginsRoot = bundledPluginsRoot,
+): void {
+  const sourceMarketplaceRoot = path.join(
+    appResourcesRoot,
+    "plugins",
+    openAiBundledMarketplaceName,
+  );
+  const sourceMarketplacePath = path.join(
+    sourceMarketplaceRoot,
+    ".agents",
+    "plugins",
+    "marketplace.json",
+  );
+
+  if (!fs.existsSync(sourceMarketplacePath)) {
+    throw new Error(`Missing bundled plugin marketplace: ${sourceMarketplacePath}`);
+  }
+
+  const sourceMarketplace = readJsonFile<MarketplaceJson>(sourceMarketplacePath);
+  if (!Array.isArray(sourceMarketplace.plugins)) {
+    throw new Error(`Bundled plugin marketplace does not list plugins: ${sourceMarketplacePath}`);
+  }
+
+  const selectedPlugins = sourceMarketplace.plugins.filter(
+    (plugin) => !excludedBundledPluginNames.has(plugin.name ?? ""),
+  );
+  const selectedPluginNames = new Set(
+    selectedPlugins.map((plugin) => requireBundledPluginName(plugin, sourceMarketplacePath)),
+  );
+  for (const requiredPluginName of requiredBundledPluginNames) {
+    if (!selectedPluginNames.has(requiredPluginName)) {
+      throw new Error(
+        `Bundled plugin marketplace does not list required plugin ${requiredPluginName}: ${sourceMarketplacePath}`,
+      );
+    }
+  }
+  if (selectedPlugins.length === 0) {
+    throw new Error(`Bundled plugin marketplace has no Windows plugins: ${sourceMarketplacePath}`);
+  }
+
+  const destinationMarketplaceRoot = path.join(
+    destinationPluginsRoot,
+    openAiBundledMarketplaceName,
+  );
+  const destinationMarketplacePath = path.join(
+    destinationMarketplaceRoot,
+    ".agents",
+    "plugins",
+    "marketplace.json",
+  );
+  const destinationPlugins: MarketplacePlugin[] = [];
+
+  fs.rmSync(destinationMarketplaceRoot, { recursive: true, force: true });
+  for (const plugin of selectedPlugins) {
+    const pluginName = requireBundledPluginName(plugin, sourceMarketplacePath);
+    if (plugin.source?.source !== "local" || !plugin.source.path) {
+      throw new Error(
+        `Bundled plugin ${pluginName} must use a local source path in ${sourceMarketplacePath}`,
+      );
+    }
+
+    const sourcePluginRoot = resolveLocalMarketplacePath(sourceMarketplaceRoot, plugin.source.path);
+    const sourcePluginJsonPath = path.join(sourcePluginRoot, ".codex-plugin", "plugin.json");
+    if (!fs.existsSync(sourcePluginJsonPath)) {
+      throw new Error(`Missing bundled plugin manifest: ${sourcePluginJsonPath}`);
+    }
+
+    const sourcePluginJson = readJsonFile<PluginJson>(sourcePluginJsonPath);
+    if (sourcePluginJson.name !== pluginName) {
+      throw new Error(
+        `Bundled plugin manifest name mismatch: expected ${pluginName}, got ${
+          sourcePluginJson.name ?? "<missing>"
+        }`,
+      );
+    }
+
+    const destinationPluginRoot = path.join(destinationMarketplaceRoot, "plugins", pluginName);
+    fs.cpSync(sourcePluginRoot, destinationPluginRoot, { recursive: true, force: true });
+    destinationPlugins.push({
+      ...plugin,
+      source: {
+        ...plugin.source,
+        source: "local",
+        path: packagedPluginSourcePath(pluginName),
+      },
+    });
+  }
+
+  const destinationMarketplace: MarketplaceJson = {
+    ...sourceMarketplace,
+    plugins: destinationPlugins,
+  };
+  fs.mkdirSync(path.dirname(destinationMarketplacePath), { recursive: true });
+  fs.writeFileSync(
+    destinationMarketplacePath,
+    `${JSON.stringify(destinationMarketplace, null, 2)}\n`,
+    "utf8",
+  );
+
+  console.log(
+    `Synced bundled plugin resources for Windows: ${destinationPlugins
+      .map((plugin) => plugin.name)
+      .join(", ")}`,
+  );
 }
 
 async function downloadFile(url: string, outputPath: string): Promise<void> {
@@ -501,6 +677,18 @@ function syncNativeNodeModules(recoveredRoot: string): void {
   console.log(`Synced native Node modules for Windows ARM64: ${nativeModuleNames.join(", ")}`);
 }
 
+function patchWindowsSelfSignedBundle(recoveredRoot: string): void {
+  execFileSync(
+    process.execPath,
+    [
+      path.join(desktopRoot, ".cache", "scripts", "patch-windows-self-signed-bundle.js"),
+      "--recovered-root",
+      recoveredRoot,
+    ],
+    { stdio: "inherit" },
+  );
+}
+
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   if (!options.appcastUrl.trim()) {
@@ -553,6 +741,7 @@ async function main(): Promise<void> {
   if (!appAsar) {
     throw new Error("Could not find Codex.app Contents/Resources/app.asar in the downloaded ZIP.");
   }
+  syncBundledPluginResources(path.dirname(appAsar));
 
   execFileSync(
     process.execPath,
@@ -565,6 +754,7 @@ async function main(): Promise<void> {
     ],
     { stdio: "inherit" },
   );
+  patchWindowsSelfSignedBundle(recoveredRoot);
   syncNativeNodeModules(recoveredRoot);
 
   fs.writeFileSync(
@@ -584,7 +774,9 @@ async function main(): Promise<void> {
   console.log(`Hydrated Codex app ${selectedVersion} from ${downloadUrl}`);
 }
 
-main().catch((error: unknown) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

@@ -215,6 +215,34 @@ function isPackageFile(file) {
     isInstalledRuntimeNodeModule(file);
 }
 
+function syncPackagedPackageJson(buildPath) {
+  const packageJsonPath = path.join(buildPath, 'package.json');
+  const packageJson = readPackageJson(buildPath);
+  const upstreamPackageJson = readPackageJson(path.join(__dirname, 'recovered', 'app-asar-extracted'));
+
+  for (const key of [
+    'name',
+    'productName',
+    'author',
+    'description',
+    'codexBuildFlavor',
+    'codexBuildNumber',
+    'codexSparkleFeedUrl',
+    'codexSparklePublicKey',
+  ]) {
+    if (upstreamPackageJson[key] != null) {
+      packageJson[key] = upstreamPackageJson[key];
+    }
+  }
+
+  packageJson.version = releaseInfo?.version ?? upstreamPackageJson.version ?? packageJson.version;
+  packageJson.codexBuildNumber =
+    releaseInfo?.buildNumber ?? upstreamPackageJson.codexBuildNumber ?? packageJson.codexBuildNumber;
+  packageJson.main = 'recovered/app-asar-extracted/.vite/build/bootstrap.js';
+
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
+}
+
 const config = {
   packagerConfig: {
     asar: true,
@@ -229,7 +257,18 @@ const config = {
       'resources/codex-command-runner.exe',
       'resources/node_repl.exe',
       'resources/node.exe',
+      'resources/plugins',
       'resources/rg.exe',
+    ],
+    afterCopy: [
+      (buildPath, _electronVersion, _platform, _arch, callback) => {
+        try {
+          syncPackagedPackageJson(buildPath);
+          callback();
+        } catch (error) {
+          callback(error);
+        }
+      },
     ],
     ignore: (file) => {
       if (!file) {
