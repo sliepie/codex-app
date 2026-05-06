@@ -17,6 +17,12 @@ const workspaceDependencyFeatureMapAppliedPattern =
   /return\{(?=[^{}]*workspace_dependencies:!0)(?=[^{}]*\[[^\]]+\]:[^{}]*?\.groupName===`Test`)[^{}]*\}/;
 const packageLocalCacheRelocationAppliedPattern =
   /process\.resourcesPath\?\.replace[\s\S]*?`Packages`[\s\S]*?`LocalCache`[\s\S]*?`Local`/;
+const windowsMenuBarVisibilitySyncAppliedPattern = /codex\.windowsMenuBarVisible/;
+const windowsMenuBarGeneralSettingsAppliedPattern = /settings\.general\.windowsMenuBar\.label/;
+const windowsMenuBarComponentAppliedPattern =
+  /codex-windows-menu-bar-visibility-changed/;
+const windowsTopBarAlignmentAppliedPattern =
+  /group\/windows-top-bar[^`]*\bms-2\b/;
 
 type SourcePatchResult = {
   source: string;
@@ -109,6 +115,45 @@ function findFile(root: string, pattern: RegExp): string {
   if (matches.length !== 1) {
     throw new Error(
       `Expected exactly one recovered bundle file matching ${pattern}, found ${matches.length}.`,
+    );
+  }
+
+  return matches[0];
+}
+
+function findFileContaining(root: string, pattern: RegExp, markers: string[]): string {
+  const matches: string[] = [];
+  const pending = [root];
+
+  while (pending.length > 0) {
+    const directory = pending.pop();
+    if (!directory) {
+      break;
+    }
+
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(entryPath);
+        continue;
+      }
+
+      pattern.lastIndex = 0;
+      if (!entry.isFile() || !pattern.test(entry.name)) {
+        continue;
+      }
+
+      const contents = fs.readFileSync(entryPath, "utf8");
+      if (markers.every((marker) => contents.includes(marker))) {
+        matches.push(entryPath);
+      }
+    }
+  }
+
+  matches.sort();
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected exactly one recovered bundle file matching ${pattern} containing ${markers.join(", ")}, found ${matches.length}.`,
     );
   }
 
@@ -591,6 +636,80 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
       ],
       { missingTargetMarkers: [".groupName===`Test`"] },
     ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "sync Windows menu bar visibility setting",
+      [
+        exactPatch(
+          "function Ok(){let e=(0,Z.c)(4),{data:t,isLoading:n}=mc(ii.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{n||J.dispatchMessage(`mac-menu-bar-enabled-changed`,{enabled:r})},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}",
+          "function Ok(){let e=(0,Z.c)(4),{data:t,isLoading:n}=mc(ii.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{if(!n){try{localStorage.setItem(`codex.windowsMenuBarVisible`,r?`1`:`0`),window.dispatchEvent(new Event(`codex-windows-menu-bar-visibility-changed`))}catch{}J.dispatchMessage(`mac-menu-bar-enabled-changed`,{enabled:r})}},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}",
+        ),
+        alreadyAppliedPatch(windowsMenuBarVisibilitySyncAppliedPattern),
+      ],
+      { missingTargetMarkers: ["MAC_MENU_BAR_ENABLED", "mac-menu-bar-enabled-changed"] },
+    ),
+  ];
+}
+
+function patchGeneralSettings(recoveredRoot: string): PatchResult[] {
+  const filePath = findFileContaining(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^general-settings-.*\.js$/,
+    ["MAC_MENU_BAR_ENABLED", "settings.general.macMenuBar.label"],
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "show menu bar setting on Windows",
+      [
+        exactPatch(
+          "function ir(){let e=(0,Q.c)(11),t=x(u),n=L(),{platform:r}=ge(),{data:i,isLoading:a}=V(y.MAC_MENU_BAR_ENABLED);if(r!==`macOS`)return null;let o,s;e[0]===Symbol.for(`react.memo_cache_sentinel`)?(o=(0,$.jsx)(I,{id:`settings.general.macMenuBar.label`,defaultMessage:`Show in menu bar`,description:`Label for the macOS menu bar setting`}),s=(0,$.jsx)(I,{id:`settings.general.macMenuBar.description`,defaultMessage:`Keep Codex in the macOS menu bar when the main window is closed`,description:`Description for the macOS menu bar setting`}),e[0]=o,e[1]=s):(o=e[0],s=e[1]);let c=i!==!1,l;e[2]===t?l=e[3]:(l=e=>{ie(t,y.MAC_MENU_BAR_ENABLED,e)},e[2]=t,e[3]=l);let d;e[4]===n?d=e[5]:(d=n.formatMessage({id:`settings.general.macMenuBar.ariaLabel`,defaultMessage:`Show Codex in the menu bar`,description:`Aria label for the macOS menu bar setting toggle`}),e[4]=n,e[5]=d);let f;return e[6]!==a||e[7]!==c||e[8]!==l||e[9]!==d?(f=(0,$.jsx)(J,{label:o,description:s,control:(0,$.jsx)(q,{checked:c,disabled:a,onChange:l,ariaLabel:d})}),e[6]=a,e[7]=c,e[8]=l,e[9]=d,e[10]=f):f=e[10],f}",
+          "function ir(){let e=(0,Q.c)(11),t=x(u),n=L(),{platform:r}=ge(),{data:i,isLoading:a}=V(y.MAC_MENU_BAR_ENABLED);if(r!==`macOS`&&r!==`windows`)return null;let o,s;e[0]===Symbol.for(`react.memo_cache_sentinel`)?(o=r===`windows`?(0,$.jsx)(I,{id:`settings.general.windowsMenuBar.label`,defaultMessage:`Show menu bar`,description:`Label for the Windows menu bar setting`}):(0,$.jsx)(I,{id:`settings.general.macMenuBar.label`,defaultMessage:`Show in menu bar`,description:`Label for the macOS menu bar setting`}),s=r===`windows`?(0,$.jsx)(I,{id:`settings.general.windowsMenuBar.description`,defaultMessage:`Show the File, Edit, View, Window, and Help menu at the top of the window`,description:`Description for the Windows menu bar setting`}):(0,$.jsx)(I,{id:`settings.general.macMenuBar.description`,defaultMessage:`Keep Codex in the macOS menu bar when the main window is closed`,description:`Description for the macOS menu bar setting`}),e[0]=o,e[1]=s):(o=e[0],s=e[1]);let c=i!==!1,l;e[2]===t?l=e[3]:(l=e=>{ie(t,y.MAC_MENU_BAR_ENABLED,e)},e[2]=t,e[3]=l);let d;e[4]===n?d=e[5]:(d=r===`windows`?n.formatMessage({id:`settings.general.windowsMenuBar.ariaLabel`,defaultMessage:`Show the window menu bar`,description:`Aria label for the Windows menu bar setting toggle`}):n.formatMessage({id:`settings.general.macMenuBar.ariaLabel`,defaultMessage:`Show Codex in the menu bar`,description:`Aria label for the macOS menu bar setting toggle`}),e[4]=n,e[5]=d);let f;return e[6]!==a||e[7]!==c||e[8]!==l||e[9]!==d?(f=(0,$.jsx)(J,{label:o,description:s,control:(0,$.jsx)(q,{checked:c,disabled:a,onChange:l,ariaLabel:d})}),e[6]=a,e[7]=c,e[8]=l,e[9]=d,e[10]=f):f=e[10],f}",
+        ),
+        alreadyAppliedPatch(windowsMenuBarGeneralSettingsAppliedPattern),
+      ],
+      { missingTargetMarkers: ["MAC_MENU_BAR_ENABLED", "settings.general.macMenuBar.label"] },
+    ),
+  ];
+}
+
+function patchAppShell(recoveredRoot: string): PatchResult[] {
+  const filePath = findFileContaining(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^app-shell-.*\.js$/,
+    ["showApplicationMenu", "windowsMenuBar.file", "group/windows-top-bar"],
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "make Windows menu bar hideable",
+      [
+        exactPatch(
+          "function Jt(){let e=Ee(),t=Gt(),[n,r]=(0,$.useState)(null),i=(0,$.useRef)(0);if(!t)return null;let a=async(e,t)=>{let n=window.electronBridge?.showApplicationMenu;if(!n)return;let a=i.current+1;i.current=a,r(e);let o=t.currentTarget.getBoundingClientRect();try{await n(e,Math.round(o.left),Math.round(o.bottom))}finally{i.current===a&&r(null)}};return(0,Q.jsx)(`div`,{className:`flex items-center gap-0.5 pr-2 pl-1`,children:qt.map(({id:t,message:r})=>(0,Q.jsx)(`button`,{type:`button`,\"aria-expanded\":n===t,\"aria-haspopup\":`menu`,\"aria-label\":e.formatMessage(r),className:Y(`no-drag rounded-md border border-transparent px-2.5 py-1 text-base font-normal leading-none outline-none transition-colors`,n===t?`bg-[var(--color-token-menubar-selection-background)] text-[var(--color-token-menubar-selection-foreground)]`:`text-token-text-tertiary hover:bg-token-foreground/5 hover:text-token-description-foreground focus-visible:bg-token-foreground/5 focus-visible:text-token-description-foreground`),onClick:e=>{a(t,e)},children:(0,Q.jsx)(Ce,{...r})},t))})}",
+          "function Jt(){let e=Ee(),t=Gt(),[n,r]=(0,$.useState)(null),[i,a]=(0,$.useState)(()=>localStorage.getItem(`codex.windowsMenuBarVisible`)!==`0`),o=(0,$.useRef)(0);(0,$.useEffect)(()=>{let e=()=>{a(localStorage.getItem(`codex.windowsMenuBarVisible`)!==`0`)};return window.addEventListener(`codex-windows-menu-bar-visibility-changed`,e),window.addEventListener(`storage`,e),()=>{window.removeEventListener(`codex-windows-menu-bar-visibility-changed`,e),window.removeEventListener(`storage`,e)}},[]);if(!t||!i)return null;let s=async(e,t)=>{let n=window.electronBridge?.showApplicationMenu;if(!n)return;let i=o.current+1;o.current=i,r(e);let a=t.currentTarget.getBoundingClientRect();try{await n(e,Math.round(a.left),Math.round(a.bottom))}finally{o.current===i&&r(null)}};return(0,Q.jsx)(`div`,{className:`flex items-center gap-0.5 pr-2 pl-1`,children:qt.map(({id:t,message:r})=>(0,Q.jsx)(`button`,{type:`button`,\"aria-expanded\":n===t,\"aria-haspopup\":`menu`,\"aria-label\":e.formatMessage(r),className:Y(`no-drag rounded-md border border-transparent px-2.5 py-1 text-base font-normal leading-none outline-none transition-colors`,n===t?`bg-[var(--color-token-menubar-selection-background)] text-[var(--color-token-menubar-selection-foreground)]`:`text-token-text-tertiary hover:bg-token-foreground/5 hover:text-token-description-foreground focus-visible:bg-token-foreground/5 focus-visible:text-token-description-foreground`),onClick:e=>{s(t,e)},children:(0,Q.jsx)(Ce,{...r})},t))})}",
+        ),
+        alreadyAppliedPatch(windowsMenuBarComponentAppliedPattern),
+      ],
+      { missingTargetMarkers: ["showApplicationMenu", "windowsMenuBar.file"] },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "align Windows sidebar trigger with sidebar rows",
+      [
+        exactPatch(
+          "app-header-tint draggable group/windows-top-bar z-40 flex h-toolbar-sm items-center ps-(--spacing-token-safe-header-left) pe-(--spacing-token-safe-header-right)",
+          "app-header-tint draggable group/windows-top-bar z-40 flex h-toolbar-sm items-center ps-(--spacing-token-safe-header-left) ms-2 pe-(--spacing-token-safe-header-right)",
+        ),
+        alreadyAppliedPatch(windowsTopBarAlignmentAppliedPattern),
+      ],
+      { missingTargetMarkers: ["group/windows-top-bar", "ps-(--spacing-token-safe-header-left)"] },
+    ),
   ];
 }
 
@@ -737,6 +856,8 @@ function main(): void {
   try {
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
+    results.push(...patchGeneralSettings(recoveredRoot));
+    results.push(...patchAppShell(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
     results.push(...patchMainBundle(recoveredRoot));
