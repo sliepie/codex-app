@@ -15,6 +15,8 @@ const desktopRoot = process.cwd();
 const identifierPattern = String.raw`[A-Za-z_$][\w$]*`;
 const workspaceDependencyFeatureMapAppliedPattern =
   /return\{(?=[^{}]*workspace_dependencies:!0)(?=[^{}]*\[[^\]]+\]:[^{}]*?\.groupName===`Test`)[^{}]*\}/;
+const packageLocalCacheRelocationAppliedPattern =
+  /process\.resourcesPath\?\.replace[\s\S]*?`Packages`[\s\S]*?`LocalCache`[\s\S]*?`Local`/;
 
 type SourcePatchResult = {
   source: string;
@@ -121,6 +123,15 @@ function countOccurrences(text: string, value: string): number {
     index = text.indexOf(value, index + value.length);
   }
   return count;
+}
+
+function takeAvailableIdentifier(preferred: string, reserved: Set<string>): string {
+  let candidate = preferred;
+  while (reserved.has(candidate)) {
+    candidate = `_${candidate}`;
+  }
+  reserved.add(candidate);
+  return candidate;
 }
 
 function exactPatch(target: string, replacement: string): SourcePatcher {
@@ -606,6 +617,48 @@ function patchAgentSettings(recoveredRoot: string): PatchResult[] {
   ];
 }
 
+function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult[] {
+  const filePath = findFile(
+    path.join(recoveredRoot, ".vite", "build"),
+    /^workspace-root-drop-handler-.*\.js$/,
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "relocate WindowsApps helper executables into package LocalCache",
+      [
+        regexPatch(
+          new RegExp(
+            String.raw`\bfunction\s+(${identifierPattern})\(([^)]*)\)\{return\(0,(${identifierPattern})\.join\)\(process\.env\.LOCALAPPDATA\?\?\(0,\3\.join\)\(\(0,(${identifierPattern})\.homedir\)\(\),\`AppData\`,\`Local\`\),\.\.\.\2\)\}`,
+            "g",
+          ),
+          (match) => {
+            const functionName = match[1];
+            const argumentName = match[2];
+            const pathIdentifier = match[3];
+            const osIdentifier = match[4];
+            const reservedIdentifiers = new Set([
+              functionName,
+              pathIdentifier,
+              osIdentifier,
+              ...(argumentName.match(new RegExp(identifierPattern, "g")) ?? []),
+            ]);
+            const localAppDataIdentifier = takeAvailableIdentifier("t", reservedIdentifiers);
+            const packageMatchIdentifier = takeAvailableIdentifier("n", reservedIdentifiers);
+            const packageFamilyExpression = `\`${"${"}${packageMatchIdentifier}[1]}_${"${"}${packageMatchIdentifier}[2]}\``;
+
+            return `function ${functionName}(${argumentName}){let ${localAppDataIdentifier}=process.env.LOCALAPPDATA??(0,${pathIdentifier}.join)((0,${osIdentifier}.homedir)(),\`AppData\`,\`Local\`),${packageMatchIdentifier}=process.resourcesPath?.replace(/\\//g,\`\\\\\`).match(/\\\\Program Files\\\\WindowsApps\\\\([^\\\\]+?)_\\d+\\.\\d+\\.\\d+\\.\\d+_[^\\\\]+__([^\\\\]+)\\\\app\\\\resources$/i);return(0,${pathIdentifier}.join)(${packageMatchIdentifier}?(0,${pathIdentifier}.join)(${localAppDataIdentifier},\`Packages\`,${packageFamilyExpression},\`LocalCache\`,\`Local\`):${localAppDataIdentifier},...${argumentName})}`;
+          },
+          packageLocalCacheRelocationAppliedPattern,
+        ),
+      ],
+      { missingTargetMarkers: ["process.env.LOCALAPPDATA", "`AppData`,`Local`"] },
+    ),
+  ];
+}
+
 function patchMainBundle(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(path.join(recoveredRoot, ".vite", "build"), /^main-.*\.js$/);
 
@@ -685,6 +738,7 @@ function main(): void {
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
+    results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
     results.push(...patchMainBundle(recoveredRoot));
   } catch (error) {
     if (error instanceof PatchFailure) {
