@@ -14,6 +14,8 @@ const patcherPath = path.join(
   "scripts",
   "patch-windows-self-signed-bundle.js",
 );
+const windowsMenuBarSyncAlreadyApplied =
+  "function menuSync(){localStorage.setItem(`codex.windowsMenuBarVisible`,`1`);window.dispatchEvent(new Event(`codex-windows-menu-bar-visibility-changed`))}";
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -106,7 +108,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
 test("reports a missing gate target as assumed enabled and continues", () => {
   const recoveredRoot = createRecoveredFixture();
   const indexPath = path.join(recoveredRoot, "webview", "assets", "index-fixture.js");
-  fs.writeFileSync(indexPath, "let unrelated=!0,menuSync=`codex.windowsMenuBarVisible`;", "utf8");
+  fs.writeFileSync(indexPath, `let unrelated=!0;${windowsMenuBarSyncAlreadyApplied}`, "utf8");
   const reportPath = path.join(recoveredRoot, "patch-report.json");
 
   const result = runPatcher(recoveredRoot, reportPath);
@@ -143,7 +145,7 @@ test("fails when the Windows menu bar visibility sync target is missing", () => 
   const recoveredRoot = createRecoveredFixture();
   fs.writeFileSync(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    "let commandGate=FeatureGate(`1981165915`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===`Test`,...rest}}",
+    "let commandGate=FeatureGate(`1981165915`),unrelatedMenuKey=`codex.windowsMenuBarVisible`;function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===`Test`,...rest}}",
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -222,7 +224,7 @@ test("keeps workspace dependency feature-map already-applied evidence contextual
   const recoveredRoot = createRecoveredFixture();
   fs.writeFileSync(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    "let commandGate=FeatureGate(`1981165915`);const unrelated={workspace_dependencies:!0};let menuSync=`codex.windowsMenuBarVisible`;function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===`Test`,...rest}}",
+    `let commandGate=FeatureGate(\`1981165915\`);const unrelated={workspace_dependencies:!0};${windowsMenuBarSyncAlreadyApplied}function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}`,
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");

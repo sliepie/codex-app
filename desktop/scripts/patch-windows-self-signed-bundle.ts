@@ -17,7 +17,8 @@ const workspaceDependencyFeatureMapAppliedPattern =
   /return\{(?=[^{}]*workspace_dependencies:!0)(?=[^{}]*\[[^\]]+\]:[^{}]*?\.groupName===`Test`)[^{}]*\}/;
 const packageLocalCacheRelocationAppliedPattern =
   /process\.resourcesPath\?\.replace[\s\S]*?`Packages`[\s\S]*?`LocalCache`[\s\S]*?`Local`/;
-const windowsMenuBarVisibilitySyncAppliedPattern = /codex\.windowsMenuBarVisible/;
+const windowsMenuBarVisibilitySyncAppliedPattern =
+  /localStorage\.setItem\(`codex\.windowsMenuBarVisible`[\s\S]*?codex-windows-menu-bar-visibility-changed/;
 const windowsMenuBarGeneralSettingsAppliedPattern = /settings\.general\.windowsMenuBar\.label/;
 const windowsMenuBarComponentAppliedPattern =
   /codex-windows-menu-bar-visibility-changed/;
