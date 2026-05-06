@@ -125,6 +125,15 @@ function countOccurrences(text: string, value: string): number {
   return count;
 }
 
+function takeAvailableIdentifier(preferred: string, reserved: Set<string>): string {
+  let candidate = preferred;
+  while (reserved.has(candidate)) {
+    candidate = `_${candidate}`;
+  }
+  reserved.add(candidate);
+  return candidate;
+}
+
 function exactPatch(target: string, replacement: string): SourcePatcher {
   return (source) => {
     const count = countOccurrences(source, target);
@@ -630,8 +639,15 @@ function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult
             const argumentName = match[2];
             const pathIdentifier = match[3];
             const osIdentifier = match[4];
+            const reservedIdentifiers = new Set([
+              functionName,
+              ...(argumentName.match(new RegExp(identifierPattern, "g")) ?? []),
+            ]);
+            const localAppDataIdentifier = takeAvailableIdentifier("t", reservedIdentifiers);
+            const packageMatchIdentifier = takeAvailableIdentifier("n", reservedIdentifiers);
+            const packageFamilyExpression = `\`${"${"}${packageMatchIdentifier}[1]}_${"${"}${packageMatchIdentifier}[2]}\``;
 
-            return `function ${functionName}(${argumentName}){let t=process.env.LOCALAPPDATA??(0,${pathIdentifier}.join)((0,${osIdentifier}.homedir)(),\`AppData\`,\`Local\`),n=process.resourcesPath?.replace(/\\//g,\`\\\\\`).match(/\\\\Program Files\\\\WindowsApps\\\\([^\\\\]+?)_\\d+\\.\\d+\\.\\d+\\.\\d+_[^\\\\]+__([^\\\\]+)\\\\app\\\\resources$/i);return(0,${pathIdentifier}.join)(n?(0,${pathIdentifier}.join)(t,\`Packages\`,\`${"${n[1]}_${n[2]}"}\`,\`LocalCache\`,\`Local\`):t,...${argumentName})}`;
+            return `function ${functionName}(${argumentName}){let ${localAppDataIdentifier}=process.env.LOCALAPPDATA??(0,${pathIdentifier}.join)((0,${osIdentifier}.homedir)(),\`AppData\`,\`Local\`),${packageMatchIdentifier}=process.resourcesPath?.replace(/\\//g,\`\\\\\`).match(/\\\\Program Files\\\\WindowsApps\\\\([^\\\\]+?)_\\d+\\.\\d+\\.\\d+\\.\\d+_[^\\\\]+__([^\\\\]+)\\\\app\\\\resources$/i);return(0,${pathIdentifier}.join)(${packageMatchIdentifier}?(0,${pathIdentifier}.join)(${localAppDataIdentifier},\`Packages\`,${packageFamilyExpression},\`LocalCache\`,\`Local\`):${localAppDataIdentifier},...${argumentName})}`;
           },
           packageLocalCacheRelocationAppliedPattern,
         ),
