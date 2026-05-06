@@ -641,6 +641,8 @@ function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult
             const osIdentifier = match[4];
             const reservedIdentifiers = new Set([
               functionName,
+              pathIdentifier,
+              osIdentifier,
               ...(argumentName.match(new RegExp(identifierPattern, "g")) ?? []),
             ]);
             const localAppDataIdentifier = takeAvailableIdentifier("t", reservedIdentifiers);

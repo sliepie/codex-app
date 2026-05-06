@@ -293,6 +293,35 @@ test("uses collision-free locals when relocation helper names are minified", () 
   assert.doesNotMatch(bundle, /function t\(n\)\{let [^}]*,n=process\.resourcesPath/);
 });
 
+test("uses collision-free locals when relocation helper imports are minified", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const workspaceRootDropHandlerPath = path.join(
+    recoveredRoot,
+    ".vite",
+    "build",
+    "workspace-root-drop-handler-fixture.js",
+  );
+  fs.writeFileSync(
+    workspaceRootDropHandlerPath,
+    "function r(e){return(0,t.join)(process.env.LOCALAPPDATA??(0,t.join)((0,n.homedir)(),`AppData`,`Local`),...e)}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(workspaceRootDropHandlerPath, "utf8");
+  assert.match(bundle, /function r\(e\)\{let _t=process\.env\.LOCALAPPDATA/);
+  assert.match(bundle, /,_n=process\.resourcesPath\?\.replace/);
+  assert.match(
+    bundle,
+    /return\(0,t\.join\)\(_n\?\(0,t\.join\)\(_t,`Packages`,`\$\{_n\[1\]\}_\$\{_n\[2\]\}`,`LocalCache`,`Local`\):_t,\.\.\.e\)/,
+  );
+  assert.doesNotMatch(bundle, /function r\(e\)\{let t=/);
+  assert.doesNotMatch(bundle, /function r\(e\)\{let [^}]*,n=process\.resourcesPath/);
+});
+
 test("does not fail or rewrite when self-signed Windows gate patches run again", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
