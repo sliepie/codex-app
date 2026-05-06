@@ -36,6 +36,10 @@ function createRecoveredFixture() {
     "let showBeta=featureGate(betaFlag),workspaceDependencies=featureGate(`2106641128`);export{showBeta,workspaceDependencies};",
   );
   writeFixture(
+    path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
+    "function localBin(parts){return(0,path.join)(process.env.LOCALAPPDATA??(0,path.join)((0,os.homedir)(),`AppData`,`Local`),...parts)}",
+  );
+  writeFixture(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
     "function zx(config){return typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}",
   );
@@ -70,6 +74,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
       "webview/assets/agent-settings-fixture.js",
+      ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
     ],
@@ -225,6 +230,27 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     /showBeta=!0,workspaceDependencies=!0/,
   );
   assert.match(
+    fs.readFileSync(
+      path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
+      "utf8",
+    ),
+    /function localBin\(parts\)\{let t=process\.env\.LOCALAPPDATA/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
+      "utf8",
+    ),
+    /process\.resourcesPath\?\.replace/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
+      "utf8",
+    ),
+    /`Packages`,`\$\{n\[1\]\}_\$\{n\[2\]\}`,`LocalCache`,`Local`/,
+  );
+  assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /function zx\(config\)\{return!0\}/,
   );
@@ -234,7 +260,7 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 6);
+  assert.equal(report.patches.length, 7);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -248,6 +274,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
+    path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
   ];
   const before = new Map(files.map((file) => [file, fs.readFileSync(file, "utf8")]));
@@ -259,7 +286,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 6);
+  assert.equal(report.patches.length, 7);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),
