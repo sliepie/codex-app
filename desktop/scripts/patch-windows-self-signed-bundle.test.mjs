@@ -14,6 +14,8 @@ const patcherPath = path.join(
   "scripts",
   "patch-windows-self-signed-bundle.js",
 );
+const windowsMenuBarSyncAlreadyApplied =
+  "function menuSync(){localStorage.setItem(`codex.windowsMenuBarVisible`,`1`);window.dispatchEvent(new Event(`codex-windows-menu-bar-visibility-changed`))}";
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -29,7 +31,23 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    "let commandGate=FeatureGate(`1981165915`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===`Test`,...rest}}",
+    "let commandGate=FeatureGate(`1981165915`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===`Test`,...rest}}function Ok(){let e=(0,Z.c)(4),{data:t,isLoading:n}=mc(ii.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{n||J.dispatchMessage(`mac-menu-bar-enabled-changed`,{enabled:r})},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}",
+  );
+  writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
+    "function ir(){let e=(0,Q.c)(11),t=x(u),n=L(),{platform:r}=ge(),{data:i,isLoading:a}=V(y.MAC_MENU_BAR_ENABLED);if(r!==`macOS`)return null;let o,s;e[0]===Symbol.for(`react.memo_cache_sentinel`)?(o=(0,$.jsx)(I,{id:`settings.general.macMenuBar.label`,defaultMessage:`Show in menu bar`,description:`Label for the macOS menu bar setting`}),s=(0,$.jsx)(I,{id:`settings.general.macMenuBar.description`,defaultMessage:`Keep Codex in the macOS menu bar when the main window is closed`,description:`Description for the macOS menu bar setting`}),e[0]=o,e[1]=s):(o=e[0],s=e[1]);let c=i!==!1,l;e[2]===t?l=e[3]:(l=e=>{ie(t,y.MAC_MENU_BAR_ENABLED,e)},e[2]=t,e[3]=l);let d;e[4]===n?d=e[5]:(d=n.formatMessage({id:`settings.general.macMenuBar.ariaLabel`,defaultMessage:`Show Codex in the menu bar`,description:`Aria label for the macOS menu bar setting toggle`}),e[4]=n,e[5]=d);let f;return e[6]!==a||e[7]!==c||e[8]!==l||e[9]!==d?(f=(0,$.jsx)(J,{label:o,description:s,control:(0,$.jsx)(q,{checked:c,disabled:a,onChange:l,ariaLabel:d})}),e[6]=a,e[7]=c,e[8]=l,e[9]=d,e[10]=f):f=e[10],f}",
+  );
+  writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "general-settings-unused.js"),
+    "export{};",
+  );
+  writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "app-shell-fixture.js"),
+    "function Jt(){let e=Ee(),t=Gt(),[n,r]=(0,$.useState)(null),i=(0,$.useRef)(0);if(!t)return null;let a=async(e,t)=>{let n=window.electronBridge?.showApplicationMenu;if(!n)return;let a=i.current+1;i.current=a,r(e);let o=t.currentTarget.getBoundingClientRect();try{await n(e,Math.round(o.left),Math.round(o.bottom))}finally{i.current===a&&r(null)}};return(0,Q.jsx)(`div`,{className:`flex items-center gap-0.5 pr-2 pl-1`,children:qt.map(({id:t,message:r})=>(0,Q.jsx)(`button`,{type:`button`,\"aria-expanded\":n===t,\"aria-haspopup\":`menu`,\"aria-label\":e.formatMessage(r),className:Y(`no-drag rounded-md border border-transparent px-2.5 py-1 text-base font-normal leading-none outline-none transition-colors`,n===t?`bg-[var(--color-token-menubar-selection-background)] text-[var(--color-token-menubar-selection-foreground)]`:`text-token-text-tertiary hover:bg-token-foreground/5 hover:text-token-description-foreground focus-visible:bg-token-foreground/5 focus-visible:text-token-description-foreground`),onClick:e=>{a(t,e)},children:(0,Q.jsx)(Ce,{...r})},t))})}function On(){return(0,Q.jsxs)(`div`,{className:`app-header-tint draggable group/windows-top-bar z-40 flex h-toolbar-sm items-center ps-(--spacing-token-safe-header-left) pe-(--spacing-token-safe-header-right)`,children:[]})}var Kt={file:{id:`windowsMenuBar.file`}};",
+  );
+  writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "app-shell-bottom-panel-scroll-sync.js"),
+    "export{};",
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
@@ -73,6 +91,10 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/settings-page-fixture.js",
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
+      "webview/assets/index-fixture.js",
+      "webview/assets/general-settings-fixture.js",
+      "webview/assets/app-shell-fixture.js",
+      "webview/assets/app-shell-fixture.js",
       "webview/assets/agent-settings-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/main-fixture.js",
@@ -86,7 +108,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
 test("reports a missing gate target as assumed enabled and continues", () => {
   const recoveredRoot = createRecoveredFixture();
   const indexPath = path.join(recoveredRoot, "webview", "assets", "index-fixture.js");
-  fs.writeFileSync(indexPath, "let unrelated=!0;", "utf8");
+  fs.writeFileSync(indexPath, `let unrelated=!0;${windowsMenuBarSyncAlreadyApplied}`, "utf8");
   const reportPath = path.join(recoveredRoot, "patch-report.json");
 
   const result = runPatcher(recoveredRoot, reportPath);
@@ -117,6 +139,27 @@ test("fails when a required gate marker remains but no patcher matches", () => {
   assert.equal(report.patches[0].name, "enable keyboard shortcuts settings section");
   assert.equal(report.patches[0].status, "failed-required");
   assert.match(report.patches[0].reason, /required marker\(s\) are still present: 1981165915/);
+});
+
+test("fails when the Windows menu bar visibility sync target is missing", () => {
+  const recoveredRoot = createRecoveredFixture();
+  fs.writeFileSync(
+    path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
+    "let commandGate=FeatureGate(`1981165915`),unrelatedMenuKey=`codex.windowsMenuBarVisible`;function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===`Test`,...rest}}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.notEqual(result.status, 0);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "sync Windows menu bar visibility setting",
+  );
+  assert.ok(patch);
+  assert.equal(patch.status, "failed-required");
+  assert.match(patch.reason, /Required patch target was not found/);
 });
 
 test("patches function ranges when bundle literals contain braces", () => {
@@ -181,7 +224,7 @@ test("keeps workspace dependency feature-map already-applied evidence contextual
   const recoveredRoot = createRecoveredFixture();
   fs.writeFileSync(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    "let commandGate=FeatureGate(`1981165915`);const unrelated={workspace_dependencies:!0};function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===`Test`,...rest}}",
+    `let commandGate=FeatureGate(\`1981165915\`);const unrelated={workspace_dependencies:!0};${windowsMenuBarSyncAlreadyApplied}function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}`,
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -223,6 +266,25 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     /workspace_dependencies:!0/,
   );
   assert.match(
+    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
+    /codex\.windowsMenuBarVisible/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
+      "utf8",
+    ),
+    /settings\.general\.windowsMenuBar\.label/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "app-shell-fixture.js"), "utf8"),
+    /codex-windows-menu-bar-visibility-changed/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "app-shell-fixture.js"), "utf8"),
+    /group\/windows-top-bar z-40 flex h-toolbar-sm items-center ps-\(--spacing-token-safe-header-left\) ms-2/,
+  );
+  assert.match(
     fs.readFileSync(
       path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
       "utf8",
@@ -260,7 +322,7 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 7);
+  assert.equal(report.patches.length, 11);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -331,6 +393,8 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
   const files = [
     path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "app-shell-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
     path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
@@ -344,7 +408,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 7);
+  assert.equal(report.patches.length, 11);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),
