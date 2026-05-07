@@ -9,13 +9,27 @@ import { fileURLToPath } from "node:url";
 const scriptsRoot = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.dirname(scriptsRoot);
 const require = createRequire(import.meta.url);
-const { syncBundledPluginResources } = require(
+const {
+  collectNativeNodeModuleTargets,
+  hasArm64RuntimePayload,
+  syncBundledPluginResources,
+} = require(
   path.join(desktopRoot, ".cache", "scripts", "hydrate-codex-app.js"),
 );
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, source, "utf8");
+}
+
+function writePeFixture(filePath, machine) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const bytes = Buffer.alloc(0x100);
+  bytes[0] = 0x4d;
+  bytes[1] = 0x5a;
+  bytes.writeInt32LE(0x80, 0x3c);
+  bytes.writeUInt16LE(machine, 0x84);
+  fs.writeFileSync(filePath, bytes);
 }
 
 function createAppResourcesFixture() {
@@ -140,6 +154,64 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex-tectonic")),
     false,
   );
+});
+
+test("discovers native modules copied inside bundled plugin resources", () => {
+  const appResourcesRoot = createAppResourcesFixture();
+  const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
+  writeFixture(
+    path.join(
+      appResourcesRoot,
+      "plugins",
+      "openai-bundled",
+      "plugins",
+      "browser-use",
+      "scripts",
+      "node_modules",
+      "classic-level",
+      "package.json",
+    ),
+    `${JSON.stringify({ name: "classic-level", version: "3.0.0" }, null, 2)}\n`,
+  );
+  writeFixture(
+    path.join(
+      appResourcesRoot,
+      "plugins",
+      "openai-bundled",
+      "plugins",
+      "browser-use",
+      "scripts",
+      "node_modules",
+      "classic-level",
+      "binding.gyp",
+    ),
+    "{}\n",
+  );
+
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+
+  const targets = collectNativeNodeModuleTargets(
+    fs.mkdtempSync(path.join(os.tmpdir(), "codex-recovered-")),
+    destinationPluginsRoot,
+  );
+
+  assert.equal(targets.length, 1);
+  assert.deepEqual(targets[0].nativeModules, [{ name: "classic-level", version: "3.0.0" }]);
+  assert.equal(
+    path.relative(destinationPluginsRoot, targets[0].nodeModulesRoot).replaceAll(path.sep, "/"),
+    "openai-bundled/plugins/browser-use/scripts/node_modules",
+  );
+});
+
+test("foreign-only native prebuilds are not ready for Windows ARM64", () => {
+  const packageRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-native-package-"));
+  writePeFixture(path.join(packageRoot, "prebuilds", "win32-x64", "classic-level.node"), 0x8664);
+
+  assert.equal(hasArm64RuntimePayload(packageRoot), false);
+
+  writePeFixture(path.join(packageRoot, "build", "Release", "classic-level.node"), 0xaa64);
+
+  assert.equal(hasArm64RuntimePayload(packageRoot), true);
 });
 
 test("fails when the upstream bundle is missing required browser-use", () => {

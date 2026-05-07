@@ -12,10 +12,19 @@ if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 function Invoke-Winget {
-    param([string[]] $Arguments)
+    param(
+        [string[]] $Arguments,
+        [switch] $AllowNoApplicableUpgrade
+    )
 
     & winget @Arguments
     if ($LASTEXITCODE -ne 0) {
+        $noApplicableUpgradeExitCode = -1978335189
+        if ($AllowNoApplicableUpgrade -and $LASTEXITCODE -eq $noApplicableUpgradeExitCode) {
+            Write-Output "No newer Codex Store package is available; using the installed package."
+            return
+        }
+
         throw "winget $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
     }
 }
@@ -97,7 +106,7 @@ try {
         )
     }
     else {
-        Invoke-Winget @(
+        Invoke-Winget -AllowNoApplicableUpgrade -Arguments @(
             "upgrade",
             "--id", $ProductId,
             "--source", "msstore",
@@ -141,7 +150,7 @@ try {
     }
 
     $metadataPath = [System.IO.Path]::ChangeExtension($OutputPath, ".json")
-    $metadataJson = ($metadata | ConvertTo-Json) + [Environment]::NewLine
+    $metadataJson = (($metadata | ConvertTo-Json) -replace '(?m)^    "', '  "' -replace '":\s+', '": ') + [Environment]::NewLine
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($metadataPath, $metadataJson, $utf8NoBom)
 

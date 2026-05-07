@@ -16,6 +16,12 @@ type NativeNodeModule = {
   version: string;
 };
 
+type NativeNodeModulesTarget = {
+  label: string;
+  nodeModulesRoot: string;
+  nativeModules: NativeNodeModule[];
+};
+
 type PackageJson = {
   cpu?: string | string[];
   dependencies?: Record<string, string>;
@@ -352,8 +358,7 @@ function hasNativePayload(packageRoot: string): boolean {
   return false;
 }
 
-function findNativeNodeModules(recoveredRoot: string): NativeNodeModule[] {
-  const nodeModulesRoot = path.join(recoveredRoot, "node_modules");
+function findNativeNodeModules(nodeModulesRoot: string): NativeNodeModule[] {
   const nativeModules = [];
 
   for (const packageRoot of listPackageRoots(nodeModulesRoot)) {
@@ -382,8 +387,8 @@ function findNativeNodeModules(recoveredRoot: string): NativeNodeModule[] {
   return nativeModules.sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function packageRoot(root: string, packageName: string): string {
-  return path.join(root, "node_modules", ...packageName.split("/"));
+function packageRoot(nodeModulesRoot: string, packageName: string): string {
+  return path.join(nodeModulesRoot, ...packageName.split("/"));
 }
 
 function readPackageJson(packageRootPath: string): PackageJson {
@@ -411,8 +416,11 @@ function supportsTargetRuntime(packageJson: PackageJson): boolean {
   );
 }
 
-function getInstalledPackageVersion(packageName: string): string | undefined {
-  const packageRootPath = packageRoot(desktopRoot, packageName);
+function getInstalledPackageVersion(
+  nodeModulesRoot: string,
+  packageName: string,
+): string | undefined {
+  const packageRootPath = packageRoot(nodeModulesRoot, packageName);
   if (!fs.existsSync(path.join(packageRootPath, "package.json"))) {
     return undefined;
   }
@@ -420,14 +428,22 @@ function getInstalledPackageVersion(packageName: string): string | undefined {
   return readPackageJson(packageRootPath).version;
 }
 
-function findInstalledPackageRoot(packageName: string, fromDirectory: string): string | undefined {
+function findInstalledPackageRoot(
+  nodeModulesRoot: string,
+  packageName: string,
+  fromDirectory: string,
+): string | undefined {
+  const moduleRoot = path.dirname(nodeModulesRoot);
   let currentDirectory = fromDirectory;
-  while (currentDirectory.startsWith(desktopRoot)) {
-    const candidate = packageRoot(currentDirectory, packageName);
+  while (isPathInside(moduleRoot, currentDirectory)) {
+    const candidate = path.join(currentDirectory, "node_modules", ...packageName.split("/"));
     if (fs.existsSync(path.join(candidate, "package.json"))) {
       return candidate;
     }
 
+    if (path.resolve(currentDirectory) === path.resolve(moduleRoot)) {
+      break;
+    }
     const parentDirectory = path.dirname(currentDirectory);
     if (parentDirectory === currentDirectory) {
       break;
@@ -438,12 +454,16 @@ function findInstalledPackageRoot(packageName: string, fromDirectory: string): s
   return undefined;
 }
 
-function collectRuntimePackageRoots(packageNames: string[]): string[] {
+function collectRuntimePackageRoots(
+  nodeModulesRoot: string,
+  packageNames: string[],
+): string[] {
   const packageRoots = [];
   const seenPackageRoots = new Set<string>();
+  const moduleRoot = path.dirname(nodeModulesRoot);
   const pendingPackages = packageNames.map((packageName) => ({
     packageName,
-    fromDirectory: desktopRoot,
+    fromDirectory: moduleRoot,
     optional: false,
   }));
 
@@ -454,6 +474,7 @@ function collectRuntimePackageRoots(packageNames: string[]): string[] {
     }
 
     const packageRootPath = findInstalledPackageRoot(
+      nodeModulesRoot,
       nextPackage.packageName,
       nextPackage.fromDirectory,
     );
@@ -509,9 +530,13 @@ function runtimeCacheNodeModulesRoot(
   );
 }
 
-function copyPackageRoot(sourcePackageRoot: string, destinationNodeModulesRoot: string): void {
+function copyPackageRoot(
+  sourceNodeModulesRoot: string,
+  sourcePackageRoot: string,
+  destinationNodeModulesRoot: string,
+): void {
   const relativePackageRoot = path.relative(
-    path.join(desktopRoot, "node_modules"),
+    sourceNodeModulesRoot,
     sourcePackageRoot,
   );
   const destinationPackageRoot = path.join(destinationNodeModulesRoot, relativePackageRoot);
@@ -520,6 +545,7 @@ function copyPackageRoot(sourcePackageRoot: string, destinationNodeModulesRoot: 
 }
 
 function restoreNativeNodeModulesFromCache(
+  nodeModulesRoot: string,
   nativeModules: NativeNodeModule[],
   electronVersion: string,
 ): boolean {
@@ -528,8 +554,8 @@ function restoreNativeNodeModulesFromCache(
     return false;
   }
 
-  fs.mkdirSync(path.join(desktopRoot, "node_modules"), { recursive: true });
-  fs.cpSync(cacheNodeModulesRoot, path.join(desktopRoot, "node_modules"), {
+  fs.mkdirSync(nodeModulesRoot, { recursive: true });
+  fs.cpSync(cacheNodeModulesRoot, nodeModulesRoot, {
     recursive: true,
     force: true,
   });
@@ -537,6 +563,7 @@ function restoreNativeNodeModulesFromCache(
 }
 
 function saveNativeNodeModulesToCache(
+  nodeModulesRoot: string,
   nativeModules: NativeNodeModule[],
   electronVersion: string,
 ): void {
@@ -545,9 +572,10 @@ function saveNativeNodeModulesToCache(
   fs.mkdirSync(cacheNodeModulesRoot, { recursive: true });
 
   for (const packageRootPath of collectRuntimePackageRoots(
+    nodeModulesRoot,
     nativeModules.map((nativeModule) => nativeModule.name),
   )) {
-    copyPackageRoot(packageRootPath, cacheNodeModulesRoot);
+    copyPackageRoot(nodeModulesRoot, packageRootPath, cacheNodeModulesRoot);
   }
 }
 
@@ -579,28 +607,44 @@ function isArm64Pe(filePath: string): boolean {
   return bytes.readUInt16LE(peOffset + 4) === 0xaa64;
 }
 
-function hasArm64RuntimePayload(packageRootPath: string): boolean {
+function readArm64RuntimePayloadStatus(packageRootPath: string): {
+  hasInvalidRuntimePayload: boolean;
+  hasTargetRuntimePayload: boolean;
+} {
+  let hasTargetRuntimePayload = false;
+
   for (const entry of fs.readdirSync(packageRootPath, { withFileTypes: true })) {
     const entryPath = path.join(packageRootPath, entry.name);
     if (entry.isDirectory()) {
-      if (!hasArm64RuntimePayload(entryPath)) {
-        return false;
+      const childStatus = readArm64RuntimePayloadStatus(entryPath);
+      if (childStatus.hasInvalidRuntimePayload) {
+        return { hasInvalidRuntimePayload: true, hasTargetRuntimePayload };
       }
+      hasTargetRuntimePayload ||= childStatus.hasTargetRuntimePayload;
       continue;
     }
 
-    if (entry.isFile() && shouldValidatePePayload(entryPath) && !isArm64Pe(entryPath)) {
-      return false;
+    if (entry.isFile() && shouldValidatePePayload(entryPath)) {
+      hasTargetRuntimePayload = true;
+      if (!isArm64Pe(entryPath)) {
+        return { hasInvalidRuntimePayload: true, hasTargetRuntimePayload };
+      }
     }
   }
 
-  return true;
+  return { hasInvalidRuntimePayload: false, hasTargetRuntimePayload };
 }
 
-function nativeNodeModulesReady(nativeModules: NativeNodeModule[]): boolean {
+export function hasArm64RuntimePayload(packageRootPath: string): boolean {
+  const status = readArm64RuntimePayloadStatus(packageRootPath);
+  return status.hasTargetRuntimePayload && !status.hasInvalidRuntimePayload;
+}
+
+function nativeNodeModulesReady(target: NativeNodeModulesTarget): boolean {
+  const { nodeModulesRoot, nativeModules } = target;
   for (const nativeModule of nativeModules) {
-    const packageRootPath = packageRoot(desktopRoot, nativeModule.name);
-    if (getInstalledPackageVersion(nativeModule.name) !== nativeModule.version) {
+    const packageRootPath = packageRoot(nodeModulesRoot, nativeModule.name);
+    if (getInstalledPackageVersion(nodeModulesRoot, nativeModule.name) !== nativeModule.version) {
       return false;
     }
     if (!hasArm64RuntimePayload(packageRootPath)) {
@@ -611,11 +655,11 @@ function nativeNodeModulesReady(nativeModules: NativeNodeModule[]): boolean {
   return true;
 }
 
-function runNpm(args: string[]): void {
+function runNpm(args: string[], cwd = desktopRoot): void {
   const npmExecPath = process.env.npm_execpath;
   if (npmExecPath && fs.existsSync(npmExecPath)) {
     execFileSync(process.execPath, [npmExecPath, ...args], {
-      cwd: desktopRoot,
+      cwd,
       stdio: "inherit",
     });
     return;
@@ -624,11 +668,15 @@ function runNpm(args: string[]): void {
   execFileSync(
     process.platform === "win32" ? "npm.cmd" : "npm",
     args,
-    { cwd: desktopRoot, shell: process.platform === "win32", stdio: "inherit" },
+    { cwd, shell: process.platform === "win32", stdio: "inherit" },
   );
 }
 
-function runElectronRebuild(nativeModuleNames: string[], electronVersion: string): void {
+function runElectronRebuild(
+  nativeModuleNames: string[],
+  electronVersion: string,
+  moduleRoot: string,
+): void {
   const electronRebuildCli = path.join(
     desktopRoot,
     "node_modules",
@@ -650,7 +698,7 @@ function runElectronRebuild(nativeModuleNames: string[], electronVersion: string
       "--arch",
       "arm64",
       "--module-dir",
-      desktopRoot,
+      moduleRoot,
       "--which-module",
       nativeModuleNames.join(","),
       "--force",
@@ -659,27 +707,116 @@ function runElectronRebuild(nativeModuleNames: string[], electronVersion: string
   );
 }
 
-function syncNativeNodeModules(recoveredRoot: string): void {
-  const nativeModules = findNativeNodeModules(recoveredRoot);
-  if (nativeModules.length === 0) {
-    console.log("Hydrated app has no native Node modules.");
+function findNestedNodeModulesRoots(root: string): string[] {
+  if (!fs.existsSync(root)) {
+    return [];
+  }
+
+  const nodeModulesRoots: string[] = [];
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const entryPath = path.join(root, entry.name);
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    if (entry.name === "node_modules") {
+      nodeModulesRoots.push(entryPath);
+      continue;
+    }
+
+    nodeModulesRoots.push(...findNestedNodeModulesRoots(entryPath));
+  }
+
+  return nodeModulesRoots;
+}
+
+function nativeTargetLabel(nodeModulesRoot: string): string {
+  const relativePath = path.relative(desktopRoot, nodeModulesRoot).replaceAll(path.sep, "/");
+  return relativePath || nodeModulesRoot;
+}
+
+export function collectNativeNodeModuleTargets(
+  recoveredRoot: string,
+  pluginsRoot = bundledPluginsRoot,
+): NativeNodeModulesTarget[] {
+  const nodeModulesRoots = [
+    path.join(recoveredRoot, "node_modules"),
+    ...findNestedNodeModulesRoots(pluginsRoot),
+  ];
+  const seenNodeModulesRoots = new Set<string>();
+  const targets: NativeNodeModulesTarget[] = [];
+
+  for (const nodeModulesRoot of nodeModulesRoots) {
+    const resolvedNodeModulesRoot = path.resolve(nodeModulesRoot);
+    if (seenNodeModulesRoots.has(resolvedNodeModulesRoot)) {
+      continue;
+    }
+    seenNodeModulesRoots.add(resolvedNodeModulesRoot);
+
+    const nativeModules = findNativeNodeModules(nodeModulesRoot);
+    if (nativeModules.length === 0) {
+      continue;
+    }
+
+    targets.push({
+      label: nativeTargetLabel(nodeModulesRoot),
+      nodeModulesRoot,
+      nativeModules,
+    });
+  }
+
+  return targets;
+}
+
+function removeForeignPrebuilds(nodeModulesRoot: string): void {
+  if (!fs.existsSync(nodeModulesRoot)) {
     return;
   }
 
-  const electronVersion = readRuntimeElectronVersion(recoveredRoot);
+  for (const entry of fs.readdirSync(nodeModulesRoot, { withFileTypes: true })) {
+    const entryPath = path.join(nodeModulesRoot, entry.name);
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    if (entry.name === "prebuilds") {
+      for (const prebuildEntry of fs.readdirSync(entryPath, { withFileTypes: true })) {
+        if (prebuildEntry.isDirectory() && prebuildEntry.name !== "win32-arm64") {
+          fs.rmSync(path.join(entryPath, prebuildEntry.name), { recursive: true, force: true });
+        }
+      }
+      continue;
+    }
+
+    removeForeignPrebuilds(entryPath);
+  }
+}
+
+function syncNativeNodeModulesTarget(
+  target: NativeNodeModulesTarget,
+  electronVersion: string,
+): void {
+  const nativeModules = target.nativeModules;
+  const moduleRoot = path.dirname(target.nodeModulesRoot);
+
+  console.log(
+    `Checking Windows ARM64 native Node modules in ${target.label}: ${
+      nativeModules.map((nativeModule) => nativeModule.name).join(", ")
+    }`,
+  );
 
   if (
-    !nativeNodeModulesReady(nativeModules) &&
-    restoreNativeNodeModulesFromCache(nativeModules, electronVersion)
+    !nativeNodeModulesReady(target) &&
+    restoreNativeNodeModulesFromCache(target.nodeModulesRoot, nativeModules, electronVersion)
   ) {
-    console.log("Restored native Node modules from cache.");
+    console.log(`Restored native Node modules from cache for ${target.label}.`);
   }
-  if (nativeNodeModulesReady(nativeModules)) {
+  removeForeignPrebuilds(target.nodeModulesRoot);
+
+  if (nativeNodeModulesReady(target)) {
     if (!fs.existsSync(runtimeCacheNodeModulesRoot(nativeModules, electronVersion))) {
-      saveNativeNodeModulesToCache(nativeModules, electronVersion);
+      saveNativeNodeModulesToCache(target.nodeModulesRoot, nativeModules, electronVersion);
     }
     console.log(
-      `Native Node modules already match Windows ARM64: ${
+      `Native Node modules already match Windows ARM64 in ${target.label}: ${
         nativeModules.map((nativeModule) => nativeModule.name).join(", ")
       }`,
     );
@@ -687,26 +824,50 @@ function syncNativeNodeModules(recoveredRoot: string): void {
   }
 
   const missingOrOutdatedModules = nativeModules.filter(
-    (nativeModule) => getInstalledPackageVersion(nativeModule.name) !== nativeModule.version,
+    (nativeModule) =>
+      getInstalledPackageVersion(target.nodeModulesRoot, nativeModule.name) !==
+      nativeModule.version,
   );
 
   if (missingOrOutdatedModules.length > 0) {
-    runNpm([
-      "install",
-      "--no-save",
-      "--package-lock=false",
-      "--no-audit",
-      "--fund=false",
-      ...missingOrOutdatedModules.map(
-        (nativeModule) => `${nativeModule.name}@${nativeModule.version}`,
-      ),
-    ]);
+    runNpm(
+      [
+        "install",
+        "--no-save",
+        "--package-lock=false",
+        "--no-audit",
+        "--fund=false",
+        ...missingOrOutdatedModules.map(
+          (nativeModule) => `${nativeModule.name}@${nativeModule.version}`,
+        ),
+      ],
+      moduleRoot,
+    );
   }
 
   const nativeModuleNames = nativeModules.map((nativeModule) => nativeModule.name);
-  runElectronRebuild(nativeModuleNames, electronVersion);
-  saveNativeNodeModulesToCache(nativeModules, electronVersion);
-  console.log(`Synced native Node modules for Windows ARM64: ${nativeModuleNames.join(", ")}`);
+  runElectronRebuild(nativeModuleNames, electronVersion, moduleRoot);
+  removeForeignPrebuilds(target.nodeModulesRoot);
+  if (!nativeNodeModulesReady(target)) {
+    throw new Error(`Native Node modules did not produce Windows ARM64 payloads in ${target.label}.`);
+  }
+  saveNativeNodeModulesToCache(target.nodeModulesRoot, nativeModules, electronVersion);
+  console.log(
+    `Synced native Node modules for Windows ARM64 in ${target.label}: ${nativeModuleNames.join(", ")}`,
+  );
+}
+
+function syncNativeNodeModules(recoveredRoot: string): void {
+  const targets = collectNativeNodeModuleTargets(recoveredRoot);
+  if (targets.length === 0) {
+    console.log("Hydrated app and bundled plugins have no native Node modules.");
+    return;
+  }
+
+  const electronVersion = readRuntimeElectronVersion(recoveredRoot);
+  for (const target of targets) {
+    syncNativeNodeModulesTarget(target, electronVersion);
+  }
 }
 
 function patchWindowsSelfSignedBundle(recoveredRoot: string): void {
