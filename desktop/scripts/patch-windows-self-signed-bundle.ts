@@ -24,6 +24,9 @@ const windowsMenuBarComponentAppliedPattern =
   /codex-windows-menu-bar-visibility-changed/;
 const windowsTopBarAlignmentAppliedPattern =
   /group\/windows-top-bar[^`]*\bms-2\b/;
+const windowsTitleBarOverlayLoweredPattern = new RegExp(
+  String.raw`\b(${identifierPattern})=96,${identifierPattern}=\x60#1f1f1f\x60,${identifierPattern}=\x60#ffffff\x60;function\s+${identifierPattern}\(\)\{return\{color:${identifierPattern},symbolColor:${identifierPattern}\.nativeTheme\.shouldUseDarkColors\?${identifierPattern}:${identifierPattern},height:\1\}\}`,
+);
 
 type SourcePatchResult = {
   source: string;
@@ -684,34 +687,6 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
         required: true,
       },
     ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "nudge Chats section heading right",
-      [
-        exactPatch(
-          "rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{ec(e,`chats`,!At.chats)},children:A})})",
-          "rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1 translate-x-px`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{ec(e,`chats`,!At.chats)},children:A})})",
-        ),
-        alreadyAppliedPatch(
-          "rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1 translate-x-px`,children:(0,$.jsx)(av,{collapsed:At.chats",
-        ),
-      ],
-      { missingTargetMarkers: ["sidebarElectron.recentChats", "At.chats", "children:A"] },
-    ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "nudge Chats list left",
-      [
-        exactPatch(
-          "ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,itemClassName:",
-          "ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,className:`-translate-x-px`,itemClassName:",
-        ),
-        alreadyAppliedPatch("onActivateThread:x,className:`-translate-x-px`,itemClassName:"),
-      ],
-      { missingTargetMarkers: ["sidebarElectron.recentChats", "items:on", "currentThreadKey:y"] },
-    ),
   ];
 }
 
@@ -866,6 +841,31 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(path.join(recoveredRoot, ".vite", "build"), /^main-.*\.js$/);
 
   return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "move Windows title bar overlay controls down",
+      [
+        regexPatch(
+          new RegExp(
+            String.raw`\b(${identifierPattern})=36,(${identifierPattern})=\x60#1f1f1f\x60,(${identifierPattern})=\x60#ffffff\x60;function\s+(${identifierPattern})\(\)\{return\{color:(${identifierPattern}),symbolColor:(${identifierPattern})\.nativeTheme\.shouldUseDarkColors\?\3:\2,height:\1\}\}`,
+            "g",
+          ),
+          (match) => {
+            const heightName = match[1];
+            const darkSymbolName = match[2];
+            const lightSymbolName = match[3];
+            const functionName = match[4];
+            const colorName = match[5];
+            const electronName = match[6];
+
+            return `${heightName}=96,${darkSymbolName}=\`#1f1f1f\`,${lightSymbolName}=\`#ffffff\`;function ${functionName}(){return{color:${colorName},symbolColor:${electronName}.nativeTheme.shouldUseDarkColors?${lightSymbolName}:${darkSymbolName},height:${heightName}}}`;
+          },
+          windowsTitleBarOverlayLoweredPattern,
+        ),
+      ],
+      { missingTargetMarkers: ["titleBarOverlay", "height:"] },
+    ),
     replaceWithPatchers(
       recoveredRoot,
       filePath,

@@ -33,7 +33,7 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    `let commandGate=FeatureGate(\`1981165915\`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${indexFeatureTargets}function Ok(){let e=(0,Z.c)(4),{data:t,isLoading:n}=mc(ii.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{n||J.dispatchMessage(\`mac-menu-bar-enabled-changed\`,{enabled:r})},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}function Ub(){let A=C.formatMessage({id:\`sidebarElectron.recentChats\`,defaultMessage:\`Chats\`}),At={chats:!1},rr=(0,$.jsx)(\`div\`,{className:\`flex min-w-0 flex-1\`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{ec(e,\`chats\`,!At.chats)},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,itemClassName:\`after:block\`});return[rr,ir]}`,
+    `let commandGate=FeatureGate(\`1981165915\`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${indexFeatureTargets}function Ok(){let e=(0,Z.c)(4),{data:t,isLoading:n}=mc(ii.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{n||J.dispatchMessage(\`mac-menu-bar-enabled-changed\`,{enabled:r})},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}`,
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
@@ -65,7 +65,7 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "function zx(config){return typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}",
+    "var dM=`#00000000`,vM=36,yM=`#1f1f1f`,bM=`#ffffff`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===`win32`?{titleBarStyle:`hidden`,titleBarOverlay:xM()}:null}function zx(config){return typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}",
   );
 
   return recoveredRoot;
@@ -105,14 +105,13 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
-      "webview/assets/index-fixture.js",
-      "webview/assets/index-fixture.js",
       "webview/assets/general-settings-fixture.js",
       "webview/assets/app-shell-fixture.js",
       "webview/assets/app-shell-fixture.js",
       "webview/assets/app-shell-fixture.js",
       "webview/assets/agent-settings-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
+      ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
     ],
@@ -133,13 +132,11 @@ test("patches app main bundle when upstream moves index targets there", () => {
   assert.match(appMainSource, /commandGate=!0/);
   assert.match(appMainSource, /workspace_dependencies:!0/);
   assert.match(appMainSource, /codex\.windowsMenuBarVisible/);
-  assert.match(appMainSource, /className:`flex min-w-0 flex-1 translate-x-px`/);
-  assert.match(appMainSource, /onActivateThread:x,className:`-translate-x-px`,itemClassName:/);
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   assert.equal(
     report.patches.filter((patch) => patch.file === "webview/assets/app-main-fixture.js").length,
-    5,
+    3,
   );
 });
 
@@ -312,14 +309,6 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     /codex\.windowsMenuBarVisible/,
   );
   assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /className:`flex min-w-0 flex-1 translate-x-px`/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /onActivateThread:x,className:`-translate-x-px`,itemClassName:/,
-  );
-  assert.match(
     fs.readFileSync(
       path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
       "utf8",
@@ -368,6 +357,10 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /vM=96/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /function zx\(config\)\{return!0\}/,
   );
   assert.match(
@@ -376,7 +369,7 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 14);
+  assert.equal(report.patches.length, 13);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -463,7 +456,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 14);
+  assert.equal(report.patches.length, 13);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),
