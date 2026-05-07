@@ -870,7 +870,7 @@ function patchAgentSettings(recoveredRoot: string): PatchResult[] {
 function patchImagePreview(recoveredRoot: string): PatchResult[] {
   const filePath = findFileContaining(
     path.join(recoveredRoot, "webview", "assets"),
-    /^use-model-settings-.*\.js$/,
+    /^(?:image-preview-dialog|use-model-settings)-.*\.js$/,
     ["imagePreviewDialog.download", "absolute top-3 right-3 z-10 flex items-center gap-2"],
   );
 

@@ -493,7 +493,7 @@ function collectRuntimePackageRoots(
 
     const packageJson = readPackageJson(packageRootPath);
     for (const packageName of Object.keys(packageJson.dependencies ?? {})) {
-      pendingPackages.push({ packageName, fromDirectory: packageRootPath, optional: false });
+      pendingPackages.push({ packageName, fromDirectory: packageRootPath, optional: true });
     }
     for (const packageName of Object.keys(packageJson.optionalDependencies ?? {})) {
       pendingPackages.push({ packageName, fromDirectory: packageRootPath, optional: true });
@@ -707,6 +707,38 @@ function runElectronRebuild(
   );
 }
 
+function withTemporaryPackageJson(
+  moduleRoot: string,
+  nativeModules: NativeNodeModule[],
+  callback: () => void,
+): void {
+  const packageJsonPath = path.join(moduleRoot, "package.json");
+  if (fs.existsSync(packageJsonPath)) {
+    callback();
+    return;
+  }
+
+  fs.writeFileSync(
+    packageJsonPath,
+    `${JSON.stringify(
+      {
+        private: true,
+        dependencies: Object.fromEntries(
+          nativeModules.map((nativeModule) => [nativeModule.name, nativeModule.version]),
+        ),
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  try {
+    callback();
+  } finally {
+    fs.rmSync(packageJsonPath, { force: true });
+  }
+}
+
 function findNestedNodeModulesRoots(root: string): string[] {
   if (!fs.existsSync(root)) {
     return [];
@@ -846,7 +878,18 @@ function syncNativeNodeModulesTarget(
   }
 
   const nativeModuleNames = nativeModules.map((nativeModule) => nativeModule.name);
-  runElectronRebuild(nativeModuleNames, electronVersion, moduleRoot);
+  removeForeignPrebuilds(target.nodeModulesRoot);
+  if (nativeNodeModulesReady(target)) {
+    saveNativeNodeModulesToCache(target.nodeModulesRoot, nativeModules, electronVersion);
+    console.log(
+      `Synced native Node modules for Windows ARM64 in ${target.label}: ${nativeModuleNames.join(", ")}`,
+    );
+    return;
+  }
+
+  withTemporaryPackageJson(moduleRoot, nativeModules, () => {
+    runElectronRebuild(nativeModuleNames, electronVersion, moduleRoot);
+  });
   removeForeignPrebuilds(target.nodeModulesRoot);
   if (!nativeNodeModulesReady(target)) {
     throw new Error(`Native Node modules did not produce Windows ARM64 payloads in ${target.label}.`);

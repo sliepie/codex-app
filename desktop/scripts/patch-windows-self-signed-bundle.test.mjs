@@ -96,6 +96,13 @@ function moveIndexFixtureToAppMain(recoveredRoot) {
   return appMainPath;
 }
 
+function moveImagePreviewFixtureToDialog(recoveredRoot) {
+  const assetsRoot = path.join(recoveredRoot, "webview", "assets");
+  const imagePreviewDialogPath = path.join(assetsRoot, "image-preview-dialog-fixture.js");
+  fs.renameSync(path.join(assetsRoot, "use-model-settings-fixture.js"), imagePreviewDialogPath);
+  return imagePreviewDialogPath;
+}
+
 test("writes patch report file paths relative to the recovered app root", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -148,6 +155,27 @@ test("patches app main bundle when upstream moves index targets there", () => {
     report.patches.filter((patch) => patch.file === "webview/assets/app-main-fixture.js").length,
     6,
   );
+});
+
+test("patches image preview controls when upstream moves them into a dialog chunk", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const imagePreviewDialogPath = moveImagePreviewFixtureToDialog(recoveredRoot);
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(
+    fs.readFileSync(imagePreviewDialogPath, "utf8"),
+    /style:\{top:`calc\(0\.75rem \+ 36px\)`\}/,
+  );
+
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "move image preview controls below Windows title bar",
+  );
+  assert.equal(patch?.file, "webview/assets/image-preview-dialog-fixture.js");
+  assert.equal(patch?.status, "applied");
 });
 
 test("reports a missing gate target as assumed enabled and continues", () => {
