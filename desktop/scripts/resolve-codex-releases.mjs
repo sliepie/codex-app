@@ -27,6 +27,10 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function envFlag(name) {
+  return ["1", "true", "yes"].includes((process.env[name] ?? "").toLowerCase());
+}
+
 function releaseRevisionFromTag(tagName, appVersion) {
   const match = tagName.match(new RegExp(`^codex-app-${escapeRegExp(appVersion)}(?:\\.(0|[1-9]\\d*))?$`));
   if (!match) {
@@ -36,7 +40,7 @@ function releaseRevisionFromTag(tagName, appVersion) {
   return match[1] === undefined ? 0 : Number(match[1]);
 }
 
-function resolveRepoReleaseRevision({ appVersion, currentSha, releases }) {
+function resolveRepoReleaseRevision({ appVersion, currentSha, forceNewRevision, releases }) {
   let latestRevision = -1;
   let currentCommitRevision;
 
@@ -47,7 +51,11 @@ function resolveRepoReleaseRevision({ appVersion, currentSha, releases }) {
     }
 
     latestRevision = Math.max(latestRevision, revision);
-    if (currentSha && release.target_commitish?.toLowerCase() === currentSha.toLowerCase()) {
+    if (
+      !forceNewRevision &&
+      currentSha &&
+      release.target_commitish?.toLowerCase() === currentSha.toLowerCase()
+    ) {
       currentCommitRevision = Math.max(currentCommitRevision ?? revision, revision);
     }
   }
@@ -111,9 +119,11 @@ const buildNumber =
   item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim() ?? "";
 const cliTag = "matched-to-app";
 const releases = await fetchExistingReleases();
+const forceNewRepoRelease = envFlag("CODEX_FORCE_NEW_REPO_RELEASE");
 const repoReleaseRevision = resolveRepoReleaseRevision({
   appVersion,
   currentSha: process.env.GITHUB_SHA,
+  forceNewRevision: forceNewRepoRelease,
   releases,
 });
 const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
@@ -139,6 +149,7 @@ console.log(
       repoReleaseRevision,
       releaseVersion,
       releaseTag,
+      forceNewRepoRelease,
     },
     null,
     2,

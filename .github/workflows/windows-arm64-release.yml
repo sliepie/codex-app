@@ -18,6 +18,7 @@ jobs:
     runs-on: windows-latest
     env:
       GH_TOKEN: ${{ github.token }}
+      CODEX_FORCE_NEW_REPO_RELEASE: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
       IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
       PACKAGE_ARCHITECTURE: arm64
       PUBLISH_SELF_SIGNED_MSIX: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
