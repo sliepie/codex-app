@@ -24,9 +24,17 @@ const windowsMenuBarComponentAppliedPattern =
   /codex-windows-menu-bar-visibility-changed/;
 const windowsTopBarAlignmentAppliedPattern =
   /group\/windows-top-bar[^`]*\bms-2\b/;
-const windowsTitleBarOverlayLoweredPattern = new RegExp(
-  String.raw`\b(${identifierPattern})=96,${identifierPattern}=\x60#1f1f1f\x60,${identifierPattern}=\x60#ffffff\x60;function\s+${identifierPattern}\(\)\{return\{color:${identifierPattern},symbolColor:${identifierPattern}\.nativeTheme\.shouldUseDarkColors\?${identifierPattern}:${identifierPattern},height:\1\}\}`,
+const windowsTitleBarOverlayDefaultHeightPattern = new RegExp(
+  String.raw`\b(${identifierPattern})=36,${identifierPattern}=\x60#1f1f1f\x60,${identifierPattern}=\x60#ffffff\x60;function\s+${identifierPattern}\(\)\{return\{color:${identifierPattern},symbolColor:${identifierPattern}\.nativeTheme\.shouldUseDarkColors\?${identifierPattern}:${identifierPattern},height:\1\}\}`,
 );
+const imagePreviewControlsLoweredPattern =
+  /className:`absolute top-3 right-3 z-10 flex items-center gap-2`,style:\{top:`calc\(0\.75rem \+ 36px\)`\},children:\[/;
+const sidebarChatsHeadingRightPattern =
+  /className:`flex min-w-0 flex-1 translate-x-px`,children:\(0,[A-Za-z_$][\w$]*\.jsx\)\([A-Za-z_$][\w$]*,\{collapsed:[A-Za-z_$][\w$]*\.chats,/;
+const sidebarChatsListLeftPattern =
+  /\b[A-Za-z_$][\w$]*=\(0,([A-Za-z_$][\w$]*)\.jsx\)\(`div`,\{style:\{transform:`translateX\(-3px\)`\},children:\(0,\1\.jsx\)\(G_,\{items:[A-Za-z_$][\w$]*,ariaLabel:[A-Za-z_$][\w$]*,currentThreadKey:[A-Za-z_$][\w$]*,onActivateThread:[A-Za-z_$][\w$]*,className:`-translate-x-px`,/;
+const sidebarFooterSettingsLeftPattern =
+  /className:`min-w-0 flex-1`,style:\{transform:`translateX\(-2px\)`\},children:\(0,[A-Za-z_$][\w$]*\.jsx\)\([A-Za-z_$][\w$]*,\{triggerButton:/;
 
 type SourcePatchResult = {
   source: string;
@@ -687,6 +695,70 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
         required: true,
       },
     ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "nudge sidebar Chats heading right",
+      [
+        regexPatch(
+          new RegExp(
+            String.raw`className:\x60flex min-w-0 flex-1\x60,children:\(0,(${identifierPattern})\.jsx\)\((${identifierPattern}),\{collapsed:(${identifierPattern})\.chats,`,
+            "g",
+          ),
+          (match) =>
+            `className:\`flex min-w-0 flex-1 translate-x-px\`,children:(0,${match[1]}.jsx)(${match[2]},{collapsed:${match[3]}.chats,`,
+          sidebarChatsHeadingRightPattern,
+        ),
+      ],
+      { missingTargetMarkers: ["sidebarElectron.recentChats", ".chats"] },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "nudge recent chats list left",
+      [
+        regexPatch(
+          new RegExp(
+            String.raw`\b(${identifierPattern}=)(\(0,(${identifierPattern})\.jsx\)\(G_,\{items:${identifierPattern},ariaLabel:${identifierPattern},currentThreadKey:${identifierPattern},onActivateThread:${identifierPattern},className:\x60-translate-x-px\x60,itemClassName:\x60after:block after:h-px after:content-\[''\] last:after:hidden\x60,[\s\S]*?\}\}\))(?=,${identifierPattern}=)`,
+            "g",
+          ),
+          (match) =>
+            `${match[1]}(0,${match[3]}.jsx)(\`div\`,{style:{transform:\`translateX(-3px)\`},children:${match[2]}})`,
+          sidebarChatsListLeftPattern,
+        ),
+      ],
+      {
+        missingTargetMarkers: [
+          "sidebarElectron.noRecentChats",
+          "className:`-translate-x-px`",
+        ],
+      },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "nudge sidebar footer settings button left",
+      [
+        regexPatch(
+          new RegExp(
+            String.raw`className:\x60min-w-0 flex-1\x60,children:\(0,${identifierPattern}\.jsx\)\(${identifierPattern},\{triggerButton:\(0,${identifierPattern}\.jsx\)\(${identifierPattern},\{icon:${identifierPattern},label:${identifierPattern},onClick:${identifierPattern},trailing:${identifierPattern},iconClassName:\x60icon-sm\x60\}\)\}\)`,
+            "g",
+          ),
+          (match) =>
+            match[0].replace(
+              "className:`min-w-0 flex-1`,",
+              "className:`min-w-0 flex-1`,style:{transform:`translateX(-2px)`},",
+            ),
+          sidebarFooterSettingsLeftPattern,
+        ),
+      ],
+      {
+        missingTargetMarkers: [
+          "codex.profileFooter.signedInFallback",
+          "iconClassName:`icon-sm`",
+        ],
+      },
+    ),
   ];
 }
 
@@ -795,6 +867,39 @@ function patchAgentSettings(recoveredRoot: string): PatchResult[] {
   ];
 }
 
+function patchImagePreview(recoveredRoot: string): PatchResult[] {
+  const filePath = findFileContaining(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^use-model-settings-.*\.js$/,
+    ["imagePreviewDialog.download", "absolute top-3 right-3 z-10 flex items-center gap-2"],
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "move image preview controls below Windows title bar",
+      [
+        regexPatch(
+          new RegExp(
+            String.raw`\(0,(${identifierPattern})\.jsxs\)\(\`div\`,\{className:\`absolute top-3 right-3 z-10 flex items-center gap-2\`,children:\[(${identifierPattern}),(${identifierPattern})\]\}\)`,
+            "g",
+          ),
+          (match) =>
+            `(0,${match[1]}.jsxs)(\`div\`,{className:\`absolute top-3 right-3 z-10 flex items-center gap-2\`,style:{top:\`calc(0.75rem + 36px)\`},children:[${match[2]},${match[3]}]})`,
+          imagePreviewControlsLoweredPattern,
+        ),
+      ],
+      {
+        missingTargetMarkers: [
+          "imagePreviewDialog.download",
+          "absolute top-3 right-3 z-10 flex items-center gap-2",
+        ],
+      },
+    ),
+  ];
+}
+
 function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(
     path.join(recoveredRoot, ".vite", "build"),
@@ -844,11 +949,11 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
     replaceWithPatchers(
       recoveredRoot,
       filePath,
-      "move Windows title bar overlay controls down",
+      "restore Windows title bar overlay controls height",
       [
         regexPatch(
           new RegExp(
-            String.raw`\b(${identifierPattern})=36,(${identifierPattern})=\x60#1f1f1f\x60,(${identifierPattern})=\x60#ffffff\x60;function\s+(${identifierPattern})\(\)\{return\{color:(${identifierPattern}),symbolColor:(${identifierPattern})\.nativeTheme\.shouldUseDarkColors\?\3:\2,height:\1\}\}`,
+            String.raw`\b(${identifierPattern})=(?:96|106),(${identifierPattern})=\x60#1f1f1f\x60,(${identifierPattern})=\x60#ffffff\x60;function\s+(${identifierPattern})\(\)\{return\{color:(${identifierPattern}),symbolColor:(${identifierPattern})\.nativeTheme\.shouldUseDarkColors\?\3:\2,height:\1\}\}`,
             "g",
           ),
           (match) => {
@@ -859,9 +964,9 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
             const colorName = match[5];
             const electronName = match[6];
 
-            return `${heightName}=96,${darkSymbolName}=\`#1f1f1f\`,${lightSymbolName}=\`#ffffff\`;function ${functionName}(){return{color:${colorName},symbolColor:${electronName}.nativeTheme.shouldUseDarkColors?${lightSymbolName}:${darkSymbolName},height:${heightName}}}`;
+            return `${heightName}=36,${darkSymbolName}=\`#1f1f1f\`,${lightSymbolName}=\`#ffffff\`;function ${functionName}(){return{color:${colorName},symbolColor:${electronName}.nativeTheme.shouldUseDarkColors?${lightSymbolName}:${darkSymbolName},height:${heightName}}}`;
           },
-          windowsTitleBarOverlayLoweredPattern,
+          windowsTitleBarOverlayDefaultHeightPattern,
         ),
       ],
       { missingTargetMarkers: ["titleBarOverlay", "height:"] },
@@ -943,6 +1048,7 @@ function main(): void {
     results.push(...patchGeneralSettings(recoveredRoot));
     results.push(...patchAppShell(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
+    results.push(...patchImagePreview(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
     results.push(...patchMainBundle(recoveredRoot));
   } catch (error) {
