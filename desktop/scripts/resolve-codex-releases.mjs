@@ -3,6 +3,7 @@ import { appendFileSync } from "node:fs";
 const appcastUrl =
   process.env.CODEX_APPCAST_URL ??
   "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
+const codexCliRepository = process.env.CODEX_CLI_REPOSITORY ?? "openai/codex";
 const githubApiUrl = process.env.GITHUB_API_URL ?? "https://api.github.com";
 
 function fail(message) {
@@ -46,26 +47,25 @@ function findRepoReleaseTagForAppVersion({ appVersion, releases }) {
   return "";
 }
 
-function releaseApiUrl(repository) {
+function repositoryApiUrl(repository, path) {
   const [owner, repo] = repository.split("/");
   if (!owner || !repo) {
-    fail(`Invalid GITHUB_REPOSITORY value: ${repository}`);
+    fail(`Invalid GitHub repository value: ${repository}`);
   }
 
-  const url = new URL(
-    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases`,
+  return new URL(
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${path}`,
     githubApiUrl.endsWith("/") ? githubApiUrl : `${githubApiUrl}/`,
   );
+}
+
+function releaseApiUrl(repository) {
+  const url = repositoryApiUrl(repository, "/releases");
   url.searchParams.set("per_page", "100");
   return url;
 }
 
-async function fetchExistingReleases() {
-  const repository = process.env.GITHUB_REPOSITORY;
-  if (!repository) {
-    return [];
-  }
-
+function githubHeaders() {
   const headers = {
     Accept: "application/vnd.github+json",
   };
@@ -74,12 +74,38 @@ async function fetchExistingReleases() {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(releaseApiUrl(repository), { headers });
+  return headers;
+}
+
+async function fetchExistingReleases() {
+  const repository = process.env.GITHUB_REPOSITORY;
+  if (!repository) {
+    return [];
+  }
+
+  const response = await fetch(releaseApiUrl(repository), { headers: githubHeaders() });
   if (!response.ok) {
     fail(`Failed to fetch GitHub releases: ${response.status} ${response.statusText}`);
   }
 
   return await response.json();
+}
+
+async function fetchLatestCodexCliTag() {
+  const response = await fetch(repositoryApiUrl(codexCliRepository, "/releases/latest"), {
+    headers: githubHeaders(),
+  });
+  if (!response.ok) {
+    fail(`Failed to fetch Codex CLI release: ${response.status} ${response.statusText}`);
+  }
+
+  const release = await response.json();
+  const tagName = release.tag_name ?? "";
+  if (!tagName) {
+    fail("The latest Codex CLI release does not have a tag.");
+  }
+
+  return tagName;
 }
 
 const response = await fetch(appcastUrl);
@@ -100,7 +126,7 @@ const appVersion = firstMatch(
 );
 const buildNumber =
   item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim() ?? "";
-const cliTag = "matched-to-app";
+const cliTag = await fetchLatestCodexCliTag();
 const releases = await fetchExistingReleases();
 const repoAppReleaseTag = findRepoReleaseTagForAppVersion({
   appVersion,

@@ -33,6 +33,12 @@ function startServer(releases) {
       return;
     }
 
+    if (request.url === "/repos/openai/codex/releases/latest") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ tag_name: "rust-v0.129.0" }));
+      return;
+    }
+
     response.writeHead(404);
     response.end();
   });
@@ -98,6 +104,7 @@ test("starts new Codex app releases at repo revision zero", async () => {
 
   assert.equal(output.release_version, "26.429.61741.0");
   assert.equal(output.release_tag, "codex-app-26.429.61741.abcdef1");
+  assert.equal(output.codex_cli_tag, "rust-v0.129.0");
   assert.equal(output.repo_app_release_tag, "");
 });
 
