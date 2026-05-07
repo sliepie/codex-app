@@ -24,6 +24,12 @@ const windowsMenuBarComponentAppliedPattern =
   /codex-windows-menu-bar-visibility-changed/;
 const windowsTopBarAlignmentAppliedPattern =
   /group\/windows-top-bar[^`]*\bms-2\b/;
+const goalsOptInMarker = "codex-goals-opt-in";
+const goalsDefaultFeatureOverrideAppliedEvidence =
+  "`tool_suggest`,/*codex-goals-opt-in*/`goals`,";
+const goalsDesktopFeatureAppliedPattern =
+  /control:[^,}]+,\/\*codex-goals-opt-in\*\/goals:!0,multiWindow:/;
+const goalsSlashCommandAppliedEvidence = "/*codex-goals-opt-in*/{id:`goals`,title:`Goals`";
 
 type SourcePatchResult = {
   source: string;
@@ -433,6 +439,18 @@ function alreadyAppliedPatch(evidence: string | RegExp): SourcePatcher {
   };
 }
 
+function failIfUnmodifiedBundleContains(evidence: string | RegExp, reason: string): SourcePatcher {
+  return (source) => {
+    const matched =
+      typeof evidence === "string" ? source.includes(evidence) : evidence.test(source);
+    if (!matched) {
+      return undefined;
+    }
+
+    throw new Error(reason);
+  };
+}
+
 function findFunctionRanges(source: string): FunctionRange[] {
   const ranges: FunctionRange[] = [];
   const functionPattern = /\b(async\s+)?function\s+([A-Za-z_$][\w$]*)\(([^)]*)\)\{/g;
@@ -651,6 +669,56 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
     replaceWithPatchers(
       recoveredRoot,
       filePath,
+      "opt in to goals default feature overrides",
+      [
+        exactPatch(
+          "var YA=[`apps`,`memories`,`plugins`,`tool_call_mcp_elicitation`,`tool_search`,`tool_suggest`,kr];",
+          `var YA=[\`apps\`,\`memories\`,\`plugins\`,\`tool_call_mcp_elicitation\`,\`tool_search\`,\`tool_suggest\`,/*${goalsOptInMarker}*/\`goals\`,kr];`,
+        ),
+        regexPatch(
+          /(`apps`,`memories`,`plugins`,`tool_call_mcp_elicitation`,`tool_search`,`tool_suggest`,)([A-Za-z_$][\w$]*\])/g,
+          (match) => `${match[1]}/*${goalsOptInMarker}*/\`goals\`,${match[2]}`,
+          /`tool_suggest`,\/\*codex-goals-opt-in\*\/`goals`,/,
+        ),
+        alreadyAppliedPatch(goalsDefaultFeatureOverrideAppliedEvidence),
+        failIfUnmodifiedBundleContains(
+          "`tool_suggest`,`goals`,",
+          "Goals are already present in the unmodified default feature override list; remove the opt-in patch before shipping.",
+        ),
+      ],
+      {
+        missingTargetMarkers: ["`tool_suggest`"],
+        required: true,
+      },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "advertise goals desktop feature",
+      [
+        exactPatch(
+          "computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,multiWindow:d})",
+          `computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,/*${goalsOptInMarker}*/goals:!0,multiWindow:d})`,
+        ),
+        regexPatch(
+          /(computerUse:[^,}]+,computerUseNodeRepl:[^,}]+,control:[^,}]+,)(multiWindow:[^,}]+)(?=\})/g,
+          (match) => `${match[1]}/*${goalsOptInMarker}*/goals:!0,${match[2]}`,
+          goalsDesktopFeatureAppliedPattern,
+        ),
+        alreadyAppliedPatch(goalsDesktopFeatureAppliedPattern),
+        failIfUnmodifiedBundleContains(
+          /computerUse:[^}]*control:[^,}]+,goals:!0,multiWindow:/,
+          "Goals are already advertised by the unmodified desktop feature payload; remove the opt-in patch before shipping.",
+        ),
+      ],
+      {
+        missingTargetMarkers: ["electron-desktop-features-changed", "multiWindow:"],
+        required: true,
+      },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
       "sync Windows menu bar visibility setting",
       [
         exactPatch(
@@ -691,6 +759,37 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
         alreadyAppliedPatch("onActivateThread:x,className:`-translate-x-px`,itemClassName:"),
       ],
       { missingTargetMarkers: ["sidebarElectron.recentChats", "items:on", "currentThreadKey:y"] },
+    ),
+  ];
+}
+
+function patchComposer(recoveredRoot: string): PatchResult[] {
+  const filePath = findFileContaining(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^composer-.*\.js$/,
+    ["composer.slashCommands.noResults", "requiresEmptyComposer"],
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "show goals slash command",
+      [
+        exactPatch(
+          "let e=lx(r,ux(a));c=o?.active?cx(e,o.query):e,",
+          `let e=lx([...r,/*${goalsOptInMarker}*/{id:\`goals\`,title:\`Goals\`,description:\`Set a persistent goal for this thread\`,requiresEmptyComposer:!1,Icon:PA,enabled:!0,onSelect:async()=>{n.setText(\`Set this as my active goal: \`),n.focus()}}],ux(a));c=o?.active?cx(e,o.query):e,`,
+        ),
+        alreadyAppliedPatch(goalsSlashCommandAppliedEvidence),
+        failIfUnmodifiedBundleContains(
+          "id:`goals`,title:`Goals`",
+          "Goals slash command is already present in the unmodified composer bundle; remove the opt-in patch before shipping.",
+        ),
+      ],
+      {
+        missingTargetMarkers: ["composer.slashCommands.noResults", "requiresEmptyComposer"],
+        required: true,
+      },
     ),
   ];
 }
@@ -912,6 +1011,7 @@ function main(): void {
   try {
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
+    results.push(...patchComposer(recoveredRoot));
     results.push(...patchGeneralSettings(recoveredRoot));
     results.push(...patchAppShell(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
