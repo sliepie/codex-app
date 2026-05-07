@@ -17,11 +17,16 @@ type NativeNodeModule = {
 };
 
 type PackageJson = {
+  cpu?: string | string[];
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  os?: string | string[];
   optionalDependencies?: Record<string, string>;
   version?: string;
 };
+
+const targetRuntimeArch = "arm64";
+const targetRuntimePlatform = "win32";
 
 type MarketplacePlugin = {
   name?: string;
@@ -357,12 +362,18 @@ function findNativeNodeModules(recoveredRoot: string): NativeNodeModule[] {
     }
 
     const packageJsonPath = path.join(packageRoot, "package.json");
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as {
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as PackageJson & {
       name?: string;
-      version?: string;
     };
     if (!packageJson.name || !packageJson.version) {
       throw new Error(`Native Node module is missing name or version: ${packageJsonPath}`);
+    }
+
+    if (!supportsTargetRuntime(packageJson)) {
+      console.log(
+        `Skipping native Node module not supported on Windows ARM64: ${packageJson.name}@${packageJson.version}`,
+      );
+      continue;
     }
 
     nativeModules.push({ name: packageJson.name, version: packageJson.version });
@@ -377,6 +388,27 @@ function packageRoot(root: string, packageName: string): string {
 
 function readPackageJson(packageRootPath: string): PackageJson {
   return JSON.parse(fs.readFileSync(path.join(packageRootPath, "package.json"), "utf8")) as PackageJson;
+}
+
+function packageListAllowsTarget(value: string | string[] | undefined, target: string): boolean {
+  if (!value) {
+    return true;
+  }
+
+  const entries = Array.isArray(value) ? value : [value];
+  if (entries.includes(`!${target}`)) {
+    return false;
+  }
+
+  const allowedEntries = entries.filter((entry) => !entry.startsWith("!"));
+  return allowedEntries.length === 0 || allowedEntries.includes(target);
+}
+
+function supportsTargetRuntime(packageJson: PackageJson): boolean {
+  return (
+    packageListAllowsTarget(packageJson.os, targetRuntimePlatform) &&
+    packageListAllowsTarget(packageJson.cpu, targetRuntimeArch)
+  );
 }
 
 function getInstalledPackageVersion(packageName: string): string | undefined {

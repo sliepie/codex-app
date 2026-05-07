@@ -16,10 +16,8 @@ const patcherPath = path.join(
 );
 const windowsMenuBarSyncAlreadyApplied =
   "function menuSync(){localStorage.setItem(`codex.windowsMenuBarVisible`,`1`);window.dispatchEvent(new Event(`codex-windows-menu-bar-visibility-changed`))}";
-const goalsFeatureTargets =
+const indexFeatureTargets =
   "var YA=[`apps`,`memories`,`plugins`,`tool_call_mcp_elicitation`,`tool_search`,`tool_suggest`,kr];function QA(){J.dispatchMessage(`electron-desktop-features-changed`,{avatarOverlay:n,ambientSuggestions:r,artifactsPane:!0,browserAgent:a.available,browserAgentAvailable:a.available,browserPane:i,computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,multiWindow:d})}";
-const goalsFeatureAlreadyApplied =
-  "var YA=[`apps`,`memories`,`plugins`,`tool_call_mcp_elicitation`,`tool_search`,`tool_suggest`,/*codex-goals-opt-in*/`goals`,kr];function QA(){J.dispatchMessage(`electron-desktop-features-changed`,{avatarOverlay:n,ambientSuggestions:r,artifactsPane:!0,browserAgent:a.available,browserAgentAvailable:a.available,browserPane:i,computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,/*codex-goals-opt-in*/goals:!0,multiWindow:d})}";
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -35,7 +33,7 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    `let commandGate=FeatureGate(\`1981165915\`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${goalsFeatureTargets}function Ok(){let e=(0,Z.c)(4),{data:t,isLoading:n}=mc(ii.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{n||J.dispatchMessage(\`mac-menu-bar-enabled-changed\`,{enabled:r})},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}function Ub(){let A=C.formatMessage({id:\`sidebarElectron.recentChats\`,defaultMessage:\`Chats\`}),At={chats:!1},rr=(0,$.jsx)(\`div\`,{className:\`flex min-w-0 flex-1\`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{ec(e,\`chats\`,!At.chats)},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,itemClassName:\`after:block\`});return[rr,ir]}`,
+    `let commandGate=FeatureGate(\`1981165915\`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${indexFeatureTargets}function Ok(){let e=(0,Z.c)(4),{data:t,isLoading:n}=mc(ii.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{n||J.dispatchMessage(\`mac-menu-bar-enabled-changed\`,{enabled:r})},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}function Ub(){let A=C.formatMessage({id:\`sidebarElectron.recentChats\`,defaultMessage:\`Chats\`}),At={chats:!1},rr=(0,$.jsx)(\`div\`,{className:\`flex min-w-0 flex-1\`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{ec(e,\`chats\`,!At.chats)},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,itemClassName:\`after:block\`});return[rr,ir]}`,
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
@@ -85,6 +83,13 @@ function runPatcher(recoveredRoot, reportPath) {
   });
 }
 
+function moveIndexFixtureToAppMain(recoveredRoot) {
+  const assetsRoot = path.join(recoveredRoot, "webview", "assets");
+  const appMainPath = path.join(assetsRoot, "app-main-fixture.js");
+  fs.renameSync(path.join(assetsRoot, "index-fixture.js"), appMainPath);
+  return appMainPath;
+}
+
 test("writes patch report file paths relative to the recovered app root", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -102,9 +107,6 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
-      "webview/assets/index-fixture.js",
-      "webview/assets/index-fixture.js",
-      "webview/assets/composer-fixture.js",
       "webview/assets/general-settings-fixture.js",
       "webview/assets/app-shell-fixture.js",
       "webview/assets/app-shell-fixture.js",
@@ -119,12 +121,34 @@ test("writes patch report file paths relative to the recovered app root", () => 
   assert.ok(report.patches.every((patch) => !patch.file.includes("..")));
 });
 
+test("patches app main bundle when upstream moves index targets there", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const appMainPath = moveIndexFixtureToAppMain(recoveredRoot);
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const appMainSource = fs.readFileSync(appMainPath, "utf8");
+  assert.match(appMainSource, /commandGate=!0/);
+  assert.match(appMainSource, /workspace_dependencies:!0/);
+  assert.match(appMainSource, /codex\.windowsMenuBarVisible/);
+  assert.match(appMainSource, /className:`flex min-w-0 flex-1 translate-x-px`/);
+  assert.match(appMainSource, /onActivateThread:x,className:`-translate-x-px`,itemClassName:/);
+
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  assert.equal(
+    report.patches.filter((patch) => patch.file === "webview/assets/app-main-fixture.js").length,
+    5,
+  );
+});
+
 test("reports a missing gate target as assumed enabled and continues", () => {
   const recoveredRoot = createRecoveredFixture();
   const indexPath = path.join(recoveredRoot, "webview", "assets", "index-fixture.js");
   fs.writeFileSync(
     indexPath,
-    `let unrelated=!0;function buildFlags(user,base,remote,rest){return{...base,...remote,workspace_dependencies:!0,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${goalsFeatureAlreadyApplied}${windowsMenuBarSyncAlreadyApplied}`,
+    `let unrelated=!0;function buildFlags(user,base,remote,rest){return{...base,...remote,workspace_dependencies:!0,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${indexFeatureTargets}${windowsMenuBarSyncAlreadyApplied}`,
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -163,7 +187,7 @@ test("fails when the Windows menu bar visibility sync target is missing", () => 
   const recoveredRoot = createRecoveredFixture();
   fs.writeFileSync(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    `let commandGate=FeatureGate(\`1981165915\`),unrelatedMenuKey=\`codex.windowsMenuBarVisible\`;function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${goalsFeatureTargets}`,
+    `let commandGate=FeatureGate(\`1981165915\`),unrelatedMenuKey=\`codex.windowsMenuBarVisible\`;function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${indexFeatureTargets}`,
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -242,7 +266,7 @@ test("keeps workspace dependency feature-map already-applied evidence contextual
   const recoveredRoot = createRecoveredFixture();
   fs.writeFileSync(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    `let commandGate=FeatureGate(\`1981165915\`);const unrelated={workspace_dependencies:!0};${goalsFeatureTargets}${windowsMenuBarSyncAlreadyApplied}function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}`,
+    `let commandGate=FeatureGate(\`1981165915\`);const unrelated={workspace_dependencies:!0};${indexFeatureTargets}${windowsMenuBarSyncAlreadyApplied}function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}`,
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -282,18 +306,6 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
     /workspace_dependencies:!0/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /`tool_suggest`,\/\*codex-goals-opt-in\*\/`goals`,/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /control:u,\/\*codex-goals-opt-in\*\/goals:!0,multiWindow:d/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"), "utf8"),
-    /\/\*codex-goals-opt-in\*\/\{id:`goals`,title:`Goals`/,
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
@@ -364,64 +376,8 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 17);
+  assert.equal(report.patches.length, 14);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
-});
-
-test("fails when upstream already has unmodified goals feature overrides", () => {
-  const recoveredRoot = createRecoveredFixture();
-  fs.writeFileSync(
-    path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    `let commandGate=FeatureGate(\`1981165915\`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}var YA=[\`apps\`,\`memories\`,\`plugins\`,\`tool_call_mcp_elicitation\`,\`tool_search\`,\`tool_suggest\`,\`goals\`,kr];function QA(){J.dispatchMessage(\`electron-desktop-features-changed\`,{avatarOverlay:n,ambientSuggestions:r,artifactsPane:!0,browserAgent:a.available,browserAgentAvailable:a.available,browserPane:i,computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,multiWindow:d})}${windowsMenuBarSyncAlreadyApplied}function Ub(){let A=C.formatMessage({id:\`sidebarElectron.recentChats\`,defaultMessage:\`Chats\`}),At={chats:!1},rr=(0,$.jsx)(\`div\`,{className:\`flex min-w-0 flex-1\`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{ec(e,\`chats\`,!At.chats)},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,itemClassName:\`after:block\`});return[rr,ir]}`,
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.notEqual(result.status, 0);
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  const patch = report.patches.find(
-    (patch) => patch.name === "opt in to goals default feature overrides",
-  );
-  assert.equal(patch?.status, "failed-required");
-  assert.match(patch?.reason ?? "", /Goals are already present/);
-});
-
-test("fails when upstream already advertises unmodified goals desktop feature", () => {
-  const recoveredRoot = createRecoveredFixture();
-  fs.writeFileSync(
-    path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    `let commandGate=FeatureGate(\`1981165915\`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}var YA=[\`apps\`,\`memories\`,\`plugins\`,\`tool_call_mcp_elicitation\`,\`tool_search\`,\`tool_suggest\`,/*codex-goals-opt-in*/\`goals\`,kr];function QA(){J.dispatchMessage(\`electron-desktop-features-changed\`,{avatarOverlay:n,ambientSuggestions:r,artifactsPane:!0,browserAgent:a.available,browserAgentAvailable:a.available,browserPane:i,computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,goals:!0,multiWindow:d})}${windowsMenuBarSyncAlreadyApplied}function Ub(){let A=C.formatMessage({id:\`sidebarElectron.recentChats\`,defaultMessage:\`Chats\`}),At={chats:!1},rr=(0,$.jsx)(\`div\`,{className:\`flex min-w-0 flex-1\`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{ec(e,\`chats\`,!At.chats)},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,itemClassName:\`after:block\`});return[rr,ir]}`,
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.notEqual(result.status, 0);
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  const patch = report.patches.find((patch) => patch.name === "advertise goals desktop feature");
-  assert.equal(patch?.status, "failed-required");
-  assert.match(patch?.reason ?? "", /already advertised/);
-});
-
-test("fails when upstream already has unmodified goals slash command", () => {
-  const recoveredRoot = createRecoveredFixture();
-  fs.writeFileSync(
-    path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
-    "const noResults=`composer.slashCommands.noResults`,empty=`requiresEmptyComposer`;function hU(e){let t=(0,$.c)(16),{composerController:n,slashCommands:r,onOpenCommandContent:i}=e,a=F(n,_U),o=F(n,gU),s=(0,Z.useRef)(null),c;if(t[0]!==a||t[1]!==r||t[2]!==o){let e=lx([...r,{id:`goals`,title:`Goals`,description:`Set a persistent goal for this thread`,requiresEmptyComposer:!1,Icon:PA,enabled:!0,onSelect:async()=>{n.setText(`Set this as my active goal: `),n.focus()}}],ux(a));c=o?.active?cx(e,o.query):e,t[0]=a,t[1]=r,t[2]=o,t[3]=c}else c=t[3];return c}",
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.notEqual(result.status, 0);
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  const patch = report.patches.find((patch) => patch.name === "show goals slash command");
-  assert.equal(patch?.status, "failed-required");
-  assert.match(patch?.reason ?? "", /Goals slash command is already present/);
 });
 
 test("uses collision-free locals when relocation helper names are minified", () => {
@@ -507,7 +463,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 17);
+  assert.equal(report.patches.length, 14);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),

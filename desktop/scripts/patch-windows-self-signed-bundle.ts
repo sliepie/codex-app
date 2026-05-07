@@ -24,12 +24,6 @@ const windowsMenuBarComponentAppliedPattern =
   /codex-windows-menu-bar-visibility-changed/;
 const windowsTopBarAlignmentAppliedPattern =
   /group\/windows-top-bar[^`]*\bms-2\b/;
-const goalsOptInMarker = "codex-goals-opt-in";
-const goalsDefaultFeatureOverrideAppliedEvidence =
-  "`tool_suggest`,/*codex-goals-opt-in*/`goals`,";
-const goalsDesktopFeatureAppliedPattern =
-  /control:[^,}]+,\/\*codex-goals-opt-in\*\/goals:!0,multiWindow:/;
-const goalsSlashCommandAppliedEvidence = "/*codex-goals-opt-in*/{id:`goals`,title:`Goals`";
 
 type SourcePatchResult = {
   source: string;
@@ -632,7 +626,11 @@ function patchSettingsPage(recoveredRoot: string): PatchResult[] {
 }
 
 function patchIndex(recoveredRoot: string): PatchResult[] {
-  const filePath = findFile(path.join(recoveredRoot, "webview", "assets"), /^index-.*\.js$/);
+  const filePath = findFileContaining(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^(?:app-main|index)-.*\.js$/,
+    ["electron-desktop-features-changed"],
+  );
 
   return [
     replaceWithPatchers(
@@ -669,58 +667,12 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
     replaceWithPatchers(
       recoveredRoot,
       filePath,
-      "opt in to goals default feature overrides",
-      [
-        exactPatch(
-          "var YA=[`apps`,`memories`,`plugins`,`tool_call_mcp_elicitation`,`tool_search`,`tool_suggest`,kr];",
-          `var YA=[\`apps\`,\`memories\`,\`plugins\`,\`tool_call_mcp_elicitation\`,\`tool_search\`,\`tool_suggest\`,/*${goalsOptInMarker}*/\`goals\`,kr];`,
-        ),
-        regexPatch(
-          /(`apps`,`memories`,`plugins`,`tool_call_mcp_elicitation`,`tool_search`,`tool_suggest`,)([A-Za-z_$][\w$]*\])/g,
-          (match) => `${match[1]}/*${goalsOptInMarker}*/\`goals\`,${match[2]}`,
-          /`tool_suggest`,\/\*codex-goals-opt-in\*\/`goals`,/,
-        ),
-        alreadyAppliedPatch(goalsDefaultFeatureOverrideAppliedEvidence),
-        failIfUnmodifiedBundleContains(
-          "`tool_suggest`,`goals`,",
-          "Goals are already present in the unmodified default feature override list; remove the opt-in patch before shipping.",
-        ),
-      ],
-      {
-        missingTargetMarkers: ["`tool_suggest`"],
-        required: true,
-      },
-    ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "advertise goals desktop feature",
-      [
-        exactPatch(
-          "computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,multiWindow:d})",
-          `computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,/*${goalsOptInMarker}*/goals:!0,multiWindow:d})`,
-        ),
-        regexPatch(
-          /(computerUse:[^,}]+,computerUseNodeRepl:[^,}]+,control:[^,}]+,)(multiWindow:[^,}]+)(?=\})/g,
-          (match) => `${match[1]}/*${goalsOptInMarker}*/goals:!0,${match[2]}`,
-          goalsDesktopFeatureAppliedPattern,
-        ),
-        alreadyAppliedPatch(goalsDesktopFeatureAppliedPattern),
-        failIfUnmodifiedBundleContains(
-          /computerUse:[^}]*control:[^,}]+,goals:!0,multiWindow:/,
-          "Goals are already advertised by the unmodified desktop feature payload; remove the opt-in patch before shipping.",
-        ),
-      ],
-      {
-        missingTargetMarkers: ["electron-desktop-features-changed", "multiWindow:"],
-        required: true,
-      },
-    ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
       "sync Windows menu bar visibility setting",
       [
+        exactPatch(
+          "function Yj(){let e=(0,Z.c)(4),{data:t,isLoading:n}=Zs(z.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{n||G.dispatchMessage(`mac-menu-bar-enabled-changed`,{enabled:r})},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}",
+          "function Yj(){let e=(0,Z.c)(4),{data:t,isLoading:n}=Zs(z.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{if(!n){try{localStorage.setItem(`codex.windowsMenuBarVisible`,r?`1`:`0`),window.dispatchEvent(new Event(`codex-windows-menu-bar-visibility-changed`))}catch{}G.dispatchMessage(`mac-menu-bar-enabled-changed`,{enabled:r})}},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}",
+        ),
         exactPatch(
           "function Ok(){let e=(0,Z.c)(4),{data:t,isLoading:n}=mc(ii.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{n||J.dispatchMessage(`mac-menu-bar-enabled-changed`,{enabled:r})},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}",
           "function Ok(){let e=(0,Z.c)(4),{data:t,isLoading:n}=mc(ii.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{if(!n){try{localStorage.setItem(`codex.windowsMenuBarVisible`,r?`1`:`0`),window.dispatchEvent(new Event(`codex-windows-menu-bar-visibility-changed`))}catch{}J.dispatchMessage(`mac-menu-bar-enabled-changed`,{enabled:r})}},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}",
@@ -763,37 +715,6 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
   ];
 }
 
-function patchComposer(recoveredRoot: string): PatchResult[] {
-  const filePath = findFileContaining(
-    path.join(recoveredRoot, "webview", "assets"),
-    /^composer-.*\.js$/,
-    ["composer.slashCommands.noResults", "requiresEmptyComposer"],
-  );
-
-  return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "show goals slash command",
-      [
-        exactPatch(
-          "let e=lx(r,ux(a));c=o?.active?cx(e,o.query):e,",
-          `let e=lx([...r,/*${goalsOptInMarker}*/{id:\`goals\`,title:\`Goals\`,description:\`Set a persistent goal for this thread\`,requiresEmptyComposer:!1,Icon:PA,enabled:!0,onSelect:async()=>{n.setText(\`Set this as my active goal: \`),n.focus()}}],ux(a));c=o?.active?cx(e,o.query):e,`,
-        ),
-        alreadyAppliedPatch(goalsSlashCommandAppliedEvidence),
-        failIfUnmodifiedBundleContains(
-          "id:`goals`,title:`Goals`",
-          "Goals slash command is already present in the unmodified composer bundle; remove the opt-in patch before shipping.",
-        ),
-      ],
-      {
-        missingTargetMarkers: ["composer.slashCommands.noResults", "requiresEmptyComposer"],
-        required: true,
-      },
-    ),
-  ];
-}
-
 function patchGeneralSettings(recoveredRoot: string): PatchResult[] {
   const filePath = findFileContaining(
     path.join(recoveredRoot, "webview", "assets"),
@@ -807,6 +728,10 @@ function patchGeneralSettings(recoveredRoot: string): PatchResult[] {
       filePath,
       "show menu bar setting on Windows",
       [
+        exactPatch(
+          "function ir(){let e=(0,Q.c)(11),t=S(j),n=F(),{platform:r}=me(),{data:a,isLoading:o}=V(i.MAC_MENU_BAR_ENABLED);if(r!==`macOS`)return null;let s,c;e[0]===Symbol.for(`react.memo_cache_sentinel`)?(s=(0,$.jsx)(N,{id:`settings.general.macMenuBar.label`,defaultMessage:`Show in menu bar`,description:`Label for the macOS menu bar setting`}),c=(0,$.jsx)(N,{id:`settings.general.macMenuBar.description`,defaultMessage:`Keep Codex in the macOS menu bar when the main window is closed`,description:`Description for the macOS menu bar setting`}),e[0]=s,e[1]=c):(s=e[0],c=e[1]);let l=a!==!1,u;e[2]===t?u=e[3]:(u=e=>{L(t,i.MAC_MENU_BAR_ENABLED,e)},e[2]=t,e[3]=u);let d;e[4]===n?d=e[5]:(d=n.formatMessage({id:`settings.general.macMenuBar.ariaLabel`,defaultMessage:`Show Codex in the menu bar`,description:`Aria label for the macOS menu bar setting toggle`}),e[4]=n,e[5]=d);let f;return e[6]!==o||e[7]!==l||e[8]!==u||e[9]!==d?(f=(0,$.jsx)(J,{label:s,description:c,control:(0,$.jsx)(q,{checked:l,disabled:o,onChange:u,ariaLabel:d})}),e[6]=o,e[7]=l,e[8]=u,e[9]=d,e[10]=f):f=e[10],f}",
+          "function ir(){let e=(0,Q.c)(11),t=S(j),n=F(),{platform:r}=me(),{data:a,isLoading:o}=V(i.MAC_MENU_BAR_ENABLED);if(r!==`macOS`&&r!==`windows`)return null;let s,c;e[0]===Symbol.for(`react.memo_cache_sentinel`)?(s=r===`windows`?(0,$.jsx)(N,{id:`settings.general.windowsMenuBar.label`,defaultMessage:`Show menu bar`,description:`Label for the Windows menu bar setting`}):(0,$.jsx)(N,{id:`settings.general.macMenuBar.label`,defaultMessage:`Show in menu bar`,description:`Label for the macOS menu bar setting`}),c=r===`windows`?(0,$.jsx)(N,{id:`settings.general.windowsMenuBar.description`,defaultMessage:`Show the File, Edit, View, Window, and Help menu at the top of the window`,description:`Description for the Windows menu bar setting`}):(0,$.jsx)(N,{id:`settings.general.macMenuBar.description`,defaultMessage:`Keep Codex in the macOS menu bar when the main window is closed`,description:`Description for the macOS menu bar setting`}),e[0]=s,e[1]=c):(s=e[0],c=e[1]);let l=a!==!1,u;e[2]===t?u=e[3]:(u=e=>{L(t,i.MAC_MENU_BAR_ENABLED,e)},e[2]=t,e[3]=u);let d;e[4]===n?d=e[5]:(d=r===`windows`?n.formatMessage({id:`settings.general.windowsMenuBar.ariaLabel`,defaultMessage:`Show the window menu bar`,description:`Aria label for the Windows menu bar setting toggle`}):n.formatMessage({id:`settings.general.macMenuBar.ariaLabel`,defaultMessage:`Show Codex in the menu bar`,description:`Aria label for the macOS menu bar setting toggle`}),e[4]=n,e[5]=d);let f;return e[6]!==o||e[7]!==l||e[8]!==u||e[9]!==d?(f=(0,$.jsx)(J,{label:s,description:c,control:(0,$.jsx)(q,{checked:l,disabled:o,onChange:u,ariaLabel:d})}),e[6]=o,e[7]=l,e[8]=u,e[9]=d,e[10]=f):f=e[10],f}",
+        ),
         exactPatch(
           "function ir(){let e=(0,Q.c)(11),t=x(u),n=L(),{platform:r}=ge(),{data:i,isLoading:a}=V(y.MAC_MENU_BAR_ENABLED);if(r!==`macOS`)return null;let o,s;e[0]===Symbol.for(`react.memo_cache_sentinel`)?(o=(0,$.jsx)(I,{id:`settings.general.macMenuBar.label`,defaultMessage:`Show in menu bar`,description:`Label for the macOS menu bar setting`}),s=(0,$.jsx)(I,{id:`settings.general.macMenuBar.description`,defaultMessage:`Keep Codex in the macOS menu bar when the main window is closed`,description:`Description for the macOS menu bar setting`}),e[0]=o,e[1]=s):(o=e[0],s=e[1]);let c=i!==!1,l;e[2]===t?l=e[3]:(l=e=>{ie(t,y.MAC_MENU_BAR_ENABLED,e)},e[2]=t,e[3]=l);let d;e[4]===n?d=e[5]:(d=n.formatMessage({id:`settings.general.macMenuBar.ariaLabel`,defaultMessage:`Show Codex in the menu bar`,description:`Aria label for the macOS menu bar setting toggle`}),e[4]=n,e[5]=d);let f;return e[6]!==a||e[7]!==c||e[8]!==l||e[9]!==d?(f=(0,$.jsx)(J,{label:o,description:s,control:(0,$.jsx)(q,{checked:c,disabled:a,onChange:l,ariaLabel:d})}),e[6]=a,e[7]=c,e[8]=l,e[9]=d,e[10]=f):f=e[10],f}",
           "function ir(){let e=(0,Q.c)(11),t=x(u),n=L(),{platform:r}=ge(),{data:i,isLoading:a}=V(y.MAC_MENU_BAR_ENABLED);if(r!==`macOS`&&r!==`windows`)return null;let o,s;e[0]===Symbol.for(`react.memo_cache_sentinel`)?(o=r===`windows`?(0,$.jsx)(I,{id:`settings.general.windowsMenuBar.label`,defaultMessage:`Show menu bar`,description:`Label for the Windows menu bar setting`}):(0,$.jsx)(I,{id:`settings.general.macMenuBar.label`,defaultMessage:`Show in menu bar`,description:`Label for the macOS menu bar setting`}),s=r===`windows`?(0,$.jsx)(I,{id:`settings.general.windowsMenuBar.description`,defaultMessage:`Show the File, Edit, View, Window, and Help menu at the top of the window`,description:`Description for the Windows menu bar setting`}):(0,$.jsx)(I,{id:`settings.general.macMenuBar.description`,defaultMessage:`Keep Codex in the macOS menu bar when the main window is closed`,description:`Description for the macOS menu bar setting`}),e[0]=o,e[1]=s):(o=e[0],s=e[1]);let c=i!==!1,l;e[2]===t?l=e[3]:(l=e=>{ie(t,y.MAC_MENU_BAR_ENABLED,e)},e[2]=t,e[3]=l);let d;e[4]===n?d=e[5]:(d=r===`windows`?n.formatMessage({id:`settings.general.windowsMenuBar.ariaLabel`,defaultMessage:`Show the window menu bar`,description:`Aria label for the Windows menu bar setting toggle`}):n.formatMessage({id:`settings.general.macMenuBar.ariaLabel`,defaultMessage:`Show Codex in the menu bar`,description:`Aria label for the macOS menu bar setting toggle`}),e[4]=n,e[5]=d);let f;return e[6]!==a||e[7]!==c||e[8]!==l||e[9]!==d?(f=(0,$.jsx)(J,{label:o,description:s,control:(0,$.jsx)(q,{checked:c,disabled:a,onChange:l,ariaLabel:d})}),e[6]=a,e[7]=c,e[8]=l,e[9]=d,e[10]=f):f=e[10],f}",
@@ -831,6 +756,10 @@ function patchAppShell(recoveredRoot: string): PatchResult[] {
       filePath,
       "make Windows menu bar hideable",
       [
+        exactPatch(
+          "function Zt(){let e=we(),t=Jt(),[n,r]=(0,$.useState)(null),i=(0,$.useRef)(0);if(!t)return null;let a=async(e,t)=>{let n=window.electronBridge?.showApplicationMenu;if(!n)return;let a=i.current+1;i.current=a,r(e);let o=t.currentTarget.getBoundingClientRect();try{await n(e,Math.round(o.left),Math.round(o.bottom))}finally{i.current===a&&r(null)}};return(0,Q.jsx)(`div`,{className:`flex items-center gap-0.5 pr-2 pl-1`,children:Xt.map(({id:t,message:r})=>(0,Q.jsx)(`button`,{type:`button`,\"aria-expanded\":n===t,\"aria-haspopup\":`menu`,\"aria-label\":e.formatMessage(r),className:K(`no-drag rounded-md border border-transparent px-2.5 py-1 text-base font-normal leading-none outline-none transition-colors`,n===t?`bg-[var(--color-token-menubar-selection-background)] text-[var(--color-token-menubar-selection-foreground)]`:`text-token-text-tertiary hover:bg-token-foreground/5 hover:text-token-description-foreground focus-visible:bg-token-foreground/5 focus-visible:text-token-description-foreground`),onClick:e=>{a(t,e)},children:(0,Q.jsx)(Y,{...r})},t))})}",
+          "function Zt(){let e=we(),t=Jt(),[n,r]=(0,$.useState)(null),[i,a]=(0,$.useState)(()=>localStorage.getItem(`codex.windowsMenuBarVisible`)!==`0`),o=(0,$.useRef)(0);(0,$.useEffect)(()=>{let e=()=>{a(localStorage.getItem(`codex.windowsMenuBarVisible`)!==`0`)};return window.addEventListener(`codex-windows-menu-bar-visibility-changed`,e),window.addEventListener(`storage`,e),()=>{window.removeEventListener(`codex-windows-menu-bar-visibility-changed`,e),window.removeEventListener(`storage`,e)}},[]);if(!t||!i)return null;let s=async(e,t)=>{let n=window.electronBridge?.showApplicationMenu;if(!n)return;let i=o.current+1;o.current=i,r(e);let a=t.currentTarget.getBoundingClientRect();try{await n(e,Math.round(a.left),Math.round(a.bottom))}finally{o.current===i&&r(null)}};return(0,Q.jsx)(`div`,{className:`flex items-center gap-0.5 pr-2 pl-1`,children:Xt.map(({id:t,message:r})=>(0,Q.jsx)(`button`,{type:`button`,\"aria-expanded\":n===t,\"aria-haspopup\":`menu`,\"aria-label\":e.formatMessage(r),className:K(`no-drag rounded-md border border-transparent px-2.5 py-1 text-base font-normal leading-none outline-none transition-colors`,n===t?`bg-[var(--color-token-menubar-selection-background)] text-[var(--color-token-menubar-selection-foreground)]`:`text-token-text-tertiary hover:bg-token-foreground/5 hover:text-token-description-foreground focus-visible:bg-token-foreground/5 focus-visible:text-token-description-foreground`),onClick:e=>{s(t,e)},children:(0,Q.jsx)(Y,{...r})},t))})}",
+        ),
         exactPatch(
           "function Jt(){let e=Ee(),t=Gt(),[n,r]=(0,$.useState)(null),i=(0,$.useRef)(0);if(!t)return null;let a=async(e,t)=>{let n=window.electronBridge?.showApplicationMenu;if(!n)return;let a=i.current+1;i.current=a,r(e);let o=t.currentTarget.getBoundingClientRect();try{await n(e,Math.round(o.left),Math.round(o.bottom))}finally{i.current===a&&r(null)}};return(0,Q.jsx)(`div`,{className:`flex items-center gap-0.5 pr-2 pl-1`,children:qt.map(({id:t,message:r})=>(0,Q.jsx)(`button`,{type:`button`,\"aria-expanded\":n===t,\"aria-haspopup\":`menu`,\"aria-label\":e.formatMessage(r),className:Y(`no-drag rounded-md border border-transparent px-2.5 py-1 text-base font-normal leading-none outline-none transition-colors`,n===t?`bg-[var(--color-token-menubar-selection-background)] text-[var(--color-token-menubar-selection-foreground)]`:`text-token-text-tertiary hover:bg-token-foreground/5 hover:text-token-description-foreground focus-visible:bg-token-foreground/5 focus-visible:text-token-description-foreground`),onClick:e=>{a(t,e)},children:(0,Q.jsx)(Ce,{...r})},t))})}",
           "function Jt(){let e=Ee(),t=Gt(),[n,r]=(0,$.useState)(null),[i,a]=(0,$.useState)(()=>localStorage.getItem(`codex.windowsMenuBarVisible`)!==`0`),o=(0,$.useRef)(0);(0,$.useEffect)(()=>{let e=()=>{a(localStorage.getItem(`codex.windowsMenuBarVisible`)!==`0`)};return window.addEventListener(`codex-windows-menu-bar-visibility-changed`,e),window.addEventListener(`storage`,e),()=>{window.removeEventListener(`codex-windows-menu-bar-visibility-changed`,e),window.removeEventListener(`storage`,e)}},[]);if(!t||!i)return null;let s=async(e,t)=>{let n=window.electronBridge?.showApplicationMenu;if(!n)return;let i=o.current+1;o.current=i,r(e);let a=t.currentTarget.getBoundingClientRect();try{await n(e,Math.round(a.left),Math.round(a.bottom))}finally{o.current===i&&r(null)}};return(0,Q.jsx)(`div`,{className:`flex items-center gap-0.5 pr-2 pl-1`,children:qt.map(({id:t,message:r})=>(0,Q.jsx)(`button`,{type:`button`,\"aria-expanded\":n===t,\"aria-haspopup\":`menu`,\"aria-label\":e.formatMessage(r),className:Y(`no-drag rounded-md border border-transparent px-2.5 py-1 text-base font-normal leading-none outline-none transition-colors`,n===t?`bg-[var(--color-token-menubar-selection-background)] text-[var(--color-token-menubar-selection-foreground)]`:`text-token-text-tertiary hover:bg-token-foreground/5 hover:text-token-description-foreground focus-visible:bg-token-foreground/5 focus-visible:text-token-description-foreground`),onClick:e=>{s(t,e)},children:(0,Q.jsx)(Ce,{...r})},t))})}",
@@ -1011,7 +940,6 @@ function main(): void {
   try {
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
-    results.push(...patchComposer(recoveredRoot));
     results.push(...patchGeneralSettings(recoveredRoot));
     results.push(...patchAppShell(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
