@@ -70,7 +70,7 @@ function hasFlag(argv: string[], ...names: string[]): boolean {
 function parseOptions(argv: string[]): Options {
   return {
     codexRepo: readOption(argv, "--codex-repo", "-CodexRepo") ?? "openai/codex",
-    codexTag: readOption(argv, "--codex-tag", "-CodexTag"),
+    codexTag: readOption(argv, "--codex-tag", "-CodexTag") ?? process.env.CODEX_CLI_TAG,
     ripgrepRepo:
       readOption(argv, "--ripgrep-repo", "-RipgrepRepo") ?? "BurntSushi/ripgrep",
     nodeDistBaseUrl:
@@ -166,23 +166,6 @@ function findMacNodePath(): string {
   return nodePath;
 }
 
-function findMacCodexPath(): string {
-  const { version } = readCodexAppReleaseInfo();
-  const codexPath = path.join(
-    codexAppCacheRoot,
-    `extract-${version}`,
-    "Codex.app",
-    "Contents",
-    "Resources",
-    "codex",
-  );
-  if (!fs.existsSync(codexPath)) {
-    throw new Error(`Missing bundled macOS Codex executable: ${codexPath}`);
-  }
-
-  return codexPath;
-}
-
 function readBundledNodeVersion(): string {
   const binaryText = fs.readFileSync(findMacNodePath()).toString("latin1");
   const counts = new Map<string, number>();
@@ -202,20 +185,13 @@ function readBundledNodeVersion(): string {
   return version;
 }
 
-function readBundledCodexCliVersion(): string {
-  const binaryText = fs.readFileSync(findMacCodexPath()).toString("latin1");
-  const version = binaryText.match(
-    /cli_version[^0-9]*([0-9]+\.[0-9]+\.[0-9]+(?:-(?:alpha|beta|rc)\.[0-9]+)?)/,
-  )?.[1];
-  if (!version) {
-    throw new Error("Could not detect bundled macOS Codex CLI version.");
+function releaseViewArgs(options: Options): string[] {
+  const args = ["release", "view"];
+  if (options.codexTag) {
+    args.push(options.codexTag);
   }
-
-  return version;
-}
-
-function resolveCodexReleaseTag(options: Options): string {
-  return options.codexTag ?? `rust-v${readBundledCodexCliVersion()}`;
+  args.push("--repo", options.codexRepo, "--json", "tagName,name,url,assets");
+  return args;
 }
 
 async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<ReleaseAsset> {
@@ -314,15 +290,7 @@ async function main(): Promise<void> {
 
   const releaseJson = execFileSync(
     "gh",
-    [
-      "release",
-      "view",
-      resolveCodexReleaseTag(options),
-      "--repo",
-      options.codexRepo,
-      "--json",
-      "tagName,name,url,assets",
-    ],
+    releaseViewArgs(options),
     { encoding: "utf8" },
   );
   const release = JSON.parse(releaseJson) as ReleaseInfo;
