@@ -21,7 +21,7 @@ jobs:
       IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
       PACKAGE_ARCHITECTURE: arm64
       PUBLISH_SELF_SIGNED_MSIX: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
-      USE_BUILD_MARKER: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+      USE_BUILD_MARKER: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
       electron_config_cache: ${{ github.workspace }}\.cache\electron
     concurrency:
       group: windows-arm64-release-${{ github.ref }}
@@ -54,7 +54,7 @@ jobs:
 
       - name: Check published release
         id: published-release
-        if: env.IS_RELEASE_EVENT == 'true' && env.USE_BUILD_MARKER == 'true' && steps.build-marker.outputs.cache-hit == 'true'
+        if: env.IS_RELEASE_EVENT == 'true'
         run: |
           $tag = "${{ steps.upstream.outputs.release_tag }}"
           gh release view $tag --repo "${{ github.repository }}" *> $null
@@ -76,12 +76,15 @@ jobs:
           $isReleaseEvent = "${{ env.IS_RELEASE_EVENT }}" -eq "true"
           $releaseExists = "${{ steps.published-release.outputs.exists }}" -eq "true"
 
-          $skipBuild = $useMarker -and $markerHit -and (-not $isReleaseEvent -or $releaseExists)
+          $skipBuild = ($isReleaseEvent -and $releaseExists) -or ($useMarker -and $markerHit -and -not $isReleaseEvent)
           $skipBuildText = $skipBuild.ToString().ToLowerInvariant()
           "skip_build=$skipBuildText" >> $env:GITHUB_OUTPUT
 
-          if ($skipBuild) {
-            Write-Output "Skipping unchanged release because the build marker exists and the release is still published."
+          if ($skipBuild -and $isReleaseEvent -and $releaseExists) {
+            Write-Output "Skipping unchanged release because release ${{ steps.upstream.outputs.release_tag }} is already published."
+          }
+          elseif ($skipBuild) {
+            Write-Output "Skipping unchanged release because the build marker exists."
           }
           elseif ($useMarker -and $markerHit -and $isReleaseEvent) {
             Write-Output "Build marker exists, but release ${{ steps.upstream.outputs.release_tag }} is not published. Rebuilding."
