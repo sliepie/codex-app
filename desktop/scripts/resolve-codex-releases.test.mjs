@@ -48,7 +48,7 @@ function startServer(releases) {
   });
 }
 
-async function runResolver({ releases, sha = "current-sha" }) {
+async function runResolver({ releases, sha = "abcdef1234567890" }) {
   const server = await startServer(releases);
   const directory = await mkdtemp(path.join(tmpdir(), "codex-release-resolver-"));
   const outputPath = path.join(directory, "github-output.txt");
@@ -97,37 +97,36 @@ test("starts new Codex app releases at repo revision zero", async () => {
   const output = await runResolver({ releases: [] });
 
   assert.equal(output.release_version, "26.429.61741.0");
-  assert.equal(output.repo_release_revision, "0");
-  assert.equal(output.release_tag, "codex-app-26.429.61741.0");
-  assert.equal(output.build_marker_key, "windows-arm64-built-app-26.429.61741.0-build-2429");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.abcdef1");
+  assert.equal(output.repo_app_release_tag, "");
 });
 
-test("increments the repo revision when the same Codex app version has a prior release", async () => {
+test("finds an existing numeric repo release for the same Codex app version", async () => {
   const output = await runResolver({
     releases: [{ tag_name: "codex-app-26.429.61741.0", target_commitish: "old-sha" }],
   });
 
-  assert.equal(output.release_version, "26.429.61741.1");
-  assert.equal(output.repo_release_revision, "1");
-  assert.equal(output.release_tag, "codex-app-26.429.61741.1");
+  assert.equal(output.release_version, "26.429.61741.0");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.abcdef1");
+  assert.equal(output.repo_app_release_tag, "codex-app-26.429.61741.0");
 });
 
-test("keeps the repo revision when rerunning a commit that already has a release", async () => {
+test("finds an existing commit-suffixed repo release for the same Codex app version", async () => {
   const output = await runResolver({
-    releases: [{ tag_name: "codex-app-26.429.61741.1", target_commitish: "current-sha" }],
+    releases: [{ tag_name: "codex-app-26.429.61741.abcdef1", target_commitish: "abcdef1234567890" }],
   });
 
-  assert.equal(output.release_version, "26.429.61741.1");
-  assert.equal(output.repo_release_revision, "1");
-  assert.equal(output.release_tag, "codex-app-26.429.61741.1");
+  assert.equal(output.release_version, "26.429.61741.0");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.abcdef1");
+  assert.equal(output.repo_app_release_tag, "codex-app-26.429.61741.abcdef1");
 });
 
-test("treats legacy three-part release tags as repo revision zero", async () => {
+test("ignores legacy three-part release tags", async () => {
   const output = await runResolver({
     releases: [{ tag_name: "codex-app-26.429.61741", target_commitish: "old-sha" }],
   });
 
-  assert.equal(output.release_version, "26.429.61741.1");
-  assert.equal(output.repo_release_revision, "1");
-  assert.equal(output.release_tag, "codex-app-26.429.61741.1");
+  assert.equal(output.release_version, "26.429.61741.0");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.abcdef1");
+  assert.equal(output.repo_app_release_tag, "");
 });
