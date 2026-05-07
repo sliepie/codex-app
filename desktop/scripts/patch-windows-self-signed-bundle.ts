@@ -664,6 +664,34 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
         required: true,
       },
     ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "nudge Chats section heading right",
+      [
+        exactPatch(
+          "rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{ec(e,`chats`,!At.chats)},children:A})})",
+          "rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1 translate-x-px`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{ec(e,`chats`,!At.chats)},children:A})})",
+        ),
+        alreadyAppliedPatch(
+          "rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1 translate-x-px`,children:(0,$.jsx)(av,{collapsed:At.chats",
+        ),
+      ],
+      { missingTargetMarkers: ["sidebarElectron.recentChats", "At.chats", "children:A"] },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "nudge Chats list left",
+      [
+        exactPatch(
+          "ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,itemClassName:",
+          "ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,className:`-translate-x-px`,itemClassName:",
+        ),
+        alreadyAppliedPatch("onActivateThread:x,className:`-translate-x-px`,itemClassName:"),
+      ],
+      { missingTargetMarkers: ["sidebarElectron.recentChats", "items:on", "currentThreadKey:y"] },
+    ),
   ];
 }
 
@@ -724,6 +752,19 @@ function patchAppShell(recoveredRoot: string): PatchResult[] {
         alreadyAppliedPatch(windowsTopBarAlignmentAppliedPattern),
       ],
       { missingTargetMarkers: ["group/windows-top-bar", "ps-(--spacing-token-safe-header-left)"] },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "nudge sidebar trigger button right",
+      [
+        exactPatch(
+          "u=c==null?void 0:{viewTransitionName:c}",
+          "u=c==null?void 0:{viewTransitionName:c,transform:`translateX(2px)`}",
+        ),
+        alreadyAppliedPatch("u=c==null?void 0:{viewTransitionName:c,transform:`translateX(2px)`}"),
+      ],
+      { missingTargetMarkers: ["viewTransitionName:`sidebar-trigger`", "viewTransitionName:c"] },
     ),
   ];
 }
