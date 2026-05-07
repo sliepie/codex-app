@@ -27,32 +27,23 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function releaseRevisionFromTag(tagName, appVersion) {
-  const match = tagName.match(new RegExp(`^codex-app-${escapeRegExp(appVersion)}(?:\\.(0|[1-9]\\d*))?$`));
-  if (!match) {
-    return undefined;
-  }
-
-  return match[1] === undefined ? 0 : Number(match[1]);
+function commitShaShort() {
+  return firstMatch(
+    process.env.GITHUB_SHA ?? "",
+    /^([0-9a-f]{7})/i,
+    "GITHUB_SHA must start with at least seven hexadecimal characters.",
+  ).toLowerCase();
 }
 
-function resolveRepoReleaseRevision({ appVersion, currentSha, releases }) {
-  let latestRevision = -1;
-  let currentCommitRevision;
-
+function findRepoReleaseTagForAppVersion({ appVersion, releases }) {
   for (const release of releases) {
-    const revision = releaseRevisionFromTag(release.tag_name ?? "", appVersion);
-    if (revision === undefined) {
-      continue;
-    }
-
-    latestRevision = Math.max(latestRevision, revision);
-    if (currentSha && release.target_commitish?.toLowerCase() === currentSha.toLowerCase()) {
-      currentCommitRevision = Math.max(currentCommitRevision ?? revision, revision);
+    const tagName = release.tag_name ?? "";
+    if (tagName.match(new RegExp(`^codex-app-${escapeRegExp(appVersion)}\\.([0-9]+|[0-9a-f]{7,40})$`, "i"))) {
+      return tagName;
     }
   }
 
-  return currentCommitRevision ?? latestRevision + 1;
+  return "";
 }
 
 function releaseApiUrl(repository) {
@@ -111,23 +102,20 @@ const buildNumber =
   item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim() ?? "";
 const cliTag = "matched-to-app";
 const releases = await fetchExistingReleases();
-const repoReleaseRevision = resolveRepoReleaseRevision({
+const repoAppReleaseTag = findRepoReleaseTagForAppVersion({
   appVersion,
-  currentSha: process.env.GITHUB_SHA,
   releases,
 });
-const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
-const releaseTag = `codex-app-${releaseVersion}`;
-const buildMarkerKey = `windows-arm64-built-app-${releaseVersion}-build-${buildNumber}`;
+const releaseVersion = `${appVersion}.0`;
+const releaseTag = `codex-app-${appVersion}.${commitShaShort()}`;
 const hydrationCacheKey = `windows-arm64-hydrated-v3-app-${appVersion}-build-${buildNumber}-cli-${cliTag}`;
 
 githubOutput("codex_app_version", appVersion);
 githubOutput("codex_app_build", buildNumber);
 githubOutput("codex_cli_tag", cliTag);
-githubOutput("repo_release_revision", repoReleaseRevision);
 githubOutput("release_version", releaseVersion);
 githubOutput("release_tag", releaseTag);
-githubOutput("build_marker_key", buildMarkerKey);
+githubOutput("repo_app_release_tag", repoAppReleaseTag);
 githubOutput("hydration_cache_key", hydrationCacheKey);
 
 console.log(
@@ -136,9 +124,9 @@ console.log(
       codexAppVersion: appVersion,
       codexAppBuild: buildNumber,
       codexCliTag: cliTag,
-      repoReleaseRevision,
       releaseVersion,
       releaseTag,
+      repoAppReleaseTag,
     },
     null,
     2,
