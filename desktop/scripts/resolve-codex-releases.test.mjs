@@ -48,7 +48,7 @@ function startServer(releases) {
   });
 }
 
-async function runResolver({ releases, sha = "current-sha", forceNewRepoRelease = false }) {
+async function runResolver({ releases, sha = "current-sha" }) {
   const server = await startServer(releases);
   const directory = await mkdtemp(path.join(tmpdir(), "codex-release-resolver-"));
   const outputPath = path.join(directory, "github-output.txt");
@@ -67,7 +67,6 @@ async function runResolver({ releases, sha = "current-sha", forceNewRepoRelease 
             GITHUB_OUTPUT: outputPath,
             GITHUB_REPOSITORY: "sliepie/codex-app",
             GITHUB_SHA: sha,
-            CODEX_FORCE_NEW_REPO_RELEASE: forceNewRepoRelease ? "true" : "false",
           },
         },
         (error, stdout, stderr) => {
@@ -121,17 +120,6 @@ test("keeps the repo revision when rerunning a commit that already has a release
   assert.equal(output.release_version, "26.429.61741.1");
   assert.equal(output.repo_release_revision, "1");
   assert.equal(output.release_tag, "codex-app-26.429.61741.1");
-});
-
-test("increments the repo revision when forcing a new release for an already released commit", async () => {
-  const output = await runResolver({
-    forceNewRepoRelease: true,
-    releases: [{ tag_name: "codex-app-26.429.61741.1", target_commitish: "current-sha" }],
-  });
-
-  assert.equal(output.release_version, "26.429.61741.2");
-  assert.equal(output.repo_release_revision, "2");
-  assert.equal(output.release_tag, "codex-app-26.429.61741.2");
 });
 
 test("treats legacy three-part release tags as repo revision zero", async () => {
