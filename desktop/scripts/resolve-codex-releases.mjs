@@ -28,25 +28,6 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function commitShaShort() {
-  return firstMatch(
-    process.env.GITHUB_SHA ?? "",
-    /^([0-9a-f]{7})/i,
-    "GITHUB_SHA must start with at least seven hexadecimal characters.",
-  ).toLowerCase();
-}
-
-function findRepoReleaseTagForAppVersion({ appVersion, releases }) {
-  for (const release of releases) {
-    const tagName = release.tag_name ?? "";
-    if (tagName.match(new RegExp(`^codex-app-${escapeRegExp(appVersion)}\\.([0-9]+|[0-9a-f]{7,40})$`, "i"))) {
-      return tagName;
-    }
-  }
-
-  return "";
-}
-
 function repositoryApiUrl(repository, path) {
   const [owner, repo] = repository.split("/");
   if (!owner || !repo) {
@@ -57,6 +38,46 @@ function repositoryApiUrl(repository, path) {
     `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${path}`,
     githubApiUrl.endsWith("/") ? githubApiUrl : `${githubApiUrl}/`,
   );
+}
+
+function releaseRevisionFromTag(tagName, appVersion) {
+  const numericMatch = tagName.match(new RegExp(`^codex-app-${escapeRegExp(appVersion)}\\.(0|[1-9]\\d*)$`, "i"));
+  if (numericMatch) {
+    return Number(numericMatch[1]);
+  }
+
+  if (tagName.match(new RegExp(`^codex-app-${escapeRegExp(appVersion)}(?:\\.[0-9a-f]{7,40})?$`, "i"))) {
+    return 0;
+  }
+
+  return undefined;
+}
+
+function resolveRepoReleaseRevision({ appVersion, currentSha, releases }) {
+  let latestRevision = -1;
+  let currentCommitRevision;
+  let currentCommitReleaseTag = "";
+
+  for (const release of releases) {
+    const tagName = release.tag_name ?? "";
+    const revision = releaseRevisionFromTag(tagName, appVersion);
+    if (revision === undefined) {
+      continue;
+    }
+
+    latestRevision = Math.max(latestRevision, revision);
+    if (currentSha && release.target_commitish?.toLowerCase() === currentSha.toLowerCase()) {
+      if (currentCommitRevision === undefined || revision > currentCommitRevision) {
+        currentCommitRevision = revision;
+        currentCommitReleaseTag = tagName;
+      }
+    }
+  }
+
+  return {
+    currentCommitReleaseTag,
+    repoReleaseRevision: currentCommitRevision ?? latestRevision + 1,
+  };
 }
 
 function releaseApiUrl(repository) {
@@ -128,20 +149,22 @@ const buildNumber =
   item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim() ?? "";
 const cliTag = await fetchLatestCodexCliTag();
 const releases = await fetchExistingReleases();
-const repoAppReleaseTag = findRepoReleaseTagForAppVersion({
+const { currentCommitReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevision({
   appVersion,
+  currentSha: process.env.GITHUB_SHA,
   releases,
 });
-const releaseVersion = `${appVersion}.0`;
-const releaseTag = `codex-app-${appVersion}.${commitShaShort()}`;
+const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
+const releaseTag = `codex-app-${releaseVersion}`;
 const hydrationCacheKey = `windows-arm64-hydrated-v3-app-${appVersion}-build-${buildNumber}-cli-${cliTag}`;
 
 githubOutput("codex_app_version", appVersion);
 githubOutput("codex_app_build", buildNumber);
 githubOutput("codex_cli_tag", cliTag);
+githubOutput("repo_release_revision", repoReleaseRevision);
 githubOutput("release_version", releaseVersion);
 githubOutput("release_tag", releaseTag);
-githubOutput("repo_app_release_tag", repoAppReleaseTag);
+githubOutput("current_commit_release_tag", currentCommitReleaseTag);
 githubOutput("hydration_cache_key", hydrationCacheKey);
 
 console.log(
@@ -150,9 +173,10 @@ console.log(
       codexAppVersion: appVersion,
       codexAppBuild: buildNumber,
       codexCliTag: cliTag,
+      repoReleaseRevision,
       releaseVersion,
       releaseTag,
-      repoAppReleaseTag,
+      currentCommitReleaseTag,
     },
     null,
     2,
