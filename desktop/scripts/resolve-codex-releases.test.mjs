@@ -103,37 +103,63 @@ test("starts new Codex app releases at repo revision zero", async () => {
   const output = await runResolver({ releases: [] });
 
   assert.equal(output.release_version, "26.429.61741.0");
-  assert.equal(output.release_tag, "codex-app-26.429.61741.abcdef1");
   assert.equal(output.codex_cli_tag, "rust-v0.129.0");
-  assert.equal(output.repo_app_release_tag, "");
+  assert.equal(output.repo_release_revision, "0");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.0");
+  assert.equal(output.current_commit_release_tag, "");
 });
 
-test("finds an existing numeric repo release for the same Codex app version", async () => {
+test("increments the repo revision when the same Codex app version has a prior numeric release", async () => {
   const output = await runResolver({
     releases: [{ tag_name: "codex-app-26.429.61741.0", target_commitish: "old-sha" }],
   });
 
-  assert.equal(output.release_version, "26.429.61741.0");
-  assert.equal(output.release_tag, "codex-app-26.429.61741.abcdef1");
-  assert.equal(output.repo_app_release_tag, "codex-app-26.429.61741.0");
+  assert.equal(output.release_version, "26.429.61741.1");
+  assert.equal(output.repo_release_revision, "1");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.1");
+  assert.equal(output.current_commit_release_tag, "");
 });
 
-test("finds an existing commit-suffixed repo release for the same Codex app version", async () => {
+test("increments the repo revision when the same Codex app version has a prior commit-suffixed release", async () => {
+  const output = await runResolver({
+    releases: [{ tag_name: "codex-app-26.429.61741.30431e4", target_commitish: "old-sha" }],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.1");
+  assert.equal(output.repo_release_revision, "1");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.1");
+  assert.equal(output.current_commit_release_tag, "");
+});
+
+test("keeps the repo revision when rerunning a commit that already has a numeric release", async () => {
+  const output = await runResolver({
+    releases: [{ tag_name: "codex-app-26.429.61741.1", target_commitish: "abcdef1234567890" }],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.1");
+  assert.equal(output.repo_release_revision, "1");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.1");
+  assert.equal(output.current_commit_release_tag, "codex-app-26.429.61741.1");
+});
+
+test("keeps the repo revision when rerunning a commit that already has a commit-suffixed release", async () => {
   const output = await runResolver({
     releases: [{ tag_name: "codex-app-26.429.61741.abcdef1", target_commitish: "abcdef1234567890" }],
   });
 
   assert.equal(output.release_version, "26.429.61741.0");
-  assert.equal(output.release_tag, "codex-app-26.429.61741.abcdef1");
-  assert.equal(output.repo_app_release_tag, "codex-app-26.429.61741.abcdef1");
+  assert.equal(output.repo_release_revision, "0");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.0");
+  assert.equal(output.current_commit_release_tag, "codex-app-26.429.61741.abcdef1");
 });
 
-test("ignores legacy three-part release tags", async () => {
+test("treats legacy three-part release tags as repo revision zero", async () => {
   const output = await runResolver({
     releases: [{ tag_name: "codex-app-26.429.61741", target_commitish: "old-sha" }],
   });
 
-  assert.equal(output.release_version, "26.429.61741.0");
-  assert.equal(output.release_tag, "codex-app-26.429.61741.abcdef1");
-  assert.equal(output.repo_app_release_tag, "");
+  assert.equal(output.release_version, "26.429.61741.1");
+  assert.equal(output.repo_release_revision, "1");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.1");
+  assert.equal(output.current_commit_release_tag, "");
 });
