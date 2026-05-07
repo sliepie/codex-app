@@ -15,6 +15,8 @@ const recoveredNodeModulesRoot = path.join(
   'app-asar-extracted',
   'node_modules',
 );
+const targetRuntimeArch = 'arm64';
+const targetRuntimePlatform = 'win32';
 
 function listPackageRoots(nodeModulesRoot) {
   if (!fs.existsSync(nodeModulesRoot)) {
@@ -45,6 +47,27 @@ function listPackageRoots(nodeModulesRoot) {
 
 function readPackageJson(packageRoot) {
   return JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
+}
+
+function packageListAllowsTarget(value, target) {
+  if (!value) {
+    return true;
+  }
+
+  const entries = Array.isArray(value) ? value : [value];
+  if (entries.includes(`!${target}`)) {
+    return false;
+  }
+
+  const allowedEntries = entries.filter((entry) => !entry.startsWith('!'));
+  return allowedEntries.length === 0 || allowedEntries.includes(target);
+}
+
+function supportsTargetRuntime(packageJson) {
+  return (
+    packageListAllowsTarget(packageJson.os, targetRuntimePlatform) &&
+    packageListAllowsTarget(packageJson.cpu, targetRuntimeArch)
+  );
 }
 
 function hasNativePayload(packageRoot) {
@@ -78,8 +101,12 @@ function hasNativePayload(packageRoot) {
 function findNativePackageNames(nodeModulesRoot) {
   return new Set(
     listPackageRoots(nodeModulesRoot)
-      .filter((packageRoot) => hasNativePayload(packageRoot))
-      .map((packageRoot) => readPackageJson(packageRoot).name),
+      .map((packageRoot) => ({ packageRoot, packageJson: readPackageJson(packageRoot) }))
+      .filter(
+        ({ packageRoot, packageJson }) =>
+          hasNativePayload(packageRoot) && supportsTargetRuntime(packageJson),
+      )
+      .map(({ packageJson }) => packageJson.name),
   );
 }
 
