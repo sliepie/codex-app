@@ -140,7 +140,7 @@ function collectInstalledRuntimePackagePaths(packageNames) {
   const pendingPackages = [...packageNames].map((packageName) => ({
     packageName,
     fromDirectory: __dirname,
-    optional: false,
+    optional: true,
   }));
 
   while (pendingPackages.length > 0) {
@@ -161,7 +161,7 @@ function collectInstalledRuntimePackagePaths(packageNames) {
 
     const packageJson = readPackageJson(packageRoot);
     for (const packageName of Object.keys(packageJson.dependencies ?? {})) {
-      pendingPackages.push({ packageName, fromDirectory: packageRoot, optional: false });
+      pendingPackages.push({ packageName, fromDirectory: packageRoot, optional: true });
     }
     for (const packageName of Object.keys(packageJson.optionalDependencies ?? {})) {
       pendingPackages.push({ packageName, fromDirectory: packageRoot, optional: true });
@@ -172,8 +172,11 @@ function collectInstalledRuntimePackagePaths(packageNames) {
 }
 
 const nativePackageNames = findNativePackageNames(recoveredNodeModulesRoot);
+const installedNativePackageNames = new Set(
+  [...nativePackageNames].filter((packageName) => findInstalledPackageRoot(packageName, __dirname)),
+);
 const recoveredNativePackagePaths = new Set(
-  [...nativePackageNames].map((packageName) =>
+  [...installedNativePackageNames].map((packageName) =>
     packagerPathForPackage(recoveredNodeModulesRoot, packageName),
   ),
 );
