@@ -72,7 +72,7 @@ jobs:
             desktop/.cache/windows-oai-update-checker
             desktop/native/windows-oai-update-checker/target
             desktop/resources/native/windows-updater.node
-          key: windows-oai-updater-${{ runner.os }}-${{ env.PACKAGE_ARCHITECTURE }}-${{ hashFiles('desktop/native/windows-oai-update-checker/Cargo.lock', 'desktop/native/windows-oai-update-checker/Cargo.toml', 'desktop/native/windows-oai-update-checker/src/**') }}
+          key: windows-oai-updater-${{ runner.os }}-${{ env.PACKAGE_ARCHITECTURE }}-${{ hashFiles('desktop/scripts/build-windows-oai-update-checker.ps1', 'desktop/native/windows-oai-update-checker/Cargo.lock', 'desktop/native/windows-oai-update-checker/Cargo.toml', 'desktop/native/windows-oai-update-checker/src/**') }}
 
       - name: Install dependencies
         if: steps.upstream.outputs.current_commit_release_tag == ''

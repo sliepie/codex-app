@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptsRoot = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.dirname(scriptsRoot);
+const repoRoot = path.dirname(desktopRoot);
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -295,6 +296,44 @@ test("builds the replacement Windows updater before packaging", () => {
   assertUpdaterBuildsBeforeForge("package:win:arm64", packageJson.scripts);
   assertUpdaterBuildsBeforeForge("make:win:arm64", packageJson.scripts);
   assertUpdaterBuildsBeforeForge("make:win:arm64:ci", packageJson.scripts);
+});
+
+test("keys native updater cache by builder script and Rust crate sources", () => {
+  const cacheKeyInputs = [
+    "desktop/scripts/build-windows-oai-update-checker.ps1",
+    "desktop/native/windows-oai-update-checker/Cargo.lock",
+    "desktop/native/windows-oai-update-checker/Cargo.toml",
+    "desktop/native/windows-oai-update-checker/src/**",
+  ];
+
+  for (const workflowName of [
+    "windows-arm64-pr-build.yml",
+    "windows-arm64-release.yml",
+  ]) {
+    const workflowSource = fs.readFileSync(
+      path.join(repoRoot, ".github", "workflows", workflowName),
+      "utf8",
+    );
+
+    for (const cacheKeyInput of cacheKeyInputs) {
+      assert.ok(
+        workflowSource.includes(cacheKeyInput),
+        `${workflowName} cache key should include ${cacheKeyInput}`,
+      );
+    }
+  }
+});
+
+test("native updater build stamp covers the builder script", () => {
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "build-windows-oai-update-checker.ps1"),
+    "utf8",
+  );
+
+  assert.match(source, /BuildScriptPath/);
+  assert.match(source, /\$cacheStampVersion = 2/);
+  assert.match(source, /Assert-SuccessfulNativeCommand -Description "rustup target add \$target"/);
+  assert.match(source, /Assert-SuccessfulNativeCommand -Description "cargo build for \$target"/);
 });
 
 test("pins packaged Windows updater metadata to the prod OAI identity", () => {
