@@ -12,6 +12,7 @@
   "codexBuildFlavor": "prod",
   "scripts": {
     "build:scripts": "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json",
+    "build:windows-oai-update-checker": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-windows-oai-update-checker.ps1",
     "test:patch-windows-self-signed-bundle": "npm run build:scripts && node --test scripts/patch-windows-self-signed-bundle.test.mjs",
     "test:windows-package-resources": "npm run build:scripts && node --test scripts/windows-package-resources.test.mjs",
     "hydrate:app": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-app.js",
@@ -19,12 +20,12 @@
     "hydrate:app:compiled": "node ./.cache/scripts/hydrate-codex-app.js",
     "hydrate:cli:compiled": "node ./.cache/scripts/hydrate-codex-cli.js",
     "decode:self-signed-pfx": "npm run build:scripts && node ./.cache/scripts/decode-self-signed-pfx.js",
-    "package:win:arm64": "npm run build:scripts && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge package --platform win32 --arch arm64",
+    "package:win:arm64": "npm run build:scripts && npm run build:windows-oai-update-checker -- -Architecture arm64 && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge package --platform win32 --arch arm64",
     "prepare:self-signed-msix-payload": "npm run build:scripts && node ./.cache/scripts/prepare-self-signed-msix-payload.js",
     "refresh:recovered": "node ./scripts/refresh-recovered-from-dmg.mjs",
     "write:self-signed-appinstaller": "npm run build:scripts && node ./.cache/scripts/write-self-signed-appinstaller.js",
-    "make:win:arm64:ci": "npm run build:scripts && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge make --platform win32 --arch arm64",
-    "make:win:arm64": "npm run build:scripts && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge make --platform win32 --arch arm64",
+    "make:win:arm64:ci": "npm run build:scripts && npm run build:windows-oai-update-checker -- -Architecture arm64 && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge make --platform win32 --arch arm64",
+    "make:win:arm64": "npm run build:scripts && npm run build:windows-oai-update-checker -- -Architecture arm64 && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge make --platform win32 --arch arm64",
     "update:node-repl": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-node-repl.ps1"
   },
   "keywords": [

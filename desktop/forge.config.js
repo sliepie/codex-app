@@ -17,6 +17,7 @@ const recoveredNodeModulesRoot = path.join(
 );
 const targetRuntimeArch = 'arm64';
 const targetRuntimePlatform = 'win32';
+const codexWindowsOaiPackageIdentity = 'OpenAI.Codex';
 
 function listPackageRoots(nodeModulesRoot) {
   if (!fs.existsSync(nodeModulesRoot)) {
@@ -268,6 +269,7 @@ function syncPackagedPackageJson(buildPath) {
   packageJson.version = releaseInfo?.version ?? upstreamPackageJson.version ?? packageJson.version;
   packageJson.codexBuildNumber =
     releaseInfo?.buildNumber ?? upstreamPackageJson.codexBuildNumber ?? packageJson.codexBuildNumber;
+  packageJson.codexWindowsPackageIdentity = codexWindowsOaiPackageIdentity;
   packageJson.main = 'recovered/app-asar-extracted/.vite/build/bootstrap.js';
 
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
@@ -288,6 +290,7 @@ const config = {
       'resources/codex.exe',
       'resources/codex-windows-sandbox-setup.exe',
       'resources/codex-command-runner.exe',
+      'resources/native',
       'resources/node_repl.exe',
       'resources/node.exe',
       'resources/plugins',

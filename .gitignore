@@ -17,6 +17,7 @@ desktop/node_modules/
 desktop/out/
 out/
 desktop/dist/
+desktop/native/**/target/
 desktop/.vite/
 desktop/.webpack/
 desktop/.git/

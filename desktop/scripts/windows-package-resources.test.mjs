@@ -253,4 +253,23 @@ test("fails when the upstream bundle is missing required browser-use", () => {
 test("includes generated plugin resources in the Windows package", () => {
   const config = require(path.join(desktopRoot, "forge.config.js"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/plugins"));
+  assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
+});
+
+test("builds the replacement Windows updater before packaging", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
+  );
+  assert.match(
+    packageJson.scripts["package:win:arm64"],
+    /build:windows-oai-update-checker -- -Architecture arm64/,
+  );
+  assert.match(
+    packageJson.scripts["make:win:arm64"],
+    /build:windows-oai-update-checker -- -Architecture arm64/,
+  );
+  assert.match(
+    packageJson.scripts["make:win:arm64:ci"],
+    /build:windows-oai-update-checker -- -Architecture arm64/,
+  );
 });
