@@ -348,11 +348,11 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /className:`flex min-w-0 flex-1`,style:\{transform:`translateX\(1px\)`\}/,
+    /className:`flex min-w-0 flex-1`,style:\{transform:`translateX\(2px\)`\}/,
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /style:\{transform:`translateX\(-3px\)`\},rowContentClassName:[\s\S]*sidebarThreadRow\(\{kind:`local`/,
+    /style:\{transform:`translateX\(-4px\)`\},rowContentClassName:[\s\S]*sidebarThreadRow\(\{kind:`local`/,
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),

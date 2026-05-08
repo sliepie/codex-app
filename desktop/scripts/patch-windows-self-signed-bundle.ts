@@ -30,9 +30,9 @@ const windowsTitleBarOverlayDefaultHeightPattern = new RegExp(
 const imagePreviewControlsLoweredPattern =
   /className:`absolute top-3 right-3 z-10 flex items-center gap-2`,style:\{top:`calc\(0\.75rem \+ 26px\)`\},children:\[/;
 const sidebarChatsHeadingRightPattern =
-  /className:`flex min-w-0 flex-1`,style:\{transform:`translateX\(1px\)`\},children:\(0,[A-Za-z_$][\w$]*\.jsx\)\([A-Za-z_$][\w$]*,\{collapsed:[A-Za-z_$][\w$]*\.chats,/;
+  /className:`flex min-w-0 flex-1`,style:\{transform:`translateX\(2px\)`\},children:\(0,[A-Za-z_$][\w$]*\.jsx\)\([A-Za-z_$][\w$]*,\{collapsed:[A-Za-z_$][\w$]*\.chats,/;
 const sidebarChatRowsLeftPattern =
-  /style:\{transform:`translateX\(-3px\)`\},rowContentClassName:[\s\S]{0,1800}?sidebarThreadRow\(\{[\s\S]{0,250}?kind:`local`/;
+  /style:\{transform:`translateX\(-4px\)`\},rowContentClassName:[\s\S]{0,1800}?sidebarThreadRow\(\{[\s\S]{0,250}?kind:`local`/;
 const sidebarFooterSettingsLeftPattern =
   /className:`min-w-0 flex-1`,style:\{transform:`translateX\(-1px\)`\},children:\(0,[A-Za-z_$][\w$]*\.jsx\)\([A-Za-z_$][\w$]*,\{triggerButton:/;
 
@@ -706,7 +706,7 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
             "g",
           ),
           (match) =>
-            `className:\`flex min-w-0 flex-1\`,style:{transform:\`translateX(1px)\`},children:(0,${match[1]}.jsx)(${match[2]},{collapsed:${match[3]}.chats,`,
+            `className:\`flex min-w-0 flex-1\`,style:{transform:\`translateX(2px)\`},children:(0,${match[1]}.jsx)(${match[2]},{collapsed:${match[3]}.chats,`,
           sidebarChatsHeadingRightPattern,
         ),
       ],
@@ -719,11 +719,11 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
       [
         regexPatch(
           new RegExp(
-            String.raw`(?<!style:\{transform:\x60translateX\(-3px\)\x60\},)(rowContentClassName:)(?=[\s\S]{0,1800}?dataAttributes:${identifierPattern}\.sidebarThreadRow\(\{[\s\S]{0,250}?kind:\x60local\x60)`,
+            String.raw`(?<!style:\{transform:\x60translateX\(-4px\)\x60\},)(rowContentClassName:)(?=[\s\S]{0,1800}?dataAttributes:${identifierPattern}\.sidebarThreadRow\(\{[\s\S]{0,250}?kind:\x60local\x60)`,
             "g",
           ),
           (match) =>
-            `style:{transform:\`translateX(-3px)\`},${match[1]}`,
+            `style:{transform:\`translateX(-4px)\`},${match[1]}`,
           sidebarChatRowsLeftPattern,
         ),
       ],
