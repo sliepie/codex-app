@@ -88,6 +88,9 @@ npm run make:win:arm64
 `fnm` is Fast Node Manager. It installs and switches to the Node.js version
 used by the Electron packaging workspace before `npm ci` runs.
 
+The Windows package also builds a small Rust native updater replacement. Install
+Rust through `rustup` with the MSVC toolchain before running the package command.
+
 The build hydrates `desktop/recovered/app-asar-extracted/` from the official
 appcast and downloads the Windows ARM64 Codex CLI resources before packaging.
 The ZIP output is written under `desktop/out/make/zip/win32/arm64/`.

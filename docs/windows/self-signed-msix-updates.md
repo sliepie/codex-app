@@ -118,6 +118,22 @@ The generated App Installer file uses both supported update checks:
 
 The workflow passes `HoursBetweenUpdateChecks=0` explicitly so launch checks happen every time. That is useful while validating the update channel.
 
+The packaged desktop app includes a repo-built replacement for
+`resources/native/windows-updater.node`. The existing in-app Windows updater
+still checks OpenAI's hosted Windows update manifest as its upstream-version
+signal:
+`https://persistent.oaistatic.com/codex-app-prod/windows-store-update.json`.
+When that manifest reports a newer official Windows build, the replacement
+native updater reports the update as ready without calling Microsoft Store
+download or install APIs. Package delivery for self-signed builds stays on the
+App Installer channel above.
+
+ZIP builds intentionally keep the same OAI update signal enabled even though
+they do not have a Windows AppModel package identity. The replacement native
+updater returns a stable `Codex` identity key for that state. The packaged
+metadata is intentionally pinned to the prod OAI identity `OpenAI.Codex`; this
+repo's Windows ARM64 package path does not target the public beta feed.
+
 ## Hosting rule
 
 Do not rely on `ms-appinstaller:?source=` for public distribution. Microsoft disabled that protocol by default on consumer devices in December 2023. Link users directly to the `.appinstaller` file instead.
