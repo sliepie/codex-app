@@ -28,13 +28,13 @@ const windowsTitleBarOverlayDefaultHeightPattern = new RegExp(
   String.raw`\b(${identifierPattern})=36,${identifierPattern}=\x60#1f1f1f\x60,${identifierPattern}=\x60#ffffff\x60;function\s+${identifierPattern}\(\)\{return\{color:${identifierPattern},symbolColor:${identifierPattern}\.nativeTheme\.shouldUseDarkColors\?${identifierPattern}:${identifierPattern},height:\1\}\}`,
 );
 const imagePreviewControlsLoweredPattern =
-  /className:`absolute top-3 right-3 z-10 flex items-center gap-2`,style:\{top:`calc\(0\.75rem \+ 36px\)`\},children:\[/;
+  /className:`absolute top-3 right-3 z-10 flex items-center gap-2`,style:\{top:`calc\(0\.75rem \+ 26px\)`\},children:\[/;
 const sidebarChatsHeadingRightPattern =
-  /className:`flex min-w-0 flex-1 translate-x-px`,children:\(0,[A-Za-z_$][\w$]*\.jsx\)\([A-Za-z_$][\w$]*,\{collapsed:[A-Za-z_$][\w$]*\.chats,/;
-const sidebarChatsListLeftPattern =
-  /\b[A-Za-z_$][\w$]*=\(0,([A-Za-z_$][\w$]*)\.jsx\)\(`div`,\{style:\{transform:`translateX\(-3px\)`\},children:\(0,\1\.jsx\)\(G_,\{items:[A-Za-z_$][\w$]*,ariaLabel:[A-Za-z_$][\w$]*,currentThreadKey:[A-Za-z_$][\w$]*,onActivateThread:[A-Za-z_$][\w$]*,className:`-translate-x-px`,/;
+  /className:`flex min-w-0 flex-1`,style:\{transform:`translateX\(1px\)`\},children:\(0,[A-Za-z_$][\w$]*\.jsx\)\([A-Za-z_$][\w$]*,\{collapsed:[A-Za-z_$][\w$]*\.chats,/;
+const sidebarChatRowsLeftPattern =
+  /style:\{transform:`translateX\(-3px\)`\},rowContentClassName:[\s\S]{0,1800}?sidebarThreadRow\(\{[\s\S]{0,250}?kind:`local`/;
 const sidebarFooterSettingsLeftPattern =
-  /className:`min-w-0 flex-1`,style:\{transform:`translateX\(-2px\)`\},children:\(0,[A-Za-z_$][\w$]*\.jsx\)\([A-Za-z_$][\w$]*,\{triggerButton:/;
+  /className:`min-w-0 flex-1`,style:\{transform:`translateX\(-1px\)`\},children:\(0,[A-Za-z_$][\w$]*\.jsx\)\([A-Za-z_$][\w$]*,\{triggerButton:/;
 
 type SourcePatchResult = {
   source: string;
@@ -702,11 +702,11 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
       [
         regexPatch(
           new RegExp(
-            String.raw`className:\x60flex min-w-0 flex-1\x60,children:\(0,(${identifierPattern})\.jsx\)\((${identifierPattern}),\{collapsed:(${identifierPattern})\.chats,`,
+            String.raw`className:\x60flex min-w-0 flex-1(?: translate-x-px)?\x60,children:\(0,(${identifierPattern})\.jsx\)\((${identifierPattern}),\{collapsed:(${identifierPattern})\.chats,`,
             "g",
           ),
           (match) =>
-            `className:\`flex min-w-0 flex-1 translate-x-px\`,children:(0,${match[1]}.jsx)(${match[2]},{collapsed:${match[3]}.chats,`,
+            `className:\`flex min-w-0 flex-1\`,style:{transform:\`translateX(1px)\`},children:(0,${match[1]}.jsx)(${match[2]},{collapsed:${match[3]}.chats,`,
           sidebarChatsHeadingRightPattern,
         ),
       ],
@@ -715,22 +715,22 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
     replaceWithPatchers(
       recoveredRoot,
       filePath,
-      "nudge recent chats list left",
+      "nudge recent chat rows left",
       [
         regexPatch(
           new RegExp(
-            String.raw`\b(${identifierPattern}=)(\(0,(${identifierPattern})\.jsx\)\(G_,\{items:${identifierPattern},ariaLabel:${identifierPattern},currentThreadKey:${identifierPattern},onActivateThread:${identifierPattern},className:\x60-translate-x-px\x60,itemClassName:\x60after:block after:h-px after:content-\[''\] last:after:hidden\x60,[\s\S]*?\}\}\))(?=,${identifierPattern}=)`,
+            String.raw`(?<!style:\{transform:\x60translateX\(-3px\)\x60\},)(rowContentClassName:)(?=[\s\S]{0,1800}?dataAttributes:${identifierPattern}\.sidebarThreadRow\(\{[\s\S]{0,250}?kind:\x60local\x60)`,
             "g",
           ),
           (match) =>
-            `${match[1]}(0,${match[3]}.jsx)(\`div\`,{style:{transform:\`translateX(-3px)\`},children:${match[2]}})`,
-          sidebarChatsListLeftPattern,
+            `style:{transform:\`translateX(-3px)\`},${match[1]}`,
+          sidebarChatRowsLeftPattern,
         ),
       ],
       {
         missingTargetMarkers: [
-          "sidebarElectron.noRecentChats",
-          "className:`-translate-x-px`",
+          "rowContentClassName",
+          "sidebarThreadRow",
         ],
       },
     ),
@@ -747,7 +747,7 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
           (match) =>
             match[0].replace(
               "className:`min-w-0 flex-1`,",
-              "className:`min-w-0 flex-1`,style:{transform:`translateX(-2px)`},",
+              "className:`min-w-0 flex-1`,style:{transform:`translateX(-1px)`},",
             ),
           sidebarFooterSettingsLeftPattern,
         ),
@@ -886,7 +886,7 @@ function patchImagePreview(recoveredRoot: string): PatchResult[] {
             "g",
           ),
           (match) =>
-            `(0,${match[1]}.jsxs)(\`div\`,{className:\`absolute top-3 right-3 z-10 flex items-center gap-2\`,style:{top:\`calc(0.75rem + 36px)\`},children:[${match[2]},${match[3]}]})`,
+            `(0,${match[1]}.jsxs)(\`div\`,{className:\`absolute top-3 right-3 z-10 flex items-center gap-2\`,style:{top:\`calc(0.75rem + 26px)\`},children:[${match[2]},${match[3]}]})`,
           imagePreviewControlsLoweredPattern,
         ),
       ],
