@@ -64,6 +64,16 @@ jobs:
             desktop/.cache/runtime-node-modules
           key: ${{ steps.upstream.outputs.hydration_cache_key }}
 
+      - name: Restore native updater cache
+        if: steps.upstream.outputs.current_commit_release_tag == ''
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            desktop/.cache/windows-oai-update-checker
+            desktop/native/windows-oai-update-checker/target
+            desktop/resources/native/windows-updater.node
+          key: windows-oai-updater-${{ runner.os }}-${{ env.PACKAGE_ARCHITECTURE }}-${{ hashFiles('desktop/native/windows-oai-update-checker/Cargo.lock', 'desktop/native/windows-oai-update-checker/Cargo.toml', 'desktop/native/windows-oai-update-checker/src/**') }}
+
       - name: Install dependencies
         if: steps.upstream.outputs.current_commit_release_tag == ''
         working-directory: desktop
