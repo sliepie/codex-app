@@ -596,7 +596,7 @@ function shouldValidatePePayload(filePath: string): boolean {
 function isArm64Pe(filePath: string): boolean {
   const bytes = fs.readFileSync(filePath);
   if (bytes.length < 0x40 || bytes[0] !== 0x4d || bytes[1] !== 0x5a) {
-    return true;
+    return false;
   }
 
   const peOffset = bytes.readInt32LE(0x3c);

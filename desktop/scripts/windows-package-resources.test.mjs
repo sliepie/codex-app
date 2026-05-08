@@ -32,6 +32,11 @@ function writePeFixture(filePath, machine) {
   fs.writeFileSync(filePath, bytes);
 }
 
+function writeMachOFixture(filePath) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, Buffer.from([0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0x00, 0x00, 0x01]));
+}
+
 function createAppResourcesFixture() {
   const appResourcesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-app-resources-"));
   const bundledRoot = path.join(appResourcesRoot, "plugins", "openai-bundled");
@@ -212,6 +217,13 @@ test("foreign-only native prebuilds are not ready for Windows ARM64", () => {
   writePeFixture(path.join(packageRoot, "build", "Release", "classic-level.node"), 0xaa64);
 
   assert.equal(hasArm64RuntimePayload(packageRoot), true);
+});
+
+test("Mach-O native payloads are not ready for Windows ARM64", () => {
+  const packageRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-native-package-"));
+  writeMachOFixture(path.join(packageRoot, "build", "Release", "better_sqlite3.node"));
+
+  assert.equal(hasArm64RuntimePayload(packageRoot), false);
 });
 
 test("fails when the upstream bundle is missing required browser-use", () => {
