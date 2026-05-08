@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -334,6 +335,41 @@ test("native updater build stamp covers the builder script", () => {
   assert.match(source, /\$cacheStampVersion = 2/);
   assert.match(source, /Assert-SuccessfulNativeCommand -Description "rustup target add \$target"/);
   assert.match(source, /Assert-SuccessfulNativeCommand -Description "cargo build for \$target"/);
+});
+
+test("self-signed appinstaller updates immediately on launch", () => {
+  const outputPath = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), "codex-appinstaller-")),
+    "Codex.appinstaller",
+  );
+
+  execFileSync(
+    process.execPath,
+    [
+      path.join(desktopRoot, ".cache", "scripts", "write-self-signed-appinstaller.js"),
+      "--package-name",
+      "OpenAI.Codex",
+      "--publisher",
+      "CN=OpenAI",
+      "--version",
+      "26.506.21252.0",
+      "--architecture",
+      "arm64",
+      "--package-uri",
+      "https://example.invalid/Codex.msix",
+      "--appinstaller-uri",
+      "https://example.invalid/Codex.appinstaller",
+      "--output",
+      outputPath,
+    ],
+    { stdio: "pipe" },
+  );
+
+  const appInstaller = fs.readFileSync(outputPath, "utf8");
+  assert.match(
+    appInstaller,
+    /<OnLaunch HoursBetweenUpdateChecks="0" ShowPrompt="false" UpdateBlocksActivation="true" \/>/,
+  );
 });
 
 test("pins packaged Windows updater metadata to the prod OAI identity", () => {
