@@ -128,6 +128,12 @@ native updater reports the update as ready without calling Microsoft Store
 download or install APIs. Package delivery for self-signed builds stays on the
 App Installer channel above.
 
+ZIP builds intentionally keep the same OAI update signal enabled even though
+they do not have a Windows AppModel package identity. The replacement native
+updater returns a stable `Codex` identity key for that state. The packaged
+metadata is intentionally pinned to the prod OAI identity `OpenAI.Codex`; this
+repo's Windows ARM64 package path does not target the public beta feed.
+
 ## Hosting rule
 
 Do not rely on `ms-appinstaller:?source=` for public distribution. Microsoft disabled that protocol by default on consumer devices in December 2023. Link users directly to the `.appinstaller` file instead.

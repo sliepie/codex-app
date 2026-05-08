@@ -246,6 +246,9 @@ mod addon {
         let mut length = 0_u32;
         let first = unsafe { GetCurrentPackageFamilyName(&mut length, null_mut()) };
         if first == APPMODEL_ERROR_NO_PACKAGE {
+            // ZIP builds have no AppModel package family, but still use the
+            // prod OAI manifest as the update signal. Keep a stable state key
+            // so the recovered updater remains enabled outside MSIX/AppX.
             return Ok("Codex".to_string());
         }
         if first != ERROR_INSUFFICIENT_BUFFER || length == 0 {

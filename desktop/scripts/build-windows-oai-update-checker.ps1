@@ -9,6 +9,12 @@ if ([string]::IsNullOrWhiteSpace($Architecture)) {
     $Architecture = 'arm64'
 }
 
+foreach ($command in @('rustup', 'cargo')) {
+    if ($null -eq (Get-Command $command -ErrorAction SilentlyContinue)) {
+        throw "Rust is required to build the native Windows updater. Install rustup and the MSVC Rust toolchain, then run this command again."
+    }
+}
+
 $target = switch ($Architecture) {
     'x64' { 'x86_64-pc-windows-msvc' }
     'arm64' { 'aarch64-pc-windows-msvc' }

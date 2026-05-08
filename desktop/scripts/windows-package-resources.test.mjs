@@ -256,20 +256,32 @@ test("includes generated plugin resources in the Windows package", () => {
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
 });
 
+function assertUpdaterBuildsBeforeForge(script) {
+  const commands = script.split("&&").map((command) => command.trim());
+  const updaterIndex = commands.findIndex((command) =>
+    command.includes("build:windows-oai-update-checker -- -Architecture arm64"),
+  );
+  const forgeIndex = commands.findIndex((command) => command.startsWith("electron-forge "));
+
+  assert.notEqual(updaterIndex, -1);
+  assert.notEqual(forgeIndex, -1);
+  assert.ok(updaterIndex < forgeIndex);
+}
+
 test("builds the replacement Windows updater before packaging", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
+  assertUpdaterBuildsBeforeForge(packageJson.scripts["package:win:arm64"]);
+  assertUpdaterBuildsBeforeForge(packageJson.scripts["make:win:arm64"]);
+  assertUpdaterBuildsBeforeForge(packageJson.scripts["make:win:arm64:ci"]);
+});
+
+test("pins packaged Windows updater metadata to the prod OAI identity", () => {
+  const source = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
+  assert.match(source, /const codexWindowsProdOaiPackageIdentity = 'OpenAI\.Codex';/);
   assert.match(
-    packageJson.scripts["package:win:arm64"],
-    /build:windows-oai-update-checker -- -Architecture arm64/,
-  );
-  assert.match(
-    packageJson.scripts["make:win:arm64"],
-    /build:windows-oai-update-checker -- -Architecture arm64/,
-  );
-  assert.match(
-    packageJson.scripts["make:win:arm64:ci"],
-    /build:windows-oai-update-checker -- -Architecture arm64/,
+    source,
+    /packageJson\.codexWindowsPackageIdentity = codexWindowsProdOaiPackageIdentity;/,
   );
 });
