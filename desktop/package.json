@@ -14,18 +14,23 @@
     "build:scripts": "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json",
     "build:windows-oai-update-checker": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-windows-oai-update-checker.ps1",
     "test:patch-windows-self-signed-bundle": "npm run build:scripts && node --test scripts/patch-windows-self-signed-bundle.test.mjs",
+    "test:verify-browser-client-runtime": "node --test scripts/verify-browser-client-runtime.test.mjs",
     "test:windows-package-resources": "npm run build:scripts && node --test scripts/windows-package-resources.test.mjs",
+    "verify:browser-client-runtime": "node ./scripts/verify-browser-client-runtime.mjs",
+    "prepare:win:arm64": "npm run build:scripts && npm run build:windows-oai-update-checker -- -Architecture arm64 && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && npm run verify:browser-client-runtime",
     "hydrate:app": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-app.js",
     "hydrate:cli": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-cli.js",
     "hydrate:app:compiled": "node ./.cache/scripts/hydrate-codex-app.js",
     "hydrate:cli:compiled": "node ./.cache/scripts/hydrate-codex-cli.js",
     "decode:self-signed-pfx": "npm run build:scripts && node ./.cache/scripts/decode-self-signed-pfx.js",
-    "package:win:arm64": "npm run build:scripts && npm run build:windows-oai-update-checker -- -Architecture arm64 && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge package --platform win32 --arch arm64",
+    "package:win:arm64:compiled": "electron-forge package --platform win32 --arch arm64",
+    "package:win:arm64": "npm run prepare:win:arm64 && npm run package:win:arm64:compiled",
     "prepare:self-signed-msix-payload": "npm run build:scripts && node ./.cache/scripts/prepare-self-signed-msix-payload.js",
     "refresh:recovered": "node ./scripts/refresh-recovered-from-dmg.mjs",
     "write:self-signed-appinstaller": "npm run build:scripts && node ./.cache/scripts/write-self-signed-appinstaller.js",
-    "make:win:arm64:ci": "npm run build:scripts && npm run build:windows-oai-update-checker -- -Architecture arm64 && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge make --platform win32 --arch arm64",
-    "make:win:arm64": "npm run build:scripts && npm run build:windows-oai-update-checker -- -Architecture arm64 && npm run hydrate:app:compiled && npm run hydrate:cli:compiled && electron-forge make --platform win32 --arch arm64",
+    "make:win:arm64:compiled": "electron-forge make --platform win32 --arch arm64",
+    "make:win:arm64:ci": "npm run prepare:win:arm64 && npm run make:win:arm64:compiled",
+    "make:win:arm64": "npm run prepare:win:arm64 && npm run make:win:arm64:compiled",
     "update:node-repl": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-node-repl.ps1"
   },
   "keywords": [
@@ -44,7 +49,8 @@
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.3",
     "electron": "41.2.0",
-    "extract-zip": "^2.0.1"
+    "extract-zip": "^2.0.1",
+    "node-abi": "^4.31.0"
   },
   "dependencies": {}
 }

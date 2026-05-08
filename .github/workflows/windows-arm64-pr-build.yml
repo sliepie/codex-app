@@ -63,8 +63,12 @@ jobs:
         working-directory: desktop
         run: npm ci
 
-      - name: Build Windows ARM64 ZIP
+      - name: Prepare and verify Windows ARM64 inputs
         working-directory: desktop
         env:
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
-        run: npm run make:win:arm64:ci
+        run: npm run prepare:win:arm64
+
+      - name: Build Windows ARM64 ZIP
+        working-directory: desktop
+        run: npm run make:win:arm64:compiled

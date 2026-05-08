@@ -79,12 +79,17 @@ jobs:
         working-directory: desktop
         run: npm ci
 
-      - name: Make Windows ARM64 ZIP
+      - name: Prepare and verify Windows ARM64 inputs
         if: steps.upstream.outputs.current_commit_release_tag == ''
         working-directory: desktop
         env:
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
-        run: npm run make:win:arm64:ci
+        run: npm run prepare:win:arm64
+
+      - name: Make Windows ARM64 ZIP
+        if: steps.upstream.outputs.current_commit_release_tag == ''
+        working-directory: desktop
+        run: npm run make:win:arm64:compiled
 
       - name: Upload Windows ARM64 artifact
         if: steps.upstream.outputs.current_commit_release_tag == ''

@@ -201,6 +201,7 @@ test("discovers native modules copied inside bundled plugin resources", () => {
   );
 
   assert.equal(targets.length, 1);
+  assert.equal(targets[0].runtime, "node");
   assert.deepEqual(targets[0].nativeModules, [{ name: "classic-level", version: "3.0.0" }]);
   assert.equal(
     path.relative(destinationPluginsRoot, targets[0].nodeModulesRoot).replaceAll(path.sep, "/"),
@@ -256,8 +257,27 @@ test("includes generated plugin resources in the Windows package", () => {
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
 });
 
-function assertUpdaterBuildsBeforeForge(script) {
-  const commands = script.split("&&").map((command) => command.trim());
+function expandScriptCommands(scriptName, scripts, seen = new Set()) {
+  assert.ok(scripts[scriptName], `Missing npm script ${scriptName}`);
+  assert.ok(!seen.has(scriptName), `Recursive npm script ${scriptName}`);
+
+  seen.add(scriptName);
+  return scripts[scriptName].split("&&").flatMap((rawCommand) => {
+    const command = rawCommand.trim();
+    const npmRunMatch = command.match(/^npm run ([^ ]+)(?:\s|$)/);
+    if (!npmRunMatch) {
+      return [command];
+    }
+
+    return [
+      command,
+      ...expandScriptCommands(npmRunMatch[1], scripts, new Set(seen)),
+    ];
+  });
+}
+
+function assertUpdaterBuildsBeforeForge(scriptName, scripts) {
+  const commands = expandScriptCommands(scriptName, scripts);
   const updaterIndex = commands.findIndex((command) =>
     command.includes("build:windows-oai-update-checker -- -Architecture arm64"),
   );
@@ -272,9 +292,9 @@ test("builds the replacement Windows updater before packaging", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
-  assertUpdaterBuildsBeforeForge(packageJson.scripts["package:win:arm64"]);
-  assertUpdaterBuildsBeforeForge(packageJson.scripts["make:win:arm64"]);
-  assertUpdaterBuildsBeforeForge(packageJson.scripts["make:win:arm64:ci"]);
+  assertUpdaterBuildsBeforeForge("package:win:arm64", packageJson.scripts);
+  assertUpdaterBuildsBeforeForge("make:win:arm64", packageJson.scripts);
+  assertUpdaterBuildsBeforeForge("make:win:arm64:ci", packageJson.scripts);
 });
 
 test("pins packaged Windows updater metadata to the prod OAI identity", () => {
