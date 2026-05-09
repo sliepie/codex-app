@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -8,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptsRoot = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.dirname(scriptsRoot);
+const repoRoot = path.dirname(desktopRoot);
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -201,6 +203,7 @@ test("discovers native modules copied inside bundled plugin resources", () => {
   );
 
   assert.equal(targets.length, 1);
+  assert.equal(targets[0].runtime, "node");
   assert.deepEqual(targets[0].nativeModules, [{ name: "classic-level", version: "3.0.0" }]);
   assert.equal(
     path.relative(destinationPluginsRoot, targets[0].nodeModulesRoot).replaceAll(path.sep, "/"),
@@ -256,8 +259,27 @@ test("includes generated plugin resources in the Windows package", () => {
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
 });
 
-function assertUpdaterBuildsBeforeForge(script) {
-  const commands = script.split("&&").map((command) => command.trim());
+function expandScriptCommands(scriptName, scripts, seen = new Set()) {
+  assert.ok(scripts[scriptName], `Missing npm script ${scriptName}`);
+  assert.ok(!seen.has(scriptName), `Recursive npm script ${scriptName}`);
+
+  seen.add(scriptName);
+  return scripts[scriptName].split("&&").flatMap((rawCommand) => {
+    const command = rawCommand.trim();
+    const npmRunMatch = command.match(/^npm run ([^ ]+)(?:\s|$)/);
+    if (!npmRunMatch) {
+      return [command];
+    }
+
+    return [
+      command,
+      ...expandScriptCommands(npmRunMatch[1], scripts, new Set(seen)),
+    ];
+  });
+}
+
+function assertUpdaterBuildsBeforeForge(scriptName, scripts) {
+  const commands = expandScriptCommands(scriptName, scripts);
   const updaterIndex = commands.findIndex((command) =>
     command.includes("build:windows-oai-update-checker -- -Architecture arm64"),
   );
@@ -272,9 +294,82 @@ test("builds the replacement Windows updater before packaging", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
-  assertUpdaterBuildsBeforeForge(packageJson.scripts["package:win:arm64"]);
-  assertUpdaterBuildsBeforeForge(packageJson.scripts["make:win:arm64"]);
-  assertUpdaterBuildsBeforeForge(packageJson.scripts["make:win:arm64:ci"]);
+  assertUpdaterBuildsBeforeForge("package:win:arm64", packageJson.scripts);
+  assertUpdaterBuildsBeforeForge("make:win:arm64", packageJson.scripts);
+  assertUpdaterBuildsBeforeForge("make:win:arm64:ci", packageJson.scripts);
+});
+
+test("keys native updater cache by builder script and Rust crate sources", () => {
+  const cacheKeyInputs = [
+    "desktop/scripts/build-windows-oai-update-checker.ps1",
+    "desktop/native/windows-oai-update-checker/Cargo.lock",
+    "desktop/native/windows-oai-update-checker/Cargo.toml",
+    "desktop/native/windows-oai-update-checker/src/**",
+  ];
+
+  for (const workflowName of [
+    "windows-arm64-pr-build.yml",
+    "windows-arm64-release.yml",
+  ]) {
+    const workflowSource = fs.readFileSync(
+      path.join(repoRoot, ".github", "workflows", workflowName),
+      "utf8",
+    );
+
+    for (const cacheKeyInput of cacheKeyInputs) {
+      assert.ok(
+        workflowSource.includes(cacheKeyInput),
+        `${workflowName} cache key should include ${cacheKeyInput}`,
+      );
+    }
+  }
+});
+
+test("native updater build stamp covers the builder script", () => {
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "build-windows-oai-update-checker.ps1"),
+    "utf8",
+  );
+
+  assert.match(source, /BuildScriptPath/);
+  assert.match(source, /\$cacheStampVersion = 2/);
+  assert.match(source, /Assert-SuccessfulNativeCommand -Description "rustup target add \$target"/);
+  assert.match(source, /Assert-SuccessfulNativeCommand -Description "cargo build for \$target"/);
+});
+
+test("self-signed appinstaller updates immediately on launch", () => {
+  const outputPath = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), "codex-appinstaller-")),
+    "Codex.appinstaller",
+  );
+
+  execFileSync(
+    process.execPath,
+    [
+      path.join(desktopRoot, ".cache", "scripts", "write-self-signed-appinstaller.js"),
+      "--package-name",
+      "OpenAI.Codex",
+      "--publisher",
+      "CN=OpenAI",
+      "--version",
+      "26.506.21252.0",
+      "--architecture",
+      "arm64",
+      "--package-uri",
+      "https://example.invalid/Codex.msix",
+      "--appinstaller-uri",
+      "https://example.invalid/Codex.appinstaller",
+      "--output",
+      outputPath,
+    ],
+    { stdio: "pipe" },
+  );
+
+  const appInstaller = fs.readFileSync(outputPath, "utf8");
+  assert.match(
+    appInstaller,
+    /<OnLaunch HoursBetweenUpdateChecks="0" ShowPrompt="false" UpdateBlocksActivation="true" \/>/,
+  );
 });
 
 test("pins packaged Windows updater metadata to the prod OAI identity", () => {

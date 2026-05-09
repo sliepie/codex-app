@@ -34,14 +34,22 @@ function Get-WindowsOaiUpdaterFileHash {
 function Get-WindowsOaiUpdaterSourceHash {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$CrateRoot
+        [string]$SourceRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$CrateRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BuildScriptPath
     )
 
     $separators = [char[]]@('\', '/')
+    $resolvedSourceRoot = (Resolve-Path -LiteralPath $SourceRoot).Path.TrimEnd($separators)
     $resolvedCrateRoot = (Resolve-Path -LiteralPath $CrateRoot).Path.TrimEnd($separators)
     $sourceFiles = @(
         (Join-Path $resolvedCrateRoot 'Cargo.toml'),
-        (Join-Path $resolvedCrateRoot 'Cargo.lock')
+        (Join-Path $resolvedCrateRoot 'Cargo.lock'),
+        $BuildScriptPath
     )
     $srcRoot = Join-Path $resolvedCrateRoot 'src'
 
@@ -52,8 +60,8 @@ function Get-WindowsOaiUpdaterSourceHash {
     $hashInput = New-Object System.Text.StringBuilder
     foreach ($sourceFile in ($sourceFiles | Where-Object { Test-Path -LiteralPath $_ } | Sort-Object)) {
         $fullPath = (Resolve-Path -LiteralPath $sourceFile).Path
-        if ($fullPath.StartsWith($resolvedCrateRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-            $relativePath = $fullPath.Substring($resolvedCrateRoot.Length).TrimStart($separators).Replace('\', '/')
+        if ($fullPath.StartsWith($resolvedSourceRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $relativePath = $fullPath.Substring($resolvedSourceRoot.Length).TrimStart($separators).Replace('\', '/')
         }
         else {
             $relativePath = $fullPath.Replace('\', '/')
@@ -72,6 +80,17 @@ function Get-WindowsOaiUpdaterSourceHash {
     }
     finally {
         $sha256.Dispose()
+    }
+}
+
+function Assert-SuccessfulNativeCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Description
+    )
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Description failed with exit code $LASTEXITCODE."
     }
 }
 
@@ -97,8 +116,8 @@ $outputPath = Join-Path $desktopRoot 'resources/native/windows-updater.node'
 $builtPath = Join-Path $desktopRoot "native/windows-oai-update-checker/target/$target/release/codex_windows_oai_update_checker.dll"
 $cacheRoot = Join-Path $desktopRoot '.cache/windows-oai-update-checker'
 $stampPath = Join-Path $cacheRoot 'windows-updater.node.json'
-$cacheStampVersion = 1
-$sourceHash = Get-WindowsOaiUpdaterSourceHash -CrateRoot $crateRoot
+$cacheStampVersion = 2
+$sourceHash = Get-WindowsOaiUpdaterSourceHash -SourceRoot $desktopRoot -CrateRoot $crateRoot -BuildScriptPath $PSCommandPath
 
 if ((Test-Path -LiteralPath $outputPath) -and (Test-Path -LiteralPath $stampPath)) {
     try {
@@ -118,7 +137,9 @@ if ((Test-Path -LiteralPath $outputPath) -and (Test-Path -LiteralPath $stampPath
 }
 
 rustup target add $target
+Assert-SuccessfulNativeCommand -Description "rustup target add $target"
 cargo build --manifest-path $manifestPath --release --target $target
+Assert-SuccessfulNativeCommand -Description "cargo build for $target"
 
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outputPath) | Out-Null
 Copy-Item -LiteralPath $builtPath -Destination $outputPath -Force
