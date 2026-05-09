@@ -179,6 +179,35 @@ test("patches Windows menu bar visibility sync when minified function names drif
   assert.equal(patch?.matcher, "semantic");
 });
 
+test("patches Windows menu bar setting when minified general-settings names drift", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const settingsPath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "general-settings-fixture.js",
+  );
+  fs.writeFileSync(
+    settingsPath,
+    "function ir(){let e=(0,Q.c)(11),n=S(j),r=F(),{platform:i}=me(),{data:a,isLoading:o}=V(t.MAC_MENU_BAR_ENABLED);if(i!==`macOS`)return null;let s,c;e[0]===Symbol.for(`react.memo_cache_sentinel`)?(s=(0,$.jsx)(N,{id:`settings.general.macMenuBar.label`,defaultMessage:`Show in menu bar`,description:`Label for the macOS menu bar setting`}),c=(0,$.jsx)(N,{id:`settings.general.macMenuBar.description`,defaultMessage:`Keep Codex in the macOS menu bar when the main window is closed`,description:`Description for the macOS menu bar setting`}),e[0]=s,e[1]=c):(s=e[0],c=e[1]);let l=a!==!1,u;e[2]===n?u=e[3]:(u=e=>{L(n,t.MAC_MENU_BAR_ENABLED,e)},e[2]=n,e[3]=u);let d;e[4]===r?d=e[5]:(d=r.formatMessage({id:`settings.general.macMenuBar.ariaLabel`,defaultMessage:`Show Codex in the menu bar`,description:`Aria label for the macOS menu bar setting toggle`}),e[4]=r,e[5]=d);let f;return e[6]!==o||e[7]!==l||e[8]!==u||e[9]!==d?(f=(0,$.jsx)(J,{label:s,description:c,control:(0,$.jsx)(q,{checked:l,disabled:o,onChange:u,ariaLabel:d})}),e[6]=o,e[7]=l,e[8]=u,e[9]=d,e[10]=f):f=e[10],f}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const source = fs.readFileSync(settingsPath, "utf8");
+  assert.match(source, /settings\.general\.windowsMenuBar\.label/);
+  assert.match(source, /i!==`macOS`&&i!==`windows`/);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "show menu bar setting on Windows",
+  );
+  assert.equal(patch?.status, "applied");
+  assert.equal(patch?.matcher, "semantic");
+});
+
 test("patches image preview controls when upstream moves them into a dialog chunk", () => {
   const recoveredRoot = createRecoveredFixture();
   const imagePreviewDialogPath = moveImagePreviewFixtureToDialog(recoveredRoot);
