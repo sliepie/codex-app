@@ -259,6 +259,17 @@ test("includes generated plugin resources in the Windows package", () => {
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
 });
 
+test("includes installed tslib for recovered main-process bundles", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
+  );
+  assert.equal(packageJson.dependencies?.tslib, "^2.8.1");
+
+  const config = require(path.join(desktopRoot, "forge.config.js"));
+  assert.equal(config.packagerConfig.ignore("/node_modules/tslib/package.json"), false);
+  assert.equal(config.packagerConfig.ignore("/node_modules/tslib/tslib.js"), false);
+});
+
 function expandScriptCommands(scriptName, scripts, seen = new Set()) {
   assert.ok(scripts[scriptName], `Missing npm script ${scriptName}`);
   assert.ok(!seen.has(scriptName), `Recursive npm script ${scriptName}`);

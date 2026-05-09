@@ -18,6 +18,7 @@ const recoveredNodeModulesRoot = path.join(
 const targetRuntimeArch = 'arm64';
 const targetRuntimePlatform = 'win32';
 const codexWindowsProdOaiPackageIdentity = 'OpenAI.Codex';
+const requiredInstalledRuntimePackageNames = new Set(['tslib']);
 
 function listPackageRoots(nodeModulesRoot) {
   if (!fs.existsSync(nodeModulesRoot)) {
@@ -140,13 +141,13 @@ function findInstalledPackageRoot(packageName, fromDirectory) {
   return null;
 }
 
-function collectInstalledRuntimePackagePaths(packageNames) {
+function collectInstalledRuntimePackagePaths(packageNames, requiredPackageNames = new Set()) {
   const packagePaths = new Set();
   const seenPackageRoots = new Set();
   const pendingPackages = [...packageNames].map((packageName) => ({
     packageName,
     fromDirectory: __dirname,
-    optional: true,
+    optional: !requiredPackageNames.has(packageName),
   }));
 
   while (pendingPackages.length > 0) {
@@ -186,7 +187,10 @@ const recoveredNativePackagePaths = new Set(
     packagerPathForPackage(recoveredNodeModulesRoot, packageName),
   ),
 );
-const installedRuntimePackagePaths = collectInstalledRuntimePackagePaths(nativePackageNames);
+const installedRuntimePackagePaths = collectInstalledRuntimePackagePaths(
+  new Set([...nativePackageNames, ...requiredInstalledRuntimePackageNames]),
+  requiredInstalledRuntimePackageNames,
+);
 
 function matchesPath(file, targetPath) {
   return file === targetPath || file.startsWith(`${targetPath}/`);
