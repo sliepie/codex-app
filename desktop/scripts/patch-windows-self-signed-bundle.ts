@@ -544,6 +544,83 @@ function functionContainingAllPatch(
   };
 }
 
+function windowsMenuBarVisibilitySyncPatch(): SourcePatcher {
+  const dispatchPattern = new RegExp(
+    String.raw`\b(${identifierPattern})\|\|(${identifierPattern})\.dispatchMessage\(\x60mac-menu-bar-enabled-changed\x60,\{enabled:(${identifierPattern})\}\)`,
+  );
+
+  return functionContainingAllPatch(
+    ["MAC_MENU_BAR_ENABLED", "mac-menu-bar-enabled-changed"],
+    windowsMenuBarVisibilitySyncAppliedPattern,
+    (range) => {
+      const match = dispatchPattern.exec(range.body);
+      if (!match) {
+        throw new Error("Unable to find Windows menu bar visibility dispatch.");
+      }
+
+      const [, isLoading, bridge, enabled] = match;
+      const replacement =
+        `if(!${isLoading}){try{localStorage.setItem(\`codex.windowsMenuBarVisible\`,${enabled}?\`1\`:\`0\`),window.dispatchEvent(new Event(\`codex-windows-menu-bar-visibility-changed\`))}catch{}` +
+        `${bridge}.dispatchMessage(\`mac-menu-bar-enabled-changed\`,{enabled:${enabled}})}`;
+      const body = range.body.slice(0, match.index) +
+        replacement +
+        range.body.slice((match.index ?? 0) + match[0].length);
+
+      return `${range.asyncPrefix}function ${range.name}(${range.args}){${body}}`;
+    },
+  );
+}
+
+function windowsMenuBarGeneralSettingsPatch(): SourcePatcher {
+  const platformGuardPattern = new RegExp(
+    String.raw`if\((${identifierPattern})!==\x60macOS\x60\)return null;`,
+  );
+  const labelPattern = new RegExp(
+    String.raw`\b(${identifierPattern})=\(0,(${identifierPattern})\.jsx\)\((${identifierPattern}),\{id:\x60settings\.general\.macMenuBar\.label\x60,defaultMessage:\x60Show in menu bar\x60,description:\x60Label for the macOS menu bar setting\x60\}\)`,
+  );
+  const descriptionPattern = new RegExp(
+    String.raw`\b(${identifierPattern})=\(0,(${identifierPattern})\.jsx\)\((${identifierPattern}),\{id:\x60settings\.general\.macMenuBar\.description\x60,defaultMessage:\x60Keep Codex in the macOS menu bar when the main window is closed\x60,description:\x60Description for the macOS menu bar setting\x60\}\)`,
+  );
+  const ariaLabelPattern = new RegExp(
+    String.raw`\b(${identifierPattern})=(${identifierPattern})\.formatMessage\(\{id:\x60settings\.general\.macMenuBar\.ariaLabel\x60,defaultMessage:\x60Show Codex in the menu bar\x60,description:\x60Aria label for the macOS menu bar setting toggle\x60\}\)`,
+  );
+
+  return functionContainingAllPatch(
+    ["MAC_MENU_BAR_ENABLED", "settings.general.macMenuBar.label"],
+    windowsMenuBarGeneralSettingsAppliedPattern,
+    (range) => {
+      const guardMatch = platformGuardPattern.exec(range.body);
+      const labelMatch = labelPattern.exec(range.body);
+      const descriptionMatch = descriptionPattern.exec(range.body);
+      const ariaLabelMatch = ariaLabelPattern.exec(range.body);
+      if (!guardMatch || !labelMatch || !descriptionMatch || !ariaLabelMatch) {
+        throw new Error("Unable to find Windows menu bar general settings targets.");
+      }
+
+      const platform = guardMatch[1];
+      const replaceLabel = (match: string, label: string, jsx: string, message: string) =>
+        `${label}=${platform}===\`windows\`?(0,${jsx}.jsx)(${message},{id:\`settings.general.windowsMenuBar.label\`,defaultMessage:\`Show menu bar\`,description:\`Label for the Windows menu bar setting\`}):${match}`;
+      const replaceDescription = (
+        match: string,
+        description: string,
+        jsx: string,
+        message: string,
+      ) =>
+        `${description}=${platform}===\`windows\`?(0,${jsx}.jsx)(${message},{id:\`settings.general.windowsMenuBar.description\`,defaultMessage:\`Show the File, Edit, View, Window, and Help menu at the top of the window\`,description:\`Description for the Windows menu bar setting\`}):${match}`;
+      const replaceAriaLabel = (match: string, ariaLabel: string, intl: string) =>
+        `${ariaLabel}=${platform}===\`windows\`?${intl}.formatMessage({id:\`settings.general.windowsMenuBar.ariaLabel\`,defaultMessage:\`Show the window menu bar\`,description:\`Aria label for the Windows menu bar setting toggle\`}):${match}`;
+
+      const body = range.body
+        .replace(platformGuardPattern, `if(${platform}!==\`macOS\`&&${platform}!==\`windows\`)return null;`)
+        .replace(labelPattern, replaceLabel)
+        .replace(descriptionPattern, replaceDescription)
+        .replace(ariaLabelPattern, replaceAriaLabel);
+
+      return `${range.asyncPrefix}function ${range.name}(${range.args}){${body}}`;
+    },
+  );
+}
+
 function replaceWithPatchers(
   recoveredRoot: string,
   filePath: string,
@@ -689,6 +766,7 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
           "function Ok(){let e=(0,Z.c)(4),{data:t,isLoading:n}=mc(ii.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{if(!n){try{localStorage.setItem(`codex.windowsMenuBarVisible`,r?`1`:`0`),window.dispatchEvent(new Event(`codex-windows-menu-bar-visibility-changed`))}catch{}J.dispatchMessage(`mac-menu-bar-enabled-changed`,{enabled:r})}},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}",
         ),
         alreadyAppliedPatch(windowsMenuBarVisibilitySyncAppliedPattern),
+        windowsMenuBarVisibilitySyncPatch(),
       ],
       {
         missingTargetMarkers: ["MAC_MENU_BAR_ENABLED", "mac-menu-bar-enabled-changed"],
@@ -784,6 +862,7 @@ function patchGeneralSettings(recoveredRoot: string): PatchResult[] {
           "function ir(){let e=(0,Q.c)(11),t=x(u),n=L(),{platform:r}=ge(),{data:i,isLoading:a}=V(y.MAC_MENU_BAR_ENABLED);if(r!==`macOS`&&r!==`windows`)return null;let o,s;e[0]===Symbol.for(`react.memo_cache_sentinel`)?(o=r===`windows`?(0,$.jsx)(I,{id:`settings.general.windowsMenuBar.label`,defaultMessage:`Show menu bar`,description:`Label for the Windows menu bar setting`}):(0,$.jsx)(I,{id:`settings.general.macMenuBar.label`,defaultMessage:`Show in menu bar`,description:`Label for the macOS menu bar setting`}),s=r===`windows`?(0,$.jsx)(I,{id:`settings.general.windowsMenuBar.description`,defaultMessage:`Show the File, Edit, View, Window, and Help menu at the top of the window`,description:`Description for the Windows menu bar setting`}):(0,$.jsx)(I,{id:`settings.general.macMenuBar.description`,defaultMessage:`Keep Codex in the macOS menu bar when the main window is closed`,description:`Description for the macOS menu bar setting`}),e[0]=o,e[1]=s):(o=e[0],s=e[1]);let c=i!==!1,l;e[2]===t?l=e[3]:(l=e=>{ie(t,y.MAC_MENU_BAR_ENABLED,e)},e[2]=t,e[3]=l);let d;e[4]===n?d=e[5]:(d=r===`windows`?n.formatMessage({id:`settings.general.windowsMenuBar.ariaLabel`,defaultMessage:`Show the window menu bar`,description:`Aria label for the Windows menu bar setting toggle`}):n.formatMessage({id:`settings.general.macMenuBar.ariaLabel`,defaultMessage:`Show Codex in the menu bar`,description:`Aria label for the macOS menu bar setting toggle`}),e[4]=n,e[5]=d);let f;return e[6]!==a||e[7]!==c||e[8]!==l||e[9]!==d?(f=(0,$.jsx)(J,{label:o,description:s,control:(0,$.jsx)(q,{checked:c,disabled:a,onChange:l,ariaLabel:d})}),e[6]=a,e[7]=c,e[8]=l,e[9]=d,e[10]=f):f=e[10],f}",
         ),
         alreadyAppliedPatch(windowsMenuBarGeneralSettingsAppliedPattern),
+        windowsMenuBarGeneralSettingsPatch(),
       ],
       { missingTargetMarkers: ["MAC_MENU_BAR_ENABLED", "settings.general.macMenuBar.label"] },
     ),

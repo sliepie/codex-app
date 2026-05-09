@@ -24,6 +24,8 @@ function listPackageRoots(nodeModulesRoot) {
     return [];
   }
 
+  const isPackageRoot = (packageRoot) =>
+    fs.existsSync(path.join(packageRoot, 'package.json'));
   const packageRoots = [];
   for (const entry of fs.readdirSync(nodeModulesRoot, { withFileTypes: true })) {
     const entryPath = path.join(nodeModulesRoot, entry.name);
@@ -33,14 +35,17 @@ function listPackageRoots(nodeModulesRoot) {
 
     if (entry.name.startsWith('@')) {
       for (const scopedEntry of fs.readdirSync(entryPath, { withFileTypes: true })) {
-        if (scopedEntry.isDirectory()) {
-          packageRoots.push(path.join(entryPath, scopedEntry.name));
+        const scopedEntryPath = path.join(entryPath, scopedEntry.name);
+        if (scopedEntry.isDirectory() && isPackageRoot(scopedEntryPath)) {
+          packageRoots.push(scopedEntryPath);
         }
       }
       continue;
     }
 
-    packageRoots.push(entryPath);
+    if (isPackageRoot(entryPath)) {
+      packageRoots.push(entryPath);
+    }
   }
 
   return packageRoots;

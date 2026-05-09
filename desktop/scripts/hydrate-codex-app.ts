@@ -848,21 +848,22 @@ function nativeNodeModulesReady(
   runtimeVersion: string,
 ): boolean {
   const abi = runtimeAbi(target.runtime, runtimeVersion);
-  const { nodeModulesRoot, nativeModules } = target;
-  for (const nativeModule of nativeModules) {
-    const packageRootPath = packageRoot(nodeModulesRoot, nativeModule.name);
-    if (getInstalledPackageVersion(nodeModulesRoot, nativeModule.name) !== nativeModule.version) {
-      return false;
-    }
-    if (!hasArm64RuntimePayload(packageRootPath)) {
-      return false;
-    }
-    if (!hasMatchingRuntimePayload(packageRootPath, target.runtime, abi)) {
-      return false;
-    }
-  }
+  return target.nativeModules.every((nativeModule) =>
+    nativeNodeModuleReady(target, nativeModule, abi),
+  );
+}
 
-  return true;
+function nativeNodeModuleReady(
+  target: NativeNodeModulesTarget,
+  nativeModule: NativeNodeModule,
+  abi: string,
+): boolean {
+  const packageRootPath = packageRoot(target.nodeModulesRoot, nativeModule.name);
+  return (
+    getInstalledPackageVersion(target.nodeModulesRoot, nativeModule.name) === nativeModule.version &&
+    hasArm64RuntimePayload(packageRootPath) &&
+    hasMatchingRuntimePayload(packageRootPath, target.runtime, abi)
+  );
 }
 
 function runNpm(args: string[], cwd = desktopRoot): void {
@@ -972,10 +973,9 @@ function withTemporaryPackageJson(
   callback: () => void,
 ): void {
   const packageJsonPath = path.join(moduleRoot, "package.json");
-  if (fs.existsSync(packageJsonPath)) {
-    callback();
-    return;
-  }
+  const originalPackageJson = fs.existsSync(packageJsonPath)
+    ? fs.readFileSync(packageJsonPath, "utf8")
+    : undefined;
 
   fs.writeFileSync(
     packageJsonPath,
@@ -994,7 +994,11 @@ function withTemporaryPackageJson(
   try {
     callback();
   } finally {
-    fs.rmSync(packageJsonPath, { force: true });
+    if (originalPackageJson === undefined) {
+      fs.rmSync(packageJsonPath, { force: true });
+    } else {
+      fs.writeFileSync(packageJsonPath, originalPackageJson, "utf8");
+    }
   }
 }
 
@@ -1129,26 +1133,26 @@ function syncNativeNodeModulesTarget(
     return;
   }
 
-  const missingOrOutdatedModules = nativeModules.filter(
-    (nativeModule) =>
-      getInstalledPackageVersion(target.nodeModulesRoot, nativeModule.name) !==
-      nativeModule.version,
+  const modulesRequiringInstall = nativeModules.filter(
+    (nativeModule) => !nativeNodeModuleReady(target, nativeModule, abi),
   );
 
-  if (missingOrOutdatedModules.length > 0) {
-    runNpm(
-      [
-        "install",
-        "--no-save",
-        "--package-lock=false",
-        "--no-audit",
-        "--fund=false",
-        ...missingOrOutdatedModules.map(
-          (nativeModule) => `${nativeModule.name}@${nativeModule.version}`,
-        ),
-      ],
-      moduleRoot,
-    );
+  if (modulesRequiringInstall.length > 0) {
+    withTemporaryPackageJson(moduleRoot, nativeModules, () => {
+      runNpm(
+        [
+          "install",
+          "--no-save",
+          "--package-lock=false",
+          "--no-audit",
+          "--fund=false",
+          ...modulesRequiringInstall.map(
+            (nativeModule) => `${nativeModule.name}@${nativeModule.version}`,
+          ),
+        ],
+        moduleRoot,
+      );
+    });
   }
 
   const nativeModuleNames = nativeModules.map((nativeModule) => nativeModule.name);
