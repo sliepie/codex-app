@@ -157,6 +157,28 @@ test("patches app main bundle when upstream moves index targets there", () => {
   );
 });
 
+test("patches Windows menu bar visibility sync when minified function names drift", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const indexPath = path.join(recoveredRoot, "webview", "assets", "index-fixture.js");
+  fs.writeFileSync(
+    indexPath,
+    `let commandGate=FeatureGate(\`1981165915\`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${indexFeatureTargets}${sidebarPixelTargets}function Wp(){let e=(0,A.c)(4),{data:t,isLoading:n}=Us(B.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{n||K.dispatchMessage(\`mac-menu-bar-enabled-changed\`,{enabled:r})},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,R.useEffect)(i,a),null}`,
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(fs.readFileSync(indexPath, "utf8"), /codex\.windowsMenuBarVisible/);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "sync Windows menu bar visibility setting",
+  );
+  assert.equal(patch?.status, "applied");
+  assert.equal(patch?.matcher, "semantic");
+});
+
 test("patches image preview controls when upstream moves them into a dialog chunk", () => {
   const recoveredRoot = createRecoveredFixture();
   const imagePreviewDialogPath = moveImagePreviewFixtureToDialog(recoveredRoot);

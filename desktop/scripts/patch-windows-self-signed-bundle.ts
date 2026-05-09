@@ -544,6 +544,33 @@ function functionContainingAllPatch(
   };
 }
 
+function windowsMenuBarVisibilitySyncPatch(): SourcePatcher {
+  const dispatchPattern = new RegExp(
+    String.raw`\b(${identifierPattern})\|\|(${identifierPattern})\.dispatchMessage\(\x60mac-menu-bar-enabled-changed\x60,\{enabled:(${identifierPattern})\}\)`,
+  );
+
+  return functionContainingAllPatch(
+    ["MAC_MENU_BAR_ENABLED", "mac-menu-bar-enabled-changed"],
+    windowsMenuBarVisibilitySyncAppliedPattern,
+    (range) => {
+      const match = dispatchPattern.exec(range.body);
+      if (!match) {
+        throw new Error("Unable to find Windows menu bar visibility dispatch.");
+      }
+
+      const [, isLoading, bridge, enabled] = match;
+      const replacement =
+        `if(!${isLoading}){try{localStorage.setItem(\`codex.windowsMenuBarVisible\`,${enabled}?\`1\`:\`0\`),window.dispatchEvent(new Event(\`codex-windows-menu-bar-visibility-changed\`))}catch{}` +
+        `${bridge}.dispatchMessage(\`mac-menu-bar-enabled-changed\`,{enabled:${enabled}})}`;
+      const body = range.body.slice(0, match.index) +
+        replacement +
+        range.body.slice((match.index ?? 0) + match[0].length);
+
+      return `${range.asyncPrefix}function ${range.name}(${range.args}){${body}}`;
+    },
+  );
+}
+
 function replaceWithPatchers(
   recoveredRoot: string,
   filePath: string,
@@ -689,6 +716,7 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
           "function Ok(){let e=(0,Z.c)(4),{data:t,isLoading:n}=mc(ii.MAC_MENU_BAR_ENABLED),r=t!==!1,i,a;return e[0]!==n||e[1]!==r?(i=()=>{if(!n){try{localStorage.setItem(`codex.windowsMenuBarVisible`,r?`1`:`0`),window.dispatchEvent(new Event(`codex-windows-menu-bar-visibility-changed`))}catch{}J.dispatchMessage(`mac-menu-bar-enabled-changed`,{enabled:r})}},a=[n,r],e[0]=n,e[1]=r,e[2]=i,e[3]=a):(i=e[2],a=e[3]),(0,Q.useEffect)(i,a),null}",
         ),
         alreadyAppliedPatch(windowsMenuBarVisibilitySyncAppliedPattern),
+        windowsMenuBarVisibilitySyncPatch(),
       ],
       {
         missingTargetMarkers: ["MAC_MENU_BAR_ENABLED", "mac-menu-bar-enabled-changed"],
