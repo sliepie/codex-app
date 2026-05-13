@@ -50,6 +50,10 @@ Latest ZIP:
 
 - https://github.com/sliepie/codex-app/releases/latest/download/codex-app-windows-arm64.zip
 
+Alpha PR ZIP:
+
+- https://github.com/sliepie/codex-app/releases/download/codex-app-alpha/codex-app-windows-arm64.zip
+
 ### Release Assets
 
 The latest GitHub Release also exposes direct links for the self-signed install

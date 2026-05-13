@@ -393,6 +393,27 @@ test("hydrates the app payload before packaging", () => {
   assertHydrateAppRunsBeforeForge("make:win:arm64:ci", packageJson.scripts);
 });
 
+test("PR builds publish the ZIP to a mutable alpha release", () => {
+  const workflowSource = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "windows-arm64-pr-build.yml"),
+    "utf8",
+  );
+
+  assert.match(workflowSource, /permissions:\r?\n  contents: read/);
+  assert.match(workflowSource, /name: codex-app-windows-arm64-pr/);
+  assert.match(workflowSource, /publish-alpha-release:/);
+  assert.match(
+    workflowSource,
+    /if: github\.event\.pull_request\.head\.repo\.full_name == github\.repository/,
+  );
+  assert.match(workflowSource, /permissions:\r?\n      contents: write/);
+  assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
+  assert.match(workflowSource, /actions\/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131/);
+  assert.match(workflowSource, /gh release create \$tag[\s\S]*--prerelease --latest=false/);
+  assert.match(workflowSource, /gh release edit \$tag[\s\S]*--prerelease --latest=false/);
+  assert.match(workflowSource, /gh release upload \$tag \$zip\.FullName[\s\S]*--clobber/);
+});
+
 test("keys native updater cache by builder script and Rust crate sources", () => {
   const cacheKeyInputs = [
     "desktop/scripts/build-windows-oai-update-checker.ps1",
