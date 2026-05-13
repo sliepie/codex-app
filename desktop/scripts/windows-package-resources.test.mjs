@@ -14,6 +14,7 @@ const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
   hasArm64RuntimePayload,
+  syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
 } = require(
   path.join(desktopRoot, ".cache", "scripts", "hydrate-codex-app.js"),
@@ -163,6 +164,40 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
   );
 });
 
+test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
+  const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plusplus-source-"));
+  const destinationRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plusplus-output-"));
+  writeFixture(
+    path.join(sourceRoot, "packages", "installer", "assets", "runtime", "main.js"),
+    "module.exports = {};\n",
+  );
+  writeFixture(
+    path.join(sourceRoot, "packages", "installer", "assets", "runtime", "preload.js"),
+    "module.exports = {};\n",
+  );
+  writeFixture(path.join(sourceRoot, "LICENSE"), "MIT\n");
+
+  syncCodexPlusPlusRuntimeAssets(
+    sourceRoot,
+    {
+      tag_name: "v0.1.7",
+      html_url: "https://github.com/b-nnett/codex-plusplus/releases/tag/v0.1.7",
+      zipball_url: "https://api.github.com/repos/b-nnett/codex-plusplus/zipball/v0.1.7",
+      published_at: "2026-05-12T14:08:09Z",
+    },
+    destinationRoot,
+  );
+
+  assert.equal(
+    fs.readFileSync(path.join(destinationRoot, "runtime", "main.js"), "utf8"),
+    "module.exports = {};\n",
+  );
+  assert.equal(fs.readFileSync(path.join(destinationRoot, "LICENSE"), "utf8"), "MIT\n");
+  const release = JSON.parse(fs.readFileSync(path.join(destinationRoot, "release.json"), "utf8"));
+  assert.equal(release.repo, "b-nnett/codex-plusplus");
+  assert.equal(release.tagName, "v0.1.7");
+});
+
 test("discovers native modules copied inside bundled plugin resources", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
@@ -253,10 +288,39 @@ test("fails when the upstream bundle is missing required browser-use", () => {
   );
 });
 
-test("includes generated plugin resources in the Windows package", () => {
+test("includes generated plugin resources and Codex++ integration in the Windows package", () => {
   const config = require(path.join(desktopRoot, "forge.config.js"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/plugins"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);
+  assert.equal(
+    config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json"),
+    false,
+  );
+
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
+  );
+  assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
+});
+
+test("bundles the app-owned Codex++ UI tweak without keyboard shortcut tweaks", () => {
+  const tweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
+  const manifest = JSON.parse(fs.readFileSync(path.join(tweakRoot, "manifest.json"), "utf8"));
+  assert.equal(manifest.id, "app.sliepie.codex.ui-overrides");
+  assert.equal(manifest.scope, "renderer");
+  assert.notEqual(manifest.id.includes("keyboard"), true);
+
+  const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+  assert.doesNotThrow(() => {
+    const module = { exports: {} };
+    const exports = module.exports;
+    const fn = new Function("module", "exports", "console", source);
+    fn(module, exports, console);
+    assert.equal(typeof module.exports.start, "function");
+    assert.equal(typeof module.exports.stop, "function");
+  });
 });
 
 test("includes installed tslib for recovered main-process bundles", () => {
@@ -301,6 +365,16 @@ function assertUpdaterBuildsBeforeForge(scriptName, scripts) {
   assert.ok(updaterIndex < forgeIndex);
 }
 
+function assertHydrateAppRunsBeforeForge(scriptName, scripts) {
+  const commands = expandScriptCommands(scriptName, scripts);
+  const hydrateIndex = commands.findIndex((command) => command.includes("hydrate:app:compiled"));
+  const forgeIndex = commands.findIndex((command) => command.startsWith("electron-forge "));
+
+  assert.notEqual(hydrateIndex, -1);
+  assert.notEqual(forgeIndex, -1);
+  assert.ok(hydrateIndex < forgeIndex);
+}
+
 test("builds the replacement Windows updater before packaging", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
@@ -308,6 +382,15 @@ test("builds the replacement Windows updater before packaging", () => {
   assertUpdaterBuildsBeforeForge("package:win:arm64", packageJson.scripts);
   assertUpdaterBuildsBeforeForge("make:win:arm64", packageJson.scripts);
   assertUpdaterBuildsBeforeForge("make:win:arm64:ci", packageJson.scripts);
+});
+
+test("hydrates the app payload before packaging", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
+  );
+  assertHydrateAppRunsBeforeForge("package:win:arm64", packageJson.scripts);
+  assertHydrateAppRunsBeforeForge("make:win:arm64", packageJson.scripts);
+  assertHydrateAppRunsBeforeForge("make:win:arm64:ci", packageJson.scripts);
 });
 
 test("keys native updater cache by builder script and Rust crate sources", () => {

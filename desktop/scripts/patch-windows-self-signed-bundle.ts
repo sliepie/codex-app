@@ -22,20 +22,9 @@ const windowsMenuBarVisibilitySyncAppliedPattern =
 const windowsMenuBarGeneralSettingsAppliedPattern = /settings\.general\.windowsMenuBar\.label/;
 const windowsMenuBarComponentAppliedPattern =
   /codex-windows-menu-bar-visibility-changed/;
-const windowsTopBarAlignmentAppliedPattern =
-  /group\/windows-top-bar[^`]*\bms-2\b/;
 const windowsTitleBarOverlayDefaultHeightPattern = new RegExp(
   String.raw`\b(${identifierPattern})=36,${identifierPattern}=\x60#1f1f1f\x60,${identifierPattern}=\x60#ffffff\x60;function\s+${identifierPattern}\(\)\{return\{color:${identifierPattern},symbolColor:${identifierPattern}\.nativeTheme\.shouldUseDarkColors\?${identifierPattern}:${identifierPattern},height:\1\}\}`,
 );
-const imagePreviewControlsLoweredPattern =
-  /className:`absolute top-3 right-3 z-10 flex items-center gap-2`,style:\{top:`calc\(0\.75rem \+ 26px\)`\},children:\[/;
-const sidebarChatsHeadingRightPattern =
-  /className:`flex min-w-0 flex-1`,style:\{transform:`translateX\(2px\)`\},children:\(0,[A-Za-z_$][\w$]*\.jsx\)\([A-Za-z_$][\w$]*,\{collapsed:[A-Za-z_$][\w$]*\.chats,/;
-const sidebarChatRowsLeftPattern =
-  /style:\{transform:`translateX\(-4px\)`\},rowContentClassName:[\s\S]{0,1800}?sidebarThreadRow\(\{[\s\S]{0,250}?kind:`local`/;
-const sidebarFooterSettingsLeftPattern =
-  /className:`min-w-0 flex-1`,style:\{transform:`translateX\(-1px\)`\},children:\(0,[A-Za-z_$][\w$]*\.jsx\)\([A-Za-z_$][\w$]*,\{triggerButton:/;
-
 type SourcePatchResult = {
   source: string;
   status: PatchStatus;
@@ -773,70 +762,6 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
         required: true,
       },
     ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "nudge sidebar Chats heading right",
-      [
-        regexPatch(
-          new RegExp(
-            String.raw`className:\x60flex min-w-0 flex-1(?: translate-x-px)?\x60,children:\(0,(${identifierPattern})\.jsx\)\((${identifierPattern}),\{collapsed:(${identifierPattern})\.chats,`,
-            "g",
-          ),
-          (match) =>
-            `className:\`flex min-w-0 flex-1\`,style:{transform:\`translateX(2px)\`},children:(0,${match[1]}.jsx)(${match[2]},{collapsed:${match[3]}.chats,`,
-          sidebarChatsHeadingRightPattern,
-        ),
-      ],
-      { missingTargetMarkers: ["sidebarElectron.recentChats", ".chats"] },
-    ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "nudge recent chat rows left",
-      [
-        regexPatch(
-          new RegExp(
-            String.raw`(?<!style:\{transform:\x60translateX\(-4px\)\x60\},)(rowContentClassName:)(?=[\s\S]{0,1800}?dataAttributes:${identifierPattern}\.sidebarThreadRow\(\{[\s\S]{0,250}?kind:\x60local\x60)`,
-            "g",
-          ),
-          (match) =>
-            `style:{transform:\`translateX(-4px)\`},${match[1]}`,
-          sidebarChatRowsLeftPattern,
-        ),
-      ],
-      {
-        missingTargetMarkers: [
-          "rowContentClassName",
-          "sidebarThreadRow",
-        ],
-      },
-    ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "nudge sidebar footer settings button left",
-      [
-        regexPatch(
-          new RegExp(
-            String.raw`className:\x60min-w-0 flex-1\x60,children:\(0,${identifierPattern}\.jsx\)\(${identifierPattern},\{triggerButton:\(0,${identifierPattern}\.jsx\)\(${identifierPattern},\{icon:${identifierPattern},label:${identifierPattern},onClick:${identifierPattern},trailing:${identifierPattern},iconClassName:\x60icon-sm\x60\}\)\}\)`,
-            "g",
-          ),
-          (match) =>
-            match[0].replace(
-              "className:`min-w-0 flex-1`,",
-              "className:`min-w-0 flex-1`,style:{transform:`translateX(-1px)`},",
-            ),
-          sidebarFooterSettingsLeftPattern,
-        ),
-      ],
-      {
-        missingTargetMarkers: [
-          "codex.profileFooter.signedInFallback",
-          "iconClassName:`icon-sm`",
-        ],
-      },
-    ),
   ];
 }
 
@@ -894,32 +819,6 @@ function patchAppShell(recoveredRoot: string): PatchResult[] {
       ],
       { missingTargetMarkers: ["showApplicationMenu", "windowsMenuBar.file"] },
     ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "align Windows sidebar trigger with sidebar rows",
-      [
-        exactPatch(
-          "app-header-tint draggable group/windows-top-bar z-40 flex h-toolbar-sm items-center ps-(--spacing-token-safe-header-left) pe-(--spacing-token-safe-header-right)",
-          "app-header-tint draggable group/windows-top-bar z-40 flex h-toolbar-sm items-center ps-(--spacing-token-safe-header-left) ms-2 pe-(--spacing-token-safe-header-right)",
-        ),
-        alreadyAppliedPatch(windowsTopBarAlignmentAppliedPattern),
-      ],
-      { missingTargetMarkers: ["group/windows-top-bar", "ps-(--spacing-token-safe-header-left)"] },
-    ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "nudge sidebar trigger button right",
-      [
-        exactPatch(
-          "u=c==null?void 0:{viewTransitionName:c}",
-          "u=c==null?void 0:{viewTransitionName:c,transform:`translateX(2px)`}",
-        ),
-        alreadyAppliedPatch("u=c==null?void 0:{viewTransitionName:c,transform:`translateX(2px)`}"),
-      ],
-      { missingTargetMarkers: ["viewTransitionName:`sidebar-trigger`", "viewTransitionName:c"] },
-    ),
   ];
 }
 
@@ -942,39 +841,6 @@ function patchAgentSettings(recoveredRoot: string): PatchResult[] {
         ),
       ],
       { missingTargetMarkers: ["2106641128"] },
-    ),
-  ];
-}
-
-function patchImagePreview(recoveredRoot: string): PatchResult[] {
-  const filePath = findFileContaining(
-    path.join(recoveredRoot, "webview", "assets"),
-    /^(?:image-preview-dialog|use-model-settings)-.*\.js$/,
-    ["imagePreviewDialog.download", "absolute top-3 right-3 z-10 flex items-center gap-2"],
-  );
-
-  return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "move image preview controls below Windows title bar",
-      [
-        regexPatch(
-          new RegExp(
-            String.raw`\(0,(${identifierPattern})\.jsxs\)\(\`div\`,\{className:\`absolute top-3 right-3 z-10 flex items-center gap-2\`,children:\[(${identifierPattern}),(${identifierPattern})\]\}\)`,
-            "g",
-          ),
-          (match) =>
-            `(0,${match[1]}.jsxs)(\`div\`,{className:\`absolute top-3 right-3 z-10 flex items-center gap-2\`,style:{top:\`calc(0.75rem + 26px)\`},children:[${match[2]},${match[3]}]})`,
-          imagePreviewControlsLoweredPattern,
-        ),
-      ],
-      {
-        missingTargetMarkers: [
-          "imagePreviewDialog.download",
-          "absolute top-3 right-3 z-10 flex items-center gap-2",
-        ],
-      },
     ),
   ];
 }
@@ -1127,7 +993,6 @@ function main(): void {
     results.push(...patchGeneralSettings(recoveredRoot));
     results.push(...patchAppShell(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
-    results.push(...patchImagePreview(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
     results.push(...patchMainBundle(recoveredRoot));
   } catch (error) {

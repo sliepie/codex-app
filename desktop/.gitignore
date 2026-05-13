@@ -94,3 +94,8 @@ recovered/app-asar-extracted/.vite/*
 
 # Electron-Forge
 out/
+
+# Codex++ release payload hydrated during packaging
+codex-plusplus/runtime/
+codex-plusplus/LICENSE
+codex-plusplus/release.json

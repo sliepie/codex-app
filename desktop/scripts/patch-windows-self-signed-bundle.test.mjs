@@ -96,13 +96,6 @@ function moveIndexFixtureToAppMain(recoveredRoot) {
   return appMainPath;
 }
 
-function moveImagePreviewFixtureToDialog(recoveredRoot) {
-  const assetsRoot = path.join(recoveredRoot, "webview", "assets");
-  const imagePreviewDialogPath = path.join(assetsRoot, "image-preview-dialog-fixture.js");
-  fs.renameSync(path.join(assetsRoot, "use-model-settings-fixture.js"), imagePreviewDialogPath);
-  return imagePreviewDialogPath;
-}
-
 test("writes patch report file paths relative to the recovered app root", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -118,15 +111,9 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
-      "webview/assets/index-fixture.js",
-      "webview/assets/index-fixture.js",
-      "webview/assets/index-fixture.js",
       "webview/assets/general-settings-fixture.js",
       "webview/assets/app-shell-fixture.js",
-      "webview/assets/app-shell-fixture.js",
-      "webview/assets/app-shell-fixture.js",
       "webview/assets/agent-settings-fixture.js",
-      "webview/assets/use-model-settings-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
@@ -153,7 +140,7 @@ test("patches app main bundle when upstream moves index targets there", () => {
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   assert.equal(
     report.patches.filter((patch) => patch.file === "webview/assets/app-main-fixture.js").length,
-    6,
+    3,
   );
 });
 
@@ -206,27 +193,6 @@ test("patches Windows menu bar setting when minified general-settings names drif
   );
   assert.equal(patch?.status, "applied");
   assert.equal(patch?.matcher, "semantic");
-});
-
-test("patches image preview controls when upstream moves them into a dialog chunk", () => {
-  const recoveredRoot = createRecoveredFixture();
-  const imagePreviewDialogPath = moveImagePreviewFixtureToDialog(recoveredRoot);
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(
-    fs.readFileSync(imagePreviewDialogPath, "utf8"),
-    /style:\{top:`calc\(0\.75rem \+ 26px\)`\}/,
-  );
-
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  const patch = report.patches.find(
-    (patch) => patch.name === "move image preview controls below Windows title bar",
-  );
-  assert.equal(patch?.file, "webview/assets/image-preview-dialog-fixture.js");
-  assert.equal(patch?.status, "applied");
 });
 
 test("reports a missing gate target as assumed enabled and continues", () => {
@@ -398,18 +364,6 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     /codex\.windowsMenuBarVisible/,
   );
   assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /className:`flex min-w-0 flex-1`,style:\{transform:`translateX\(2px\)`\}/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /style:\{transform:`translateX\(-4px\)`\},rowContentClassName:[\s\S]*sidebarThreadRow\(\{kind:`local`/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /className:`min-w-0 flex-1`,style:\{transform:`translateX\(-1px\)`\},children:\(0,\$\.jsx\)\(cn,\{triggerButton:/,
-  );
-  assert.match(
     fs.readFileSync(
       path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
       "utf8",
@@ -419,14 +373,6 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "app-shell-fixture.js"), "utf8"),
     /codex-windows-menu-bar-visibility-changed/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "app-shell-fixture.js"), "utf8"),
-    /group\/windows-top-bar z-40 flex h-toolbar-sm items-center ps-\(--spacing-token-safe-header-left\) ms-2/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "app-shell-fixture.js"), "utf8"),
-    /viewTransitionName:c,transform:`translateX\(2px\)`/,
   );
   assert.match(
     fs.readFileSync(
@@ -461,13 +407,6 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     /vM=36/,
   );
   assert.match(
-    fs.readFileSync(
-      path.join(recoveredRoot, "webview", "assets", "use-model-settings-fixture.js"),
-      "utf8",
-    ),
-    /style:\{top:`calc\(0\.75rem \+ 26px\)`\}/,
-  );
-  assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /function zx\(config\)\{return!0\}/,
   );
@@ -477,7 +416,7 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 17);
+  assert.equal(report.patches.length, 11);
   assert.ok(
     report.patches.every((patch) =>
       patch.name === "restore Windows title bar overlay controls height"
@@ -592,7 +531,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 17);
+  assert.equal(report.patches.length, 11);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),

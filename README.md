@@ -92,8 +92,10 @@ The Windows package also builds a small Rust native updater replacement. Install
 Rust through `rustup` with the MSVC toolchain before running the package command.
 
 The build hydrates `desktop/recovered/app-asar-extracted/` from the official
-appcast and downloads the Windows ARM64 Codex CLI resources before packaging.
-The ZIP output is written under `desktop/out/make/zip/win32/arm64/`.
+appcast, downloads the Windows ARM64 Codex CLI resources, and hydrates the
+bundled Codex++ runtime from the latest `b-nnett/codex-plusplus` GitHub Release
+before packaging. The ZIP output is written under
+`desktop/out/make/zip/win32/arm64/`.
 
 ## Vendored `node_repl.exe`
 
