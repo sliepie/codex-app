@@ -97,6 +97,7 @@ function syncBundledTweaks() {
 try {
   fs.mkdirSync(userRoot, { recursive: true });
   syncBundledTweaks();
+  process.env.CODEX_PLUSPLUS_BUNDLED_WITH_CODEX_APP = "1";
   process.env.CODEX_PLUSPLUS_USER_ROOT = userRoot;
   process.env.CODEX_PLUSPLUS_RUNTIME = runtimeDir;
   require(path.join(runtimeDir, "main.js"));

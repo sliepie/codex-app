@@ -392,6 +392,108 @@ function findCodexPlusPlusSourceRoot(extractRoot: string): string | undefined {
   return undefined;
 }
 
+function replaceOnce(
+  source: string,
+  search: string,
+  replacement: string,
+  description: string,
+): string {
+  const matchCount = source.split(search).length - 1;
+  if (matchCount !== 1) {
+    throw new Error(
+      `Could not patch Codex++ ${description}. Expected exactly one match, found ${matchCount}.`,
+    );
+  }
+
+  return source.replace(search, replacement);
+}
+
+function patchCodexPlusPlusSettingsScript(filePath: string): void {
+  let source = fs.readFileSync(filePath, "utf8");
+  const indent = source.includes('    section.appendChild(sectionTitle("Codex++ Updates"));')
+    ? "    "
+    : "  ";
+
+  source = replaceOnce(
+    source,
+    "function renderConfigPage(sectionsWrap, subtitle) {",
+    `function isCodexAppBundledRuntime() {
+${indent}return process.env.CODEX_PLUSPLUS_BUNDLED_WITH_CODEX_APP === "1";
+}
+function renderConfigPage(sectionsWrap, subtitle) {`,
+    `${filePath} bundled runtime marker`,
+  );
+
+  source = replaceOnce(
+    source,
+    `${indent}section.appendChild(sectionTitle("Codex++ Updates"));`,
+    `${indent}section.appendChild(
+${indent}  sectionTitle(isCodexAppBundledRuntime() ? "Codex++ Runtime" : "Codex++ Updates")
+${indent});`,
+    `${filePath} settings title`,
+  );
+
+  source = replaceOnce(
+    source,
+    `function renderCodexPlusPlusConfig(card, config) {
+${indent}card.appendChild(autoUpdateRow(config));`,
+    `function renderCodexPlusPlusConfig(card, config) {
+${indent}if (isCodexAppBundledRuntime()) {
+${indent}  card.appendChild(rowSimple("Version", \`Codex++ \${config.version}\`));
+${indent}  card.appendChild(rowSimple("Runtime source", "Bundled with Codex app"));
+${indent}  return;
+${indent}}
+${indent}card.appendChild(autoUpdateRow(config));`,
+    `${filePath} bundled runtime rows`,
+  );
+
+  const watcherBlock = [
+    `${indent}const watcher = document.createElement("section");`,
+    `${indent}watcher.className = "flex flex-col gap-2";`,
+    `${indent}watcher.appendChild(sectionTitle("Auto-Repair Watcher"));`,
+    `${indent}const watcherCard = roundedCard();`,
+    `${indent}watcherCard.appendChild(rowSimple("Checking watcher", "Verifying the updater repair service."));`,
+    `${indent}watcher.appendChild(watcherCard);`,
+    `${indent}sectionsWrap.appendChild(watcher);`,
+    `${indent}renderWatcherHealthCard(watcherCard);`,
+  ].join("\n");
+  source = replaceOnce(
+    source,
+    watcherBlock,
+    `${indent}if (!isCodexAppBundledRuntime()) {
+${watcherBlock.split("\n").map((line) => `${indent}${line}`).join("\n")}
+${indent}}`,
+    `${filePath} watcher section`,
+  );
+
+  const maintenanceBlock = [
+    `${indent}const maintenance = document.createElement("section");`,
+    `${indent}maintenance.className = "flex flex-col gap-2";`,
+    `${indent}maintenance.appendChild(sectionTitle("Maintenance"));`,
+    `${indent}const maintenanceCard = roundedCard();`,
+    `${indent}maintenanceCard.appendChild(uninstallRow());`,
+    `${indent}maintenanceCard.appendChild(reportBugRow());`,
+    `${indent}maintenance.appendChild(maintenanceCard);`,
+    `${indent}sectionsWrap.appendChild(maintenance);`,
+  ].join("\n");
+  source = replaceOnce(
+    source,
+    maintenanceBlock,
+    `${indent}if (!isCodexAppBundledRuntime()) {
+${maintenanceBlock.split("\n").map((line) => `${indent}${line}`).join("\n")}
+${indent}}`,
+    `${filePath} maintenance section`,
+  );
+
+  fs.writeFileSync(filePath, source, "utf8");
+}
+
+function patchCodexPlusPlusBundledSettings(runtimeRoot: string): void {
+  for (const fileName of ["preload.js", path.join("preload", "settings-injector.js")]) {
+    patchCodexPlusPlusSettingsScript(path.join(runtimeRoot, fileName));
+  }
+}
+
 export function syncCodexPlusPlusRuntimeAssets(
   sourceRoot: string,
   release: CodexPlusPlusRelease,
@@ -407,7 +509,7 @@ export function syncCodexPlusPlusRuntimeAssets(
   const runtimeDestinationRoot = path.join(destinationRoot, "runtime");
   const licensePath = path.join(sourceRoot, "LICENSE");
 
-  for (const fileName of ["main.js", "preload.js"]) {
+  for (const fileName of ["main.js", "preload.js", path.join("preload", "settings-injector.js")]) {
     const filePath = path.join(runtimeSourceRoot, fileName);
     if (!fs.existsSync(filePath)) {
       throw new Error(`Codex++ release is missing runtime asset ${fileName}.`);
@@ -420,6 +522,7 @@ export function syncCodexPlusPlusRuntimeAssets(
   fs.rmSync(runtimeDestinationRoot, { recursive: true, force: true });
   fs.mkdirSync(destinationRoot, { recursive: true });
   fs.cpSync(runtimeSourceRoot, runtimeDestinationRoot, { recursive: true });
+  patchCodexPlusPlusBundledSettings(runtimeDestinationRoot);
   fs.copyFileSync(licensePath, path.join(destinationRoot, "LICENSE"));
   fs.writeFileSync(
     path.join(destinationRoot, "release.json"),
