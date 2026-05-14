@@ -322,14 +322,24 @@ function sanitizePathSegment(value: string): string {
   return value.replace(/[^A-Za-z0-9._-]/g, "_");
 }
 
+function githubHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "sliepie-codex-app-windows-build",
+  };
+  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
 async function fetchLatestCodexPlusPlusRelease(): Promise<CodexPlusPlusRelease> {
   const response = await fetch(
     `https://api.github.com/repos/${codexPlusPlusRepo}/releases/latest`,
     {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "sliepie-codex-app-windows-build",
-      },
+      headers: githubHeaders(),
     },
   );
   if (!response.ok) {

@@ -99,7 +99,7 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
       PR_TITLE: ${{ github.event.pull_request.title }}
       PR_BRANCH: ${{ github.event.pull_request.head.ref }}
-      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      BUILD_SHA: ${{ github.sha }}
       WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       CODEX_APP_VERSION: ${{ needs.build-windows-arm64.outputs.codex_app_version }}
       CODEX_APP_BUILD: ${{ needs.build-windows-arm64.outputs.codex_app_build }}
@@ -124,7 +124,7 @@ jobs:
           }
 
           $tag = $env:ALPHA_RELEASE_TAG
-          $targetSha = $env:PR_HEAD_SHA
+          $targetSha = $env:BUILD_SHA
           $repo = $env:GITHUB_REPOSITORY
           $notes = @"
           Mutable alpha artifact for the latest successful same-repository PR build.

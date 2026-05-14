@@ -408,10 +408,24 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   );
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
+  assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
+  assert.doesNotMatch(workflowSource, /PR_HEAD_SHA/);
+  assert.match(workflowSource, /\$targetSha = \$env:BUILD_SHA/);
   assert.match(workflowSource, /actions\/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131/);
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--prerelease --latest=false/);
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--prerelease --latest=false/);
   assert.match(workflowSource, /gh release upload \$tag \$zip\.FullName[\s\S]*--clobber/);
+});
+
+test("authenticates Codex++ GitHub release lookup when a token is available", () => {
+  const scriptSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+
+  assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
+  assert.match(scriptSource, /headers\.Authorization = `Bearer \$\{token\}`/);
+  assert.match(scriptSource, /headers: githubHeaders\(\)/);
 });
 
 test("keys native updater cache by builder script and Rust crate sources", () => {
