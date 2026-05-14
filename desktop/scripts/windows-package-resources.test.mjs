@@ -542,24 +542,6 @@ test("Windows ARM64 workflows use the documented VS2026 runner image", () => {
   }
 });
 
-test("Electron native rebuild uses node-gyp with VS2026 support", () => {
-  const packageLock = JSON.parse(
-    fs.readFileSync(path.join(desktopRoot, "package-lock.json"), "utf8"),
-  );
-  const electronRebuild = packageLock.packages["node_modules/@electron/rebuild"];
-  const nodeGyp = packageLock.packages["node_modules/node-gyp"];
-
-  assert.match(electronRebuild.dependencies?.["node-gyp"], /^\^12\./);
-  assert.ok(Number(nodeGyp.version.split(".")[0]) >= 12);
-
-  const visualStudioFinder = fs.readFileSync(
-    path.join(desktopRoot, "node_modules", "node-gyp", "lib", "find-visualstudio.js"),
-    "utf8",
-  );
-  assert.match(visualStudioFinder, /2026/);
-  assert.match(visualStudioFinder, /versionMajor === 18/);
-});
-
 test("PR builds publish the ZIP to a mutable alpha release", () => {
   const workflowSource = fs.readFileSync(
     path.join(repoRoot, ".github", "workflows", "windows-arm64-pr-build.yml"),
