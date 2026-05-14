@@ -27,16 +27,16 @@ function writePeFixture(filePath, versionText) {
 function createDesktopFixture() {
   const desktopRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-browser-runtime-"));
   const appVersion = "26.506.21252";
-  const browserUseRoot = path.join(
+  const browserPluginRoot = path.join(
     desktopRoot,
     "resources",
     "plugins",
     "openai-bundled",
     "plugins",
-    "browser-use",
+    "browser",
   );
   const classicLevelRoot = path.join(
-    browserUseRoot,
+    browserPluginRoot,
     "scripts",
     "node_modules",
     "classic-level",
@@ -63,13 +63,13 @@ function createDesktopFixture() {
     path.join(desktopRoot, "resources", "node.exe"),
     "fake windows node v24.14.0 v24.14.0",
   );
-  writeFixture(path.join(browserUseRoot, "scripts", "browser-client.mjs"), "export {};\n");
+  writeFixture(path.join(browserPluginRoot, "scripts", "browser-client.mjs"), "export {};\n");
   writeFixture(
     path.join(classicLevelRoot, "package.json"),
     `${JSON.stringify({ name: "classic-level", version: "3.0.0" }, null, 2)}\n`,
   );
 
-  return { browserUseRoot, classicLevelRoot, desktopRoot };
+  return { browserPluginRoot, classicLevelRoot, desktopRoot };
 }
 
 test("accepts browser client native payload metadata matching the bundled Node ABI", async () => {
@@ -92,19 +92,19 @@ test("accepts browser client native payload metadata matching the bundled Node A
 
   assert.equal(result.nodeVersion, "v24.14.0");
   assert.equal(result.abi, "137");
-  assert.equal(result.browserUsePresent, true);
+  assert.equal(result.browserPluginPresent, true);
   assert.equal(result.classicLevelVersion, "3.0.0");
 });
 
-test("skips browser client ABI check when browser-use is not bundled", async () => {
-  const { browserUseRoot, desktopRoot } = createDesktopFixture();
-  fs.rmSync(browserUseRoot, { recursive: true, force: true });
+test("skips browser client ABI check when the browser plugin is not bundled", async () => {
+  const { browserPluginRoot, desktopRoot } = createDesktopFixture();
+  fs.rmSync(browserPluginRoot, { recursive: true, force: true });
 
   const result = await verifyBrowserClientRuntime({ desktopRoot });
 
   assert.equal(result.nodeVersion, "v24.14.0");
   assert.equal(result.abi, "137");
-  assert.equal(result.browserUsePresent, false);
+  assert.equal(result.browserPluginPresent, false);
   assert.equal(result.classicLevelVersion, undefined);
 });
 

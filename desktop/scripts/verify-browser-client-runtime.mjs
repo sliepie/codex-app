@@ -4,12 +4,12 @@ import { pathToFileURL } from "node:url";
 
 const targetPlatform = "win32";
 const targetArch = "arm64";
-const browserUseRelativeRoot = path.join(
+const browserPluginRelativeRoot = path.join(
   "resources",
   "plugins",
   "openai-bundled",
   "plugins",
-  "browser-use",
+  "browser",
 );
 const classicLevelPackageName = "classic-level";
 const nodeAbiModule = await import("node-abi");
@@ -249,23 +249,23 @@ export async function verifyBrowserClientRuntime({ desktopRoot = process.cwd() }
   }
 
   const expectedAbi = getAbi(normalizeVersion(bundledNodeVersion), "node");
-  const browserUseRoot = path.join(desktopRoot, browserUseRelativeRoot);
-  if (!fs.existsSync(browserUseRoot)) {
+  const browserPluginRoot = path.join(desktopRoot, browserPluginRelativeRoot);
+  if (!fs.existsSync(browserPluginRoot)) {
     return {
       abi: expectedAbi,
-      browserUsePresent: false,
+      browserPluginPresent: false,
       classicLevelVersion: undefined,
       nodeVersion: bundledNodeVersion,
     };
   }
 
-  const browserClientPath = path.join(browserUseRoot, "scripts", "browser-client.mjs");
+  const browserClientPath = path.join(browserPluginRoot, "scripts", "browser-client.mjs");
   if (!fs.existsSync(browserClientPath)) {
     throw new Error(`Missing browser client: ${browserClientPath}`);
   }
 
   const classicLevelRoot = path.join(
-    browserUseRoot,
+    browserPluginRoot,
     "scripts",
     "node_modules",
     classicLevelPackageName,
@@ -278,7 +278,7 @@ export async function verifyBrowserClientRuntime({ desktopRoot = process.cwd() }
 
   return {
     abi: expectedAbi,
-    browserUsePresent: true,
+    browserPluginPresent: true,
     classicLevelVersion,
     nodeVersion: bundledNodeVersion,
   };
@@ -287,13 +287,13 @@ export async function verifyBrowserClientRuntime({ desktopRoot = process.cwd() }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const result = await verifyBrowserClientRuntime();
-    if (result.browserUsePresent) {
+    if (result.browserPluginPresent) {
       console.log(
         `Verified browser client runtime: Node ${result.nodeVersion} ABI ${result.abi}, ${classicLevelPackageName}@${result.classicLevelVersion}.`,
       );
     } else {
       console.log(
-        `Verified Windows Node runtime: Node ${result.nodeVersion} ABI ${result.abi}; no bundled browser-use plugin present.`,
+        `Verified Windows Node runtime: Node ${result.nodeVersion} ABI ${result.abi}; no bundled browser plugin present.`,
       );
     }
   } catch (error) {

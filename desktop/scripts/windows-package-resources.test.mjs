@@ -54,10 +54,10 @@ function createAppResourcesFixture() {
         },
         plugins: [
           {
-            name: "browser-use",
+            name: "browser",
             source: {
               source: "local",
-              path: "./plugins/browser-use",
+              path: "./plugins/browser",
             },
             policy: {
               installation: "AVAILABLE",
@@ -97,15 +97,15 @@ function createAppResourcesFixture() {
   );
 
   writeFixture(
-    path.join(bundledRoot, "plugins", "browser-use", ".codex-plugin", "plugin.json"),
-    `${JSON.stringify({ name: "browser-use", version: "0.1.0-alpha1" }, null, 2)}\n`,
+    path.join(bundledRoot, "plugins", "browser", ".codex-plugin", "plugin.json"),
+    `${JSON.stringify({ name: "browser", version: "0.1.0-alpha2" }, null, 2)}\n`,
   );
   writeFixture(
-    path.join(bundledRoot, "plugins", "browser-use", "scripts", "browser-client.mjs"),
+    path.join(bundledRoot, "plugins", "browser", "scripts", "browser-client.mjs"),
     "export const browserClient = true;\n",
   );
   writeFixture(
-    path.join(bundledRoot, "plugins", "browser-use", "skills", "browser", "SKILL.md"),
+    path.join(bundledRoot, "plugins", "browser", "skills", "browser", "SKILL.md"),
     "# Browser\n",
   );
   writeFixture(
@@ -141,15 +141,15 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
   );
   assert.deepEqual(
     marketplace.plugins.map((plugin) => plugin.name),
-    ["browser-use"],
+    ["browser"],
   );
-  assert.equal(marketplace.plugins[0].source.path, "./plugins/browser-use");
+  assert.equal(marketplace.plugins[0].source.path, "./plugins/browser");
 
   assert.equal(
     fs.existsSync(
       path.join(
         destinationPluginsRoot,
-        "openai-bundled/plugins/browser-use/scripts/browser-client.mjs",
+        "openai-bundled/plugins/browser/scripts/browser-client.mjs",
       ),
     ),
     true,
@@ -207,7 +207,7 @@ test("discovers native modules copied inside bundled plugin resources", () => {
       "plugins",
       "openai-bundled",
       "plugins",
-      "browser-use",
+      "browser",
       "scripts",
       "node_modules",
       "classic-level",
@@ -221,7 +221,7 @@ test("discovers native modules copied inside bundled plugin resources", () => {
       "plugins",
       "openai-bundled",
       "plugins",
-      "browser-use",
+      "browser",
       "scripts",
       "node_modules",
       "classic-level",
@@ -242,7 +242,7 @@ test("discovers native modules copied inside bundled plugin resources", () => {
   assert.deepEqual(targets[0].nativeModules, [{ name: "classic-level", version: "3.0.0" }]);
   assert.equal(
     path.relative(destinationPluginsRoot, targets[0].nodeModulesRoot).replaceAll(path.sep, "/"),
-    "openai-bundled/plugins/browser-use/scripts/node_modules",
+    "openai-bundled/plugins/browser/scripts/node_modules",
   );
 });
 
@@ -264,7 +264,7 @@ test("Mach-O native payloads are not ready for Windows ARM64", () => {
   assert.equal(hasArm64RuntimePayload(packageRoot), false);
 });
 
-test("allows the upstream bundle to omit browser-use", () => {
+test("allows the upstream bundle to omit the browser plugin", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
   const marketplacePath = path.join(
@@ -276,7 +276,7 @@ test("allows the upstream bundle to omit browser-use", () => {
     "marketplace.json",
   );
   const marketplace = JSON.parse(fs.readFileSync(marketplacePath, "utf8"));
-  marketplace.plugins = marketplace.plugins.filter((plugin) => plugin.name !== "browser-use");
+  marketplace.plugins = marketplace.plugins.filter((plugin) => plugin.name !== "browser");
   fs.writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`, "utf8");
 
   syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
@@ -295,7 +295,7 @@ test("allows the upstream bundle to omit browser-use", () => {
   );
   assert.deepEqual(destinationMarketplace.plugins, []);
   assert.equal(
-    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled", "plugins", "browser-use")),
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled", "plugins", "browser")),
     false,
   );
 });
