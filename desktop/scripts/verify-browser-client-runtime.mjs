@@ -250,6 +250,15 @@ export async function verifyBrowserClientRuntime({ desktopRoot = process.cwd() }
 
   const expectedAbi = getAbi(normalizeVersion(bundledNodeVersion), "node");
   const browserUseRoot = path.join(desktopRoot, browserUseRelativeRoot);
+  if (!fs.existsSync(browserUseRoot)) {
+    return {
+      abi: expectedAbi,
+      browserUsePresent: false,
+      classicLevelVersion: undefined,
+      nodeVersion: bundledNodeVersion,
+    };
+  }
+
   const browserClientPath = path.join(browserUseRoot, "scripts", "browser-client.mjs");
   if (!fs.existsSync(browserClientPath)) {
     throw new Error(`Missing browser client: ${browserClientPath}`);
@@ -269,6 +278,7 @@ export async function verifyBrowserClientRuntime({ desktopRoot = process.cwd() }
 
   return {
     abi: expectedAbi,
+    browserUsePresent: true,
     classicLevelVersion,
     nodeVersion: bundledNodeVersion,
   };
@@ -277,9 +287,15 @@ export async function verifyBrowserClientRuntime({ desktopRoot = process.cwd() }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const result = await verifyBrowserClientRuntime();
-    console.log(
-      `Verified browser client runtime: Node ${result.nodeVersion} ABI ${result.abi}, ${classicLevelPackageName}@${result.classicLevelVersion}.`,
-    );
+    if (result.browserUsePresent) {
+      console.log(
+        `Verified browser client runtime: Node ${result.nodeVersion} ABI ${result.abi}, ${classicLevelPackageName}@${result.classicLevelVersion}.`,
+      );
+    } else {
+      console.log(
+        `Verified Windows Node runtime: Node ${result.nodeVersion} ABI ${result.abi}; no bundled browser-use plugin present.`,
+      );
+    }
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

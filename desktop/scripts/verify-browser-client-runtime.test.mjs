@@ -69,7 +69,7 @@ function createDesktopFixture() {
     `${JSON.stringify({ name: "classic-level", version: "3.0.0" }, null, 2)}\n`,
   );
 
-  return { classicLevelRoot, desktopRoot };
+  return { browserUseRoot, classicLevelRoot, desktopRoot };
 }
 
 test("accepts browser client native payload metadata matching the bundled Node ABI", async () => {
@@ -92,7 +92,20 @@ test("accepts browser client native payload metadata matching the bundled Node A
 
   assert.equal(result.nodeVersion, "v24.14.0");
   assert.equal(result.abi, "137");
+  assert.equal(result.browserUsePresent, true);
   assert.equal(result.classicLevelVersion, "3.0.0");
+});
+
+test("skips browser client ABI check when browser-use is not bundled", async () => {
+  const { browserUseRoot, desktopRoot } = createDesktopFixture();
+  fs.rmSync(browserUseRoot, { recursive: true, force: true });
+
+  const result = await verifyBrowserClientRuntime({ desktopRoot });
+
+  assert.equal(result.nodeVersion, "v24.14.0");
+  assert.equal(result.abi, "137");
+  assert.equal(result.browserUsePresent, false);
+  assert.equal(result.classicLevelVersion, undefined);
 });
 
 test("accepts N-API runtime-agnostic Windows ARM64 prebuilds", async () => {

@@ -71,10 +71,8 @@ const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-no
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
 const codexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
-const browserUsePluginName = "browser-use";
 const openAiBundledMarketplaceName = "openai-bundled";
 const excludedBundledPluginNames = new Set(["computer-use", "latex-tectonic"]);
-const requiredBundledPluginNames = new Set([browserUsePluginName]);
 const nodeAbi = require("node-abi") as {
   getAbi(target: string, runtime: "electron" | "node"): string;
 };
@@ -233,19 +231,6 @@ export function syncBundledPluginResources(
   const selectedPlugins = sourceMarketplace.plugins.filter(
     (plugin) => !excludedBundledPluginNames.has(plugin.name ?? ""),
   );
-  const selectedPluginNames = new Set(
-    selectedPlugins.map((plugin) => requireBundledPluginName(plugin, sourceMarketplacePath)),
-  );
-  for (const requiredPluginName of requiredBundledPluginNames) {
-    if (!selectedPluginNames.has(requiredPluginName)) {
-      throw new Error(
-        `Bundled plugin marketplace does not list required plugin ${requiredPluginName}: ${sourceMarketplacePath}`,
-      );
-    }
-  }
-  if (selectedPlugins.length === 0) {
-    throw new Error(`Bundled plugin marketplace has no Windows plugins: ${sourceMarketplacePath}`);
-  }
 
   const destinationMarketplaceRoot = path.join(
     destinationPluginsRoot,
@@ -306,11 +291,8 @@ export function syncBundledPluginResources(
     "utf8",
   );
 
-  console.log(
-    `Synced bundled plugin resources for Windows: ${destinationPlugins
-      .map((plugin) => plugin.name)
-      .join(", ")}`,
-  );
+  const syncedPluginNames = destinationPlugins.map((plugin) => plugin.name).join(", ") || "none";
+  console.log(`Synced bundled plugin resources for Windows: ${syncedPluginNames}`);
 }
 
 async function downloadFile(

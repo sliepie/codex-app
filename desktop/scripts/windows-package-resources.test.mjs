@@ -264,8 +264,9 @@ test("Mach-O native payloads are not ready for Windows ARM64", () => {
   assert.equal(hasArm64RuntimePayload(packageRoot), false);
 });
 
-test("fails when the upstream bundle is missing required browser-use", () => {
+test("allows the upstream bundle to omit browser-use", () => {
   const appResourcesRoot = createAppResourcesFixture();
+  const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
   const marketplacePath = path.join(
     appResourcesRoot,
     "plugins",
@@ -278,13 +279,24 @@ test("fails when the upstream bundle is missing required browser-use", () => {
   marketplace.plugins = marketplace.plugins.filter((plugin) => plugin.name !== "browser-use");
   fs.writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`, "utf8");
 
-  assert.throws(
-    () =>
-      syncBundledPluginResources(
-        appResourcesRoot,
-        fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-")),
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+
+  const destinationMarketplace = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        destinationPluginsRoot,
+        "openai-bundled",
+        ".agents",
+        "plugins",
+        "marketplace.json",
       ),
-    /does not list required plugin browser-use/,
+      "utf8",
+    ),
+  );
+  assert.deepEqual(destinationMarketplace.plugins, []);
+  assert.equal(
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled", "plugins", "browser-use")),
+    false,
   );
 });
 
