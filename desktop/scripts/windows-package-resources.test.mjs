@@ -312,22 +312,34 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.match(loaderSource, /autoUpdate: false/);
 });
 
-test("bundles the app-owned Codex++ UI tweak without keyboard shortcut tweaks", () => {
-  const tweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
-  const manifest = JSON.parse(fs.readFileSync(path.join(tweakRoot, "manifest.json"), "utf8"));
-  assert.equal(manifest.id, "app.sliepie.codex.ui-overrides");
-  assert.equal(manifest.scope, "renderer");
-  assert.notEqual(manifest.id.includes("keyboard"), true);
+test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
+  const tweaksRoot = path.join(desktopRoot, "codex-plusplus", "tweaks");
+  const tweakNames = fs
+    .readdirSync(tweaksRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  assert.deepEqual(tweakNames, [
+    "codex-app-ui-overrides",
+    "codex-plusplus-updater-ui-overrides",
+  ]);
 
-  const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
-  assert.doesNotThrow(() => {
-    const module = { exports: {} };
-    const exports = module.exports;
-    const fn = new Function("module", "exports", "console", source);
-    fn(module, exports, console);
-    assert.equal(typeof module.exports.start, "function");
-    assert.equal(typeof module.exports.stop, "function");
-  });
+  for (const tweakName of tweakNames) {
+    const tweakRoot = path.join(tweaksRoot, tweakName);
+    const manifest = JSON.parse(fs.readFileSync(path.join(tweakRoot, "manifest.json"), "utf8"));
+    assert.equal(manifest.scope, "renderer");
+    assert.notEqual(manifest.id.includes("keyboard"), true);
+
+    const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+    assert.doesNotThrow(() => {
+      const module = { exports: {} };
+      const exports = module.exports;
+      const fn = new Function("module", "exports", "console", source);
+      fn(module, exports, console);
+      assert.equal(typeof module.exports.start, "function");
+      assert.equal(typeof module.exports.stop, "function");
+    });
+  }
 });
 
 test("includes installed tslib for recovered main-process bundles", () => {
