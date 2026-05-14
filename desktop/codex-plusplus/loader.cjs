@@ -9,6 +9,7 @@ const originalMain = "recovered/app-asar-extracted/.vite/build/bootstrap.js";
 const runtimeDir = path.join(__dirname, "runtime");
 const bundledTweaksDir = path.join(__dirname, "tweaks");
 const userRoot = resolveUserRoot();
+const configFile = path.join(userRoot, "config.json");
 const logFile = path.join(userRoot, "log", "loader.log");
 
 function resolveUserRoot() {
@@ -32,6 +33,33 @@ function readJson(filePath) {
 
 function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function disableCodexPlusPlusAutoUpdate() {
+  let config = {};
+  if (fs.existsSync(configFile)) {
+    try {
+      config = readJson(configFile);
+    } catch (error) {
+      log("codex-plusplus config read failed", error);
+      return;
+    }
+  }
+
+  if (!config || typeof config !== "object" || Array.isArray(config)) {
+    log("codex-plusplus config shape is invalid", "Expected object in config.json");
+    return;
+  }
+
+  config.codexPlusPlus = {
+    ...config.codexPlusPlus,
+    autoUpdate: false,
+  };
+  try {
+    writeJson(configFile, config);
+  } catch (error) {
+    log("codex-plusplus config write failed", error);
+  }
 }
 
 function copyDirectory(source, target) {
@@ -97,6 +125,7 @@ function syncBundledTweaks() {
 try {
   fs.mkdirSync(userRoot, { recursive: true });
   syncBundledTweaks();
+  disableCodexPlusPlusAutoUpdate();
   process.env.CODEX_PLUSPLUS_USER_ROOT = userRoot;
   process.env.CODEX_PLUSPLUS_RUNTIME = runtimeDir;
   require(path.join(runtimeDir, "main.js"));

@@ -303,6 +303,13 @@ test("includes generated plugin resources and Codex++ integration in the Windows
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
   assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
+
+  const loaderSource = fs.readFileSync(
+    path.join(desktopRoot, "codex-plusplus", "loader.cjs"),
+    "utf8",
+  );
+  assert.match(loaderSource, /config\.json/);
+  assert.match(loaderSource, /autoUpdate: false/);
 });
 
 test("bundles the app-owned Codex++ UI tweak without keyboard shortcut tweaks", () => {
