@@ -716,7 +716,7 @@ function runtimeCacheKey(
         electronVersion: runtimeVersion,
         nativeModules,
         target: "win32-arm64",
-        version: 2,
+        version: 3,
       }))
       .digest("hex");
   }
@@ -1120,6 +1120,123 @@ function runNodeRebuild(
   }
 }
 
+function assertNativeModuleVersions(
+  nodeModulesRoot: string,
+  nativeModules: NativeNodeModule[],
+): void {
+  for (const nativeModule of nativeModules) {
+    const installedVersion = getInstalledPackageVersion(nodeModulesRoot, nativeModule.name);
+    if (installedVersion !== nativeModule.version) {
+      throw new Error(
+        `Expected ${nativeModule.name} to match the recovered macOS app version ${nativeModule.version}, but found ${installedVersion ?? "missing"}.`,
+      );
+    }
+  }
+}
+
+function nativeModuleInstallSpec(nativeModule: NativeNodeModule): string {
+  return `${nativeModule.name}@${nativeModule.version}`;
+}
+
+function replaceRequiredFileText(filePath: string, before: string, after: string): boolean {
+  const source = fs.readFileSync(filePath, "utf8");
+  if (source.includes(after)) {
+    return false;
+  }
+  if (!source.includes(before)) {
+    throw new Error(`Expected source text was not found in ${filePath}.`);
+  }
+
+  fs.writeFileSync(filePath, source.replace(before, after), "utf8");
+  return true;
+}
+
+function patchBetterSqlite3ElectronSource(packageRootPath: string): void {
+  const packageJson = readPackageJson(packageRootPath);
+  if (!packageJson.version?.startsWith("12.")) {
+    throw new Error(
+      `Unsupported better-sqlite3 version for Electron 42 source patch: ${packageJson.version ?? "unknown"}.`,
+    );
+  }
+
+  const sourceRoot = path.join(packageRootPath, "src");
+  const addonSourcePath = path.join(sourceRoot, "better_sqlite3.cpp");
+  const macrosSourcePath = path.join(sourceRoot, "util", "macros.cpp");
+  const helpersSourcePath = path.join(sourceRoot, "util", "helpers.cpp");
+  let patched = false;
+
+  patched =
+    replaceRequiredFileText(
+      addonSourcePath,
+      '#include <sqlite3.h>\n#include <node.h>',
+      `#include <sqlite3.h>
+
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__builtin_frame_address)
+#include <intrin.h>
+#define __builtin_frame_address(level) _AddressOfReturnAddress()
+#endif
+
+#include <node.h>`,
+    ) || patched;
+  patched =
+    replaceRequiredFileText(
+      addonSourcePath,
+      '#include <node_buffer.h>\n\nstruct Addon;',
+      `#include <node_buffer.h>
+
+#if defined(NODE_MODULE_VERSION) && NODE_MODULE_VERSION >= 146
+#define BSQLITE3_EXTERNAL_NEW(isolate, value) v8::External::New((isolate), (value), v8::kExternalPointerTypeTagDefault)
+#define BSQLITE3_EXTERNAL_VALUE(external) (external)->Value(v8::kExternalPointerTypeTagDefault)
+#else
+#define BSQLITE3_EXTERNAL_NEW(isolate, value) v8::External::New((isolate), (value))
+#define BSQLITE3_EXTERNAL_VALUE(external) (external)->Value()
+#endif
+
+struct Addon;`,
+    ) || patched;
+  patched =
+    replaceRequiredFileText(
+      addonSourcePath,
+      "v8::Local<v8::External> data = v8::External::New(isolate, addon);",
+      "v8::Local<v8::External> data = BSQLITE3_EXTERNAL_NEW(isolate, addon);",
+    ) || patched;
+  patched =
+    replaceRequiredFileText(
+      macrosSourcePath,
+      "#define OnlyAddon static_cast<Addon*>(info.Data().As<v8::External>()->Value())",
+      "#define OnlyAddon static_cast<Addon*>(BSQLITE3_EXTERNAL_VALUE(info.Data().As<v8::External>()))",
+    ) || patched;
+  patched =
+    replaceRequiredFileText(
+      helpersSourcePath,
+      "\t\tfunc,\n\t\t0,\n\t\tdata",
+      "\t\tfunc,\n\t\tnullptr,\n\t\tdata",
+    ) || patched;
+
+  if (patched) {
+    console.log(
+      `Patched better-sqlite3@${packageJson.version} source for Electron 42 Windows ARM64 rebuild.`,
+    );
+  }
+}
+
+function patchElectronNativeModuleSources(
+  nodeModulesRoot: string,
+  nativeModules: NativeNodeModule[],
+  runtimeVersion: string,
+): void {
+  const electronMajor = Number(normalizeRuntimeVersion(runtimeVersion).split(".")[0]);
+  if (electronMajor < 42) {
+    return;
+  }
+
+  for (const nativeModule of nativeModules) {
+    if (nativeModule.name === "better-sqlite3") {
+      patchBetterSqlite3ElectronSource(packageRoot(nodeModulesRoot, nativeModule.name));
+    }
+  }
+}
+
 function withTemporaryPackageJson(
   moduleRoot: string,
   nativeModules: NativeNodeModule[],
@@ -1291,6 +1408,9 @@ function syncNativeNodeModulesTarget(
   );
 
   if (modulesRequiringInstall.length > 0) {
+    console.log(
+      `Installing missing native Node modules at recovered macOS app versions: ${modulesRequiringInstall.map(nativeModuleInstallSpec).join(", ")}`,
+    );
     withTemporaryPackageJson(moduleRoot, nativeModules, () => {
       runNpm(
         [
@@ -1299,9 +1419,7 @@ function syncNativeNodeModulesTarget(
           "--package-lock=false",
           "--no-audit",
           "--fund=false",
-          ...modulesRequiringInstall.map(
-            (nativeModule) => `${nativeModule.name}@${nativeModule.version}`,
-          ),
+          ...modulesRequiringInstall.map(nativeModuleInstallSpec),
         ],
         moduleRoot,
       );
@@ -1309,6 +1427,7 @@ function syncNativeNodeModulesTarget(
   }
 
   const nativeModuleNames = nativeModules.map((nativeModule) => nativeModule.name);
+  assertNativeModuleVersions(target.nodeModulesRoot, nativeModules);
   removeForeignPrebuilds(target.nodeModulesRoot);
   if (nativeNodeModulesReady(target, runtimeVersion)) {
     saveNativeNodeModulesToCache(
@@ -1325,6 +1444,7 @@ function syncNativeNodeModulesTarget(
 
   withTemporaryPackageJson(moduleRoot, nativeModules, () => {
     if (target.runtime === "electron") {
+      patchElectronNativeModuleSources(target.nodeModulesRoot, nativeModules, runtimeVersion);
       runElectronRebuild(nativeModuleNames, runtimeVersion, moduleRoot);
       return;
     }
