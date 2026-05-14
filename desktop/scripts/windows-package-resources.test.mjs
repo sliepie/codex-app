@@ -78,6 +78,18 @@ function createAppResourcesFixture() {
             category: "Productivity",
           },
           {
+            name: "chrome",
+            source: {
+              source: "local",
+              path: "./plugins/chrome",
+            },
+            policy: {
+              installation: "AVAILABLE",
+              authentication: "ON_INSTALL",
+            },
+            category: "Productivity",
+          },
+          {
             name: "latex",
             source: {
               source: "local",
@@ -115,6 +127,14 @@ function createAppResourcesFixture() {
   writeFixture(
     path.join(bundledRoot, "plugins", "computer-use", "skills", "computer", "SKILL.md"),
     "# Computer\n",
+  );
+  writeFixture(
+    path.join(bundledRoot, "plugins", "chrome", ".codex-plugin", "plugin.json"),
+    `${JSON.stringify({ name: "chrome", version: "0.1.0-alpha1" }, null, 2)}\n`,
+  );
+  writeFixture(
+    path.join(bundledRoot, "plugins", "chrome", "skills", "chrome", "SKILL.md"),
+    "# Chrome\n",
   );
   writeFixture(
     path.join(bundledRoot, "plugins", "latex", ".codex-plugin", "plugin.json"),
@@ -159,6 +179,10 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
     false,
   );
   assert.equal(
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/chrome")),
+    false,
+  );
+  assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex")),
     false,
   );
@@ -198,9 +222,44 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   assert.equal(release.tagName, "v0.1.7");
 });
 
-test("discovers native modules copied inside bundled plugin resources", () => {
+test("discovers native modules copied inside every non-excluded bundled plugin resource", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
+  const marketplacePath = path.join(
+    appResourcesRoot,
+    "plugins",
+    "openai-bundled",
+    ".agents",
+    "plugins",
+    "marketplace.json",
+  );
+  const marketplace = JSON.parse(fs.readFileSync(marketplacePath, "utf8"));
+  marketplace.plugins.push({
+    name: "native-helper",
+    source: {
+      source: "local",
+      path: "./plugins/native-helper",
+    },
+    policy: {
+      installation: "AVAILABLE",
+      authentication: "ON_INSTALL",
+    },
+    category: "Engineering",
+  });
+  fs.writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`, "utf8");
+
+  writeFixture(
+    path.join(
+      appResourcesRoot,
+      "plugins",
+      "openai-bundled",
+      "plugins",
+      "native-helper",
+      ".codex-plugin",
+      "plugin.json",
+    ),
+    `${JSON.stringify({ name: "native-helper", version: "0.1.0-alpha1" }, null, 2)}\n`,
+  );
   writeFixture(
     path.join(
       appResourcesRoot,
@@ -229,6 +288,34 @@ test("discovers native modules copied inside bundled plugin resources", () => {
     ),
     "{}\n",
   );
+  writeFixture(
+    path.join(
+      appResourcesRoot,
+      "plugins",
+      "openai-bundled",
+      "plugins",
+      "native-helper",
+      "scripts",
+      "node_modules",
+      "native-helper-level",
+      "package.json",
+    ),
+    `${JSON.stringify({ name: "native-helper-level", version: "1.2.3" }, null, 2)}\n`,
+  );
+  writeFixture(
+    path.join(
+      appResourcesRoot,
+      "plugins",
+      "openai-bundled",
+      "plugins",
+      "native-helper",
+      "scripts",
+      "node_modules",
+      "native-helper-level",
+      "binding.gyp",
+    ),
+    "{}\n",
+  );
 
   syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
 
@@ -236,13 +323,29 @@ test("discovers native modules copied inside bundled plugin resources", () => {
     fs.mkdtempSync(path.join(os.tmpdir(), "codex-recovered-")),
     destinationPluginsRoot,
   );
+  const targetsByPath = new Map(
+    targets.map((target) => [
+      path.relative(destinationPluginsRoot, target.nodeModulesRoot).replaceAll(path.sep, "/"),
+      target,
+    ]),
+  );
 
-  assert.equal(targets.length, 1);
-  assert.equal(targets[0].runtime, "node");
-  assert.deepEqual(targets[0].nativeModules, [{ name: "classic-level", version: "3.0.0" }]);
+  assert.equal(targets.length, 2);
   assert.equal(
-    path.relative(destinationPluginsRoot, targets[0].nodeModulesRoot).replaceAll(path.sep, "/"),
-    "openai-bundled/plugins/browser/scripts/node_modules",
+    targetsByPath.get("openai-bundled/plugins/browser/scripts/node_modules")?.runtime,
+    "node",
+  );
+  assert.deepEqual(
+    targetsByPath.get("openai-bundled/plugins/browser/scripts/node_modules")?.nativeModules,
+    [{ name: "classic-level", version: "3.0.0" }],
+  );
+  assert.equal(
+    targetsByPath.get("openai-bundled/plugins/native-helper/scripts/node_modules")?.runtime,
+    "node",
+  );
+  assert.deepEqual(
+    targetsByPath.get("openai-bundled/plugins/native-helper/scripts/node_modules")?.nativeModules,
+    [{ name: "native-helper-level", version: "1.2.3" }],
   );
 });
 

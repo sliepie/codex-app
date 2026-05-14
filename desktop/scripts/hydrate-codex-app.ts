@@ -72,7 +72,7 @@ const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
 const codexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
 const openAiBundledMarketplaceName = "openai-bundled";
-const excludedBundledPluginNames = new Set(["computer-use", "latex"]);
+const excludedBundledPluginNames = new Set(["computer-use", "chrome", "latex"]);
 const nodeAbi = require("node-abi") as {
   getAbi(target: string, runtime: "electron" | "node"): string;
 };
