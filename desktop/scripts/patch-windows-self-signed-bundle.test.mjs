@@ -111,8 +111,6 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
-      "webview/assets/general-settings-fixture.js",
-      "webview/assets/app-shell-fixture.js",
       "webview/assets/agent-settings-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/main-fixture.js",
@@ -135,7 +133,6 @@ test("patches app main bundle when upstream moves index targets there", () => {
   const appMainSource = fs.readFileSync(appMainPath, "utf8");
   assert.match(appMainSource, /commandGate=!0/);
   assert.match(appMainSource, /workspace_dependencies:!0/);
-  assert.match(appMainSource, /codex\.windowsMenuBarVisible/);
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   assert.equal(
@@ -144,7 +141,7 @@ test("patches app main bundle when upstream moves index targets there", () => {
   );
 });
 
-test("patches Windows menu bar visibility sync when minified function names drift", () => {
+test("leaves Windows menu bar visibility sync to Codex++", () => {
   const recoveredRoot = createRecoveredFixture();
   const indexPath = path.join(recoveredRoot, "webview", "assets", "index-fixture.js");
   fs.writeFileSync(
@@ -157,16 +154,16 @@ test("patches Windows menu bar visibility sync when minified function names drif
   const result = runPatcher(recoveredRoot, reportPath);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(fs.readFileSync(indexPath, "utf8"), /codex\.windowsMenuBarVisible/);
+  assert.doesNotMatch(fs.readFileSync(indexPath, "utf8"), /codex\.windowsMenuBarVisible/);
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   const patch = report.patches.find(
     (patch) => patch.name === "sync Windows menu bar visibility setting",
   );
-  assert.equal(patch?.status, "applied");
-  assert.equal(patch?.matcher, "semantic");
+  assert.equal(patch?.status, "assumed-enabled");
+  assert.match(patch?.reason, /Codex\+\+/);
 });
 
-test("patches Windows menu bar setting when minified general-settings names drift", () => {
+test("leaves Windows menu bar settings copy to Codex++", () => {
   const recoveredRoot = createRecoveredFixture();
   const settingsPath = path.join(
     recoveredRoot,
@@ -185,14 +182,13 @@ test("patches Windows menu bar setting when minified general-settings names drif
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const source = fs.readFileSync(settingsPath, "utf8");
-  assert.match(source, /settings\.general\.windowsMenuBar\.label/);
-  assert.match(source, /i!==`macOS`&&i!==`windows`/);
+  assert.doesNotMatch(source, /settings\.general\.windowsMenuBar\.label/);
+  assert.doesNotMatch(source, /i!==`macOS`&&i!==`windows`/);
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   const patch = report.patches.find(
     (patch) => patch.name === "show menu bar setting on Windows",
   );
-  assert.equal(patch?.status, "applied");
-  assert.equal(patch?.matcher, "semantic");
+  assert.equal(patch, undefined);
 });
 
 test("reports a missing gate target as assumed enabled and continues", () => {
@@ -235,7 +231,7 @@ test("fails when a required gate marker remains but no patcher matches", () => {
   assert.match(report.patches[0].reason, /required marker\(s\) are still present: 1981165915/);
 });
 
-test("fails when the Windows menu bar visibility sync target is missing", () => {
+test("ignores missing Windows menu bar visibility sync target", () => {
   const recoveredRoot = createRecoveredFixture();
   fs.writeFileSync(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
@@ -246,14 +242,14 @@ test("fails when the Windows menu bar visibility sync target is missing", () => 
 
   const result = runPatcher(recoveredRoot, reportPath);
 
-  assert.notEqual(result.status, 0);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   const patch = report.patches.find(
     (patch) => patch.name === "sync Windows menu bar visibility setting",
   );
   assert.ok(patch);
-  assert.equal(patch.status, "failed-required");
-  assert.match(patch.reason, /Required patch target was not found/);
+  assert.equal(patch.status, "assumed-enabled");
+  assert.match(patch.reason, /Codex\+\+/);
 });
 
 test("patches function ranges when bundle literals contain braces", () => {
@@ -360,21 +356,6 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     /workspace_dependencies:!0/,
   );
   assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /codex\.windowsMenuBarVisible/,
-  );
-  assert.match(
-    fs.readFileSync(
-      path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
-      "utf8",
-    ),
-    /settings\.general\.windowsMenuBar\.label/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "app-shell-fixture.js"), "utf8"),
-    /codex-windows-menu-bar-visibility-changed/,
-  );
-  assert.match(
     fs.readFileSync(
       path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
       "utf8",
@@ -416,12 +397,14 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 11);
+  assert.equal(report.patches.length, 9);
   assert.ok(
     report.patches.every((patch) =>
       patch.name === "restore Windows title bar overlay controls height"
         ? patch.status === "already-applied"
-        : patch.status === "applied",
+        : patch.name === "sync Windows menu bar visibility setting"
+          ? patch.status === "assumed-enabled"
+          : patch.status === "applied",
     ),
   );
 });
@@ -531,7 +514,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 11);
+  assert.equal(report.patches.length, 9);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),

@@ -13,6 +13,10 @@ type PatchResult = {
 
 const desktopRoot = process.cwd();
 const identifierPattern = String.raw`[A-Za-z_$][\w$]*`;
+const disabledPatchNames = new Set([
+  "sync Windows menu bar visibility setting",
+]);
+const disabledPatchReason = "Disabled because Codex++ owns the Windows menu bar behavior.";
 const workspaceDependencyFeatureMapAppliedPattern =
   /return\{(?=[^{}]*workspace_dependencies:!0)(?=[^{}]*\[[^\]]+\]:[^{}]*?\.groupName===`Test`)[^{}]*\}/;
 const packageLocalCacheRelocationAppliedPattern =
@@ -619,6 +623,15 @@ function replaceWithPatchers(
 ): PatchResult {
   const reportFile = toReportPath(recoveredRoot, filePath);
   const original = fs.readFileSync(filePath, "utf8");
+  if (disabledPatchNames.has(name)) {
+    return {
+      file: reportFile,
+      name,
+      status: "assumed-enabled",
+      reason: disabledPatchReason,
+    };
+  }
+
   for (const patcher of patchers) {
     let result: SourcePatchResult | undefined;
     try {
@@ -990,8 +1003,6 @@ function main(): void {
   try {
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
-    results.push(...patchGeneralSettings(recoveredRoot));
-    results.push(...patchAppShell(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
     results.push(...patchMainBundle(recoveredRoot));
