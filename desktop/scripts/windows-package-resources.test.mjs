@@ -284,9 +284,11 @@ test("discovers native modules copied inside every non-excluded bundled plugin r
       "scripts",
       "node_modules",
       "classic-level",
-      "binding.gyp",
+      "prebuilds",
+      "darwin-arm64",
+      "classic-level.node",
     ),
-    "{}\n",
+    "native payload\n",
   );
   writeFixture(
     path.join(
@@ -312,9 +314,11 @@ test("discovers native modules copied inside every non-excluded bundled plugin r
       "scripts",
       "node_modules",
       "native-helper-level",
-      "binding.gyp",
+      "prebuilds",
+      "darwin-arm64",
+      "native-helper-level.node",
     ),
-    "{}\n",
+    "native payload\n",
   );
 
   syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);

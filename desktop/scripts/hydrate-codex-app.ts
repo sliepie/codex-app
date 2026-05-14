@@ -490,10 +490,7 @@ function listPackageRoots(nodeModulesRoot: string): string[] {
 }
 
 function hasNativePayload(packageRoot: string): boolean {
-  if (
-    fs.existsSync(path.join(packageRoot, "binding.gyp")) ||
-    fs.existsSync(path.join(packageRoot, "prebuilds"))
-  ) {
+  if (fs.existsSync(path.join(packageRoot, "prebuilds"))) {
     return true;
   }
 
