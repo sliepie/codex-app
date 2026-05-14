@@ -408,6 +408,8 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   );
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
   assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
   assert.doesNotMatch(workflowSource, /PR_HEAD_SHA/);
   assert.match(workflowSource, /\$targetSha = \$env:BUILD_SHA/);
@@ -415,6 +417,18 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--prerelease --latest=false/);
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--prerelease --latest=false/);
   assert.match(workflowSource, /gh release upload \$tag \$zip\.FullName[\s\S]*--clobber/);
+});
+
+test("release workflow tracks Codex++ in package inputs and release metadata", () => {
+  const workflowSource = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
+    "utf8",
+  );
+
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /Codex\+\+: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);
+  assert.match(workflowSource, /gh release edit \$tag[\s\S]*--notes "\$notes"/);
 });
 
 test("authenticates Codex++ GitHub release lookup when a token is available", () => {
@@ -426,6 +440,43 @@ test("authenticates Codex++ GitHub release lookup when a token is available", ()
   assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
   assert.match(scriptSource, /headers\.Authorization = `Bearer \$\{token\}`/);
   assert.match(scriptSource, /headers: githubHeaders\(\)/);
+  assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_TAG/);
+  assert.match(scriptSource, /fetchCodexPlusPlusRelease\(pinnedTagName\)/);
+  assert.match(scriptSource, /downloadFile\(zipballUrl, zipPath, githubHeaders\(\)\)/);
+});
+
+test("authenticates GitHub release asset downloads when a token is available", () => {
+  const scriptSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
+    "utf8",
+  );
+
+  assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
+  assert.match(scriptSource, /headers\.Authorization = `Bearer \$\{token\}`/);
+  assert.match(scriptSource, /hostname === "api\.github\.com" \|\| hostname === "github\.com"/);
+  assert.match(scriptSource, /fetch\(url, \{ headers: headersForUrl\(url\) \}\)/);
+});
+
+test("repo Node toolchain matches the Electron runtime Node version", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
+  );
+  const nodeVersionFile = fs.readFileSync(path.join(repoRoot, ".node-version"), "utf8").trim();
+  const electronPath = require("electron");
+  const electronNodeVersion = execFileSync(
+    electronPath,
+    ["-p", "process.versions.node"],
+    {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: "1",
+      },
+    },
+  ).trim();
+
+  assert.equal(nodeVersionFile, electronNodeVersion);
+  assert.equal(packageJson.engines.node, electronNodeVersion);
 });
 
 test("keys native updater cache by builder script and Rust crate sources", () => {

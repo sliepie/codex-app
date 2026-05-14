@@ -8,6 +8,7 @@ type Options = {
   version?: string;
   appcastUrl: string;
   cacheRoot: string;
+  codexPlusPlusTag?: string;
   force: boolean;
 };
 
@@ -107,6 +108,9 @@ function parseOptions(argv: string[]): Options {
       readOption(argv, "--appcast-url", "-AppcastUrl") ??
       "https://persistent.oaistatic.com/codex-app-prod/appcast.xml",
     cacheRoot,
+    codexPlusPlusTag:
+      readOption(argv, "--codex-plusplus-tag", "-CodexPlusPlusTag") ??
+      process.env.CODEX_PLUS_PLUS_TAG,
     force: hasFlag(argv, "--force", "-Force"),
   };
 }
@@ -309,8 +313,12 @@ export function syncBundledPluginResources(
   );
 }
 
-async function downloadFile(url: string, outputPath: string): Promise<void> {
-  const response = await fetch(url);
+async function downloadFile(
+  url: string,
+  outputPath: string,
+  headers?: Record<string, string>,
+): Promise<void> {
+  const response = await fetch(url, headers ? { headers } : undefined);
   if (!response.ok || !response.body) {
     throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
   }
@@ -335,16 +343,19 @@ function githubHeaders(): Record<string, string> {
   return headers;
 }
 
-async function fetchLatestCodexPlusPlusRelease(): Promise<CodexPlusPlusRelease> {
+async function fetchCodexPlusPlusRelease(tagName?: string): Promise<CodexPlusPlusRelease> {
+  const releasePath = tagName
+    ? `releases/tags/${encodeURIComponent(tagName)}`
+    : "releases/latest";
   const response = await fetch(
-    `https://api.github.com/repos/${codexPlusPlusRepo}/releases/latest`,
+    `https://api.github.com/repos/${codexPlusPlusRepo}/${releasePath}`,
     {
       headers: githubHeaders(),
     },
   );
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch latest Codex++ release: ${response.status} ${response.statusText}`,
+      `Failed to fetch Codex++ release: ${response.status} ${response.statusText}`,
     );
   }
 
@@ -428,8 +439,12 @@ export function syncCodexPlusPlusRuntimeAssets(
   );
 }
 
-async function hydrateCodexPlusPlusRuntime(cacheRoot: string, force: boolean): Promise<void> {
-  const release = await fetchLatestCodexPlusPlusRelease();
+async function hydrateCodexPlusPlusRuntime(
+  cacheRoot: string,
+  force: boolean,
+  pinnedTagName?: string,
+): Promise<void> {
+  const release = await fetchCodexPlusPlusRelease(pinnedTagName);
   const tagName = release.tag_name?.trim();
   const zipballUrl = release.zipball_url?.trim();
   if (!tagName || !zipballUrl) {
@@ -448,7 +463,7 @@ async function hydrateCodexPlusPlusRuntime(cacheRoot: string, force: boolean): P
   }
 
   if (!fs.existsSync(zipPath)) {
-    await downloadFile(zipballUrl, zipPath);
+    await downloadFile(zipballUrl, zipPath, githubHeaders());
   }
 
   if (!fs.existsSync(extractRoot)) {
@@ -1435,7 +1450,7 @@ async function main(): Promise<void> {
   const appResourcesRoot = path.dirname(appAsar);
   const nodeVersion = readBundledNodeVersion(appResourcesRoot);
   syncBundledPluginResources(appResourcesRoot);
-  await hydrateCodexPlusPlusRuntime(options.cacheRoot, options.force);
+  await hydrateCodexPlusPlusRuntime(options.cacheRoot, options.force, options.codexPlusPlusTag);
 
   execFileSync(
     process.execPath,

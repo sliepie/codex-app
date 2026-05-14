@@ -83,8 +83,8 @@ assets:
 From `desktop/`:
 
 ```shell
-fnm install 22
-fnm use 22
+fnm install 24.14.0
+fnm use 24.14.0
 npm ci
 npm run make:win:arm64
 ```

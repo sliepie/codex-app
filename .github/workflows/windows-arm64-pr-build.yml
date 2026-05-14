@@ -15,6 +15,7 @@ jobs:
       codex_app_version: ${{ steps.upstream.outputs.codex_app_version }}
       codex_app_build: ${{ steps.upstream.outputs.codex_app_build }}
       codex_cli_tag: ${{ steps.upstream.outputs.codex_cli_tag }}
+      codex_plus_plus_tag: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
     env:
       GH_TOKEN: ${{ github.token }}
       PACKAGE_ARCHITECTURE: arm64
@@ -71,6 +72,7 @@ jobs:
         working-directory: desktop
         env:
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
+          CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
         run: npm run prepare:win:arm64
 
       - name: Build Windows ARM64 ZIP
@@ -104,6 +106,7 @@ jobs:
       CODEX_APP_VERSION: ${{ needs.build-windows-arm64.outputs.codex_app_version }}
       CODEX_APP_BUILD: ${{ needs.build-windows-arm64.outputs.codex_app_build }}
       CODEX_CLI_TAG: ${{ needs.build-windows-arm64.outputs.codex_cli_tag }}
+      CODEX_PLUS_PLUS_TAG: ${{ needs.build-windows-arm64.outputs.codex_plus_plus_tag }}
     concurrency:
       group: windows-arm64-pr-alpha-release
       cancel-in-progress: false
@@ -135,6 +138,7 @@ jobs:
           Workflow run: $env:WORKFLOW_RUN_URL
           Upstream Codex app: $env:CODEX_APP_VERSION build $env:CODEX_APP_BUILD
           Codex CLI: $env:CODEX_CLI_TAG
+          Codex++: $env:CODEX_PLUS_PLUS_TAG
           "@
 
           gh release view $tag --repo "$repo" *> $null

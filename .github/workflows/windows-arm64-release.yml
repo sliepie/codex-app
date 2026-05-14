@@ -45,7 +45,7 @@ jobs:
       - name: Skip released commit
         if: steps.upstream.outputs.current_commit_release_tag != ''
         run: |
-          Write-Output "Codex app ${{ steps.upstream.outputs.release_version }} build ${{ steps.upstream.outputs.codex_app_build }} with CLI ${{ steps.upstream.outputs.codex_cli_tag }} already has repo release ${{ steps.upstream.outputs.current_commit_release_tag }} for this commit."
+          Write-Output "Codex app ${{ steps.upstream.outputs.release_version }} build ${{ steps.upstream.outputs.codex_app_build }} with CLI ${{ steps.upstream.outputs.codex_cli_tag }} and Codex++ ${{ steps.upstream.outputs.codex_plus_plus_tag }} already has repo release ${{ steps.upstream.outputs.current_commit_release_tag }} for this commit."
 
       - name: Restore Electron cache
         if: steps.upstream.outputs.current_commit_release_tag == ''
@@ -84,6 +84,7 @@ jobs:
         working-directory: desktop
         env:
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
+          CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
         run: npm run prepare:win:arm64
 
       - name: Make Windows ARM64 ZIP
@@ -109,15 +110,27 @@ jobs:
           }
 
           $tag = "${{ steps.upstream.outputs.release_tag }}"
+          $notes = @"
+          Codex app: ${{ steps.upstream.outputs.codex_app_version }} build ${{ steps.upstream.outputs.codex_app_build }}
+          Codex CLI: ${{ steps.upstream.outputs.codex_cli_tag }}
+          Codex++: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
+          Commit: ${{ github.sha }}
+          "@
+
           gh release view $tag --repo "${{ github.repository }}" *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag $zip.FullName --repo "${{ github.repository }}" --clobber
             if ($LASTEXITCODE -ne 0) {
               throw "Failed to upload Windows ARM64 ZIP to existing release $tag."
             }
+
+            gh release edit $tag --repo "${{ github.repository }}" --title "codex-app-windows-arm64 $tag" --notes "$notes"
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to update GitHub release $tag."
+            }
           }
           else {
-            gh release create $tag $zip.FullName --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "codex-app-windows-arm64 $tag"
+            gh release create $tag $zip.FullName --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "codex-app-windows-arm64 $tag" --notes "$notes"
             if ($LASTEXITCODE -ne 0) {
               throw "Failed to create GitHub release $tag."
             }

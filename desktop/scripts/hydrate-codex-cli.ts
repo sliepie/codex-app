@@ -83,8 +83,28 @@ function parseOptions(argv: string[]): Options {
   };
 }
 
+function githubHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "sliepie-codex-app-windows-build",
+  };
+  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
+function headersForUrl(url: string): Record<string, string> | undefined {
+  const hostname = new URL(url).hostname.toLowerCase();
+  return hostname === "api.github.com" || hostname === "github.com"
+    ? githubHeaders()
+    : undefined;
+}
+
 async function downloadFile(url: string, outputPath: string): Promise<void> {
-  const response = await fetch(url);
+  const response = await fetch(url, { headers: headersForUrl(url) });
   if (!response.ok || !response.body) {
     throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
   }
@@ -106,7 +126,7 @@ function parseSha256(text: string, label: string): string {
 }
 
 async function fetchText(url: string): Promise<string> {
-  const response = await fetch(url);
+  const response = await fetch(url, { headers: headersForUrl(url) });
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
   }
