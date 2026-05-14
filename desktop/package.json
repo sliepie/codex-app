@@ -47,7 +47,7 @@
     "@electron-forge/plugin-fuses": "^7.11.1",
     "@electron/asar": "^3.4.1",
     "@electron/fuses": "^1.8.0",
-    "@electron/rebuild": "^4.0.3",
+    "@electron/rebuild": "^4.0.4",
     "electron": "41.2.0",
     "extract-zip": "^2.0.1",
     "node-abi": "^4.31.0"
