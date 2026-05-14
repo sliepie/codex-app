@@ -78,10 +78,10 @@ function createAppResourcesFixture() {
             category: "Productivity",
           },
           {
-            name: "latex-tectonic",
+            name: "latex",
             source: {
               source: "local",
-              path: "./plugins/latex-tectonic",
+              path: "./plugins/latex",
             },
             policy: {
               installation: "AVAILABLE",
@@ -117,8 +117,8 @@ function createAppResourcesFixture() {
     "# Computer\n",
   );
   writeFixture(
-    path.join(bundledRoot, "plugins", "latex-tectonic", ".codex-plugin", "plugin.json"),
-    `${JSON.stringify({ name: "latex-tectonic" }, null, 2)}\n`,
+    path.join(bundledRoot, "plugins", "latex", ".codex-plugin", "plugin.json"),
+    `${JSON.stringify({ name: "latex" }, null, 2)}\n`,
   );
 
   return appResourcesRoot;
@@ -159,7 +159,7 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
     false,
   );
   assert.equal(
-    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex-tectonic")),
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex")),
     false,
   );
 });
