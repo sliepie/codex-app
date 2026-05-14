@@ -1415,7 +1415,6 @@ function syncNativeNodeModulesTarget(
           ),
         ],
         moduleRoot,
-        nativeNpmInstallEnv(target, runtimeVersion),
       );
     });
   }
