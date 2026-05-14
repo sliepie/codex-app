@@ -527,6 +527,21 @@ test("hydrates the app payload before packaging", () => {
   assertHydrateAppRunsBeforeForge("make:win:arm64:ci", packageJson.scripts);
 });
 
+test("Windows ARM64 workflows use the documented VS2026 runner image", () => {
+  for (const workflowName of [
+    "windows-arm64-pr-build.yml",
+    "windows-arm64-release.yml",
+  ]) {
+    const workflowSource = fs.readFileSync(
+      path.join(repoRoot, ".github", "workflows", workflowName),
+      "utf8",
+    );
+
+    assert.match(workflowSource, /runs-on: windows-2025-vs2026/);
+    assert.doesNotMatch(workflowSource, /runs-on: windows-latest/);
+  }
+});
+
 test("PR builds publish the ZIP to a mutable alpha release", () => {
   const workflowSource = fs.readFileSync(
     path.join(repoRoot, ".github", "workflows", "windows-arm64-pr-build.yml"),
