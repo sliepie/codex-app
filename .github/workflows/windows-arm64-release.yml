@@ -64,6 +64,55 @@ jobs:
             desktop/.cache/runtime-node-modules
           key: ${{ steps.upstream.outputs.hydration_cache_key }}
 
+      - name: Initialize VS2026 developer environment
+        if: steps.upstream.outputs.current_commit_release_tag == ''
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installPath = & $vswhere -latest -products * -version "[18.0,19.0)" -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath
+          if ([string]::IsNullOrWhiteSpace($installPath)) {
+            throw "Visual Studio 2026 with ARM64 VC tools was not found."
+          }
+
+          $vcVars = Join-Path $installPath "VC\Auxiliary\Build\vcvarsall.bat"
+          if (-not (Test-Path -LiteralPath $vcVars)) {
+            throw "Visual Studio 2026 vcvarsall.bat was not found at $vcVars."
+          }
+
+          $environment = @{}
+          $envLines = cmd /s /c ('"{0}" arm64 && set' -f $vcVars)
+          foreach ($line in $envLines) {
+            if ($line -match "^([^=]+)=(.*)$") {
+              $environment[$Matches[1]] = $Matches[2]
+            }
+          }
+
+          foreach ($name in @(
+            "Path",
+            "INCLUDE",
+            "LIB",
+            "LIBPATH",
+            "VCINSTALLDIR",
+            "VSINSTALLDIR",
+            "VSCMD_ARG_TGT_ARCH",
+            "VSCMD_ARG_HOST_ARCH",
+            "WindowsLibPath",
+            "WindowsSdkBinPath",
+            "WindowsSdkDir",
+            "WindowsSDKLibVersion",
+            "WindowsSDKVersion",
+            "VisualStudioVersion"
+          )) {
+            if ($environment.ContainsKey($name)) {
+              "$name=$($environment[$name])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            }
+          }
+
+          # node-gyp 11 only recognizes Visual Studio through 2022.
+          # vcvarsall selected VS2026; these keep node-gyp on the env-based path.
+          "VSCMD_VER=17.0" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "npm_config_msvs_version=2022" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Restore native updater cache
         if: steps.upstream.outputs.current_commit_release_tag == ''
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
