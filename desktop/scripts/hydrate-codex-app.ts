@@ -660,11 +660,11 @@ function collectRuntimePackageRoots(
   return packageRoots;
 }
 
-function readRuntimeElectronVersion(recoveredRoot: string): string {
-  const packageJson = readPackageJson(recoveredRoot);
+function readPackageElectronVersion(packageRoot: string, label: string): string {
+  const packageJson = readPackageJson(packageRoot);
   const electronVersion = packageJson.devDependencies?.electron ?? packageJson.dependencies?.electron;
   if (!electronVersion) {
-    throw new Error("Hydrated app package.json does not list its Electron version.");
+    throw new Error(`${label} package.json does not list its Electron version.`);
   }
   return electronVersion;
 }
@@ -1353,7 +1353,14 @@ function syncNativeNodeModules(recoveredRoot: string, nodeVersion: string): void
     return;
   }
 
-  const electronVersion = readRuntimeElectronVersion(recoveredRoot);
+  const electronVersion = readPackageElectronVersion(desktopRoot, "Packaging workspace");
+  const recoveredElectronVersion = readPackageElectronVersion(recoveredRoot, "Hydrated app");
+  if (normalizeRuntimeVersion(electronVersion) !== normalizeRuntimeVersion(recoveredElectronVersion)) {
+    console.log(
+      `Using packaging Electron ${normalizeRuntimeVersion(electronVersion)} for Windows ARM64 native modules; hydrated app declares ${normalizeRuntimeVersion(recoveredElectronVersion)}.`,
+    );
+  }
+
   for (const target of targets) {
     syncNativeNodeModulesTarget(
       target,
