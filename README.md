@@ -50,6 +50,10 @@ Latest ZIP:
 
 - https://github.com/sliepie/codex-app/releases/latest/download/codex-app-windows-arm64.zip
 
+Alpha PR ZIP:
+
+- https://github.com/sliepie/codex-app/releases/download/codex-app-alpha/codex-app-windows-arm64.zip
+
 ### Release Assets
 
 The latest GitHub Release also exposes direct links for the self-signed install
@@ -79,8 +83,8 @@ assets:
 From `desktop/`:
 
 ```shell
-fnm install 22
-fnm use 22
+fnm install 24.14.0
+fnm use 24.14.0
 npm ci
 npm run make:win:arm64
 ```
@@ -92,8 +96,10 @@ The Windows package also builds a small Rust native updater replacement. Install
 Rust through `rustup` with the MSVC toolchain before running the package command.
 
 The build hydrates `desktop/recovered/app-asar-extracted/` from the official
-appcast and downloads the Windows ARM64 Codex CLI resources before packaging.
-The ZIP output is written under `desktop/out/make/zip/win32/arm64/`.
+appcast, downloads the Windows ARM64 Codex CLI resources, and hydrates the
+bundled Codex++ runtime from the latest `b-nnett/codex-plusplus` GitHub Release
+before packaging. The ZIP output is written under
+`desktop/out/make/zip/win32/arm64/`.
 
 ## Vendored `node_repl.exe`
 

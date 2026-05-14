@@ -8,6 +8,7 @@ type Options = {
   version?: string;
   appcastUrl: string;
   cacheRoot: string;
+  codexPlusPlusTag?: string;
   force: boolean;
 };
 
@@ -58,9 +59,18 @@ type PluginJson = {
   name?: string;
 };
 
+export type CodexPlusPlusRelease = {
+  tag_name?: string;
+  html_url?: string;
+  zipball_url?: string;
+  published_at?: string;
+};
+
 const desktopRoot = process.cwd();
 const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-node-modules");
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
+const codexPlusPlusRepo = "b-nnett/codex-plusplus";
+const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
 const browserUsePluginName = "browser-use";
 const openAiBundledMarketplaceName = "openai-bundled";
 const excludedBundledPluginNames = new Set(["computer-use", "latex-tectonic"]);
@@ -98,6 +108,9 @@ function parseOptions(argv: string[]): Options {
       readOption(argv, "--appcast-url", "-AppcastUrl") ??
       "https://persistent.oaistatic.com/codex-app-prod/appcast.xml",
     cacheRoot,
+    codexPlusPlusTag:
+      readOption(argv, "--codex-plusplus-tag", "-CodexPlusPlusTag") ??
+      process.env.CODEX_PLUS_PLUS_TAG,
     force: hasFlag(argv, "--force", "-Force"),
   };
 }
@@ -300,13 +313,171 @@ export function syncBundledPluginResources(
   );
 }
 
-async function downloadFile(url: string, outputPath: string): Promise<void> {
-  const response = await fetch(url);
+async function downloadFile(
+  url: string,
+  outputPath: string,
+  headers?: Record<string, string>,
+): Promise<void> {
+  const response = await fetch(url, headers ? { headers } : undefined);
   if (!response.ok || !response.body) {
     throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
   }
 
   fs.writeFileSync(outputPath, Buffer.from(await response.arrayBuffer()));
+}
+
+function sanitizePathSegment(value: string): string {
+  return value.replace(/[^A-Za-z0-9._-]/g, "_");
+}
+
+function githubHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "sliepie-codex-app-windows-build",
+  };
+  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
+async function fetchCodexPlusPlusRelease(tagName?: string): Promise<CodexPlusPlusRelease> {
+  const releasePath = tagName
+    ? `releases/tags/${encodeURIComponent(tagName)}`
+    : "releases/latest";
+  const response = await fetch(
+    `https://api.github.com/repos/${codexPlusPlusRepo}/${releasePath}`,
+    {
+      headers: githubHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch Codex++ release: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  return await response.json() as CodexPlusPlusRelease;
+}
+
+function findCodexPlusPlusSourceRoot(extractRoot: string): string | undefined {
+  const pending = [extractRoot];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!current) {
+      continue;
+    }
+
+    const runtimeMainPath = path.join(
+      current,
+      "packages",
+      "installer",
+      "assets",
+      "runtime",
+      "main.js",
+    );
+    if (fs.existsSync(runtimeMainPath)) {
+      return current;
+    }
+
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        pending.push(path.join(current, entry.name));
+      }
+    }
+  }
+
+  return undefined;
+}
+
+export function syncCodexPlusPlusRuntimeAssets(
+  sourceRoot: string,
+  release: CodexPlusPlusRelease,
+  destinationRoot = codexPlusPlusRoot,
+): void {
+  const runtimeSourceRoot = path.join(
+    sourceRoot,
+    "packages",
+    "installer",
+    "assets",
+    "runtime",
+  );
+  const runtimeDestinationRoot = path.join(destinationRoot, "runtime");
+  const licensePath = path.join(sourceRoot, "LICENSE");
+
+  for (const fileName of ["main.js", "preload.js"]) {
+    const filePath = path.join(runtimeSourceRoot, fileName);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Codex++ release is missing runtime asset ${fileName}.`);
+    }
+  }
+  if (!fs.existsSync(licensePath)) {
+    throw new Error("Codex++ release is missing LICENSE.");
+  }
+
+  fs.rmSync(runtimeDestinationRoot, { recursive: true, force: true });
+  fs.mkdirSync(destinationRoot, { recursive: true });
+  fs.cpSync(runtimeSourceRoot, runtimeDestinationRoot, { recursive: true });
+  fs.copyFileSync(licensePath, path.join(destinationRoot, "LICENSE"));
+  fs.writeFileSync(
+    path.join(destinationRoot, "release.json"),
+    `${JSON.stringify(
+      {
+        repo: codexPlusPlusRepo,
+        tagName: release.tag_name,
+        releaseUrl: release.html_url,
+        zipballUrl: release.zipball_url,
+        publishedAt: release.published_at,
+        hydratedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+}
+
+async function hydrateCodexPlusPlusRuntime(
+  cacheRoot: string,
+  force: boolean,
+  pinnedTagName?: string,
+): Promise<void> {
+  const release = await fetchCodexPlusPlusRelease(pinnedTagName);
+  const tagName = release.tag_name?.trim();
+  const zipballUrl = release.zipball_url?.trim();
+  if (!tagName || !zipballUrl) {
+    throw new Error("Latest Codex++ release is missing a tag or zipball URL.");
+  }
+
+  const safeTagName = sanitizePathSegment(tagName);
+  const codexPlusPlusCacheRoot = path.join(cacheRoot, "codex-plusplus");
+  const zipPath = path.join(codexPlusPlusCacheRoot, `${safeTagName}.zip`);
+  const extractRoot = path.join(codexPlusPlusCacheRoot, `extract-${safeTagName}`);
+  fs.mkdirSync(codexPlusPlusCacheRoot, { recursive: true });
+
+  if (force) {
+    fs.rmSync(zipPath, { force: true });
+    fs.rmSync(extractRoot, { recursive: true, force: true });
+  }
+
+  if (!fs.existsSync(zipPath)) {
+    await downloadFile(zipballUrl, zipPath, githubHeaders());
+  }
+
+  if (!fs.existsSync(extractRoot)) {
+    fs.mkdirSync(extractRoot, { recursive: true });
+    await extract(zipPath, { dir: extractRoot });
+  }
+
+  const sourceRoot = findCodexPlusPlusSourceRoot(extractRoot);
+  if (!sourceRoot) {
+    throw new Error("Could not find Codex++ runtime assets in the latest release archive.");
+  }
+
+  syncCodexPlusPlusRuntimeAssets(sourceRoot, release);
+  console.log(`Hydrated Codex++ ${tagName} from ${release.html_url ?? zipballUrl}`);
 }
 
 function listPackageRoots(nodeModulesRoot: string): string[] {
@@ -1279,6 +1450,7 @@ async function main(): Promise<void> {
   const appResourcesRoot = path.dirname(appAsar);
   const nodeVersion = readBundledNodeVersion(appResourcesRoot);
   syncBundledPluginResources(appResourcesRoot);
+  await hydrateCodexPlusPlusRuntime(options.cacheRoot, options.force, options.codexPlusPlusTag);
 
   execFileSync(
     process.execPath,

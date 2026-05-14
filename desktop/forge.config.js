@@ -249,6 +249,7 @@ function isPackageFile(file) {
     '/recovered/app-asar-extracted/webview',
     '/recovered/app-asar-extracted/skills',
     '/recovered/app-asar-extracted/package.json',
+    '/codex-plusplus',
     '/package.json',
   ].some((allowedPath) => file.startsWith(allowedPath)) ||
     isRecoveredNodeModule(file) ||
@@ -279,7 +280,7 @@ function syncPackagedPackageJson(buildPath) {
   packageJson.codexBuildNumber =
     releaseInfo?.buildNumber ?? upstreamPackageJson.codexBuildNumber ?? packageJson.codexBuildNumber;
   packageJson.codexWindowsPackageIdentity = codexWindowsProdOaiPackageIdentity;
-  packageJson.main = 'recovered/app-asar-extracted/.vite/build/bootstrap.js';
+  packageJson.main = 'codex-plusplus/loader.cjs';
 
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
 }

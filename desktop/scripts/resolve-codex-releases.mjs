@@ -4,6 +4,7 @@ const appcastUrl =
   process.env.CODEX_APPCAST_URL ??
   "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
 const codexCliRepository = process.env.CODEX_CLI_REPOSITORY ?? "openai/codex";
+const codexPlusPlusRepository = process.env.CODEX_PLUS_PLUS_REPOSITORY ?? "b-nnett/codex-plusplus";
 const githubApiUrl = process.env.GITHUB_API_URL ?? "https://api.github.com";
 
 function fail(message) {
@@ -53,7 +54,25 @@ function releaseRevisionFromTag(tagName, appVersion) {
   return undefined;
 }
 
-function resolveRepoReleaseRevision({ appVersion, currentSha, releases }) {
+function releaseMetadataLine(label, value) {
+  return `${label}: ${value}`;
+}
+
+function releaseTracksInputs(release, { codexCliTag, codexPlusPlusTag }) {
+  const body = release.body ?? "";
+  return (
+    body.includes(releaseMetadataLine("Codex CLI", codexCliTag)) &&
+    body.includes(releaseMetadataLine("Codex++", codexPlusPlusTag))
+  );
+}
+
+function resolveRepoReleaseRevision({
+  appVersion,
+  currentSha,
+  releases,
+  codexCliTag,
+  codexPlusPlusTag,
+}) {
   let latestRevision = -1;
   let currentCommitRevision;
   let currentCommitReleaseTag = "";
@@ -66,7 +85,11 @@ function resolveRepoReleaseRevision({ appVersion, currentSha, releases }) {
     }
 
     latestRevision = Math.max(latestRevision, revision);
-    if (currentSha && release.target_commitish?.toLowerCase() === currentSha.toLowerCase()) {
+    if (
+      currentSha &&
+      release.target_commitish?.toLowerCase() === currentSha.toLowerCase() &&
+      releaseTracksInputs(release, { codexCliTag, codexPlusPlusTag })
+    ) {
       if (currentCommitRevision === undefined || revision > currentCommitRevision) {
         currentCommitRevision = revision;
         currentCommitReleaseTag = tagName;
@@ -112,18 +135,18 @@ async function fetchExistingReleases() {
   return await response.json();
 }
 
-async function fetchLatestCodexCliTag() {
-  const response = await fetch(repositoryApiUrl(codexCliRepository, "/releases/latest"), {
+async function fetchLatestReleaseTag(repository, label) {
+  const response = await fetch(repositoryApiUrl(repository, "/releases/latest"), {
     headers: githubHeaders(),
   });
   if (!response.ok) {
-    fail(`Failed to fetch Codex CLI release: ${response.status} ${response.statusText}`);
+    fail(`Failed to fetch ${label} release: ${response.status} ${response.statusText}`);
   }
 
   const release = await response.json();
   const tagName = release.tag_name ?? "";
   if (!tagName) {
-    fail("The latest Codex CLI release does not have a tag.");
+    fail(`The latest ${label} release does not have a tag.`);
   }
 
   return tagName;
@@ -147,20 +170,24 @@ const appVersion = firstMatch(
 );
 const buildNumber =
   item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim() ?? "";
-const cliTag = await fetchLatestCodexCliTag();
+const cliTag = await fetchLatestReleaseTag(codexCliRepository, "Codex CLI");
+const codexPlusPlusTag = await fetchLatestReleaseTag(codexPlusPlusRepository, "Codex++");
 const releases = await fetchExistingReleases();
 const { currentCommitReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevision({
   appVersion,
   currentSha: process.env.GITHUB_SHA,
   releases,
+  codexCliTag: cliTag,
+  codexPlusPlusTag,
 });
 const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
 const releaseTag = `codex-app-${releaseVersion}`;
-const hydrationCacheKey = `windows-arm64-hydrated-v3-app-${appVersion}-build-${buildNumber}-cli-${cliTag}`;
+const hydrationCacheKey = `windows-arm64-hydrated-v4-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}`;
 
 githubOutput("codex_app_version", appVersion);
 githubOutput("codex_app_build", buildNumber);
 githubOutput("codex_cli_tag", cliTag);
+githubOutput("codex_plus_plus_tag", codexPlusPlusTag);
 githubOutput("repo_release_revision", repoReleaseRevision);
 githubOutput("release_version", releaseVersion);
 githubOutput("release_tag", releaseTag);
@@ -173,6 +200,7 @@ console.log(
       codexAppVersion: appVersion,
       codexAppBuild: buildNumber,
       codexCliTag: cliTag,
+      codexPlusPlusTag,
       repoReleaseRevision,
       releaseVersion,
       releaseTag,

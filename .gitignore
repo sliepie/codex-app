@@ -4,6 +4,7 @@ codex-dmg/
 codex-windows/
 Codex-extracted-*/
 codex/
+/.scratch/
 desktop/recovered/
 desktop/resources/*
 !desktop/resources/

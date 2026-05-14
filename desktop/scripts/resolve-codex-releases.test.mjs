@@ -19,6 +19,16 @@ const appcast = `<?xml version="1.0" encoding="utf-8"?>
   </channel>
 </rss>`;
 
+function releaseInputsBody({
+  codexCliTag = "rust-v0.129.0",
+  codexPlusPlusTag = "v0.1.7",
+} = {}) {
+  return [
+    "Codex CLI: " + codexCliTag,
+    "Codex++: " + codexPlusPlusTag,
+  ].join("\\n");
+}
+
 function startServer(releases) {
   const server = http.createServer((request, response) => {
     if (request.url === "/appcast.xml") {
@@ -36,6 +46,12 @@ function startServer(releases) {
     if (request.url === "/repos/openai/codex/releases/latest") {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ tag_name: "rust-v0.129.0" }));
+      return;
+    }
+
+    if (request.url === "/repos/b-nnett/codex-plusplus/releases/latest") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ tag_name: "v0.1.7" }));
       return;
     }
 
@@ -104,9 +120,14 @@ test("starts new Codex app releases at repo revision zero", async () => {
 
   assert.equal(output.release_version, "26.429.61741.0");
   assert.equal(output.codex_cli_tag, "rust-v0.129.0");
+  assert.equal(output.codex_plus_plus_tag, "v0.1.7");
   assert.equal(output.repo_release_revision, "0");
   assert.equal(output.release_tag, "codex-app-26.429.61741.0");
   assert.equal(output.current_commit_release_tag, "");
+  assert.equal(
+    output.hydration_cache_key,
+    "windows-arm64-hydrated-v4-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7",
+  );
 });
 
 test("increments the repo revision when the same Codex app version has a prior numeric release", async () => {
@@ -133,7 +154,11 @@ test("increments the repo revision when the same Codex app version has a prior c
 
 test("keeps the repo revision when rerunning a commit that already has a numeric release", async () => {
   const output = await runResolver({
-    releases: [{ tag_name: "codex-app-26.429.61741.1", target_commitish: "abcdef1234567890" }],
+    releases: [{
+      tag_name: "codex-app-26.429.61741.1",
+      target_commitish: "abcdef1234567890",
+      body: releaseInputsBody(),
+    }],
   });
 
   assert.equal(output.release_version, "26.429.61741.1");
@@ -144,13 +169,47 @@ test("keeps the repo revision when rerunning a commit that already has a numeric
 
 test("keeps the repo revision when rerunning a commit that already has a commit-suffixed release", async () => {
   const output = await runResolver({
-    releases: [{ tag_name: "codex-app-26.429.61741.abcdef1", target_commitish: "abcdef1234567890" }],
+    releases: [{
+      tag_name: "codex-app-26.429.61741.abcdef1",
+      target_commitish: "abcdef1234567890",
+      body: releaseInputsBody(),
+    }],
   });
 
   assert.equal(output.release_version, "26.429.61741.0");
   assert.equal(output.repo_release_revision, "0");
   assert.equal(output.release_tag, "codex-app-26.429.61741.0");
   assert.equal(output.current_commit_release_tag, "codex-app-26.429.61741.abcdef1");
+});
+
+test("starts a new repo revision when the current commit release has stale Codex++ input", async () => {
+  const output = await runResolver({
+    releases: [{
+      tag_name: "codex-app-26.429.61741.1",
+      target_commitish: "abcdef1234567890",
+      body: releaseInputsBody({ codexPlusPlusTag: "v0.1.6" }),
+    }],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.2");
+  assert.equal(output.repo_release_revision, "2");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.2");
+  assert.equal(output.current_commit_release_tag, "");
+});
+
+test("starts a new repo revision when the current commit release has stale Codex CLI input", async () => {
+  const output = await runResolver({
+    releases: [{
+      tag_name: "codex-app-26.429.61741.1",
+      target_commitish: "abcdef1234567890",
+      body: releaseInputsBody({ codexCliTag: "rust-v0.128.0" }),
+    }],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.2");
+  assert.equal(output.repo_release_revision, "2");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.2");
+  assert.equal(output.current_commit_release_tag, "");
 });
 
 test("treats legacy three-part release tags as repo revision zero", async () => {

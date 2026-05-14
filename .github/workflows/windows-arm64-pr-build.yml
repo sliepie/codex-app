@@ -11,6 +11,11 @@ permissions:
 jobs:
   build-windows-arm64:
     runs-on: windows-latest
+    outputs:
+      codex_app_version: ${{ steps.upstream.outputs.codex_app_version }}
+      codex_app_build: ${{ steps.upstream.outputs.codex_app_build }}
+      codex_cli_tag: ${{ steps.upstream.outputs.codex_cli_tag }}
+      codex_plus_plus_tag: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
     env:
       GH_TOKEN: ${{ github.token }}
       PACKAGE_ARCHITECTURE: arm64
@@ -67,8 +72,95 @@ jobs:
         working-directory: desktop
         env:
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
+          CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
         run: npm run prepare:win:arm64
 
       - name: Build Windows ARM64 ZIP
         working-directory: desktop
         run: npm run make:win:arm64:compiled
+
+      - name: Upload Windows ARM64 PR artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: codex-app-windows-arm64-pr
+          path: |
+            desktop/out/make/zip/win32/arm64/*.zip
+          retention-days: 7
+          if-no-files-found: error
+
+  publish-alpha-release:
+    needs: build-windows-arm64
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ALPHA_RELEASE_TAG: codex-app-alpha
+      ALPHA_RELEASE_TITLE: Codex app Windows ARM64 alpha
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+      BUILD_SHA: ${{ github.sha }}
+      WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      CODEX_APP_VERSION: ${{ needs.build-windows-arm64.outputs.codex_app_version }}
+      CODEX_APP_BUILD: ${{ needs.build-windows-arm64.outputs.codex_app_build }}
+      CODEX_CLI_TAG: ${{ needs.build-windows-arm64.outputs.codex_cli_tag }}
+      CODEX_PLUS_PLUS_TAG: ${{ needs.build-windows-arm64.outputs.codex_plus_plus_tag }}
+    concurrency:
+      group: windows-arm64-pr-alpha-release
+      cancel-in-progress: false
+
+    steps:
+      - name: Download Windows ARM64 PR artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: codex-app-windows-arm64-pr
+          path: out/pr-alpha
+
+      - name: Publish alpha GitHub release
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Path "out/pr-alpha" -Filter "*.zip" -Recurse | Select-Object -First 1
+          if ($null -eq $zip) {
+            throw "No Windows ARM64 ZIP was downloaded."
+          }
+
+          $tag = $env:ALPHA_RELEASE_TAG
+          $targetSha = $env:BUILD_SHA
+          $repo = $env:GITHUB_REPOSITORY
+          $notes = @"
+          Mutable alpha artifact for the latest successful same-repository PR build.
+
+          PR: #$env:PR_NUMBER $env:PR_TITLE
+          Branch: $env:PR_BRANCH
+          Commit: $targetSha
+          Workflow run: $env:WORKFLOW_RUN_URL
+          Upstream Codex app: $env:CODEX_APP_VERSION build $env:CODEX_APP_BUILD
+          Codex CLI: $env:CODEX_CLI_TAG
+          Codex++: $env:CODEX_PLUS_PLUS_TAG
+          "@
+
+          gh release view $tag --repo "$repo" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh api --method PATCH "repos/$repo/git/refs/tags/$tag" -f "sha=$targetSha" -F force=true
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to move alpha release tag $tag to $targetSha."
+            }
+
+            gh release edit $tag --repo "$repo" --target "$targetSha" --title "$env:ALPHA_RELEASE_TITLE" --notes "$notes" --prerelease --latest=false
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to update alpha release $tag."
+            }
+          }
+          else {
+            gh release create $tag --repo "$repo" --target "$targetSha" --title "$env:ALPHA_RELEASE_TITLE" --notes "$notes" --prerelease --latest=false
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to create alpha release $tag."
+            }
+          }
+
+          gh release upload $tag $zip.FullName --repo "$repo" --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to upload Windows ARM64 ZIP to alpha release $tag."
+          }

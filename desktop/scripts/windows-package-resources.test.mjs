@@ -14,6 +14,7 @@ const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
   hasArm64RuntimePayload,
+  syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
 } = require(
   path.join(desktopRoot, ".cache", "scripts", "hydrate-codex-app.js"),
@@ -163,6 +164,40 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
   );
 });
 
+test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
+  const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plusplus-source-"));
+  const destinationRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plusplus-output-"));
+  writeFixture(
+    path.join(sourceRoot, "packages", "installer", "assets", "runtime", "main.js"),
+    "module.exports = {};\n",
+  );
+  writeFixture(
+    path.join(sourceRoot, "packages", "installer", "assets", "runtime", "preload.js"),
+    "module.exports = {};\n",
+  );
+  writeFixture(path.join(sourceRoot, "LICENSE"), "MIT\n");
+
+  syncCodexPlusPlusRuntimeAssets(
+    sourceRoot,
+    {
+      tag_name: "v0.1.7",
+      html_url: "https://github.com/b-nnett/codex-plusplus/releases/tag/v0.1.7",
+      zipball_url: "https://api.github.com/repos/b-nnett/codex-plusplus/zipball/v0.1.7",
+      published_at: "2026-05-12T14:08:09Z",
+    },
+    destinationRoot,
+  );
+
+  assert.equal(
+    fs.readFileSync(path.join(destinationRoot, "runtime", "main.js"), "utf8"),
+    "module.exports = {};\n",
+  );
+  assert.equal(fs.readFileSync(path.join(destinationRoot, "LICENSE"), "utf8"), "MIT\n");
+  const release = JSON.parse(fs.readFileSync(path.join(destinationRoot, "release.json"), "utf8"));
+  assert.equal(release.repo, "b-nnett/codex-plusplus");
+  assert.equal(release.tagName, "v0.1.7");
+});
+
 test("discovers native modules copied inside bundled plugin resources", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
@@ -253,10 +288,58 @@ test("fails when the upstream bundle is missing required browser-use", () => {
   );
 });
 
-test("includes generated plugin resources in the Windows package", () => {
+test("includes generated plugin resources and Codex++ integration in the Windows package", () => {
   const config = require(path.join(desktopRoot, "forge.config.js"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/plugins"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);
+  assert.equal(
+    config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json"),
+    false,
+  );
+
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
+  );
+  assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
+
+  const loaderSource = fs.readFileSync(
+    path.join(desktopRoot, "codex-plusplus", "loader.cjs"),
+    "utf8",
+  );
+  assert.match(loaderSource, /config\.json/);
+  assert.match(loaderSource, /autoUpdate: false/);
+});
+
+test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
+  const tweaksRoot = path.join(desktopRoot, "codex-plusplus", "tweaks");
+  const tweakNames = fs
+    .readdirSync(tweaksRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  assert.deepEqual(tweakNames, [
+    "codex-app-ui-overrides",
+    "codex-plusplus-updater-ui-overrides",
+  ]);
+
+  for (const tweakName of tweakNames) {
+    const tweakRoot = path.join(tweaksRoot, tweakName);
+    const manifest = JSON.parse(fs.readFileSync(path.join(tweakRoot, "manifest.json"), "utf8"));
+    assert.equal(manifest.scope, "renderer");
+    assert.notEqual(manifest.id.includes("keyboard"), true);
+
+    const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+    assert.doesNotThrow(() => {
+      const module = { exports: {} };
+      const exports = module.exports;
+      const fn = new Function("module", "exports", "console", source);
+      fn(module, exports, console);
+      assert.equal(typeof module.exports.start, "function");
+      assert.equal(typeof module.exports.stop, "function");
+    });
+  }
 });
 
 test("includes installed tslib for recovered main-process bundles", () => {
@@ -301,6 +384,16 @@ function assertUpdaterBuildsBeforeForge(scriptName, scripts) {
   assert.ok(updaterIndex < forgeIndex);
 }
 
+function assertHydrateAppRunsBeforeForge(scriptName, scripts) {
+  const commands = expandScriptCommands(scriptName, scripts);
+  const hydrateIndex = commands.findIndex((command) => command.includes("hydrate:app:compiled"));
+  const forgeIndex = commands.findIndex((command) => command.startsWith("electron-forge "));
+
+  assert.notEqual(hydrateIndex, -1);
+  assert.notEqual(forgeIndex, -1);
+  assert.ok(hydrateIndex < forgeIndex);
+}
+
 test("builds the replacement Windows updater before packaging", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
@@ -308,6 +401,101 @@ test("builds the replacement Windows updater before packaging", () => {
   assertUpdaterBuildsBeforeForge("package:win:arm64", packageJson.scripts);
   assertUpdaterBuildsBeforeForge("make:win:arm64", packageJson.scripts);
   assertUpdaterBuildsBeforeForge("make:win:arm64:ci", packageJson.scripts);
+});
+
+test("hydrates the app payload before packaging", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
+  );
+  assertHydrateAppRunsBeforeForge("package:win:arm64", packageJson.scripts);
+  assertHydrateAppRunsBeforeForge("make:win:arm64", packageJson.scripts);
+  assertHydrateAppRunsBeforeForge("make:win:arm64:ci", packageJson.scripts);
+});
+
+test("PR builds publish the ZIP to a mutable alpha release", () => {
+  const workflowSource = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "windows-arm64-pr-build.yml"),
+    "utf8",
+  );
+
+  assert.match(workflowSource, /permissions:\r?\n  contents: read/);
+  assert.match(workflowSource, /name: codex-app-windows-arm64-pr/);
+  assert.match(workflowSource, /publish-alpha-release:/);
+  assert.match(
+    workflowSource,
+    /if: github\.event\.pull_request\.head\.repo\.full_name == github\.repository/,
+  );
+  assert.match(workflowSource, /permissions:\r?\n      contents: write/);
+  assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
+  assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
+  assert.doesNotMatch(workflowSource, /PR_HEAD_SHA/);
+  assert.match(workflowSource, /\$targetSha = \$env:BUILD_SHA/);
+  assert.match(workflowSource, /actions\/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131/);
+  assert.match(workflowSource, /gh release create \$tag[\s\S]*--prerelease --latest=false/);
+  assert.match(workflowSource, /gh release edit \$tag[\s\S]*--prerelease --latest=false/);
+  assert.match(workflowSource, /gh release upload \$tag \$zip\.FullName[\s\S]*--clobber/);
+});
+
+test("release workflow tracks Codex++ in package inputs and release metadata", () => {
+  const workflowSource = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
+    "utf8",
+  );
+
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /Codex\+\+: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);
+  assert.match(workflowSource, /gh release edit \$tag[\s\S]*--notes "\$notes"/);
+});
+
+test("authenticates Codex++ GitHub release lookup when a token is available", () => {
+  const scriptSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+
+  assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
+  assert.match(scriptSource, /headers\.Authorization = `Bearer \$\{token\}`/);
+  assert.match(scriptSource, /headers: githubHeaders\(\)/);
+  assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_TAG/);
+  assert.match(scriptSource, /fetchCodexPlusPlusRelease\(pinnedTagName\)/);
+  assert.match(scriptSource, /downloadFile\(zipballUrl, zipPath, githubHeaders\(\)\)/);
+});
+
+test("authenticates GitHub release asset downloads when a token is available", () => {
+  const scriptSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
+    "utf8",
+  );
+
+  assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
+  assert.match(scriptSource, /headers\.Authorization = `Bearer \$\{token\}`/);
+  assert.match(scriptSource, /hostname === "api\.github\.com" \|\| hostname === "github\.com"/);
+  assert.match(scriptSource, /fetch\(url, \{ headers: headersForUrl\(url\) \}\)/);
+});
+
+test("repo Node toolchain matches the Electron runtime Node version", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
+  );
+  const nodeVersionFile = fs.readFileSync(path.join(repoRoot, ".node-version"), "utf8").trim();
+  const electronPath = require("electron");
+  const electronNodeVersion = execFileSync(
+    electronPath,
+    ["-p", "process.versions.node"],
+    {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: "1",
+      },
+    },
+  ).trim();
+
+  assert.equal(nodeVersionFile, electronNodeVersion);
+  assert.equal(packageJson.engines.node, electronNodeVersion);
 });
 
 test("keys native updater cache by builder script and Rust crate sources", () => {
