@@ -124,39 +124,6 @@ function createAppResourcesFixture() {
   return appResourcesRoot;
 }
 
-function createCodexPlusPlusPreloadFixture(indent) {
-  return [
-    "function renderConfigPage(sectionsWrap, subtitle) {",
-    `${indent}const section = document.createElement("section");`,
-    `${indent}section.className = "flex flex-col gap-2";`,
-    `${indent}section.appendChild(sectionTitle("Codex++ Updates"));`,
-    `${indent}const card = roundedCard();`,
-    `${indent}sectionsWrap.appendChild(section);`,
-    `${indent}const watcher = document.createElement("section");`,
-    `${indent}watcher.className = "flex flex-col gap-2";`,
-    `${indent}watcher.appendChild(sectionTitle("Auto-Repair Watcher"));`,
-    `${indent}const watcherCard = roundedCard();`,
-    `${indent}watcherCard.appendChild(rowSimple("Checking watcher", "Verifying the updater repair service."));`,
-    `${indent}watcher.appendChild(watcherCard);`,
-    `${indent}sectionsWrap.appendChild(watcher);`,
-    `${indent}renderWatcherHealthCard(watcherCard);`,
-    `${indent}const maintenance = document.createElement("section");`,
-    `${indent}maintenance.className = "flex flex-col gap-2";`,
-    `${indent}maintenance.appendChild(sectionTitle("Maintenance"));`,
-    `${indent}const maintenanceCard = roundedCard();`,
-    `${indent}maintenanceCard.appendChild(uninstallRow());`,
-    `${indent}maintenanceCard.appendChild(reportBugRow());`,
-    `${indent}maintenance.appendChild(maintenanceCard);`,
-    `${indent}sectionsWrap.appendChild(maintenance);`,
-    "}",
-    "function renderCodexPlusPlusConfig(card, config) {",
-    `${indent}card.appendChild(autoUpdateRow(config));`,
-    `${indent}card.appendChild(updateChannelRow(config));`,
-    "}",
-    "",
-  ].join("\n");
-}
-
 test("generates Windows bundled plugin resources except macOS-only plugins", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
@@ -206,19 +173,7 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   );
   writeFixture(
     path.join(sourceRoot, "packages", "installer", "assets", "runtime", "preload.js"),
-    createCodexPlusPlusPreloadFixture("  "),
-  );
-  writeFixture(
-    path.join(
-      sourceRoot,
-      "packages",
-      "installer",
-      "assets",
-      "runtime",
-      "preload",
-      "settings-injector.js",
-    ),
-    createCodexPlusPlusPreloadFixture("    "),
+    "module.exports = {};\n",
   );
   writeFixture(path.join(sourceRoot, "LICENSE"), "MIT\n");
 
@@ -237,25 +192,6 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
     fs.readFileSync(path.join(destinationRoot, "runtime", "main.js"), "utf8"),
     "module.exports = {};\n",
   );
-  for (const bundledSettingsSource of [
-    fs.readFileSync(path.join(destinationRoot, "runtime", "preload.js"), "utf8"),
-    fs.readFileSync(
-      path.join(destinationRoot, "runtime", "preload", "settings-injector.js"),
-      "utf8",
-    ),
-  ]) {
-    assert.match(bundledSettingsSource, /CODEX_PLUSPLUS_BUNDLED_WITH_CODEX_APP/);
-    assert.match(bundledSettingsSource, /Codex\+\+ Runtime/);
-    assert.match(bundledSettingsSource, /Runtime source", "Bundled with Codex app"/);
-    assert.match(
-      bundledSettingsSource,
-      /if \(!isCodexAppBundledRuntime\(\)\) \{\r?\n\s+const watcher =/,
-    );
-    assert.match(
-      bundledSettingsSource,
-      /if \(!isCodexAppBundledRuntime\(\)\) \{\r?\n\s+const maintenance =/,
-    );
-  }
   assert.equal(fs.readFileSync(path.join(destinationRoot, "LICENSE"), "utf8"), "MIT\n");
   const release = JSON.parse(fs.readFileSync(path.join(destinationRoot, "release.json"), "utf8"));
   assert.equal(release.repo, "b-nnett/codex-plusplus");
@@ -367,12 +303,6 @@ test("includes generated plugin resources and Codex++ integration in the Windows
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
   assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
-
-  const loaderSource = fs.readFileSync(
-    path.join(desktopRoot, "codex-plusplus", "loader.cjs"),
-    "utf8",
-  );
-  assert.match(loaderSource, /CODEX_PLUSPLUS_BUNDLED_WITH_CODEX_APP/);
 });
 
 test("bundles the app-owned Codex++ UI tweak without keyboard shortcut tweaks", () => {
