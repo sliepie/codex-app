@@ -54,10 +54,10 @@ function createAppResourcesFixture() {
         },
         plugins: [
           {
-            name: "browser-use",
+            name: "browser",
             source: {
               source: "local",
-              path: "./plugins/browser-use",
+              path: "./plugins/browser",
             },
             policy: {
               installation: "AVAILABLE",
@@ -78,10 +78,22 @@ function createAppResourcesFixture() {
             category: "Productivity",
           },
           {
-            name: "latex-tectonic",
+            name: "chrome",
             source: {
               source: "local",
-              path: "./plugins/latex-tectonic",
+              path: "./plugins/chrome",
+            },
+            policy: {
+              installation: "AVAILABLE",
+              authentication: "ON_INSTALL",
+            },
+            category: "Productivity",
+          },
+          {
+            name: "latex",
+            source: {
+              source: "local",
+              path: "./plugins/latex",
             },
             policy: {
               installation: "AVAILABLE",
@@ -97,15 +109,15 @@ function createAppResourcesFixture() {
   );
 
   writeFixture(
-    path.join(bundledRoot, "plugins", "browser-use", ".codex-plugin", "plugin.json"),
-    `${JSON.stringify({ name: "browser-use", version: "0.1.0-alpha1" }, null, 2)}\n`,
+    path.join(bundledRoot, "plugins", "browser", ".codex-plugin", "plugin.json"),
+    `${JSON.stringify({ name: "browser", version: "0.1.0-alpha2" }, null, 2)}\n`,
   );
   writeFixture(
-    path.join(bundledRoot, "plugins", "browser-use", "scripts", "browser-client.mjs"),
+    path.join(bundledRoot, "plugins", "browser", "scripts", "browser-client.mjs"),
     "export const browserClient = true;\n",
   );
   writeFixture(
-    path.join(bundledRoot, "plugins", "browser-use", "skills", "browser", "SKILL.md"),
+    path.join(bundledRoot, "plugins", "browser", "skills", "browser", "SKILL.md"),
     "# Browser\n",
   );
   writeFixture(
@@ -117,8 +129,16 @@ function createAppResourcesFixture() {
     "# Computer\n",
   );
   writeFixture(
-    path.join(bundledRoot, "plugins", "latex-tectonic", ".codex-plugin", "plugin.json"),
-    `${JSON.stringify({ name: "latex-tectonic" }, null, 2)}\n`,
+    path.join(bundledRoot, "plugins", "chrome", ".codex-plugin", "plugin.json"),
+    `${JSON.stringify({ name: "chrome", version: "0.1.0-alpha1" }, null, 2)}\n`,
+  );
+  writeFixture(
+    path.join(bundledRoot, "plugins", "chrome", "skills", "chrome", "SKILL.md"),
+    "# Chrome\n",
+  );
+  writeFixture(
+    path.join(bundledRoot, "plugins", "latex", ".codex-plugin", "plugin.json"),
+    `${JSON.stringify({ name: "latex" }, null, 2)}\n`,
   );
 
   return appResourcesRoot;
@@ -141,15 +161,15 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
   );
   assert.deepEqual(
     marketplace.plugins.map((plugin) => plugin.name),
-    ["browser-use"],
+    ["browser"],
   );
-  assert.equal(marketplace.plugins[0].source.path, "./plugins/browser-use");
+  assert.equal(marketplace.plugins[0].source.path, "./plugins/browser");
 
   assert.equal(
     fs.existsSync(
       path.join(
         destinationPluginsRoot,
-        "openai-bundled/plugins/browser-use/scripts/browser-client.mjs",
+        "openai-bundled/plugins/browser/scripts/browser-client.mjs",
       ),
     ),
     true,
@@ -159,7 +179,11 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
     false,
   );
   assert.equal(
-    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex-tectonic")),
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/chrome")),
+    false,
+  );
+  assert.equal(
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex")),
     false,
   );
 });
@@ -198,16 +222,51 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   assert.equal(release.tagName, "v0.1.7");
 });
 
-test("discovers native modules copied inside bundled plugin resources", () => {
+test("discovers native modules copied inside every non-excluded bundled plugin resource", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
+  const marketplacePath = path.join(
+    appResourcesRoot,
+    "plugins",
+    "openai-bundled",
+    ".agents",
+    "plugins",
+    "marketplace.json",
+  );
+  const marketplace = JSON.parse(fs.readFileSync(marketplacePath, "utf8"));
+  marketplace.plugins.push({
+    name: "native-helper",
+    source: {
+      source: "local",
+      path: "./plugins/native-helper",
+    },
+    policy: {
+      installation: "AVAILABLE",
+      authentication: "ON_INSTALL",
+    },
+    category: "Engineering",
+  });
+  fs.writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`, "utf8");
+
   writeFixture(
     path.join(
       appResourcesRoot,
       "plugins",
       "openai-bundled",
       "plugins",
-      "browser-use",
+      "native-helper",
+      ".codex-plugin",
+      "plugin.json",
+    ),
+    `${JSON.stringify({ name: "native-helper", version: "0.1.0-alpha1" }, null, 2)}\n`,
+  );
+  writeFixture(
+    path.join(
+      appResourcesRoot,
+      "plugins",
+      "openai-bundled",
+      "plugins",
+      "browser",
       "scripts",
       "node_modules",
       "classic-level",
@@ -221,13 +280,45 @@ test("discovers native modules copied inside bundled plugin resources", () => {
       "plugins",
       "openai-bundled",
       "plugins",
-      "browser-use",
+      "browser",
       "scripts",
       "node_modules",
       "classic-level",
-      "binding.gyp",
+      "prebuilds",
+      "darwin-arm64",
+      "classic-level.node",
     ),
-    "{}\n",
+    "native payload\n",
+  );
+  writeFixture(
+    path.join(
+      appResourcesRoot,
+      "plugins",
+      "openai-bundled",
+      "plugins",
+      "native-helper",
+      "scripts",
+      "node_modules",
+      "native-helper-level",
+      "package.json",
+    ),
+    `${JSON.stringify({ name: "native-helper-level", version: "1.2.3" }, null, 2)}\n`,
+  );
+  writeFixture(
+    path.join(
+      appResourcesRoot,
+      "plugins",
+      "openai-bundled",
+      "plugins",
+      "native-helper",
+      "scripts",
+      "node_modules",
+      "native-helper-level",
+      "prebuilds",
+      "darwin-arm64",
+      "native-helper-level.node",
+    ),
+    "native payload\n",
   );
 
   syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
@@ -236,13 +327,29 @@ test("discovers native modules copied inside bundled plugin resources", () => {
     fs.mkdtempSync(path.join(os.tmpdir(), "codex-recovered-")),
     destinationPluginsRoot,
   );
+  const targetsByPath = new Map(
+    targets.map((target) => [
+      path.relative(destinationPluginsRoot, target.nodeModulesRoot).replaceAll(path.sep, "/"),
+      target,
+    ]),
+  );
 
-  assert.equal(targets.length, 1);
-  assert.equal(targets[0].runtime, "node");
-  assert.deepEqual(targets[0].nativeModules, [{ name: "classic-level", version: "3.0.0" }]);
+  assert.equal(targets.length, 2);
   assert.equal(
-    path.relative(destinationPluginsRoot, targets[0].nodeModulesRoot).replaceAll(path.sep, "/"),
-    "openai-bundled/plugins/browser-use/scripts/node_modules",
+    targetsByPath.get("openai-bundled/plugins/browser/scripts/node_modules")?.runtime,
+    "node",
+  );
+  assert.deepEqual(
+    targetsByPath.get("openai-bundled/plugins/browser/scripts/node_modules")?.nativeModules,
+    [{ name: "classic-level", version: "3.0.0" }],
+  );
+  assert.equal(
+    targetsByPath.get("openai-bundled/plugins/native-helper/scripts/node_modules")?.runtime,
+    "node",
+  );
+  assert.deepEqual(
+    targetsByPath.get("openai-bundled/plugins/native-helper/scripts/node_modules")?.nativeModules,
+    [{ name: "native-helper-level", version: "1.2.3" }],
   );
 });
 
@@ -264,8 +371,9 @@ test("Mach-O native payloads are not ready for Windows ARM64", () => {
   assert.equal(hasArm64RuntimePayload(packageRoot), false);
 });
 
-test("fails when the upstream bundle is missing required browser-use", () => {
+test("allows the upstream bundle to omit the browser plugin", () => {
   const appResourcesRoot = createAppResourcesFixture();
+  const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
   const marketplacePath = path.join(
     appResourcesRoot,
     "plugins",
@@ -275,16 +383,27 @@ test("fails when the upstream bundle is missing required browser-use", () => {
     "marketplace.json",
   );
   const marketplace = JSON.parse(fs.readFileSync(marketplacePath, "utf8"));
-  marketplace.plugins = marketplace.plugins.filter((plugin) => plugin.name !== "browser-use");
+  marketplace.plugins = marketplace.plugins.filter((plugin) => plugin.name !== "browser");
   fs.writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`, "utf8");
 
-  assert.throws(
-    () =>
-      syncBundledPluginResources(
-        appResourcesRoot,
-        fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-")),
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+
+  const destinationMarketplace = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        destinationPluginsRoot,
+        "openai-bundled",
+        ".agents",
+        "plugins",
+        "marketplace.json",
       ),
-    /does not list required plugin browser-use/,
+      "utf8",
+    ),
+  );
+  assert.deepEqual(destinationMarketplace.plugins, []);
+  assert.equal(
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled", "plugins", "browser")),
+    false,
   );
 });
 
@@ -410,6 +529,21 @@ test("hydrates the app payload before packaging", () => {
   assertHydrateAppRunsBeforeForge("package:win:arm64", packageJson.scripts);
   assertHydrateAppRunsBeforeForge("make:win:arm64", packageJson.scripts);
   assertHydrateAppRunsBeforeForge("make:win:arm64:ci", packageJson.scripts);
+});
+
+test("Windows ARM64 workflows use the documented VS2026 runner image", () => {
+  for (const workflowName of [
+    "windows-arm64-pr-build.yml",
+    "windows-arm64-release.yml",
+  ]) {
+    const workflowSource = fs.readFileSync(
+      path.join(repoRoot, ".github", "workflows", workflowName),
+      "utf8",
+    );
+
+    assert.match(workflowSource, /runs-on: windows-2025-vs2026/);
+    assert.doesNotMatch(workflowSource, /runs-on: windows-latest/);
+  }
 });
 
 test("PR builds publish the ZIP to a mutable alpha release", () => {

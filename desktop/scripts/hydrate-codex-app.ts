@@ -26,6 +26,8 @@ type NativeNodeModulesTarget = {
   runtime: NativeNodeModuleRuntime;
 };
 
+type NpmEnvironment = Record<string, string | undefined>;
+
 type PackageJson = {
   cpu?: string | string[];
   dependencies?: Record<string, string>;
@@ -71,10 +73,8 @@ const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-no
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
 const codexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
-const browserUsePluginName = "browser-use";
 const openAiBundledMarketplaceName = "openai-bundled";
-const excludedBundledPluginNames = new Set(["computer-use", "latex-tectonic"]);
-const requiredBundledPluginNames = new Set([browserUsePluginName]);
+const excludedBundledPluginNames = new Set(["computer-use", "chrome", "latex"]);
 const nodeAbi = require("node-abi") as {
   getAbi(target: string, runtime: "electron" | "node"): string;
 };
@@ -233,19 +233,6 @@ export function syncBundledPluginResources(
   const selectedPlugins = sourceMarketplace.plugins.filter(
     (plugin) => !excludedBundledPluginNames.has(plugin.name ?? ""),
   );
-  const selectedPluginNames = new Set(
-    selectedPlugins.map((plugin) => requireBundledPluginName(plugin, sourceMarketplacePath)),
-  );
-  for (const requiredPluginName of requiredBundledPluginNames) {
-    if (!selectedPluginNames.has(requiredPluginName)) {
-      throw new Error(
-        `Bundled plugin marketplace does not list required plugin ${requiredPluginName}: ${sourceMarketplacePath}`,
-      );
-    }
-  }
-  if (selectedPlugins.length === 0) {
-    throw new Error(`Bundled plugin marketplace has no Windows plugins: ${sourceMarketplacePath}`);
-  }
 
   const destinationMarketplaceRoot = path.join(
     destinationPluginsRoot,
@@ -306,11 +293,8 @@ export function syncBundledPluginResources(
     "utf8",
   );
 
-  console.log(
-    `Synced bundled plugin resources for Windows: ${destinationPlugins
-      .map((plugin) => plugin.name)
-      .join(", ")}`,
-  );
+  const syncedPluginNames = destinationPlugins.map((plugin) => plugin.name).join(", ") || "none";
+  console.log(`Synced bundled plugin resources for Windows: ${syncedPluginNames}`);
 }
 
 async function downloadFile(
@@ -508,10 +492,7 @@ function listPackageRoots(nodeModulesRoot: string): string[] {
 }
 
 function hasNativePayload(packageRoot: string): boolean {
-  if (
-    fs.existsSync(path.join(packageRoot, "binding.gyp")) ||
-    fs.existsSync(path.join(packageRoot, "prebuilds"))
-  ) {
+  if (fs.existsSync(path.join(packageRoot, "prebuilds"))) {
     return true;
   }
 
@@ -681,11 +662,11 @@ function collectRuntimePackageRoots(
   return packageRoots;
 }
 
-function readRuntimeElectronVersion(recoveredRoot: string): string {
-  const packageJson = readPackageJson(recoveredRoot);
+function readPackageElectronVersion(packageRoot: string, label: string): string {
+  const packageJson = readPackageJson(packageRoot);
   const electronVersion = packageJson.devDependencies?.electron ?? packageJson.dependencies?.electron;
   if (!electronVersion) {
-    throw new Error("Hydrated app package.json does not list its Electron version.");
+    throw new Error(`${label} package.json does not list its Electron version.`);
   }
   return electronVersion;
 }
@@ -934,7 +915,9 @@ function hasNapiPrebuildEvidence(packageRootPath: string): boolean {
   return (
     scripts.some((script) => /\bnapi\b/.test(script)) ||
     packageJson.dependencies?.["napi-macros"] !== undefined ||
-    packageJson.devDependencies?.["napi-macros"] !== undefined
+    packageJson.devDependencies?.["napi-macros"] !== undefined ||
+    packageJson.dependencies?.["node-addon-api"] !== undefined ||
+    packageJson.devDependencies?.["node-addon-api"] !== undefined
   );
 }
 
@@ -987,8 +970,13 @@ function writeRuntimeMetadata(
   abi: string,
 ): void {
   for (const nativeModule of nativeModules) {
+    const packageRootPath = packageRoot(nodeModulesRoot, nativeModule.name);
+    if (!hasArm64RuntimePayload(packageRootPath)) {
+      continue;
+    }
+
     const metadataPath = path.join(
-      packageRoot(nodeModulesRoot, nativeModule.name),
+      packageRootPath,
       "build",
       "Release",
       ".codex-runtime-meta.json",
@@ -1037,11 +1025,12 @@ function nativeNodeModuleReady(
   );
 }
 
-function runNpm(args: string[], cwd = desktopRoot): void {
+function runNpm(args: string[], cwd = desktopRoot, env: NpmEnvironment = process.env): void {
   const npmExecPath = process.env.npm_execpath;
   if (npmExecPath && fs.existsSync(npmExecPath)) {
     execFileSync(process.execPath, [npmExecPath, ...args], {
       cwd,
+      env,
       stdio: "inherit",
     });
     return;
@@ -1050,8 +1039,111 @@ function runNpm(args: string[], cwd = desktopRoot): void {
   execFileSync(
     process.platform === "win32" ? "npm.cmd" : "npm",
     args,
-    { cwd, shell: process.platform === "win32", stdio: "inherit" },
+    { cwd, env, shell: process.platform === "win32", stdio: "inherit" },
   );
+}
+
+function nativeNpmInstallEnv(
+  target: NativeNodeModulesTarget,
+  runtimeVersion: string,
+): NpmEnvironment {
+  const env = {
+    ...process.env,
+    npm_config_arch: targetRuntimeArch,
+    npm_config_platform: targetRuntimePlatform,
+    npm_config_target: normalizeRuntimeVersion(runtimeVersion),
+  };
+
+  if (target.runtime === "electron") {
+    return {
+      ...env,
+      npm_config_runtime: "electron",
+      npm_config_disturl: "https://electronjs.org/headers",
+      npm_config_dist_url: "https://electronjs.org/headers",
+    };
+  }
+
+  return {
+    ...env,
+    npm_config_runtime: "node",
+  };
+}
+
+function findPrebuildInstallBin(
+  packageRootPath: string,
+  nodeModulesRoot: string,
+): string | undefined {
+  for (const candidate of [
+    path.join(packageRootPath, "node_modules", "prebuild-install", "bin.js"),
+    path.join(nodeModulesRoot, "prebuild-install", "bin.js"),
+  ]) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
+function packageUsesPrebuildInstall(packageRootPath: string): boolean {
+  const packageJson = readPackageJson(packageRootPath);
+  return /\bprebuild-install\b/.test(packageJson.scripts?.install ?? "");
+}
+
+function runElectronPrebuildInstall(
+  target: NativeNodeModulesTarget,
+  nativeModules: NativeNodeModule[],
+  electronVersion: string,
+): void {
+  const abi = runtimeAbi("electron", electronVersion);
+  const env = nativeNpmInstallEnv(target, electronVersion);
+
+  for (const nativeModule of nativeModules) {
+    if (nativeNodeModuleReady(target, nativeModule, abi)) {
+      continue;
+    }
+
+    const packageRootPath = packageRoot(target.nodeModulesRoot, nativeModule.name);
+    if (!packageUsesPrebuildInstall(packageRootPath)) {
+      continue;
+    }
+
+    const prebuildInstallBin = findPrebuildInstallBin(packageRootPath, target.nodeModulesRoot);
+    if (!prebuildInstallBin) {
+      throw new Error(
+        `Missing prebuild-install for ${nativeModule.name}@${nativeModule.version}.`,
+      );
+    }
+
+    console.log(
+      `Installing Windows ARM64 electron prebuild for ${nativeModule.name}@${nativeModule.version} (runtime ${normalizeRuntimeVersion(electronVersion)}, ABI ${abi}).`,
+    );
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          prebuildInstallBin,
+          "--runtime",
+          "electron",
+          "--target",
+          normalizeRuntimeVersion(electronVersion),
+          "--arch",
+          targetRuntimeArch,
+          "--platform",
+          targetRuntimePlatform,
+        ],
+        {
+          cwd: packageRootPath,
+          env,
+          stdio: "inherit",
+        },
+      );
+    } catch {
+      console.log(
+        `No Windows ARM64 electron prebuild was installed for ${nativeModule.name}@${nativeModule.version}; source rebuild remains the last resort.`,
+      );
+    }
+  }
 }
 
 function runElectronRebuild(
@@ -1317,6 +1409,7 @@ function syncNativeNodeModulesTarget(
           "--package-lock=false",
           "--no-audit",
           "--fund=false",
+          ...(target.runtime === "electron" ? ["--ignore-scripts"] : []),
           ...modulesRequiringInstall.map(
             (nativeModule) => `${nativeModule.name}@${nativeModule.version}`,
           ),
@@ -1328,6 +1421,16 @@ function syncNativeNodeModulesTarget(
 
   const nativeModuleNames = nativeModules.map((nativeModule) => nativeModule.name);
   removeForeignPrebuilds(target.nodeModulesRoot);
+  if (target.runtime === "electron") {
+    runElectronPrebuildInstall(
+      target,
+      nativeModules.filter((nativeModule) => !nativeNodeModuleReady(target, nativeModule, abi)),
+      runtimeVersion,
+    );
+    writeRuntimeMetadata(target.nodeModulesRoot, nativeModules, target.runtime, abi);
+    removeForeignPrebuilds(target.nodeModulesRoot);
+  }
+
   if (nativeNodeModulesReady(target, runtimeVersion)) {
     saveNativeNodeModulesToCache(
       target.nodeModulesRoot,
@@ -1341,13 +1444,23 @@ function syncNativeNodeModulesTarget(
     return;
   }
 
+  const modulesRequiringRebuild = nativeModules.filter(
+    (nativeModule) => !nativeNodeModuleReady(target, nativeModule, abi),
+  );
+  const moduleNamesRequiringRebuild = modulesRequiringRebuild.map(
+    (nativeModule) => nativeModule.name,
+  );
+
   withTemporaryPackageJson(moduleRoot, nativeModules, () => {
     if (target.runtime === "electron") {
-      runElectronRebuild(nativeModuleNames, runtimeVersion, moduleRoot);
+      console.log(
+        `Falling back to Electron source rebuild for Windows ARM64 native modules in ${target.label}: ${moduleNamesRequiringRebuild.join(", ")}`,
+      );
+      runElectronRebuild(moduleNamesRequiringRebuild, runtimeVersion, moduleRoot);
       return;
     }
 
-    runNodeRebuild(nativeModules, runtimeVersion, target.nodeModulesRoot);
+    runNodeRebuild(modulesRequiringRebuild, runtimeVersion, target.nodeModulesRoot);
   });
   writeRuntimeMetadata(target.nodeModulesRoot, nativeModules, target.runtime, abi);
   removeForeignPrebuilds(target.nodeModulesRoot);
@@ -1374,7 +1487,14 @@ function syncNativeNodeModules(recoveredRoot: string, nodeVersion: string): void
     return;
   }
 
-  const electronVersion = readRuntimeElectronVersion(recoveredRoot);
+  const electronVersion = readPackageElectronVersion(desktopRoot, "Packaging workspace");
+  const recoveredElectronVersion = readPackageElectronVersion(recoveredRoot, "Hydrated app");
+  if (normalizeRuntimeVersion(electronVersion) !== normalizeRuntimeVersion(recoveredElectronVersion)) {
+    console.log(
+      `Using packaging Electron ${normalizeRuntimeVersion(electronVersion)} for Windows ARM64 native modules; hydrated app declares ${normalizeRuntimeVersion(recoveredElectronVersion)}.`,
+    );
+  }
+
   for (const target of targets) {
     syncNativeNodeModulesTarget(
       target,

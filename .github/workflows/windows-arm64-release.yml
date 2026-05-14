@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build-windows-arm64:
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     env:
       GH_TOKEN: ${{ github.token }}
       IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}

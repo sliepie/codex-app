@@ -126,7 +126,7 @@ test("starts new Codex app releases at repo revision zero", async () => {
   assert.equal(output.current_commit_release_tag, "");
   assert.equal(
     output.hydration_cache_key,
-    "windows-arm64-hydrated-v4-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7",
+    "windows-arm64-hydrated-v5-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7",
   );
 });
 

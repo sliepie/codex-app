@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-windows-arm64:
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     outputs:
       codex_app_version: ${{ steps.upstream.outputs.codex_app_version }}
       codex_app_build: ${{ steps.upstream.outputs.codex_app_build }}
@@ -91,7 +91,7 @@ jobs:
   publish-alpha-release:
     needs: build-windows-arm64
     if: github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     permissions:
       contents: write
     env:
