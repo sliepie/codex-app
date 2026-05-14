@@ -670,6 +670,17 @@ test("native updater build stamp covers the builder script", () => {
   assert.match(source, /Assert-SuccessfulNativeCommand -Description "cargo build for \$target"/);
 });
 
+test("ZIP builds do not enable the Windows Store updater", () => {
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "native", "windows-oai-update-checker", "src", "lib.rs"),
+    "utf8",
+  );
+
+  assert.match(source, /if first == APPMODEL_ERROR_NO_PACKAGE \{/);
+  assert.match(source, /return Ok\(String::new\(\)\);/);
+  assert.doesNotMatch(source, /return Ok\("Codex"\.to_string\(\)\);/);
+});
+
 test("self-signed appinstaller updates immediately on launch", () => {
   const outputPath = path.join(
     fs.mkdtempSync(path.join(os.tmpdir(), "codex-appinstaller-")),
