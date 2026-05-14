@@ -182,7 +182,7 @@ const { currentCommitReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevis
 });
 const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
 const releaseTag = `codex-app-${releaseVersion}`;
-const hydrationCacheKey = `windows-arm64-hydrated-v4-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}`;
+const hydrationCacheKey = `windows-arm64-hydrated-v5-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}`;
 
 githubOutput("codex_app_version", appVersion);
 githubOutput("codex_app_build", buildNumber);

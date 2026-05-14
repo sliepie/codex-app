@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-windows-arm64:
-    runs-on: windows-latest
+    runs-on: windows-2025
     outputs:
       codex_app_version: ${{ steps.upstream.outputs.codex_app_version }}
       codex_app_build: ${{ steps.upstream.outputs.codex_app_build }}
@@ -34,6 +34,60 @@ jobs:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: desktop/package-lock.json
+
+      - name: Select Visual Studio 2026
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path -LiteralPath $vswhere)) {
+            throw "vswhere.exe was not found."
+          }
+
+          $installPath = & $vswhere -products * -version "[18.0,19.0)" -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath | Select-Object -First 1
+          if ([string]::IsNullOrWhiteSpace($installPath)) {
+            throw "Visual Studio 2026 with ARM64 VC tools was not found."
+          }
+
+          $vcVars = Join-Path $installPath "VC\Auxiliary\Build\vcvarsall.bat"
+          if (-not (Test-Path -LiteralPath $vcVars)) {
+            throw "Visual Studio 2026 vcvarsall.bat was not found at $vcVars."
+          }
+
+          $environment = @{}
+          $envLines = cmd /s /c ('"{0}" arm64 && set' -f $vcVars)
+          foreach ($line in $envLines) {
+            if ($line -notmatch "^([^=]+)=(.*)$") {
+              continue
+            }
+
+            $environment[$Matches[1]] = $Matches[2]
+          }
+
+          foreach ($name in @(
+            "Path",
+            "INCLUDE",
+            "LIB",
+            "LIBPATH",
+            "VCINSTALLDIR",
+            "VSINSTALLDIR",
+            "VSCMD_ARG_TGT_ARCH",
+            "VSCMD_ARG_HOST_ARCH",
+            "WindowsLibPath",
+            "WindowsSdkBinPath",
+            "WindowsSdkDir",
+            "WindowsSDKLibVersion",
+            "WindowsSDKVersion",
+            "VisualStudioVersion"
+          )) {
+            if ($environment.ContainsKey($name)) {
+              "$name=$($environment[$name])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            }
+          }
+
+          # node-gyp 11 only recognizes VS through 2022. Keep its selector compatible
+          # while VCINSTALLDIR and MSBuild come from the selected VS2026 install.
+          "VSCMD_VER=17.0" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "npm_config_msvs_version=2022" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Resolve upstream release versions
         id: upstream
@@ -91,7 +145,7 @@ jobs:
   publish-alpha-release:
     needs: build-windows-arm64
     if: github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: windows-latest
+    runs-on: windows-2025
     permissions:
       contents: write
     env:
