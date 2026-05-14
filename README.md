@@ -101,6 +101,13 @@ bundled Codex++ runtime from the latest `b-nnett/codex-plusplus` GitHub Release
 before packaging. The ZIP output is written under
 `desktop/out/make/zip/win32/arm64/`.
 
+Keep the packaging workspace dependencies aligned with the hydrated macOS app.
+Dependencies such as `electron` in `desktop/package.json` should match the
+version in `desktop/recovered/app-asar-extracted/package.json`, or be newer
+only when the Windows runner needs newer tooling support. Native app
+dependencies are discovered from the recovered macOS `node_modules` tree and
+rebuilt at those installed versions for Windows ARM64.
+
 ## Vendored `node_repl.exe`
 
 The Windows ARM64 package tracks `desktop/resources/node_repl.exe` because
