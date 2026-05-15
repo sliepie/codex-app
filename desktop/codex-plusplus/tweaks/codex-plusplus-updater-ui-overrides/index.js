@@ -7,14 +7,12 @@ const RELEASES_BUTTON_SELECTORS = [
   'button[title="Open Codex++ releases"]',
   '[data-codexpp="nav-group"] button',
 ];
-const FOLLOW_UP_APPLY_DELAYS_MS = [50, 250, 750];
+const INITIAL_REAPPLY_DELAY_MS = 250;
 
 const hiddenElements = new Map();
 
 let animationFrame = 0;
-let followUpTimer = 0;
-let clickHandler = null;
-let navigationHandler = null;
+let initialApplyTimer = 0;
 let log = console;
 
 function textNodesMatching(text) {
@@ -100,41 +98,30 @@ function scheduleApply() {
   animationFrame = window.requestAnimationFrame(applyOverrides);
 }
 
-function clearFollowUpTimer() {
-  if (!followUpTimer) {
+function clearInitialApplyTimer() {
+  if (!initialApplyTimer) {
     return;
   }
 
-  window.clearTimeout(followUpTimer);
-  followUpTimer = 0;
+  window.clearTimeout(initialApplyTimer);
+  initialApplyTimer = 0;
 }
 
-function scheduleFollowUpApply(attempt = 0) {
+function scheduleInitialApply() {
   scheduleApply();
 
-  clearFollowUpTimer();
-  if (attempt >= FOLLOW_UP_APPLY_DELAYS_MS.length) {
-    return;
-  }
-
-  followUpTimer = window.setTimeout(() => {
-    followUpTimer = 0;
-    scheduleFollowUpApply(attempt + 1);
-  }, FOLLOW_UP_APPLY_DELAYS_MS[attempt]);
+  clearInitialApplyTimer();
+  initialApplyTimer = window.setTimeout(() => {
+    initialApplyTimer = 0;
+    scheduleApply();
+  }, INITIAL_REAPPLY_DELAY_MS);
 }
 
 module.exports = {
   start(api) {
     log = api?.log || console;
 
-    clickHandler = () => scheduleFollowUpApply();
-    navigationHandler = () => scheduleFollowUpApply();
-
-    document.addEventListener("click", clickHandler, true);
-    window.addEventListener("hashchange", navigationHandler);
-    window.addEventListener("popstate", navigationHandler);
-
-    scheduleFollowUpApply();
+    scheduleInitialApply();
   },
 
   stop() {
@@ -142,17 +129,7 @@ module.exports = {
       window.cancelAnimationFrame(animationFrame);
       animationFrame = 0;
     }
-    clearFollowUpTimer();
-
-    if (clickHandler) {
-      document.removeEventListener("click", clickHandler, true);
-      clickHandler = null;
-    }
-    if (navigationHandler) {
-      window.removeEventListener("hashchange", navigationHandler);
-      window.removeEventListener("popstate", navigationHandler);
-      navigationHandler = null;
-    }
+    clearInitialApplyTimer();
 
     clearHiddenElements();
   },

@@ -696,6 +696,8 @@ test("Codex++ updater UI override hides update controls without observing render
   const windowEvents = [];
   let mutationObserverCount = 0;
   let timeoutId = 0;
+  let timeoutDelay = 0;
+  let clearedTimeoutId = 0;
 
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
@@ -736,11 +738,14 @@ test("Codex++ updater UI override hides update controls without observing render
       return 1;
     },
     cancelAnimationFrame() {},
-    setTimeout() {
+    setTimeout(_callback, delay) {
       timeoutId += 1;
+      timeoutDelay = delay;
       return timeoutId;
     },
-    clearTimeout() {},
+    clearTimeout(id) {
+      clearedTimeoutId = id;
+    },
     addEventListener(type) {
       windowEvents.push(type);
     },
@@ -773,16 +778,18 @@ test("Codex++ updater UI override hides update controls without observing render
     module.exports.start({ log: console });
 
     assert.equal(mutationObserverCount, 0);
-    assert.deepEqual(documentEvents, ["click"]);
-    assert.deepEqual(windowEvents, ["hashchange", "popstate"]);
+    assert.deepEqual(documentEvents, []);
+    assert.deepEqual(windowEvents, []);
+    assert.equal(timeoutDelay, 250);
     assert.equal(releaseButton.style.display, "none");
     assert.equal(updateSection.style.display, "none");
     assert.equal(watcherSection.style.display, "none");
 
     module.exports.stop();
 
-    assert.deepEqual(documentEvents, ["click", "remove:click"]);
-    assert.deepEqual(windowEvents, ["hashchange", "popstate", "remove:hashchange", "remove:popstate"]);
+    assert.deepEqual(documentEvents, []);
+    assert.deepEqual(windowEvents, []);
+    assert.equal(clearedTimeoutId, timeoutId);
     assert.equal(releaseButton.style.display, "");
     assert.equal(updateSection.style.display, "");
     assert.equal(watcherSection.style.display, "");
