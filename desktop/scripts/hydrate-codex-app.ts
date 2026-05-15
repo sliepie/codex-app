@@ -12,6 +12,7 @@ type Options = {
   version?: string;
   appcastUrl: string;
   cacheRoot: string;
+  codexPlusPlusSha?: string;
   codexPlusPlusTag?: string;
   force: boolean;
 };
@@ -36,6 +37,7 @@ type PackageJson = {
   cpu?: string | string[];
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  main?: string;
   os?: string | string[];
   optionalDependencies?: Record<string, string>;
   scripts?: Record<string, string>;
@@ -68,8 +70,24 @@ type PluginJson = {
 export type CodexPlusPlusRelease = {
   tag_name?: string;
   html_url?: string;
+  commitSha?: string;
   zipball_url?: string;
   published_at?: string;
+};
+
+type GithubGitRef = {
+  object?: {
+    sha?: string | null;
+    type?: string | null;
+    url?: string | null;
+  } | null;
+};
+
+type GithubGitTag = {
+  object?: {
+    sha?: string | null;
+    type?: string | null;
+  } | null;
 };
 
 const desktopRoot = process.cwd();
@@ -120,6 +138,9 @@ function parseOptions(argv: string[]): Options {
     codexPlusPlusTag:
       readOption(argv, "--codex-plusplus-tag", "-CodexPlusPlusTag") ??
       process.env.CODEX_PLUS_PLUS_TAG,
+    codexPlusPlusSha:
+      readOption(argv, "--codex-plusplus-sha", "-CodexPlusPlusSha") ??
+      process.env.CODEX_PLUS_PLUS_SHA,
     force: hasFlag(argv, "--force", "-Force"),
   };
 }
@@ -355,6 +376,47 @@ async function fetchCodexPlusPlusRelease(tagName?: string): Promise<CodexPlusPlu
   return await response.json() as CodexPlusPlusRelease;
 }
 
+async function fetchCodexPlusPlusTagCommitSha(tagName: string): Promise<string> {
+  const response = await fetch(
+    `https://api.github.com/repos/${codexPlusPlusRepo}/git/ref/tags/${encodeURIComponent(tagName)}`,
+    { headers: githubHeaders() },
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Failed to resolve Codex++ tag ${tagName}: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const ref = (await response.json()) as GithubGitRef;
+  const object = ref.object;
+  const sha = object?.sha ?? "";
+  if (!sha) {
+    throw new Error(`Codex++ tag ${tagName} did not include an object SHA.`);
+  }
+
+  if (object?.type !== "tag") {
+    return sha;
+  }
+
+  const tagResponse = await fetch(
+    object.url ?? `https://api.github.com/repos/${codexPlusPlusRepo}/git/tags/${sha}`,
+    { headers: githubHeaders() },
+  );
+  if (!tagResponse.ok) {
+    throw new Error(
+      `Failed to dereference Codex++ tag ${tagName}: ${tagResponse.status} ${tagResponse.statusText}`,
+    );
+  }
+
+  const tag = (await tagResponse.json()) as GithubGitTag;
+  const commitSha = tag.object?.sha ?? "";
+  if (!commitSha || tag.object?.type !== "commit") {
+    throw new Error(`Codex++ tag ${tagName} does not point to a commit.`);
+  }
+
+  return commitSha;
+}
+
 function findCodexPlusPlusSourceRoot(extractRoot: string): string | undefined {
   const pending = [extractRoot];
   while (pending.length > 0) {
@@ -385,6 +447,42 @@ function findCodexPlusPlusSourceRoot(extractRoot: string): string | undefined {
   return undefined;
 }
 
+function applyCodexPlusPlusRuntimePatches(
+  runtimeDestinationRoot: string,
+  tagName?: string,
+): void {
+  const mainRuntimePath = path.join(runtimeDestinationRoot, "main.js");
+  if (
+    !fs.existsSync(mainRuntimePath) ||
+    !fs.readFileSync(mainRuntimePath, "utf8").includes("codexpp:list-tweaks")
+  ) {
+    return;
+  }
+
+  const patchedTag = "v0.1.7";
+  if (tagName && tagName !== patchedTag) {
+    throw new Error(
+      "Codex++ runtime patches are pinned to " +
+        patchedTag +
+        "; review and update them for " +
+        tagName +
+        ".",
+    );
+  }
+
+  const patchPath = path.join(codexPlusPlusRoot, "runtime-patches", patchedTag + ".patch");
+  if (!fs.existsSync(patchPath)) {
+    throw new Error("Missing Codex++ runtime patch file: " + patchPath);
+  }
+
+  execFileSync(
+    "git",
+    ["apply", "--whitespace=nowarn", patchPath],
+    { cwd: runtimeDestinationRoot, stdio: "inherit" },
+  );
+  console.log("Applied Codex++ runtime patches for " + (tagName ?? "unknown tag") + ".");
+}
+
 export function syncCodexPlusPlusRuntimeAssets(
   sourceRoot: string,
   release: CodexPlusPlusRelease,
@@ -413,6 +511,7 @@ export function syncCodexPlusPlusRuntimeAssets(
   fs.rmSync(runtimeDestinationRoot, { recursive: true, force: true });
   fs.mkdirSync(destinationRoot, { recursive: true });
   fs.cpSync(runtimeSourceRoot, runtimeDestinationRoot, { recursive: true });
+  applyCodexPlusPlusRuntimePatches(runtimeDestinationRoot, release.tag_name);
   fs.copyFileSync(licensePath, path.join(destinationRoot, "LICENSE"));
   fs.writeFileSync(
     path.join(destinationRoot, "release.json"),
@@ -420,6 +519,7 @@ export function syncCodexPlusPlusRuntimeAssets(
       {
         repo: codexPlusPlusRepo,
         tagName: release.tag_name,
+        commitSha: release.commitSha,
         releaseUrl: release.html_url,
         zipballUrl: release.zipball_url,
         publishedAt: release.published_at,
@@ -436,15 +536,22 @@ async function hydrateCodexPlusPlusRuntime(
   cacheRoot: string,
   force: boolean,
   pinnedTagName?: string,
+  pinnedCommitSha?: string,
 ): Promise<void> {
   const release = await fetchCodexPlusPlusRelease(pinnedTagName);
   const tagName = release.tag_name?.trim();
-  const zipballUrl = release.zipball_url?.trim();
-  if (!tagName || !zipballUrl) {
-    throw new Error("Latest Codex++ release is missing a tag or zipball URL.");
+  if (!tagName) {
+    throw new Error("Latest Codex++ release is missing a tag.");
+  }
+  const commitSha = await fetchCodexPlusPlusTagCommitSha(tagName);
+  if (pinnedCommitSha && pinnedCommitSha.toLowerCase() !== commitSha.toLowerCase()) {
+    throw new Error(
+      `Codex++ tag ${tagName} resolved to ${commitSha}, expected ${pinnedCommitSha}.`,
+    );
   }
 
-  const safeTagName = sanitizePathSegment(tagName);
+  const zipballUrl = `https://api.github.com/repos/${codexPlusPlusRepo}/zipball/${commitSha}`;
+  const safeTagName = sanitizePathSegment(`${tagName}-${commitSha.slice(0, 12)}`);
   const codexPlusPlusCacheRoot = path.join(cacheRoot, "codex-plusplus");
   const zipPath = path.join(codexPlusPlusCacheRoot, `${safeTagName}.zip`);
   const extractRoot = path.join(codexPlusPlusCacheRoot, `extract-${safeTagName}`);
@@ -469,8 +576,12 @@ async function hydrateCodexPlusPlusRuntime(
     throw new Error("Could not find Codex++ runtime assets in the latest release archive.");
   }
 
-  syncCodexPlusPlusRuntimeAssets(sourceRoot, release);
-  console.log(`Hydrated Codex++ ${tagName} from ${release.html_url ?? zipballUrl}`);
+  syncCodexPlusPlusRuntimeAssets(sourceRoot, {
+    ...release,
+    commitSha,
+    zipball_url: zipballUrl,
+  });
+  console.log(`Hydrated Codex++ ${tagName} (${commitSha}) from ${release.html_url ?? zipballUrl}`);
 }
 
 function listPackageRoots(nodeModulesRoot: string): string[] {
@@ -1557,6 +1668,433 @@ function patchWindowsSelfSignedBundle(recoveredRoot: string): void {
   );
 }
 
+const codexWindowServicesKey = "__codexpp_window_services__";
+
+type CodexWindowServicesPatch = {
+  source: string;
+  changed: boolean;
+  strategy:
+    | "already-patched"
+    | "repair-missing-separator"
+    | "service-factory-fingerprint"
+    | "lifecycle-registration-fingerprint";
+  serviceVar?: string;
+};
+
+type CodexWindowServicesSourceDiagnostics = {
+  hasMarker: boolean;
+  buildFlavorProperties: number;
+  objectCalls: number;
+  matchedFingerprints: string[];
+  snippet: string | null;
+};
+
+type ServiceFactoryAssignment = {
+  serviceVar: string;
+  callEnd: number;
+};
+
+const objectCallPattern = /([$A-Za-z_][$A-Za-z0-9_]*)\s*\(\s*\{/g;
+const identPattern = /^[$A-Za-z_][$A-Za-z0-9_]*$/;
+const codexWindowServiceFingerprints = [
+  "allowDevtools:",
+  "allowDebugMenu:",
+  "allowInspectElement:",
+  "globalState:",
+  "getGlobalStateForHost:",
+  "desktopRoot:",
+  "preloadPath:",
+  "repoRoot:",
+  "canHideLastLocalWindowToTray:",
+  "disposables:",
+];
+
+export function patchCodexWindowServicesSource(
+  source: string,
+  marker = codexWindowServicesKey,
+): CodexWindowServicesPatch | null {
+  const repaired = repairMalformedMarkerAssignment(source, marker);
+  if (repaired) return repaired;
+
+  if (source.includes(markerAssignment(marker))) {
+    return { source, changed: false, strategy: "already-patched" };
+  }
+
+  const assignment = findWindowServicesFactoryAssignment(source);
+  if (!assignment) return patchFromLifecycleRegistration(source, marker);
+
+  const statementEnd = findStatementEnd(source, assignment.callEnd + 1);
+  if (statementEnd < 0) {
+    throw new Error("Codex window services declaration end could not be identified");
+  }
+
+  return {
+    source:
+      source.slice(0, statementEnd + 1) +
+      markerAssignment(marker) +
+      assignment.serviceVar +
+      ";" +
+      source.slice(statementEnd + 1),
+    changed: true,
+    strategy: "service-factory-fingerprint",
+    serviceVar: assignment.serviceVar,
+  };
+}
+
+export function describeCodexWindowServicesSource(
+  source: string,
+  marker = codexWindowServicesKey,
+): CodexWindowServicesSourceDiagnostics {
+  return {
+    hasMarker: source.includes(markerAssignment(marker)),
+    buildFlavorProperties: countObjectProperty(source, "buildFlavor"),
+    objectCalls: countObjectCalls(source),
+    matchedFingerprints: matchedWindowServicesFingerprints(source),
+    snippet: diagnosticSnippet(source),
+  };
+}
+
+function repairMalformedMarkerAssignment(
+  source: string,
+  marker: string,
+): CodexWindowServicesPatch | null {
+  const assignment = findWindowServicesFactoryAssignment(source);
+  if (!assignment) return null;
+
+  const assignmentText = markerAssignment(marker);
+  const markerIndex = source.indexOf(assignmentText);
+  if (markerIndex < 0) return null;
+
+  const valueIndex = markerIndex + assignmentText.length;
+  if (!source.startsWith(assignment.serviceVar, valueIndex)) return null;
+
+  const nextIndex = valueIndex + assignment.serviceVar.length;
+  if (source[nextIndex] === ";") return null;
+  if (!/[$A-Za-z_]/.test(source[nextIndex] ?? "")) return null;
+
+  return {
+    source: source.slice(0, nextIndex) + ";" + source.slice(nextIndex),
+    changed: true,
+    strategy: "repair-missing-separator",
+    serviceVar: assignment.serviceVar,
+  };
+}
+
+function findWindowServicesFactoryAssignment(source: string): ServiceFactoryAssignment | null {
+  objectCallPattern.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = objectCallPattern.exec(source)) !== null) {
+    const parenStart = match.index + match[0].indexOf("(");
+    const serviceVar = findAssignedIdentifierBefore(source, match.index);
+    if (!serviceVar) continue;
+
+    const callEnd = findMatchingBracket(source, parenStart, "(", ")");
+    if (callEnd < 0) continue;
+
+    const callSource = source.slice(parenStart, callEnd + 1);
+    if (!looksLikeWindowServicesFactory(callSource)) continue;
+
+    return { serviceVar, callEnd };
+  }
+
+  return null;
+}
+
+function patchFromLifecycleRegistration(
+  source: string,
+  marker: string,
+): CodexWindowServicesPatch | null {
+  const registration = findWindowServicesLifecycleRegistration(source);
+  if (!registration) return null;
+
+  const statementEnd = findStatementEnd(source, registration.callEnd + 1);
+  if (statementEnd < 0) {
+    throw new Error("Codex window services lifecycle registration end could not be identified");
+  }
+
+  return {
+    source:
+      source.slice(0, statementEnd + 1) +
+      markerAssignment(marker) +
+      registration.serviceVar +
+      ";" +
+      source.slice(statementEnd + 1),
+    changed: true,
+    strategy: "lifecycle-registration-fingerprint",
+    serviceVar: registration.serviceVar,
+  };
+}
+
+function findWindowServicesLifecycleRegistration(source: string): ServiceFactoryAssignment | null {
+  objectCallPattern.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = objectCallPattern.exec(source)) !== null) {
+    const parenStart = match.index + match[0].indexOf("(");
+    const callEnd = findMatchingBracket(source, parenStart, "(", ")");
+    if (callEnd < 0) continue;
+
+    const callSource = source.slice(parenStart, callEnd + 1);
+    const serviceVar = windowServicesVarFromLifecycleRegistration(callSource);
+    if (!serviceVar) continue;
+
+    return { serviceVar, callEnd };
+  }
+
+  return null;
+}
+
+function windowServicesVarFromLifecycleRegistration(callSource: string): string | null {
+  const serviceVar = objectPropertyIdentifierValue(callSource, "windows");
+  if (!serviceVar) return null;
+
+  const memberRefs = [
+    "ensureHostWindow",
+    "hotkeyWindowLifecycleManager",
+    "globalDictationLifecycleManager",
+  ].filter((property) => hasObjectPropertyMemberRef(callSource, property, serviceVar)).length;
+  const standaloneProps = ["flushAndDisposeContexts", "appEvent", "errorReporter"].filter((property) =>
+    hasObjectProperty(callSource, property),
+  ).length;
+
+  return memberRefs >= 2 && standaloneProps >= 2 ? serviceVar : null;
+}
+
+function findAssignedIdentifierBefore(source: string, index: number): string | null {
+  const eqIndex = skipWhitespaceBackward(source, index - 1);
+  if (source[eqIndex] !== "=") return null;
+
+  const end = skipWhitespaceBackward(source, eqIndex - 1) + 1;
+  let start = end;
+  while (start > 0 && /[$A-Za-z0-9_]/.test(source[start - 1] ?? "")) start -= 1;
+
+  const identifier = source.slice(start, end);
+  return identPattern.test(identifier) ? identifier : null;
+}
+
+function looksLikeWindowServicesFactory(callSource: string): boolean {
+  return hasObjectProperty(callSource, "buildFlavor") && matchedWindowServicesFingerprints(callSource).length >= 5;
+}
+
+function objectPropertyIdentifierValue(source: string, property: string): string | null {
+  const pattern = new RegExp(
+    "(?:^|[,{}])\\s*" + escapeRegExp(property) + "\\s*:\\s*([$A-Za-z_][$A-Za-z0-9_]*)",
+  );
+  return pattern.exec(source)?.[1] ?? null;
+}
+
+function hasObjectPropertyMemberRef(source: string, property: string, objectName: string): boolean {
+  const pattern = new RegExp(
+    "(?:^|[,{}])\\s*" +
+      escapeRegExp(property) +
+      "\\s*:\\s*" +
+      escapeRegExp(objectName) +
+      "\\." +
+      escapeRegExp(property) +
+      "\\b",
+  );
+  return pattern.test(source);
+}
+
+function findStatementEnd(source: string, startIndex: number): number {
+  let parens = 0;
+  let braces = 0;
+  let brackets = 0;
+  let quote: string | null = null;
+  let escaped = false;
+
+  for (let i = startIndex; i < source.length; i += 1) {
+    const ch = source[i] ?? "";
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'" || ch === "`") {
+      quote = ch;
+      continue;
+    }
+    if (ch === "(") parens += 1;
+    else if (ch === ")") parens -= 1;
+    else if (ch === "{") braces += 1;
+    else if (ch === "}") braces -= 1;
+    else if (ch === "[") brackets += 1;
+    else if (ch === "]") brackets -= 1;
+    else if (ch === ";" && parens === 0 && braces === 0 && brackets === 0) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+function findMatchingBracket(
+  source: string,
+  openIndex: number,
+  openChar: string,
+  closeChar: string,
+): number {
+  if (source[openIndex] !== openChar) return -1;
+
+  let depth = 0;
+  let quote: string | null = null;
+  let escaped = false;
+
+  for (let i = openIndex; i < source.length; i += 1) {
+    const ch = source[i] ?? "";
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'" || ch === "`") {
+      quote = ch;
+      continue;
+    }
+    if (ch === openChar) depth += 1;
+    else if (ch === closeChar) {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+
+  return -1;
+}
+
+function skipWhitespaceBackward(source: string, index: number): number {
+  let i = index;
+  while (i >= 0 && /\s/.test(source[i] ?? "")) i -= 1;
+  return i;
+}
+
+function markerAssignment(marker: string): string {
+  return "globalThis." + marker + "=";
+}
+
+function matchedWindowServicesFingerprints(source: string): string[] {
+  const out: string[] = [];
+  for (const fingerprint of codexWindowServiceFingerprints) {
+    const property = fingerprint.slice(0, -1);
+    if (hasObjectProperty(source, property)) out.push(property);
+  }
+  return out;
+}
+
+function hasObjectProperty(source: string, property: string): boolean {
+  return objectPropertyRegExp(property).test(source);
+}
+
+function countObjectProperty(source: string, property: string): number {
+  const matches = source.match(objectPropertyRegExp(property, "g"));
+  return matches ? matches.length : 0;
+}
+
+function countObjectCalls(source: string): number {
+  const matches = source.match(/[$A-Za-z_][$A-Za-z0-9_]*\s*\(\s*\{/g);
+  return matches ? matches.length : 0;
+}
+
+function objectPropertyRegExp(property: string, flags = ""): RegExp {
+  return new RegExp("(?:^|[,{}])\\s*[\"']?" + escapeRegExp(property) + "[\"']?\\s*:", flags);
+}
+
+function diagnosticSnippet(source: string): string | null {
+  const anchors = [
+    source.indexOf("buildFlavor"),
+    ...codexWindowServiceFingerprints.map((fingerprint) => source.indexOf(fingerprint.slice(0, -1))),
+  ].filter((index) => index >= 0);
+  if (anchors.length === 0) return null;
+
+  const anchor = Math.min(...anchors);
+  const start = Math.max(0, anchor - 90);
+  const end = Math.min(source.length, anchor + 220);
+  return source.slice(start, end).replace(/\s+/g, " ");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&");
+}
+
+function readRecoveredOriginalMain(recoveredRoot: string): string {
+  const packageJsonPath = path.join(recoveredRoot, "package.json");
+  if (!fs.existsSync(packageJsonPath)) {
+    return ".vite/build/bootstrap.js";
+  }
+
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as PackageJson;
+  const main = typeof packageJson.main === "string" ? packageJson.main.trim() : "";
+  return main ? main.replace(/\\/g, "/").replace(/^\.\//, "") : ".vite/build/bootstrap.js";
+}
+
+function findRecoveredViteMainBundles(recoveredRoot: string): string[] {
+  const buildRoot = path.join(recoveredRoot, ".vite", "build");
+  if (!fs.existsSync(buildRoot)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(buildRoot, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .filter((name) => name === "bootstrap.js" || /^main(?:[-.].*)?\.js$/i.test(name))
+    .sort()
+    .map((name) => path.posix.join(".vite", "build", name));
+}
+
+function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
+  const candidates = [readRecoveredOriginalMain(recoveredRoot), ...findRecoveredViteMainBundles(recoveredRoot)];
+  const seen = new Set<string>();
+  const diagnostics: string[] = [];
+
+  for (const relativePath of candidates) {
+    const normalized = relativePath.replace(/\\/g, "/").replace(/^\.\//, "");
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+
+    const filePath = path.join(recoveredRoot, normalized);
+    if (!fs.existsSync(filePath)) continue;
+
+    const source = fs.readFileSync(filePath, "utf8");
+    const patch = patchCodexWindowServicesSource(source);
+    if (!patch) {
+      const diagnostic = describeCodexWindowServicesSource(source);
+      diagnostics.push(normalized + ": " + JSON.stringify(diagnostic));
+      continue;
+    }
+
+    if (patch.changed) {
+      fs.writeFileSync(filePath, patch.source, "utf8");
+    }
+
+    console.log(
+      "Patched Codex window services in " +
+        normalized +
+        " via " +
+        patch.strategy +
+        (patch.serviceVar ? " (" + patch.serviceVar + ")" : ""),
+    );
+    return;
+  }
+
+  throw new Error(
+    "Could not patch Codex window services. Checked: " +
+      [...seen].join(", ") +
+      ". Diagnostics: " +
+      diagnostics.join(" | "),
+  );
+}
+
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   if (!options.appcastUrl.trim()) {
@@ -1612,7 +2150,12 @@ async function main(): Promise<void> {
   const appResourcesRoot = path.dirname(appAsar);
   const nodeVersion = readBundledNodeVersion(appResourcesRoot);
   syncBundledPluginResources(appResourcesRoot);
-  await hydrateCodexPlusPlusRuntime(options.cacheRoot, options.force, options.codexPlusPlusTag);
+  await hydrateCodexPlusPlusRuntime(
+    options.cacheRoot,
+    options.force,
+    options.codexPlusPlusTag,
+    options.codexPlusPlusSha,
+  );
 
   execFileSync(
     process.execPath,
@@ -1626,6 +2169,7 @@ async function main(): Promise<void> {
     { stdio: "inherit" },
   );
   patchWindowsSelfSignedBundle(recoveredRoot);
+  patchRecoveredCodexWindowServices(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
   fs.writeFileSync(

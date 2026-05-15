@@ -5,23 +5,56 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const originalMain = "recovered/app-asar-extracted/.vite/build/bootstrap.js";
+const fallbackOriginalMain = "recovered/app-asar-extracted/.vite/build/bootstrap.js";
+const packagedRoot = path.join(__dirname, "..");
+const originalMain = readPackagedOriginalMain();
 const runtimeDir = path.join(__dirname, "runtime");
 const bundledTweaksDir = path.join(__dirname, "tweaks");
 const userRoot = resolveUserRoot();
 const configFile = path.join(userRoot, "config.json");
 const logFile = path.join(userRoot, "log", "loader.log");
+const maxLogBytes = 10 * 1024 * 1024;
+const retainedLogBytes = 5 * 1024 * 1024;
 
 function resolveUserRoot() {
   const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
   return path.join(appData, "codex-plusplus");
 }
 
+function readPackagedOriginalMain() {
+  try {
+    const packageJson = readJson(path.join(packagedRoot, "package.json"));
+    const configured = packageJson && packageJson.__codexpp && packageJson.__codexpp.originalMain;
+    if (typeof configured === "string" && configured.trim()) {
+      return configured.trim().replace(/\\/g, "/").replace(/^\.\//, "");
+    }
+  } catch {
+    // Fall back to the historical recovered bootstrap path.
+  }
+
+  return fallbackOriginalMain;
+}
+
+function appendCappedLog(filePath, message) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  try {
+    const size = fs.statSync(filePath).size;
+    const messageBytes = Buffer.byteLength(message, "utf8");
+    if (size + messageBytes > maxLogBytes) {
+      const current = fs.readFileSync(filePath);
+      fs.writeFileSync(filePath, current.subarray(Math.max(0, current.length - retainedLogBytes)));
+    }
+  } catch {
+    // Missing or unreadable logs are recreated by appendFileSync below.
+  }
+
+  fs.appendFileSync(filePath, message, "utf8");
+}
+
 function log(label, error) {
   try {
-    fs.mkdirSync(path.dirname(logFile), { recursive: true });
     const message = error instanceof Error ? error.stack || error.message : String(error);
-    fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${label}: ${message}\n`, "utf8");
+    appendCappedLog(logFile, `[${new Date().toISOString()}] ${label}: ${message}\n`);
   } catch {
     // Last resort only; the app must keep launching even if Codex++ setup fails.
   }
@@ -165,4 +198,4 @@ try {
   log("codex-plusplus integrated startup failed", error);
 }
 
-require(path.join(__dirname, "..", originalMain));
+require(path.join(packagedRoot, originalMain));

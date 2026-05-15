@@ -14,6 +14,7 @@ const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
   hasArm64RuntimePayload,
+  patchCodexWindowServicesSource,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
 } = require(
@@ -212,6 +213,7 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
     sourceRoot,
     {
       tag_name: "v0.1.7",
+      commitSha: "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
       html_url: "https://github.com/b-nnett/codex-plusplus/releases/tag/v0.1.7",
       zipball_url: "https://api.github.com/repos/b-nnett/codex-plusplus/zipball/v0.1.7",
       published_at: "2026-05-12T14:08:09Z",
@@ -227,6 +229,39 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   const release = JSON.parse(fs.readFileSync(path.join(destinationRoot, "release.json"), "utf8"));
   assert.equal(release.repo, "b-nnett/codex-plusplus");
   assert.equal(release.tagName, "v0.1.7");
+  assert.equal(release.commitSha, "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413");
+});
+
+test("hydrates Codex++ runtime with app-owned safety patches", () => {
+  const hydrateSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+  const patchSource = fs.readFileSync(
+    path.join(desktopRoot, "codex-plusplus", "runtime-patches", "v0.1.7.patch"),
+    "utf8",
+  );
+
+  assert.match(hydrateSource, /applyCodexPlusPlusRuntimePatches\(runtimeDestinationRoot, release\.tag_name\)/);
+  assert.match(patchSource, /scheduleTweakUpdateChecks/);
+  assert.match(patchSource, /assertExistingRealPathInside/);
+  assert.match(patchSource, /externalLink\(match\[3\]/);
+  assert.match(patchSource, /TWEAK_LOAD_TIMEOUT_MS/);
+});
+
+test("patches recovered Codex window services source", () => {
+  const source =
+    "const services = createServices({" +
+    "buildFlavor:'prod',allowDevtools:false,allowDebugMenu:false," +
+    "allowInspectElement:false,globalState:{},getGlobalStateForHost(){}," +
+    "desktopRoot:'',preloadPath:'',repoRoot:'',disposables:[]" +
+    "});startApp();";
+
+  const result = patchCodexWindowServicesSource(source);
+
+  assert.equal(result?.changed, true);
+  assert.equal(result?.strategy, "service-factory-fingerprint");
+  assert.match(result?.source ?? "", /globalThis\.__codexpp_window_services__=services;startApp\(\);/);
 });
 
 test("discovers native modules copied inside every non-excluded bundled plugin resource", () => {
@@ -572,6 +607,11 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.match(loaderSource, /config\.json/);
   assert.match(loaderSource, /autoUpdate: false/);
   assert.match(loaderSource, /bundledVersionIsNewer\(marker\.version, current\.version\)/);
+  assert.match(loaderSource, /__codexpp\.originalMain/);
+  assert.match(loaderSource, /maxLogBytes = 10 \* 1024 \* 1024/);
+
+  const forgeSource = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
+  assert.match(forgeSource, /originalMain: recoveredOriginalMain\(upstreamPackageJson\)/);
 });
 
 test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
@@ -643,7 +683,9 @@ test("Codex app UI override installs styles without observing renderer mutations
     addEventListener(type) {
       eventListeners.push(type);
     },
-    removeEventListener() {},
+    removeEventListener(type) {
+      eventListeners.push(`remove:${type}`);
+    },
   };
   globalThis.document = {
     body: fakeElement,
@@ -668,7 +710,12 @@ test("Codex app UI override installs styles without observing renderer mutations
     module.exports.start({ log: console });
 
     assert.equal(mutationObserverCount, 0);
-    assert.deepEqual(eventListeners, []);
+    assert.deepEqual(eventListeners, [
+      "resize",
+      "popstate",
+      "hashchange",
+      "codexpp:settings-surface",
+    ]);
     assert.equal(appendedStyles.length, 1);
     assert.match(
       appendedStyles[0].textContent,
@@ -676,6 +723,16 @@ test("Codex app UI override installs styles without observing renderer mutations
     );
 
     module.exports.stop();
+    assert.deepEqual(eventListeners, [
+      "resize",
+      "popstate",
+      "hashchange",
+      "codexpp:settings-surface",
+      "remove:resize",
+      "remove:popstate",
+      "remove:hashchange",
+      "remove:codexpp:settings-surface",
+    ]);
   } finally {
     globalThis.window = previousWindow;
     globalThis.document = previousDocument;
@@ -694,6 +751,7 @@ test("Codex++ updater UI override hides update controls without observing render
   const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
   const documentEvents = [];
   const windowEvents = [];
+  const windowHandlers = new Map();
   let mutationObserverCount = 0;
   let timeoutId = 0;
   let timeoutDelay = 0;
@@ -746,11 +804,13 @@ test("Codex++ updater UI override hides update controls without observing render
     clearTimeout(id) {
       clearedTimeoutId = id;
     },
-    addEventListener(type) {
+    addEventListener(type, handler) {
       windowEvents.push(type);
+      windowHandlers.set(type, handler);
     },
     removeEventListener(type) {
       windowEvents.push(`remove:${type}`);
+      windowHandlers.delete(type);
     },
   };
   globalThis.document = {
@@ -779,16 +839,25 @@ test("Codex++ updater UI override hides update controls without observing render
 
     assert.equal(mutationObserverCount, 0);
     assert.deepEqual(documentEvents, []);
-    assert.deepEqual(windowEvents, []);
+    assert.deepEqual(windowEvents, ["codexpp:settings-surface"]);
     assert.equal(timeoutDelay, 250);
+    assert.equal(timeoutId, 1);
     assert.equal(releaseButton.style.display, "none");
     assert.equal(updateSection.style.display, "none");
     assert.equal(watcherSection.style.display, "none");
 
+    windowHandlers.get("codexpp:settings-surface")?.({ detail: { visible: true } });
+
+    assert.equal(timeoutId, 2);
+    assert.equal(clearedTimeoutId, 1);
+
     module.exports.stop();
 
     assert.deepEqual(documentEvents, []);
-    assert.deepEqual(windowEvents, []);
+    assert.deepEqual(windowEvents, [
+      "codexpp:settings-surface",
+      "remove:codexpp:settings-surface",
+    ]);
     assert.equal(clearedTimeoutId, timeoutId);
     assert.equal(releaseButton.style.display, "");
     assert.equal(updateSection.style.display, "");
@@ -871,6 +940,16 @@ test("hydrates the app payload before packaging", () => {
   assertHydrateAppRunsBeforeForge("make:win:arm64:ci", packageJson.scripts);
 });
 
+test("uses the pinned repo-local TypeScript script compiler", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
+  );
+
+  assert.equal(packageJson.devDependencies?.["@typescript/native-preview"], "7.0.0-dev.20260421.2");
+  assert.equal(packageJson.scripts["build:scripts"], "tsgo -p tsconfig.scripts.json");
+  assert.doesNotMatch(packageJson.scripts["build:scripts"], /npx|@beta/);
+});
+
 test("Windows ARM64 workflows use the documented VS2026 runner image", () => {
   for (const workflowName of [
     "windows-arm64-pr-build.yml",
@@ -902,7 +981,9 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_sha \}\}/);
   assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
+  assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
   assert.doesNotMatch(workflowSource, /PR_HEAD_SHA/);
   assert.match(workflowSource, /\$targetSha = \$env:BUILD_SHA/);
@@ -919,7 +1000,9 @@ test("release workflow tracks Codex++ in package inputs and release metadata", (
   );
 
   assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
   assert.match(workflowSource, /Codex\+\+: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /Codex\+\+ commit: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--notes "\$notes"/);
 });
@@ -934,7 +1017,10 @@ test("authenticates Codex++ GitHub release lookup when a token is available", ()
   assert.match(scriptSource, /headers\.Authorization = `Bearer \$\{token\}`/);
   assert.match(scriptSource, /headers: githubHeaders\(\)/);
   assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_TAG/);
+  assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_SHA/);
   assert.match(scriptSource, /fetchCodexPlusPlusRelease\(pinnedTagName\)/);
+  assert.match(scriptSource, /fetchCodexPlusPlusTagCommitSha\(tagName\)/);
+  assert.match(scriptSource, /zipball\/\$\{commitSha\}/);
   assert.match(scriptSource, /downloadFile\(zipballUrl, zipPath, githubHeaders\(\)\)/);
 });
 
@@ -1100,7 +1186,7 @@ test("self-signed appinstaller updates immediately on launch", () => {
   const appInstaller = fs.readFileSync(outputPath, "utf8");
   assert.match(
     appInstaller,
-    /<OnLaunch HoursBetweenUpdateChecks="0" ShowPrompt="false" UpdateBlocksActivation="true" \/>/,
+    /<OnLaunch HoursBetweenUpdateChecks="0" ShowPrompt="true" UpdateBlocksActivation="true" \/>/,
   );
 });
 

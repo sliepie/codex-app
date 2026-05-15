@@ -18,8 +18,26 @@ type GithubRelease = {
   target_commitish?: string | null;
 };
 
+type GithubGitRef = {
+  object?: {
+    sha?: string | null;
+    type?: string | null;
+    url?: string | null;
+  } | null;
+};
+
+type GithubGitTag = {
+  object?: {
+    sha?: string | null;
+    type?: string | null;
+  } | null;
+};
+
 type ReleaseInputs = {
+  appBuildNumber: string;
+  appVersion: string;
   codexCliTag: string;
+  codexPlusPlusSha: string;
   codexPlusPlusTag: string;
 };
 
@@ -91,19 +109,26 @@ function releaseMetadataLine(label: string, value: string): string {
   return `${label}: ${value}`;
 }
 
-function releaseTracksInputs(release: GithubRelease, { codexCliTag, codexPlusPlusTag }: ReleaseInputs): boolean {
+function releaseTracksInputs(
+  release: GithubRelease,
+  { appBuildNumber, appVersion, codexCliTag, codexPlusPlusSha, codexPlusPlusTag }: ReleaseInputs,
+): boolean {
   const body = release.body ?? "";
   return (
+    body.includes(releaseMetadataLine("Codex app", `${appVersion} build ${appBuildNumber}`)) &&
     body.includes(releaseMetadataLine("Codex CLI", codexCliTag)) &&
-    body.includes(releaseMetadataLine("Codex++", codexPlusPlusTag))
+    body.includes(releaseMetadataLine("Codex++", codexPlusPlusTag)) &&
+    body.includes(releaseMetadataLine("Codex++ commit", codexPlusPlusSha))
   );
 }
 
 function resolveRepoReleaseRevision({
   appVersion,
+  appBuildNumber,
   currentSha,
   releases,
   codexCliTag,
+  codexPlusPlusSha,
   codexPlusPlusTag,
 }: ResolveRepoReleaseRevisionOptions): { currentCommitReleaseTag: string; repoReleaseRevision: number } {
   let latestRevision = -1;
@@ -121,7 +146,13 @@ function resolveRepoReleaseRevision({
     if (
       currentSha &&
       release.target_commitish?.toLowerCase() === currentSha.toLowerCase() &&
-      releaseTracksInputs(release, { codexCliTag, codexPlusPlusTag })
+      releaseTracksInputs(release, {
+        appBuildNumber,
+        appVersion,
+        codexCliTag,
+        codexPlusPlusSha,
+        codexPlusPlusTag,
+      })
     ) {
       if (currentCommitRevision === undefined || revision > currentCommitRevision) {
         currentCommitRevision = revision;
@@ -185,6 +216,41 @@ async function fetchLatestReleaseTag(repository: string, label: string): Promise
   return tagName;
 }
 
+async function fetchGitTagCommitSha(repository: string, tagName: string, label: string): Promise<string> {
+  const response = await fetch(repositoryApiUrl(repository, `/git/ref/tags/${encodeURIComponent(tagName)}`), {
+    headers: githubHeaders(),
+  });
+  if (!response.ok) {
+    fail(`Failed to resolve ${label} tag ${tagName}: ${response.status} ${response.statusText}`);
+  }
+
+  const ref = (await response.json()) as GithubGitRef;
+  const object = ref.object;
+  const sha = object?.sha ?? "";
+  if (!sha) {
+    fail(`${label} tag ${tagName} did not include an object SHA.`);
+  }
+
+  if (object?.type !== "tag") {
+    return sha;
+  }
+
+  const tagResponse = await fetch(object.url ?? repositoryApiUrl(repository, `/git/tags/${sha}`), {
+    headers: githubHeaders(),
+  });
+  if (!tagResponse.ok) {
+    fail(`Failed to dereference ${label} tag ${tagName}: ${tagResponse.status} ${tagResponse.statusText}`);
+  }
+
+  const tag = (await tagResponse.json()) as GithubGitTag;
+  const commitSha = tag.object?.sha ?? "";
+  if (!commitSha || tag.object?.type !== "commit") {
+    fail(`${label} tag ${tagName} does not point to a commit.`);
+  }
+
+  return commitSha;
+}
+
 async function main(): Promise<void> {
   const response = await fetch(appcastUrl);
   if (!response.ok) {
@@ -206,28 +272,36 @@ async function main(): Promise<void> {
     item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim() ?? "";
   const cliTag = await fetchLatestReleaseTag(codexCliRepository, "Codex CLI");
   const codexPlusPlusTag = await fetchLatestReleaseTag(codexPlusPlusRepository, "Codex++");
+  const codexPlusPlusSha = await fetchGitTagCommitSha(
+    codexPlusPlusRepository,
+    codexPlusPlusTag,
+    "Codex++",
+  );
   const releases = await fetchExistingReleases();
   const { currentCommitReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevision({
     appVersion,
+    appBuildNumber: buildNumber,
     currentSha: process.env.GITHUB_SHA,
     releases,
     codexCliTag: cliTag,
+    codexPlusPlusSha,
     codexPlusPlusTag,
   });
   const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
   const releaseTag = `codex-app-${releaseVersion}`;
-  const hydrationCacheKey = `windows-arm64-hydrated-v5-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}`;
+  const hydrationCacheKey = `windows-arm64-hydrated-v5-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}`;
   const nativeModulesCacheInputHash = hashCacheInputs([
     "package-lock.json",
     "scripts/hydrate-codex-app.ts",
     "scripts/patch-better-sqlite3-electron.ts",
   ]);
-  const nativeModulesCacheKey = `windows-arm64-native-modules-v1-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-inputs-${nativeModulesCacheInputHash}`;
+  const nativeModulesCacheKey = `windows-arm64-native-modules-v1-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-${nativeModulesCacheInputHash}`;
 
   githubOutput("codex_app_version", appVersion);
   githubOutput("codex_app_build", buildNumber);
   githubOutput("codex_cli_tag", cliTag);
   githubOutput("codex_plus_plus_tag", codexPlusPlusTag);
+  githubOutput("codex_plus_plus_sha", codexPlusPlusSha);
   githubOutput("repo_release_revision", repoReleaseRevision);
   githubOutput("release_version", releaseVersion);
   githubOutput("release_tag", releaseTag);
@@ -242,6 +316,7 @@ async function main(): Promise<void> {
         codexAppBuild: buildNumber,
         codexCliTag: cliTag,
         codexPlusPlusTag,
+        codexPlusPlusSha,
         repoReleaseRevision,
         releaseVersion,
         releaseTag,

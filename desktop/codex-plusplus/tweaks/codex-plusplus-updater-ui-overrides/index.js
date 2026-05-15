@@ -117,10 +117,17 @@ function scheduleInitialApply() {
   }, INITIAL_REAPPLY_DELAY_MS);
 }
 
+function onSettingsSurface(event) {
+  if (event?.detail?.visible) {
+    scheduleInitialApply();
+  }
+}
+
 module.exports = {
   start(api) {
     log = api?.log || console;
 
+    window.addEventListener("codexpp:settings-surface", onSettingsSurface);
     scheduleInitialApply();
   },
 
@@ -130,6 +137,7 @@ module.exports = {
       animationFrame = 0;
     }
     clearInitialApplyTimer();
+    window.removeEventListener("codexpp:settings-surface", onSettingsSurface);
 
     clearHiddenElements();
   },

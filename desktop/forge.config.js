@@ -56,6 +56,14 @@ function readPackageJson(packageRoot) {
   return JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
 }
 
+function recoveredOriginalMain(upstreamPackageJson) {
+  const upstreamMain =
+    typeof upstreamPackageJson.main === 'string' && upstreamPackageJson.main.trim()
+      ? upstreamPackageJson.main.trim().replace(/\\/g, '/')
+      : '.vite/build/bootstrap.js';
+  return path.posix.join('recovered/app-asar-extracted', upstreamMain.replace(/^\.\//, ''));
+}
+
 function packageListAllowsTarget(value, target) {
   if (!value) {
     return true;
@@ -280,6 +288,12 @@ function syncPackagedPackageJson(buildPath) {
   packageJson.codexBuildNumber =
     releaseInfo?.buildNumber ?? upstreamPackageJson.codexBuildNumber ?? packageJson.codexBuildNumber;
   packageJson.codexWindowsPackageIdentity = codexWindowsProdOaiPackageIdentity;
+  packageJson.__codexpp = {
+    ...(packageJson.__codexpp && typeof packageJson.__codexpp === 'object'
+      ? packageJson.__codexpp
+      : {}),
+    originalMain: recoveredOriginalMain(upstreamPackageJson),
+  };
   packageJson.main = 'codex-plusplus/loader.cjs';
 
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');

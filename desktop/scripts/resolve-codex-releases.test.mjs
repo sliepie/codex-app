@@ -27,12 +27,17 @@ const appcast = `<?xml version="1.0" encoding="utf-8"?>
 </rss>`;
 
 function releaseInputsBody({
+  appBuildNumber = "2429",
+  appVersion = "26.429.61741",
   codexCliTag = "rust-v0.129.0",
+  codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
   codexPlusPlusTag = "v0.1.7",
 } = {}) {
   return [
+    "Codex app: " + appVersion + " build " + appBuildNumber,
     "Codex CLI: " + codexCliTag,
     "Codex++: " + codexPlusPlusTag,
+    "Codex++ commit: " + codexPlusPlusSha,
   ].join("\\n");
 }
 
@@ -59,6 +64,19 @@ function startServer(releases) {
     if (request.url === "/repos/b-nnett/codex-plusplus/releases/latest") {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ tag_name: "v0.1.7" }));
+      return;
+    }
+
+    if (request.url === "/repos/b-nnett/codex-plusplus/git/ref/tags/v0.1.7") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify({
+          object: {
+            sha: "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+            type: "commit",
+          },
+        }),
+      );
       return;
     }
 
@@ -141,12 +159,13 @@ test("starts new Codex app releases at repo revision zero", async () => {
   assert.equal(output.release_version, "26.429.61741.0");
   assert.equal(output.codex_cli_tag, "rust-v0.129.0");
   assert.equal(output.codex_plus_plus_tag, "v0.1.7");
+  assert.equal(output.codex_plus_plus_sha, "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413");
   assert.equal(output.repo_release_revision, "0");
   assert.equal(output.release_tag, "codex-app-26.429.61741.0");
   assert.equal(output.current_commit_release_tag, "");
   assert.equal(
     output.hydration_cache_key,
-    "windows-arm64-hydrated-v5-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7",
+    "windows-arm64-hydrated-v5-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
   );
   assert.equal(
     output.native_modules_cache_key,
@@ -227,6 +246,36 @@ test("starts a new repo revision when the current commit release has stale Codex
       tag_name: "codex-app-26.429.61741.1",
       target_commitish: "abcdef1234567890",
       body: releaseInputsBody({ codexCliTag: "rust-v0.128.0" }),
+    }],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.2");
+  assert.equal(output.repo_release_revision, "2");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.2");
+  assert.equal(output.current_commit_release_tag, "");
+});
+
+test("starts a new repo revision when the current commit release has stale Codex app build input", async () => {
+  const output = await runResolver({
+    releases: [{
+      tag_name: "codex-app-26.429.61741.1",
+      target_commitish: "abcdef1234567890",
+      body: releaseInputsBody({ appBuildNumber: "2428" }),
+    }],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.2");
+  assert.equal(output.repo_release_revision, "2");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.2");
+  assert.equal(output.current_commit_release_tag, "");
+});
+
+test("starts a new repo revision when the current commit release has stale Codex++ commit input", async () => {
+  const output = await runResolver({
+    releases: [{
+      tag_name: "codex-app-26.429.61741.1",
+      target_commitish: "abcdef1234567890",
+      body: releaseInputsBody({ codexPlusPlusSha: "1111111111111111111111111111111111111111" }),
     }],
   });
 

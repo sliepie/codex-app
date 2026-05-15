@@ -94,6 +94,7 @@ jobs:
         env:
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
           CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
+          CODEX_PLUS_PLUS_SHA: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
         run: npm run prepare:win:arm64
 
       - name: Make Windows ARM64 ZIP
@@ -123,6 +124,7 @@ jobs:
           Codex app: ${{ steps.upstream.outputs.codex_app_version }} build ${{ steps.upstream.outputs.codex_app_build }}
           Codex CLI: ${{ steps.upstream.outputs.codex_cli_tag }}
           Codex++: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
+          Codex++ commit: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
           Commit: ${{ github.sha }}
           "@
 

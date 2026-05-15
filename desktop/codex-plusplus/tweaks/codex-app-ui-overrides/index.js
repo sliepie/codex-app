@@ -1,8 +1,10 @@
 const STYLE_ID = "codex-app-ui-overrides-style";
 const SIDEBAR_MAX_LEFT = 420;
+const REAPPLY_DELAY_MS = 250;
 const managedStyles = new Map();
 
 let animationFrame = 0;
+let reapplyTimer = 0;
 let log = console;
 
 const VISIBLE_CONTROL_DECLARATIONS =
@@ -395,9 +397,48 @@ function scheduleApply() {
   animationFrame = window.requestAnimationFrame(applyOverrides);
 }
 
+function clearReapplyTimer() {
+  if (!reapplyTimer) {
+    return;
+  }
+
+  window.clearTimeout(reapplyTimer);
+  reapplyTimer = 0;
+}
+
+function scheduleDelayedApply() {
+  scheduleApply();
+  clearReapplyTimer();
+  reapplyTimer = window.setTimeout(() => {
+    reapplyTimer = 0;
+    scheduleApply();
+  }, REAPPLY_DELAY_MS);
+}
+
+function onSettingsSurface(event) {
+  if (event?.detail?.visible) {
+    scheduleDelayedApply();
+  }
+}
+
+function addReapplyListeners() {
+  window.addEventListener("resize", scheduleDelayedApply);
+  window.addEventListener("popstate", scheduleDelayedApply);
+  window.addEventListener("hashchange", scheduleDelayedApply);
+  window.addEventListener("codexpp:settings-surface", onSettingsSurface);
+}
+
+function removeReapplyListeners() {
+  window.removeEventListener("resize", scheduleDelayedApply);
+  window.removeEventListener("popstate", scheduleDelayedApply);
+  window.removeEventListener("hashchange", scheduleDelayedApply);
+  window.removeEventListener("codexpp:settings-surface", onSettingsSurface);
+}
+
 module.exports = {
   start(api) {
     log = api?.log || console;
+    addReapplyListeners();
     scheduleApply();
   },
 
@@ -406,6 +447,8 @@ module.exports = {
       window.cancelAnimationFrame(animationFrame);
       animationFrame = 0;
     }
+    clearReapplyTimer();
+    removeReapplyListeners();
 
     document.getElementById(STYLE_ID)?.remove();
     clearManagedStyles();
