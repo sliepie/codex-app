@@ -10,7 +10,7 @@ Date: 2026-05-08
 | Windows ARM64 output | `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64-v26.429.30905.zip` |
 | Windows package directory | `desktop/out/Codex-win32-arm64` |
 | macOS extracted app | `desktop/.cache/codex-app/extract-26.429.30905/Codex.app` |
-| Vendored Node REPL fallback | `desktop/resources/node_repl.exe` from `OpenAI.Codex_26.506.2004.0_x64__2p2nqsd0c76g0` |
+| Vendored Node REPL fallback | `desktop/resources/node_repl.exe` from `OpenAI.Codex_26.506.3741.0_x64__2p2nqsd0c76g0` |
 
 ## Version Match
 
@@ -21,7 +21,7 @@ Date: 2026-05-08
 | Electron | refresh manifest = `41.2.0` | `desktop/package.json` dependency = `41.2.0` | Match |
 | Codex CLI | release payload = `rust-v0.128.0` | `resources/codex.exe --version` = `codex-cli 0.128.0` | Match |
 | CLI helper binaries | release payload = `rust-v0.128.0` | Windows helper `FileVersion` = `0.128.0` | Match |
-| Node REPL fallback | Store package `OpenAI.Codex_26.506.2004.0_x64__2p2nqsd0c76g0` | `resources/node_repl.exe` SHA-256 = `d203a942481258e0e5125e38cf30a9ed95f78ac9d3cc6a71b2678dcb47728b35` | Explicit x64 exception |
+| Node REPL fallback | Store package `OpenAI.Codex_26.506.3741.0_x64__2p2nqsd0c76g0` | `resources/node_repl.exe` SHA-256 = `d203a942481258e0e5125e38cf30a9ed95f78ac9d3cc6a71b2678dcb47728b35` | Explicit x64 exception |
 
 ## Architecture Summary
 
@@ -88,7 +88,7 @@ The produced Windows package contains no `.node` files in `resources/app.asar` a
 | `resources/codex-command-runner.exe` | `ARM64` | `0.128.0` |
 | `resources/codex-windows-sandbox-setup.exe` | `ARM64` | `0.128.0` |
 | `resources/codex.exe` | `ARM64` | `0.128.0`; CLI reports `codex-cli 0.128.0` |
-| `resources/node_repl.exe` | `x64` | Vendored from `OpenAI.Codex_26.506.2004.0_x64__2p2nqsd0c76g0`; SHA-256 `d203a942481258e0e5125e38cf30a9ed95f78ac9d3cc6a71b2678dcb47728b35` |
+| `resources/node_repl.exe` | `x64` | Vendored from `OpenAI.Codex_26.506.3741.0_x64__2p2nqsd0c76g0`; SHA-256 `d203a942481258e0e5125e38cf30a9ed95f78ac9d3cc6a71b2678dcb47728b35` |
 | `vk_swiftshader.dll` | `ARM64` | `5.0.0` |
 | `vulkan-1.dll` | `ARM64` | Vulkan Loader |
 
