@@ -113,7 +113,8 @@ Native app dependencies are discovered from the recovered macOS
 `node_modules` tree and rebuilt at those installed versions for Windows ARM64
 when the recovered package contains shipped native payloads or prebuilds. A
 source-only build recipe is not enough by itself; update the dependency or build
-tooling instead of patching third-party package source in the hydration script.
+tooling first. Keep any third-party source patch in the hydration script narrow,
+runtime-gated, and covered by tests.
 
 ## Vendored `node_repl.exe`
 

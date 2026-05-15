@@ -715,7 +715,7 @@ function runtimeCacheKey(
         electronVersion: runtimeVersion,
         nativeModules,
         target: "win32-arm64",
-        version: 2,
+        version: 3,
       }))
       .digest("hex");
   }
@@ -1181,6 +1181,104 @@ function runElectronRebuild(
   );
 }
 
+function runtimeMajorVersion(runtimeVersion: string): number | undefined {
+  const majorText = normalizeRuntimeVersion(runtimeVersion).split(".")[0];
+  if (!/^\d+$/.test(majorText)) {
+    return undefined;
+  }
+  return Number.parseInt(majorText, 10);
+}
+
+function replaceSourceOnce(filePath: string, needle: string, replacement: string): boolean {
+  const source = fs.readFileSync(filePath, "utf8");
+  if (source.includes(replacement)) {
+    return false;
+  }
+  if (!source.includes(needle)) {
+    throw new Error(
+      `Could not find better-sqlite3 V8 external pointer patch needle in ${filePath}`,
+    );
+  }
+  fs.writeFileSync(filePath, source.replace(needle, replacement), "utf8");
+  return true;
+}
+
+export function patchBetterSqlite3ForV8ExternalPointerApi(
+  nodeModulesRoot: string,
+  electronVersion: string,
+): void {
+  const electronMajor = runtimeMajorVersion(electronVersion);
+  if (electronMajor === undefined || electronMajor < 42) {
+    return;
+  }
+
+  const moduleRoot = packageRoot(nodeModulesRoot, "better-sqlite3");
+  if (!fs.existsSync(moduleRoot)) {
+    throw new Error(`better-sqlite3 source not found at ${moduleRoot}`);
+  }
+
+  const mainSource = path.join(moduleRoot, "src", "better_sqlite3.cpp");
+  const helpersSource = path.join(moduleRoot, "src", "util", "helpers.cpp");
+  const macrosSource = path.join(moduleRoot, "src", "util", "macros.cpp");
+
+  for (const [label, filePath] of [
+    ["main", mainSource],
+    ["helpers", helpersSource],
+    ["macros", macrosSource],
+  ] as const) {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Missing better-sqlite3 ${label} source: ${filePath}`);
+    }
+  }
+
+  let patched = false;
+  patched =
+    replaceSourceOnce(
+      mainSource,
+      "v8::Local<v8::External> data = v8::External::New(isolate, addon);",
+      "v8::Local<v8::External> data = BETTER_SQLITE3_EXTERNAL_NEW(isolate, addon);",
+    ) || patched;
+
+  patched =
+    replaceSourceOnce(
+      macrosSource,
+      `#define EasyIsolate v8::Isolate* isolate = v8::Isolate::GetCurrent()
+#define OnlyIsolate info.GetIsolate()
+#define OnlyContext isolate->GetCurrentContext()
+#define OnlyAddon static_cast<Addon*>(info.Data().As<v8::External>()->Value())`,
+      `#if defined(V8_MAJOR_VERSION) && V8_MAJOR_VERSION >= 14
+#define BETTER_SQLITE3_EXTERNAL_POINTER_TAG v8::kExternalPointerTypeTagDefault
+#define BETTER_SQLITE3_EXTERNAL_NEW(isolate, value) v8::External::New((isolate), (value), BETTER_SQLITE3_EXTERNAL_POINTER_TAG)
+#define BETTER_SQLITE3_EXTERNAL_VALUE(external) ((external)->Value(BETTER_SQLITE3_EXTERNAL_POINTER_TAG))
+#else
+#define BETTER_SQLITE3_EXTERNAL_NEW(isolate, value) v8::External::New((isolate), (value))
+#define BETTER_SQLITE3_EXTERNAL_VALUE(external) ((external)->Value())
+#endif
+
+#define EasyIsolate v8::Isolate* isolate = v8::Isolate::GetCurrent()
+#define OnlyIsolate info.GetIsolate()
+#define OnlyContext isolate->GetCurrentContext()
+#define OnlyAddon static_cast<Addon*>(BETTER_SQLITE3_EXTERNAL_VALUE(info.Data().As<v8::External>()))`,
+    ) || patched;
+
+  patched =
+    replaceSourceOnce(
+      helpersSource,
+      `\t\tfunc,
+\t\t0,
+\t\tdata`,
+      `\t\tfunc,
+\t\tnullptr,
+\t\tdata`,
+    ) || patched;
+
+  console.log(
+    patched
+      ? "Patched better-sqlite3 source for V8 external pointer API."
+      : "better-sqlite3 V8 external pointer source patch already applied.",
+  );
+}
+
 function runNodeGypBuildInstall(
   packageRootPath: string,
   nodeModulesRoot: string,
@@ -1456,6 +1554,13 @@ function syncNativeNodeModulesTarget(
       console.log(
         `Falling back to Electron source rebuild for Windows ARM64 native modules in ${target.label}: ${moduleNamesRequiringRebuild.join(", ")}`,
       );
+      if (
+        modulesRequiringRebuild.some(
+          (nativeModule) => nativeModule.name === "better-sqlite3",
+        )
+      ) {
+        patchBetterSqlite3ForV8ExternalPointerApi(target.nodeModulesRoot, runtimeVersion);
+      }
       runElectronRebuild(moduleNamesRequiringRebuild, runtimeVersion, moduleRoot);
       return;
     }

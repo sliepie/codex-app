@@ -14,6 +14,7 @@ const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
   hasArm64RuntimePayload,
+  patchBetterSqlite3ForV8ExternalPointerApi,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
 } = require(
@@ -369,6 +370,96 @@ test("Mach-O native payloads are not ready for Windows ARM64", () => {
   writeMachOFixture(path.join(packageRoot, "build", "Release", "better_sqlite3.node"));
 
   assert.equal(hasArm64RuntimePayload(packageRoot), false);
+});
+
+function writeBetterSqlite3SourceFixture(nodeModulesRoot) {
+  const moduleRoot = path.join(nodeModulesRoot, "better-sqlite3");
+  writeFixture(
+    path.join(moduleRoot, "src", "better_sqlite3.cpp"),
+    `void init(v8::Isolate* isolate, Addon* addon) {
+\tv8::Local<v8::External> data = v8::External::New(isolate, addon);
+}
+`,
+  );
+  writeFixture(
+    path.join(moduleRoot, "src", "util", "macros.cpp"),
+    `#define EasyIsolate v8::Isolate* isolate = v8::Isolate::GetCurrent()
+#define OnlyIsolate info.GetIsolate()
+#define OnlyContext isolate->GetCurrentContext()
+#define OnlyAddon static_cast<Addon*>(info.Data().As<v8::External>()->Value())
+`,
+  );
+  writeFixture(
+    path.join(moduleRoot, "src", "util", "helpers.cpp"),
+    `void SetPrototypeGetter() {
+\trecv->InstanceTemplate()->SetNativeDataProperty(
+\t\tInternalizedFromLatin1(isolate, name),
+\t\tfunc,
+\t\t0,
+\t\tdata
+\t);
+}
+`,
+  );
+}
+
+test("patches better-sqlite3 source for Electron 42 rebuilds", () => {
+  const nodeModulesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-native-modules-"));
+  writeBetterSqlite3SourceFixture(nodeModulesRoot);
+
+  patchBetterSqlite3ForV8ExternalPointerApi(nodeModulesRoot, "42.0.1");
+  patchBetterSqlite3ForV8ExternalPointerApi(nodeModulesRoot, "42.0.1");
+
+  assert.match(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "better_sqlite3.cpp"),
+      "utf8",
+    ),
+    /BETTER_SQLITE3_EXTERNAL_NEW\(isolate, addon\)/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "util", "macros.cpp"),
+      "utf8",
+    ),
+    /BETTER_SQLITE3_EXTERNAL_POINTER_TAG/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "util", "macros.cpp"),
+      "utf8",
+    ),
+    /BETTER_SQLITE3_EXTERNAL_VALUE\(info\.Data\(\)\.As<v8::External>\(\)\)/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "util", "helpers.cpp"),
+      "utf8",
+    ),
+    /\t\tnullptr,/,
+  );
+});
+
+test("leaves better-sqlite3 source unchanged before Electron 42", () => {
+  const nodeModulesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-native-modules-"));
+  writeBetterSqlite3SourceFixture(nodeModulesRoot);
+
+  patchBetterSqlite3ForV8ExternalPointerApi(nodeModulesRoot, "41.2.0");
+
+  assert.match(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "better_sqlite3.cpp"),
+      "utf8",
+    ),
+    /v8::External::New\(isolate, addon\)/,
+  );
+  assert.doesNotMatch(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "util", "macros.cpp"),
+      "utf8",
+    ),
+    /BETTER_SQLITE3_EXTERNAL_POINTER_TAG/,
+  );
 });
 
 test("allows the upstream bundle to omit the browser plugin", () => {
