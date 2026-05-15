@@ -595,6 +595,56 @@ test("includes generated plugin resources and Codex++ integration in the Windows
 
   const forgeSource = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
   assert.match(forgeSource, /originalMain: recoveredOriginalMain\(upstreamPackageJson\)/);
+  assert.match(forgeSource, /assertCodexPlusPlusPackageInputs\(buildPath\)/);
+});
+
+function ensureRecoveredPackageForForgeTest(t) {
+  const recoveredRoot = path.join(desktopRoot, "recovered");
+  const recoveredPackageRoot = path.join(recoveredRoot, "app-asar-extracted");
+  const recoveredPackageJsonPath = path.join(recoveredPackageRoot, "package.json");
+  if (fs.existsSync(recoveredPackageJsonPath)) {
+    return;
+  }
+
+  const hadRecoveredRoot = fs.existsSync(recoveredRoot);
+  writeFixture(
+    recoveredPackageJsonPath,
+    JSON.stringify({ main: ".vite/build/bootstrap.js", version: "0.0.0" }, null, 2) + "\n",
+  );
+  t.after(() => {
+    if (!hadRecoveredRoot) {
+      fs.rmSync(recoveredRoot, { recursive: true, force: true });
+      return;
+    }
+    fs.rmSync(recoveredPackageJsonPath, { force: true });
+  });
+}
+
+function runForgeAfterCopy(config, buildPath) {
+  return new Promise((resolve, reject) => {
+    config.packagerConfig.afterCopy[0](buildPath, null, null, null, (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+test("Forge preflight fails when hydrated Codex++ runtime is missing", async (t) => {
+  ensureRecoveredPackageForForgeTest(t);
+  const config = require(path.join(desktopRoot, "forge.config.js"));
+  const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-preflight-"));
+  t.after(() => fs.rmSync(buildPath, { recursive: true, force: true }));
+
+  writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
+  writeFixture(path.join(buildPath, "codex-plusplus", "loader.cjs"), "module.exports = {};\n");
+
+  await assert.rejects(
+    () => runForgeAfterCopy(config, buildPath),
+    /Missing required packaged file: codex-plusplus\/runtime\/main\.js/,
+  );
 });
 
 function createCodexPlusPlusLoaderFixture(t) {

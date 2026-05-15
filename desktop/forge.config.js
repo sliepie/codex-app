@@ -9,10 +9,9 @@ const releaseInfoPath = path.join(__dirname, '.cache', 'codex-app', 'latest-rele
 const releaseInfo = fs.existsSync(releaseInfoPath)
   ? JSON.parse(fs.readFileSync(releaseInfoPath, 'utf8'))
   : null;
+const recoveredAppRoot = path.join(__dirname, 'recovered', 'app-asar-extracted');
 const recoveredNodeModulesRoot = path.join(
-  __dirname,
-  'recovered',
-  'app-asar-extracted',
+  recoveredAppRoot,
   'node_modules',
 );
 const targetRuntimeArch = 'arm64';
@@ -63,6 +62,20 @@ function recoveredOriginalMain(upstreamPackageJson) {
       : '.vite/build/bootstrap.js';
   return path.posix.join('recovered/app-asar-extracted', upstreamMain.replace(/^\.\//, ''));
 }
+
+function readRecoveredPackageJson() {
+  const packageJsonPath = path.join(recoveredAppRoot, 'package.json');
+  return fs.existsSync(packageJsonPath) ? readPackageJson(recoveredAppRoot) : null;
+}
+
+const configuredRecoveredOriginalMain = recoveredOriginalMain(readRecoveredPackageJson() ?? {});
+const requiredCodexPlusPlusPackageFiles = [
+  'codex-plusplus/loader.cjs',
+  'codex-plusplus/runtime/main.js',
+  'codex-plusplus/runtime/preload.js',
+  'codex-plusplus/LICENSE',
+  'codex-plusplus/release.json',
+];
 
 function packageListAllowsTarget(value, target) {
   if (!value) {
@@ -241,6 +254,10 @@ function isForeignPrebuild(file) {
 }
 
 function isPackageFile(file) {
+  if (file === '/' + configuredRecoveredOriginalMain) {
+    return true;
+  }
+
   if (
     [
       '/recovered',
@@ -299,6 +316,30 @@ function syncPackagedPackageJson(buildPath) {
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
 }
 
+function assertRequiredPackageFile(buildPath, relativePath) {
+  const fullPath = path.join(buildPath, ...relativePath.split('/'));
+  if (!fs.existsSync(fullPath)) {
+    throw new Error('Missing required packaged file: ' + relativePath);
+  }
+}
+
+function assertCodexPlusPlusPackageInputs(buildPath) {
+  for (const relativePath of requiredCodexPlusPlusPackageFiles) {
+    assertRequiredPackageFile(buildPath, relativePath);
+  }
+
+  const packageJson = readPackageJson(buildPath);
+  const originalMain = packageJson.__codexpp?.originalMain;
+  if (typeof originalMain !== 'string' || !originalMain.trim()) {
+    throw new Error('Missing packaged Codex++ originalMain metadata.');
+  }
+  const normalizedOriginalMain = originalMain.trim().replace(/\\/g, '/').replace(/^\.\//, '');
+  if (!isPackageFile('/' + normalizedOriginalMain)) {
+    throw new Error('Packaged original main is not allowed by Forge ignore rules: ' + normalizedOriginalMain);
+  }
+  assertRequiredPackageFile(buildPath, normalizedOriginalMain);
+}
+
 const config = {
   packagerConfig: {
     asar: true,
@@ -324,6 +365,7 @@ const config = {
       (buildPath, _electronVersion, _platform, _arch, callback) => {
         try {
           syncPackagedPackageJson(buildPath);
+          assertCodexPlusPlusPackageInputs(buildPath);
           callback();
         } catch (error) {
           callback(error);
