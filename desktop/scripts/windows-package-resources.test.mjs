@@ -440,6 +440,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
     .sort();
   assert.deepEqual(tweakNames, [
     "codex-app-ui-overrides",
+    "codex-mobile-pairing",
     "codex-plusplus-updater-ui-overrides",
   ]);
 
@@ -459,6 +460,21 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
       assert.equal(typeof module.exports.stop, "function");
     });
   }
+});
+
+test("bundled Codex mobile pairing tweak enables the desktop-side bridge gates", () => {
+  const tweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-mobile-pairing");
+  const manifest = JSON.parse(fs.readFileSync(path.join(tweakRoot, "manifest.json"), "utf8"));
+  const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+
+  assert.equal(manifest.id, "app.sliepie.codex.mobile-pairing");
+  assert.match(source, /vscode:\/\/codex\/\$\{action\}/);
+  assert.match(source, /batch-write-config-value/);
+  assert.match(source, /features\.remote_connections/);
+  assert.match(source, /reloadUserConfig: true/);
+  assert.match(source, /set-local-app-server-feature-enablement/);
+  assert.match(source, /remote_control/);
+  assert.match(source, /set-remote-control-connections-enabled/);
 });
 
 test("includes installed tslib for recovered main-process bundles", () => {
