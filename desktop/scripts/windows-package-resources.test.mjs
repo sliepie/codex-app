@@ -666,6 +666,70 @@ test("Codex++ loader still starts runtime when a bundled tweak marker is corrupt
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
 });
 
+test("Codex++ loader does not replace user-owned tweak directories", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "manifest.json"),
+    JSON.stringify({ id: "app-tweak", version: "2.0.0" }, null, 2) + "\n",
+  );
+  writeFixture(
+    path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "index.js"),
+    'module.exports = "bundled";\n',
+  );
+  const installedTweakRoot = path.join(fixture.appData, "codex-plusplus", "tweaks", "app-tweak");
+  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "user";\n');
+  writeFixture(
+    path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"),
+    JSON.stringify({ source: "other", id: "app-tweak", version: "1.0.0" }, null, 2) + "\n",
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.equal(
+    fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
+    'module.exports = "user";\n',
+  );
+});
+
+test("Codex++ loader upgrades trusted bundled tweak installs", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "manifest.json"),
+    JSON.stringify({ id: "app-tweak", version: "1.1.0" }, null, 2) + "\n",
+  );
+  writeFixture(
+    path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "index.js"),
+    'module.exports = "bundled";\n',
+  );
+  const installedTweakRoot = path.join(fixture.appData, "codex-plusplus", "tweaks", "app-tweak");
+  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
+  writeFixture(
+    path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"),
+    JSON.stringify({ source: "codex-app", id: "app-tweak", version: "1.0.0" }, null, 2) + "\n",
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.equal(
+    fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
+    'module.exports = "bundled";\n',
+  );
+  assert.equal(
+    JSON.parse(fs.readFileSync(path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"), "utf8"))
+      .version,
+    "1.1.0",
+  );
+});
+
+test("Codex++ loader rejects unsafe bundled tweak ids", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.root, "codex-plusplus", "tweaks", "bad-tweak", "manifest.json"),
+    JSON.stringify({ id: "../escaped", version: "1.0.0" }, null, 2) + "\n",
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.equal(fs.existsSync(path.join(fixture.appData, "codex-plusplus", "escaped")), false);
+});
+
 test("Codex++ loader does not rewrite already disabled updater config", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   const configPath = path.join(fixture.appData, "codex-plusplus", "config.json");
