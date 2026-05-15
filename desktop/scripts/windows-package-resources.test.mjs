@@ -940,14 +940,16 @@ test("hydrates the app payload before packaging", () => {
   assertHydrateAppRunsBeforeForge("make:win:arm64:ci", packageJson.scripts);
 });
 
-test("uses the pinned repo-local TypeScript script compiler", () => {
+test("keeps the TypeScript beta script compiler floating", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
 
-  assert.equal(packageJson.devDependencies?.["@typescript/native-preview"], "7.0.0-dev.20260421.2");
-  assert.equal(packageJson.scripts["build:scripts"], "tsgo -p tsconfig.scripts.json");
-  assert.doesNotMatch(packageJson.scripts["build:scripts"], /npx|@beta/);
+  assert.equal(packageJson.devDependencies?.["@typescript/native-preview"], undefined);
+  assert.equal(
+    packageJson.scripts["build:scripts"],
+    "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json",
+  );
 });
 
 test("Windows ARM64 workflows use the documented VS2026 runner image", () => {
