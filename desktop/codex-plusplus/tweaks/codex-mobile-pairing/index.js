@@ -1,17 +1,13 @@
-const PAGE_SCRIPT_ID = "codex-mobile-pairing-page-script";
-
 let log = console;
 
-function enableMobilePairingInPage() {
+function enableMobilePairingInRenderer() {
   const REQUEST_TIMEOUT_MS = 10000;
   const START_RETRY_DELAY_MS = 1000;
   const MAX_START_ATTEMPTS = 30;
   const LOCAL_HOST_ID = "local";
   const REMOTE_CONTROL_FEATURE = "remote_control";
 
-  if (window.__codexMobilePairing?.running) {
-    return;
-  }
+  window.__codexMobilePairingStop?.();
 
   const state = {
     requestCounter: 0,
@@ -164,42 +160,38 @@ function enableMobilePairingInPage() {
       if (attempt < MAX_START_ATTEMPTS) {
         state.retryTimer = window.setTimeout(() => scheduleEnable(attempt + 1), START_RETRY_DELAY_MS);
       } else {
-        console.warn("Codex mobile pairing tweak could not find the Electron bridge");
+        log.warn("Codex mobile pairing tweak could not find the Electron bridge");
       }
       return;
     }
 
-    enableMobilePairing().catch((error) => {
-      console.warn("Codex mobile pairing tweak failed", error);
-    });
+    enableMobilePairing()
+      .then(() => {
+        log.info("Codex mobile pairing bridge gates enabled");
+      })
+      .catch((error) => {
+        log.warn("Codex mobile pairing tweak failed", error);
+      });
   }
 
   scheduleEnable();
-}
-
-function runPageScript(source) {
-  const script = document.createElement("script");
-  script.id = PAGE_SCRIPT_ID;
-  script.textContent = source;
-  (document.documentElement || document.head || document.body).appendChild(script);
-  script.remove();
 }
 
 module.exports = {
   start(api) {
     log = api?.log || console;
     try {
-      runPageScript("(" + enableMobilePairingInPage.toString() + ")();");
+      enableMobilePairingInRenderer();
     } catch (error) {
-      log.warn("Codex mobile pairing tweak failed to install page bridge", error);
+      log.warn("Codex mobile pairing tweak failed to start", error);
     }
   },
 
   stop() {
     try {
-      runPageScript("window.__codexMobilePairingStop?.();");
+      window.__codexMobilePairingStop?.();
     } catch (error) {
-      log.warn("Codex mobile pairing tweak failed to stop page bridge", error);
+      log.warn("Codex mobile pairing tweak failed to stop", error);
     }
   },
 };

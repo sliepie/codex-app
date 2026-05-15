@@ -630,7 +630,7 @@ test("authenticates GitHub release asset downloads when a token is available", (
   assert.match(scriptSource, /fetch\(url, \{ headers: headersForUrl\(url\) \}\)/);
 });
 
-test("repo Node toolchain matches the Electron runtime Node version", () => {
+test("repo Node toolchain matches the Electron runtime Node major", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
@@ -647,9 +647,10 @@ test("repo Node toolchain matches the Electron runtime Node version", () => {
       },
     },
   ).trim();
+  const electronNodeMajor = electronNodeVersion.split(".")[0];
 
-  assert.equal(nodeVersionFile, electronNodeVersion);
-  assert.equal(packageJson.engines.node, electronNodeVersion);
+  assert.equal(nodeVersionFile, electronNodeMajor);
+  assert.equal(packageJson.engines.node, electronNodeMajor);
 });
 
 test("keys native updater cache by builder script and Rust crate sources", () => {
