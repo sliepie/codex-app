@@ -54,6 +54,9 @@ jobs:
             desktop/.cache/codex-cli
           key: ${{ steps.upstream.outputs.hydration_cache_key }}
 
+      - name: Prepare native Node module cache directory
+        run: New-Item -ItemType Directory -Force -Path desktop/.cache/runtime-node-modules | Out-Null
+
       - name: Restore native Node module cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:

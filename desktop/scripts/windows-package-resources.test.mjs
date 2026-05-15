@@ -832,11 +832,15 @@ test("caches rebuilt native Node modules separately from hydrated app resources"
       "utf8",
     );
     const hydratedCacheBlock = workflowSource.match(
-      /- name: Restore hydrated release cache[\s\S]*?- name: Restore native Node module cache/,
+      /- name: Restore hydrated release cache[\s\S]*?- name: Prepare native Node module cache directory/,
     )?.[0];
 
     assert.ok(hydratedCacheBlock, `${workflowName} should restore a separate native module cache`);
     assert.doesNotMatch(hydratedCacheBlock, /desktop\/\.cache\/runtime-node-modules/);
+    assert.match(
+      workflowSource,
+      /New-Item -ItemType Directory -Force -Path desktop\/\.cache\/runtime-node-modules/,
+    );
     assert.match(workflowSource, /path: desktop\/\.cache\/runtime-node-modules/);
     assert.match(workflowSource, /key: \$\{\{ steps\.upstream\.outputs\.native_modules_cache_key \}\}/);
   }
