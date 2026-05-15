@@ -583,7 +583,6 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
     .sort();
   assert.deepEqual(tweakNames, [
     "codex-app-ui-overrides",
-    "codex-mobile-pairing",
     "codex-plusplus-updater-ui-overrides",
   ]);
 
@@ -685,22 +684,114 @@ test("Codex app UI override installs styles without observing renderer mutations
   }
 });
 
-test("bundled Codex mobile pairing tweak enables the desktop-side bridge gates", () => {
-  const tweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-mobile-pairing");
-  const manifest = JSON.parse(fs.readFileSync(path.join(tweakRoot, "manifest.json"), "utf8"));
+test("Codex++ updater UI override hides update controls without observing renderer mutations", () => {
+  const tweakRoot = path.join(
+    desktopRoot,
+    "codex-plusplus",
+    "tweaks",
+    "codex-plusplus-updater-ui-overrides",
+  );
   const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+  const documentEvents = [];
+  const windowEvents = [];
+  let mutationObserverCount = 0;
+  let timeoutId = 0;
 
-  assert.equal(manifest.id, "app.sliepie.codex.mobile-pairing");
-  assert.match(source, /vscode:\/\/codex\//);
-  assert.match(source, /batch-write-config-value/);
-  assert.match(source, /features\.remote_connections/);
-  assert.match(source, /features\.remote_control/);
-  assert.match(source, /features\.workspace_dependencies/);
-  assert.match(source, /reloadUserConfig: true/);
-  assert.match(source, /set-local-app-server-feature-enablement/);
-  assert.match(source, /remote_control/);
-  assert.match(source, /set-remote-control-connections-enabled/);
-  assert.match(source, /window\.__codexMobilePairingStop/);
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const previousMutationObserver = globalThis.MutationObserver;
+  const previousNodeFilter = globalThis.NodeFilter;
+
+  const releaseButton = {
+    title: "Open Codex++ releases",
+    textContent: "Update",
+    style: {},
+    isConnected: true,
+  };
+  const updateSection = { style: {}, isConnected: true };
+  const watcherSection = { style: {}, isConnected: true };
+  const textNodes = [
+    {
+      textContent: "Codex++ Updates",
+      parentElement: { closest: (selector) => (selector === "section" ? updateSection : null) },
+    },
+    {
+      textContent: "Auto-Repair Watcher",
+      parentElement: { closest: (selector) => (selector === "section" ? watcherSection : null) },
+    },
+  ];
+
+  globalThis.NodeFilter = { SHOW_TEXT: 4 };
+  globalThis.MutationObserver = class {
+    constructor() {
+      mutationObserverCount += 1;
+    }
+
+    observe() {}
+    disconnect() {}
+  };
+  globalThis.window = {
+    requestAnimationFrame(callback) {
+      callback();
+      return 1;
+    },
+    cancelAnimationFrame() {},
+    setTimeout() {
+      timeoutId += 1;
+      return timeoutId;
+    },
+    clearTimeout() {},
+    addEventListener(type) {
+      windowEvents.push(type);
+    },
+    removeEventListener(type) {
+      windowEvents.push(`remove:${type}`);
+    },
+  };
+  globalThis.document = {
+    body: {},
+    documentElement: {},
+    addEventListener(type) {
+      documentEvents.push(type);
+    },
+    removeEventListener(type) {
+      documentEvents.push(`remove:${type}`);
+    },
+    createTreeWalker: () => {
+      let index = 0;
+      return { nextNode: () => textNodes[index++] ?? null };
+    },
+    querySelectorAll: () => [releaseButton],
+  };
+
+  try {
+    const module = { exports: {} };
+    const exports = module.exports;
+    const fn = new Function("module", "exports", "console", source);
+    fn(module, exports, console);
+
+    module.exports.start({ log: console });
+
+    assert.equal(mutationObserverCount, 0);
+    assert.deepEqual(documentEvents, ["click"]);
+    assert.deepEqual(windowEvents, ["hashchange", "popstate"]);
+    assert.equal(releaseButton.style.display, "none");
+    assert.equal(updateSection.style.display, "none");
+    assert.equal(watcherSection.style.display, "none");
+
+    module.exports.stop();
+
+    assert.deepEqual(documentEvents, ["click", "remove:click"]);
+    assert.deepEqual(windowEvents, ["hashchange", "popstate", "remove:hashchange", "remove:popstate"]);
+    assert.equal(releaseButton.style.display, "");
+    assert.equal(updateSection.style.display, "");
+    assert.equal(watcherSection.style.display, "");
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+    globalThis.MutationObserver = previousMutationObserver;
+    globalThis.NodeFilter = previousNodeFilter;
+  }
 });
 
 test("includes installed tslib for recovered main-process bundles", () => {

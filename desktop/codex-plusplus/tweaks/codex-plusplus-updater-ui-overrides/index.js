@@ -7,11 +7,14 @@ const RELEASES_BUTTON_SELECTORS = [
   'button[title="Open Codex++ releases"]',
   '[data-codexpp="nav-group"] button',
 ];
+const FOLLOW_UP_APPLY_DELAYS_MS = [50, 250, 750];
 
 const hiddenElements = new Map();
 
-let observer = null;
 let animationFrame = 0;
+let followUpTimer = 0;
+let clickHandler = null;
+let navigationHandler = null;
 let log = console;
 
 function textNodesMatching(text) {
@@ -97,20 +100,41 @@ function scheduleApply() {
   animationFrame = window.requestAnimationFrame(applyOverrides);
 }
 
+function clearFollowUpTimer() {
+  if (!followUpTimer) {
+    return;
+  }
+
+  window.clearTimeout(followUpTimer);
+  followUpTimer = 0;
+}
+
+function scheduleFollowUpApply(attempt = 0) {
+  scheduleApply();
+
+  clearFollowUpTimer();
+  if (attempt >= FOLLOW_UP_APPLY_DELAYS_MS.length) {
+    return;
+  }
+
+  followUpTimer = window.setTimeout(() => {
+    followUpTimer = 0;
+    scheduleFollowUpApply(attempt + 1);
+  }, FOLLOW_UP_APPLY_DELAYS_MS[attempt]);
+}
+
 module.exports = {
   start(api) {
     log = api?.log || console;
 
-    observer = new MutationObserver(scheduleApply);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["style"],
-      characterData: true,
-      childList: true,
-      subtree: true,
-    });
+    clickHandler = () => scheduleFollowUpApply();
+    navigationHandler = () => scheduleFollowUpApply();
 
-    scheduleApply();
+    document.addEventListener("click", clickHandler, true);
+    window.addEventListener("hashchange", navigationHandler);
+    window.addEventListener("popstate", navigationHandler);
+
+    scheduleFollowUpApply();
   },
 
   stop() {
@@ -118,9 +142,16 @@ module.exports = {
       window.cancelAnimationFrame(animationFrame);
       animationFrame = 0;
     }
-    if (observer) {
-      observer.disconnect();
-      observer = null;
+    clearFollowUpTimer();
+
+    if (clickHandler) {
+      document.removeEventListener("click", clickHandler, true);
+      clickHandler = null;
+    }
+    if (navigationHandler) {
+      window.removeEventListener("hashchange", navigationHandler);
+      window.removeEventListener("popstate", navigationHandler);
+      navigationHandler = null;
     }
 
     clearHiddenElements();
