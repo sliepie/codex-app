@@ -7,6 +7,123 @@ let resizeHandler = null;
 let animationFrame = 0;
 let log = console;
 
+const VISIBLE_CONTROL_DECLARATIONS =
+  "opacity:1!important;pointer-events:auto!important;visibility:visible!important;";
+const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
+const VISIBLE_ICON_DECLARATIONS =
+  "opacity:1!important;visibility:visible!important;";
+
+function cssRule(selectors, declarations) {
+  const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
+  return `${selector}{${declarations}}`;
+}
+
+const BASE_STYLE_RULES = [
+  cssRule(".group\\/windows-top-bar", "margin-inline-start:0.5rem;"),
+  cssRule(
+    '[style*="view-transition-name: sidebar-trigger"]',
+    "transform:translateX(2px);",
+  ),
+];
+
+const SIDEBAR_ACTION_STYLE_RULES = [
+  cssRule(
+    [
+      "[data-app-action-sidebar-project-row]>.opacity-0",
+      "[data-app-action-sidebar-project-row] .opacity-0:has(button)",
+      "[data-app-action-sidebar-project-row] button.opacity-0",
+      "[data-app-action-sidebar-project-row] button .opacity-0",
+    ],
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      "[data-app-action-sidebar-project-row] button svg",
+      "[data-app-action-sidebar-project-row] button .icon-xs",
+      "[data-app-action-sidebar-project-row] button .icon-sm",
+    ],
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      "[data-app-action-sidebar-thread-row] .opacity-0:has(button)",
+      "[data-app-action-sidebar-thread-row] button.opacity-0",
+      "[data-app-action-sidebar-thread-row] button .opacity-0",
+    ],
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      "[data-app-action-sidebar-thread-row] button svg",
+      "[data-app-action-sidebar-thread-row] button .icon-xs",
+      "[data-app-action-sidebar-thread-row] button .icon-sm",
+    ],
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      ".group\\/folder-row>.opacity-0",
+      ".group\\/folder-row .opacity-0:has(button)",
+      ".group\\/folder-row button.opacity-0",
+      ".group\\/folder-row button .opacity-0",
+    ],
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      ".group\\/folder-row button svg",
+      ".group\\/folder-row button .icon-xs",
+      ".group\\/folder-row button .icon-sm",
+    ],
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      ".group\\/projects-section-header>.opacity-0",
+      ".group\\/projects-section-header .opacity-0:has(button)",
+      ".group\\/chats-section-header>.opacity-0",
+      ".group\\/chats-section-header .opacity-0:has(button)",
+      ".group\\/custom-section-header>.opacity-0",
+      ".group\\/custom-section-header .opacity-0:has(button)",
+    ],
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      ".group\\/projects-section-header button svg",
+      ".group\\/projects-section-header button .icon-xs",
+      ".group\\/projects-section-header button .icon-sm",
+      ".group\\/chats-section-header button svg",
+      ".group\\/chats-section-header button .icon-xs",
+      ".group\\/chats-section-header button .icon-sm",
+      ".group\\/custom-section-header button svg",
+      ".group\\/custom-section-header button .icon-xs",
+      ".group\\/custom-section-header button .icon-sm",
+    ],
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+];
+
+const RIGHT_PANEL_TAB_STYLE_RULES = [
+  cssRule(
+    "[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0",
+    VISIBLE_FLEX_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      "[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0 svg",
+      "[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0 .icon-xs",
+    ],
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+];
+
+const STYLE_RULES = [
+  ...BASE_STYLE_RULES,
+  ...SIDEBAR_ACTION_STYLE_RULES,
+  ...RIGHT_PANEL_TAB_STYLE_RULES,
+];
+
 function installStyle() {
   if (document.getElementById(STYLE_ID)) {
     return;
@@ -14,20 +131,7 @@ function installStyle() {
 
   const style = document.createElement("style");
   style.id = STYLE_ID;
-  style.textContent = [
-    ".group\\/windows-top-bar{margin-inline-start:0.5rem;}",
-    '[style*="view-transition-name: sidebar-trigger"]{transform:translateX(2px);}',
-    "[data-app-action-sidebar-project-row]>.opacity-0,[data-app-action-sidebar-project-row] .opacity-0:has(button),[data-app-action-sidebar-project-row] button.opacity-0,[data-app-action-sidebar-project-row] button .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
-    "[data-app-action-sidebar-project-row] button svg,[data-app-action-sidebar-project-row] button .icon-xs,[data-app-action-sidebar-project-row] button .icon-sm{opacity:1!important;visibility:visible!important;}",
-    "[data-app-action-sidebar-thread-row] .opacity-0:has(button),[data-app-action-sidebar-thread-row] button.opacity-0,[data-app-action-sidebar-thread-row] button .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
-    "[data-app-action-sidebar-thread-row] button svg,[data-app-action-sidebar-thread-row] button .icon-xs,[data-app-action-sidebar-thread-row] button .icon-sm{opacity:1!important;visibility:visible!important;}",
-    ".group\\/folder-row>.opacity-0,.group\\/folder-row .opacity-0:has(button),.group\\/folder-row button.opacity-0,.group\\/folder-row button .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
-    ".group\\/folder-row button svg,.group\\/folder-row button .icon-xs,.group\\/folder-row button .icon-sm{opacity:1!important;visibility:visible!important;}",
-    ".group\\/projects-section-header>.opacity-0,.group\\/projects-section-header .opacity-0:has(button),.group\\/chats-section-header>.opacity-0,.group\\/chats-section-header .opacity-0:has(button),.group\\/custom-section-header>.opacity-0,.group\\/custom-section-header .opacity-0:has(button){opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
-    ".group\\/projects-section-header button svg,.group\\/projects-section-header button .icon-xs,.group\\/projects-section-header button .icon-sm,.group\\/chats-section-header button svg,.group\\/chats-section-header button .icon-xs,.group\\/chats-section-header button .icon-sm,.group\\/custom-section-header button svg,.group\\/custom-section-header button .icon-xs,.group\\/custom-section-header button .icon-sm{opacity:1!important;visibility:visible!important;}",
-    "[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0{display:flex!important;opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
-    "[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0 svg,[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0 .icon-xs{opacity:1!important;visibility:visible!important;}",
-  ].join("\n");
+  style.textContent = STYLE_RULES.join("\n");
   document.head.appendChild(style);
 }
 
