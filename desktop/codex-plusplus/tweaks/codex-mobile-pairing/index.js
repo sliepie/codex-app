@@ -105,6 +105,16 @@ async function enableMobilePairing() {
         value: true,
         mergeStrategy: "upsert",
       },
+      {
+        keyPath: "features.remote_control",
+        value: true,
+        mergeStrategy: "upsert",
+      },
+      {
+        keyPath: "features.workspace_dependencies",
+        value: false,
+        mergeStrategy: "upsert",
+      },
     ],
     filePath: null,
     expectedVersion: null,

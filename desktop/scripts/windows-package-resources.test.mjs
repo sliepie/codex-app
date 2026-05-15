@@ -471,6 +471,8 @@ test("bundled Codex mobile pairing tweak enables the desktop-side bridge gates",
   assert.match(source, /vscode:\/\/codex\/\$\{action\}/);
   assert.match(source, /batch-write-config-value/);
   assert.match(source, /features\.remote_connections/);
+  assert.match(source, /features\.remote_control/);
+  assert.match(source, /features\.workspace_dependencies/);
   assert.match(source, /reloadUserConfig: true/);
   assert.match(source, /set-local-app-server-feature-enablement/);
   assert.match(source, /remote_control/);
