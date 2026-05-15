@@ -16,7 +16,11 @@ function installStyle() {
   style.id = STYLE_ID;
   style.textContent = [
     ".group\\/windows-top-bar{margin-inline-start:0.5rem;}",
-    "[style*=\"view-transition-name: sidebar-trigger\"]{transform:translateX(2px);}",
+    '[style*="view-transition-name: sidebar-trigger"]{transform:translateX(2px);}',
+    ".group\\/folder-row:hover>.opacity-0,.group\\/folder-row:focus-within>.opacity-0{opacity:1;pointer-events:auto;}",
+    ".group\\/projects-section-header:hover .opacity-0,.group\\/projects-section-header:focus-within .opacity-0{opacity:1;pointer-events:auto;}",
+    ".group\\/chats-section-header:hover .opacity-0,.group\\/chats-section-header:focus-within .opacity-0{opacity:1;pointer-events:auto;}",
+    ".group\\/custom-section-header:hover .opacity-0,.group\\/custom-section-header:focus-within .opacity-0{opacity:1;pointer-events:auto;}",
   ].join("\n");
   document.head.appendChild(style);
 }
@@ -75,7 +79,12 @@ function closestWithClasses(start, requiredClasses, maxDepth = 6) {
 
 function visibleInLeftSidebar(element) {
   const rect = element.getBoundingClientRect();
-  return rect.width > 0 && rect.height > 0 && rect.left >= 0 && rect.left < SIDEBAR_MAX_LEFT;
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    rect.left >= 0 &&
+    rect.left < SIDEBAR_MAX_LEFT
+  );
 }
 
 function textNodesMatching(text) {
@@ -105,7 +114,16 @@ function nudgeChatsHeading() {
 
     const target = closestWithClasses(parent, ["flex", "min-w-0", "flex-1"]);
     if (target && visibleInLeftSidebar(target)) {
-      setManagedStyle(target, "transform", "translateX(2px)");
+      setManagedStyle(target, "transform", "translateX(1px)");
+    }
+  }
+}
+
+function nudgeNoChatsEmptyState() {
+  for (const node of textNodesMatching("No chats")) {
+    const target = node.parentElement;
+    if (target && visibleInLeftSidebar(target)) {
+      setManagedStyle(target, "transform", "translateX(1px)");
     }
   }
 }
@@ -118,7 +136,10 @@ function hasLocalThreadData(element) {
 
     const value = element.getAttribute(name) || "";
     const haystack = `${name} ${value}`.toLowerCase();
-    return haystack.includes("local") && (haystack.includes("sidebar") || haystack.includes("thread"));
+    return (
+      haystack.includes("local") &&
+      (haystack.includes("sidebar") || haystack.includes("thread"))
+    );
   });
 }
 
@@ -139,15 +160,35 @@ function closestSidebarRow(start) {
   return start;
 }
 
+function sidebarRowContent(row) {
+  const title = row.querySelector(
+    "[data-app-action-sidebar-thread-title],[data-thread-title]",
+  );
+  if (title) {
+    return title;
+  }
+
+  for (const element of row.querySelectorAll(".min-w-0.flex-1")) {
+    if (!element.querySelector("button,[role='button']")) {
+      return element;
+    }
+  }
+
+  return null;
+}
+
 function nudgeLocalSidebarRows() {
-  for (const element of document.querySelectorAll("[data-testid],[data-kind],[data-type],[data-thread-kind]")) {
+  for (const element of document.querySelectorAll(
+    "[data-testid],[data-kind],[data-type],[data-thread-kind],[data-app-action-sidebar-thread-kind]",
+  )) {
     if (!hasLocalThreadData(element)) {
       continue;
     }
 
     const row = closestSidebarRow(element);
-    if (row && visibleInLeftSidebar(row)) {
-      setManagedStyle(row, "transform", "translateX(-4px)");
+    const target = row ? sidebarRowContent(row) : null;
+    if (target && visibleInLeftSidebar(target)) {
+      setManagedStyle(target, "transform", "translateX(-4px)");
     }
   }
 }
@@ -166,7 +207,9 @@ function nudgeFooterSettingsButton() {
 }
 
 function lowerImagePreviewControls() {
-  for (const element of document.querySelectorAll(".absolute.top-3.right-3.z-10.flex.items-center.gap-2")) {
+  for (const element of document.querySelectorAll(
+    ".absolute.top-3.right-3.z-10.flex.items-center.gap-2",
+  )) {
     setManagedStyle(element, "top", "calc(0.75rem + 26px)");
   }
 }
@@ -176,6 +219,7 @@ function applyOverrides() {
   try {
     installStyle();
     nudgeChatsHeading();
+    nudgeNoChatsEmptyState();
     nudgeLocalSidebarRows();
     nudgeFooterSettingsButton();
     lowerImagePreviewControls();
@@ -201,7 +245,16 @@ module.exports = {
     observer = new MutationObserver(scheduleApply);
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["class", "style", "aria-label", "data-kind", "data-testid", "data-thread-kind", "data-type"],
+      attributeFilter: [
+        "class",
+        "style",
+        "aria-label",
+        "data-app-action-sidebar-thread-kind",
+        "data-kind",
+        "data-testid",
+        "data-thread-kind",
+        "data-type",
+      ],
       childList: true,
       subtree: true,
     });
