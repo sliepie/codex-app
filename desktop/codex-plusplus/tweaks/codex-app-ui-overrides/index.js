@@ -17,10 +17,12 @@ function installStyle() {
   style.textContent = [
     ".group\\/windows-top-bar{margin-inline-start:0.5rem;}",
     '[style*="view-transition-name: sidebar-trigger"]{transform:translateX(2px);}',
-    ".group\\/folder-row:hover>.opacity-0,.group\\/folder-row:focus-within>.opacity-0{opacity:1;pointer-events:auto;}",
-    ".group\\/projects-section-header:hover .opacity-0,.group\\/projects-section-header:focus-within .opacity-0{opacity:1;pointer-events:auto;}",
-    ".group\\/chats-section-header:hover .opacity-0,.group\\/chats-section-header:focus-within .opacity-0{opacity:1;pointer-events:auto;}",
-    ".group\\/custom-section-header:hover .opacity-0,.group\\/custom-section-header:focus-within .opacity-0{opacity:1;pointer-events:auto;}",
+    "[data-app-action-sidebar-project-row]:hover .opacity-0,[data-app-action-sidebar-project-row]:focus-within .opacity-0,[data-app-action-sidebar-project-row]:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
+    "[data-app-action-sidebar-thread-row]:hover .opacity-0,[data-app-action-sidebar-thread-row]:focus-within .opacity-0,[data-app-action-sidebar-thread-row]:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
+    ".group\\/folder-row:hover .opacity-0,.group\\/folder-row:focus-within .opacity-0,.group\\/folder-row:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
+    ".group\\/projects-section-header:hover .opacity-0,.group\\/projects-section-header:focus-within .opacity-0,.group\\/projects-section-header:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
+    ".group\\/chats-section-header:hover .opacity-0,.group\\/chats-section-header:focus-within .opacity-0,.group\\/chats-section-header:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
+    ".group\\/custom-section-header:hover .opacity-0,.group\\/custom-section-header:focus-within .opacity-0,.group\\/custom-section-header:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
   ].join("\n");
   document.head.appendChild(style);
 }
