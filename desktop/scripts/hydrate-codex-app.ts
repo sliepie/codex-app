@@ -447,42 +447,6 @@ function findCodexPlusPlusSourceRoot(extractRoot: string): string | undefined {
   return undefined;
 }
 
-function applyCodexPlusPlusRuntimePatches(
-  runtimeDestinationRoot: string,
-  tagName?: string,
-): void {
-  const mainRuntimePath = path.join(runtimeDestinationRoot, "main.js");
-  if (
-    !fs.existsSync(mainRuntimePath) ||
-    !fs.readFileSync(mainRuntimePath, "utf8").includes("codexpp:list-tweaks")
-  ) {
-    return;
-  }
-
-  const patchedTag = "v0.1.7";
-  if (tagName && tagName !== patchedTag) {
-    throw new Error(
-      "Codex++ runtime patches are pinned to " +
-        patchedTag +
-        "; review and update them for " +
-        tagName +
-        ".",
-    );
-  }
-
-  const patchPath = path.join(codexPlusPlusRoot, "runtime-patches", patchedTag + ".patch");
-  if (!fs.existsSync(patchPath)) {
-    throw new Error("Missing Codex++ runtime patch file: " + patchPath);
-  }
-
-  execFileSync(
-    "git",
-    ["apply", "--whitespace=nowarn", patchPath],
-    { cwd: runtimeDestinationRoot, stdio: "inherit" },
-  );
-  console.log("Applied Codex++ runtime patches for " + (tagName ?? "unknown tag") + ".");
-}
-
 export function syncCodexPlusPlusRuntimeAssets(
   sourceRoot: string,
   release: CodexPlusPlusRelease,
@@ -511,7 +475,6 @@ export function syncCodexPlusPlusRuntimeAssets(
   fs.rmSync(runtimeDestinationRoot, { recursive: true, force: true });
   fs.mkdirSync(destinationRoot, { recursive: true });
   fs.cpSync(runtimeSourceRoot, runtimeDestinationRoot, { recursive: true });
-  applyCodexPlusPlusRuntimePatches(runtimeDestinationRoot, release.tag_name);
   fs.copyFileSync(licensePath, path.join(destinationRoot, "LICENSE"));
   fs.writeFileSync(
     path.join(destinationRoot, "release.json"),

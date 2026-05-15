@@ -232,23 +232,6 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   assert.equal(release.commitSha, "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413");
 });
 
-test("hydrates Codex++ runtime with app-owned safety patches", () => {
-  const hydrateSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
-    "utf8",
-  );
-  const patchSource = fs.readFileSync(
-    path.join(desktopRoot, "codex-plusplus", "runtime-patches", "v0.1.7.patch"),
-    "utf8",
-  );
-
-  assert.match(hydrateSource, /applyCodexPlusPlusRuntimePatches\(runtimeDestinationRoot, release\.tag_name\)/);
-  assert.match(patchSource, /scheduleTweakUpdateChecks/);
-  assert.match(patchSource, /assertExistingRealPathInside/);
-  assert.match(patchSource, /externalLink\(match\[3\]/);
-  assert.match(patchSource, /TWEAK_LOAD_TIMEOUT_MS/);
-});
-
 test("patches recovered Codex window services source", () => {
   const source =
     "const services = createServices({" +
