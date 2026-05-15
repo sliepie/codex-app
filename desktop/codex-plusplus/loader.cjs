@@ -35,6 +35,38 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+function versionParts(version) {
+  return String(version ?? "")
+    .split(".")
+    .map((part) => (/^\d+$/.test(part) ? Number(part) : Number.NaN));
+}
+
+function compareVersions(left, right) {
+  const leftParts = versionParts(left);
+  const rightParts = versionParts(right);
+  if (leftParts.some(Number.isNaN) || rightParts.some(Number.isNaN)) {
+    return String(left ?? "").localeCompare(String(right ?? ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  }
+
+  const length = Math.max(leftParts.length, rightParts.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftValue = leftParts[index] ?? 0;
+    const rightValue = rightParts[index] ?? 0;
+    if (leftValue !== rightValue) {
+      return leftValue > rightValue ? 1 : -1;
+    }
+  }
+
+  return 0;
+}
+
+function bundledVersionIsNewer(bundledVersion, installedVersion) {
+  return compareVersions(bundledVersion, installedVersion) > 0;
+}
+
 function disableCodexPlusPlusAutoUpdate() {
   let config = {};
   if (fs.existsSync(configFile)) {
@@ -111,7 +143,7 @@ function syncBundledTweaks() {
         continue;
       }
       const current = readJson(markerPath);
-      if (current.version === marker.version) {
+      if (!bundledVersionIsNewer(marker.version, current.version)) {
         continue;
       }
       fs.rmSync(targetDir, { recursive: true, force: true });

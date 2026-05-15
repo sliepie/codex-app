@@ -12,10 +12,26 @@ const VISIBLE_CONTROL_DECLARATIONS =
 const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
 const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
+const HIDDEN_META_DECLARATIONS =
+  "opacity:0!important;visibility:hidden!important;";
+const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
+  "padding-inline-start:1.375rem!important;";
+const SIDEBAR_PIN_BUTTON_DECLARATIONS =
+  "cursor:pointer!important;";
+const SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS =
+  "cursor:pointer!important;width:1.25rem!important;height:1.25rem!important;";
+const SIDEBAR_PIN_ICON_DECLARATIONS =
+  "width:0.875rem!important;height:0.875rem!important;min-width:0.875rem!important;min-height:0.875rem!important;";
+const SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS =
+  SIDEBAR_PIN_ICON_DECLARATIONS;
 
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
+}
+
+function interactiveSelectors(container, targets) {
+  return targets.map((target) => `${container}:is(:hover,:focus-within)${target}`);
 }
 
 const BASE_STYLE_RULES = [
@@ -29,76 +45,174 @@ const BASE_STYLE_RULES = [
 const SIDEBAR_ACTION_STYLE_RULES = [
   cssRule(
     [
-      "[data-app-action-sidebar-project-row]>.opacity-0",
-      "[data-app-action-sidebar-project-row] .opacity-0:has(button)",
-      "[data-app-action-sidebar-project-row] button.opacity-0",
-      "[data-app-action-sidebar-project-row] button .opacity-0",
+      "[data-app-action-sidebar-thread-row] .w-4 span:has(button) button",
+      "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button",
     ],
-    VISIBLE_CONTROL_DECLARATIONS,
+    SIDEBAR_PIN_BUTTON_DECLARATIONS,
+  ),
+  cssRule(
+    "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button",
+    SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS,
   ),
   cssRule(
     [
-      "[data-app-action-sidebar-project-row] button svg",
-      "[data-app-action-sidebar-project-row] button .icon-xs",
-      "[data-app-action-sidebar-project-row] button .icon-sm",
+      "[data-app-action-sidebar-thread-row] .w-4 span:has(button) button svg",
+      "[data-app-action-sidebar-thread-row] .w-4 span:has(button) button .icon-2xs",
+      "[data-app-action-sidebar-thread-row] .w-4 span:has(button) button .icon-xs",
+      "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button svg",
+      "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button .icon-xs",
+      "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button .icon-sm",
     ],
+    SIDEBAR_PIN_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button svg",
+      "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button .icon-xs",
+      "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button .icon-sm",
+    ],
+    SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors("[data-app-action-sidebar-project-row]", [
+      ">.opacity-0",
+      " .opacity-0:has(button)",
+      " button.opacity-0",
+      " button .opacity-0",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors("[data-app-action-sidebar-project-row]", [
+      " button svg",
+      " button .icon-xs",
+      " button .icon-sm",
+    ]),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
+      " .absolute.top-0.left-1.z-10",
+      " .absolute.top-0.left-1.z-10 button",
+      " .w-4 span:has(button)",
+      " .w-4 span:has(button) button",
+      ">.absolute.right-0.top-0.z-10",
+      ">.absolute.right-0.top-0.z-10 button",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
+      " .w-4 span:has(button) button",
+    ]),
+    SIDEBAR_PIN_BUTTON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
+      " .absolute.top-0.left-1.z-10 button",
+    ]),
+    SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
+      " .absolute.top-0.left-1.z-10 button svg",
+      " .absolute.top-0.left-1.z-10 button .icon-xs",
+      " .absolute.top-0.left-1.z-10 button .icon-sm",
+      " .w-4 span:has(button) button svg",
+      " .w-4 span:has(button) button .icon-2xs",
+      " .w-4 span:has(button) button .icon-xs",
+      ">.absolute.right-0.top-0.z-10 button svg",
+      ">.absolute.right-0.top-0.z-10 button .icon-xs",
+      ">.absolute.right-0.top-0.z-10 button .icon-sm",
+    ]),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
+      " .w-4 span:has(button) button svg",
+      " .w-4 span:has(button) button .icon-2xs",
+      " .w-4 span:has(button) button .icon-xs",
+    ]),
+    SIDEBAR_PIN_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
+      " .absolute.top-0.left-1.z-10 button svg",
+      " .absolute.top-0.left-1.z-10 button .icon-xs",
+      " .absolute.top-0.left-1.z-10 button .icon-sm",
+    ]),
+    SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      "[data-app-action-sidebar-thread-row]:has(.absolute.top-0.left-1.z-10)",
+      [" [data-thread-title-trigger]"],
+    ),
+    SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
+      " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
+    ]),
+    HIDDEN_META_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
+      " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
+    ]),
+    HIDDEN_META_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      ">.opacity-0",
+      " .opacity-0:has(button)",
+      " button.opacity-0",
+      " button .opacity-0",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      " button svg",
+      " button .icon-xs",
+      " button .icon-sm",
+    ]),
     VISIBLE_ICON_DECLARATIONS,
   ),
   cssRule(
     [
-      "[data-app-action-sidebar-thread-row] .opacity-0:has(button)",
-      "[data-app-action-sidebar-thread-row] button.opacity-0",
-      "[data-app-action-sidebar-thread-row] button .opacity-0",
+      ...interactiveSelectors(".group\\/projects-section-header", [
+        ">.opacity-0",
+        " .opacity-0:has(button)",
+      ]),
+      ...interactiveSelectors(".group\\/chats-section-header", [
+        ">.opacity-0",
+        " .opacity-0:has(button)",
+      ]),
+      ...interactiveSelectors(".group\\/custom-section-header", [
+        ">.opacity-0",
+        " .opacity-0:has(button)",
+      ]),
     ],
     VISIBLE_CONTROL_DECLARATIONS,
   ),
   cssRule(
     [
-      "[data-app-action-sidebar-thread-row] button svg",
-      "[data-app-action-sidebar-thread-row] button .icon-xs",
-      "[data-app-action-sidebar-thread-row] button .icon-sm",
-    ],
-    VISIBLE_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      ".group\\/folder-row>.opacity-0",
-      ".group\\/folder-row .opacity-0:has(button)",
-      ".group\\/folder-row button.opacity-0",
-      ".group\\/folder-row button .opacity-0",
-    ],
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      ".group\\/folder-row button svg",
-      ".group\\/folder-row button .icon-xs",
-      ".group\\/folder-row button .icon-sm",
-    ],
-    VISIBLE_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      ".group\\/projects-section-header>.opacity-0",
-      ".group\\/projects-section-header .opacity-0:has(button)",
-      ".group\\/chats-section-header>.opacity-0",
-      ".group\\/chats-section-header .opacity-0:has(button)",
-      ".group\\/custom-section-header>.opacity-0",
-      ".group\\/custom-section-header .opacity-0:has(button)",
-    ],
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      ".group\\/projects-section-header button svg",
-      ".group\\/projects-section-header button .icon-xs",
-      ".group\\/projects-section-header button .icon-sm",
-      ".group\\/chats-section-header button svg",
-      ".group\\/chats-section-header button .icon-xs",
-      ".group\\/chats-section-header button .icon-sm",
-      ".group\\/custom-section-header button svg",
-      ".group\\/custom-section-header button .icon-xs",
-      ".group\\/custom-section-header button .icon-sm",
+      ...interactiveSelectors(".group\\/projects-section-header", [
+        " button svg",
+        " button .icon-xs",
+        " button .icon-sm",
+      ]),
+      ...interactiveSelectors(".group\\/chats-section-header", [
+        " button svg",
+        " button .icon-xs",
+        " button .icon-sm",
+      ]),
+      ...interactiveSelectors(".group\\/custom-section-header", [
+        " button svg",
+        " button .icon-xs",
+        " button .icon-sm",
+      ]),
     ],
     VISIBLE_ICON_DECLARATIONS,
   ),
@@ -106,14 +220,16 @@ const SIDEBAR_ACTION_STYLE_RULES = [
 
 const RIGHT_PANEL_TAB_STYLE_RULES = [
   cssRule(
-    "[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0",
+    interactiveSelectors("[data-app-shell-tab-controller='right'] .group\\/tab", [
+      " [role='button'].absolute.inset-y-0.start-0",
+    ]),
     VISIBLE_FLEX_CONTROL_DECLARATIONS,
   ),
   cssRule(
-    [
-      "[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0 svg",
-      "[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0 .icon-xs",
-    ],
+    interactiveSelectors("[data-app-shell-tab-controller='right'] .group\\/tab", [
+      " [role='button'].absolute.inset-y-0.start-0 svg",
+      " [role='button'].absolute.inset-y-0.start-0 .icon-xs",
+    ]),
     VISIBLE_ICON_DECLARATIONS,
   ),
 ];
@@ -125,7 +241,9 @@ const STYLE_RULES = [
 ];
 
 function installStyle() {
-  if (document.getElementById(STYLE_ID)) {
+  const existingStyle = document.getElementById(STYLE_ID);
+  if (existingStyle) {
+    existingStyle.textContent = STYLE_RULES.join("\n");
     return;
   }
 
@@ -238,71 +356,6 @@ function nudgeNoChatsEmptyState() {
   }
 }
 
-function hasLocalThreadData(element) {
-  return element.getAttributeNames().some((name) => {
-    if (!name.startsWith("data-")) {
-      return false;
-    }
-
-    const value = element.getAttribute(name) || "";
-    const haystack = `${name} ${value}`.toLowerCase();
-    return (
-      haystack.includes("local") &&
-      (haystack.includes("sidebar") || haystack.includes("thread"))
-    );
-  });
-}
-
-function closestSidebarRow(start) {
-  let current = start;
-  let depth = 0;
-  while (current && depth <= 6) {
-    if (
-      current.matches("a,button,[role='button'],[role='listitem']") ||
-      hasClasses(current, ["group"])
-    ) {
-      return current;
-    }
-    current = current.parentElement;
-    depth += 1;
-  }
-
-  return start;
-}
-
-function sidebarRowContent(row) {
-  const title = row.querySelector(
-    "[data-app-action-sidebar-thread-title],[data-thread-title]",
-  );
-  if (title) {
-    return title;
-  }
-
-  for (const element of row.querySelectorAll(".min-w-0.flex-1")) {
-    if (!element.querySelector("button,[role='button']")) {
-      return element;
-    }
-  }
-
-  return null;
-}
-
-function nudgeLocalSidebarRows() {
-  for (const element of document.querySelectorAll(
-    "[data-testid],[data-kind],[data-type],[data-thread-kind],[data-app-action-sidebar-thread-kind]",
-  )) {
-    if (!hasLocalThreadData(element)) {
-      continue;
-    }
-
-    const row = closestSidebarRow(element);
-    const target = row ? sidebarRowContent(row) : null;
-    if (target && visibleInLeftSidebar(target)) {
-      setManagedStyle(target, "transform", "translateX(-4px)");
-    }
-  }
-}
-
 function nudgeFooterSettingsButton() {
   for (const element of document.querySelectorAll(".min-w-0.flex-1")) {
     if (!element.querySelector(".icon-sm") || !visibleInLeftSidebar(element)) {
@@ -330,7 +383,6 @@ function applyOverrides() {
     installStyle();
     nudgeChatsHeading();
     nudgeNoChatsEmptyState();
-    nudgeLocalSidebarRows();
     nudgeFooterSettingsButton();
     lowerImagePreviewControls();
   } catch (error) {
@@ -359,11 +411,6 @@ module.exports = {
         "class",
         "style",
         "aria-label",
-        "data-app-action-sidebar-thread-kind",
-        "data-kind",
-        "data-testid",
-        "data-thread-kind",
-        "data-type",
       ],
       childList: true,
       subtree: true,

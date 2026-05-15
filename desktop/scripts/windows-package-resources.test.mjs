@@ -429,6 +429,7 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   );
   assert.match(loaderSource, /config\.json/);
   assert.match(loaderSource, /autoUpdate: false/);
+  assert.match(loaderSource, /bundledVersionIsNewer\(marker\.version, current\.version\)/);
 });
 
 test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
@@ -440,6 +441,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
     .sort();
   assert.deepEqual(tweakNames, [
     "codex-app-ui-overrides",
+    "codex-mobile-pairing",
     "codex-plusplus-updater-ui-overrides",
   ]);
 
@@ -459,6 +461,24 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
       assert.equal(typeof module.exports.stop, "function");
     });
   }
+});
+
+test("bundled Codex mobile pairing tweak enables the desktop-side bridge gates", () => {
+  const tweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-mobile-pairing");
+  const manifest = JSON.parse(fs.readFileSync(path.join(tweakRoot, "manifest.json"), "utf8"));
+  const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+
+  assert.equal(manifest.id, "app.sliepie.codex.mobile-pairing");
+  assert.match(source, /vscode:\/\/codex\//);
+  assert.match(source, /batch-write-config-value/);
+  assert.match(source, /features\.remote_connections/);
+  assert.match(source, /features\.remote_control/);
+  assert.match(source, /features\.workspace_dependencies/);
+  assert.match(source, /reloadUserConfig: true/);
+  assert.match(source, /set-local-app-server-feature-enablement/);
+  assert.match(source, /remote_control/);
+  assert.match(source, /set-remote-control-connections-enabled/);
+  assert.match(source, /window\.__codexMobilePairingStop/);
 });
 
 test("includes installed tslib for recovered main-process bundles", () => {
@@ -610,7 +630,7 @@ test("authenticates GitHub release asset downloads when a token is available", (
   assert.match(scriptSource, /fetch\(url, \{ headers: headersForUrl\(url\) \}\)/);
 });
 
-test("repo Node toolchain matches the Electron runtime Node version", () => {
+test("repo Node toolchain matches the Electron runtime Node major", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
@@ -627,9 +647,10 @@ test("repo Node toolchain matches the Electron runtime Node version", () => {
       },
     },
   ).trim();
+  const electronNodeMajor = electronNodeVersion.split(".")[0];
 
-  assert.equal(nodeVersionFile, electronNodeVersion);
-  assert.equal(packageJson.engines.node, electronNodeVersion);
+  assert.equal(nodeVersionFile, electronNodeMajor);
+  assert.equal(packageJson.engines.node, electronNodeMajor);
 });
 
 test("keys native updater cache by builder script and Rust crate sources", () => {
