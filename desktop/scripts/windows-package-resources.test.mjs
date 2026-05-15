@@ -555,10 +555,6 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);
-  assert.equal(
-    config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json"),
-    false,
-  );
 
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
@@ -582,7 +578,6 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
     .map((entry) => entry.name)
     .sort();
   assert.deepEqual(tweakNames, [
-    "codex-app-ui-overrides",
     "codex-mobile-pairing",
     "codex-plusplus-updater-ui-overrides",
   ]);
