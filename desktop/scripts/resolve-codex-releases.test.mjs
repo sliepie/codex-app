@@ -8,13 +8,13 @@ import http from "node:http";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const scriptPath = fileURLToPath(new URL("./resolve-codex-releases.mjs", import.meta.url));
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const nativeModuleCacheInputPaths = [
   "package-lock.json",
   "scripts/hydrate-codex-app.ts",
   "scripts/patch-better-sqlite3-electron.ts",
 ];
+const scriptPath = fileURLToPath(new URL("../.cache/scripts/resolve-codex-releases.js", import.meta.url));
 
 const appcast = `<?xml version="1.0" encoding="utf-8"?>
 <rss>

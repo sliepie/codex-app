@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { verifyBrowserClientRuntime } from "./verify-browser-client-runtime.mjs";
+import { verifyBrowserClientRuntime } from "../.cache/scripts/verify-browser-client-runtime.js";
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

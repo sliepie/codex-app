@@ -17,6 +17,9 @@
     "scripts/patch-better-sqlite3-electron.ts",
     "scripts/patch-windows-self-signed-bundle.ts",
     "scripts/prepare-self-signed-msix-payload.ts",
+    "scripts/refresh-recovered-from-dmg.ts",
+    "scripts/resolve-codex-releases.ts",
+    "scripts/verify-browser-client-runtime.ts",
     "scripts/write-self-signed-appinstaller.ts"
   ]
 }

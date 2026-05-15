@@ -37,10 +37,14 @@ jobs:
           cache: npm
           cache-dependency-path: desktop/package-lock.json
 
+      - name: Install dependencies
+        working-directory: desktop
+        run: npm ci
+
       - name: Resolve upstream release versions
         id: upstream
         working-directory: desktop
-        run: node ./scripts/resolve-codex-releases.mjs
+        run: npm run build:scripts && node ./.cache/scripts/resolve-codex-releases.js
 
       - name: Skip released commit
         if: steps.upstream.outputs.current_commit_release_tag != ''
@@ -83,11 +87,6 @@ jobs:
             desktop/native/windows-oai-update-checker/target
             desktop/resources/native/windows-updater.node
           key: windows-oai-updater-${{ runner.os }}-${{ env.PACKAGE_ARCHITECTURE }}-${{ hashFiles('desktop/scripts/build-windows-oai-update-checker.ps1', 'desktop/native/windows-oai-update-checker/Cargo.lock', 'desktop/native/windows-oai-update-checker/Cargo.toml', 'desktop/native/windows-oai-update-checker/src/**') }}
-
-      - name: Install dependencies
-        if: steps.upstream.outputs.current_commit_release_tag == ''
-        working-directory: desktop
-        run: npm ci
 
       - name: Prepare and verify Windows ARM64 inputs
         if: steps.upstream.outputs.current_commit_release_tag == ''

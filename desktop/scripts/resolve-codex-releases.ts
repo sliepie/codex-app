@@ -1,0 +1,260 @@
+import crypto from "node:crypto";
+import { appendFileSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+
+const appcastUrl =
+  process.env.CODEX_APPCAST_URL ??
+  "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
+const codexCliRepository = process.env.CODEX_CLI_REPOSITORY ?? "openai/codex";
+const codexPlusPlusRepository = process.env.CODEX_PLUS_PLUS_REPOSITORY ?? "b-nnett/codex-plusplus";
+const githubApiUrl = process.env.GITHUB_API_URL ?? "https://api.github.com";
+
+type GithubRelease = {
+  body?: string | null;
+  tag_name?: string | null;
+  target_commitish?: string | null;
+};
+
+type ReleaseInputs = {
+  codexCliTag: string;
+  codexPlusPlusTag: string;
+};
+
+type ResolveRepoReleaseRevisionOptions = ReleaseInputs & {
+  appVersion: string;
+  currentSha?: string;
+  releases: GithubRelease[];
+};
+
+function fail(message: string): never {
+  throw new Error(message);
+}
+
+function firstMatch(text: string, pattern: RegExp, message: string): string {
+  const match = text.match(pattern);
+  if (!match?.[1]) {
+    fail(message);
+  }
+  return match[1].trim();
+}
+
+function githubOutput(name: string, value: number | string): void {
+  if (process.env.GITHUB_OUTPUT) {
+    appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
+  }
+}
+
+function hashCacheInputs(paths: string[]): string {
+  const hash = crypto.createHash("sha256");
+  for (const inputPath of paths) {
+    hash.update(inputPath);
+    hash.update("\0");
+    hash.update(readFileSync(path.resolve(desktopRoot, inputPath)));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function repositoryApiUrl(repository: string, path: string): URL {
+  const [owner, repo] = repository.split("/");
+  if (!owner || !repo) {
+    fail(`Invalid GitHub repository value: ${repository}`);
+  }
+
+  return new URL(
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${path}`,
+    githubApiUrl.endsWith("/") ? githubApiUrl : `${githubApiUrl}/`,
+  );
+}
+
+function releaseRevisionFromTag(tagName: string, appVersion: string): number | undefined {
+  const numericMatch = tagName.match(new RegExp(`^codex-app-${escapeRegExp(appVersion)}\\.(0|[1-9]\\d*)$`, "i"));
+  if (numericMatch) {
+    return Number(numericMatch[1]);
+  }
+
+  if (tagName.match(new RegExp(`^codex-app-${escapeRegExp(appVersion)}(?:\\.[0-9a-f]{7,40})?$`, "i"))) {
+    return 0;
+  }
+
+  return undefined;
+}
+
+function releaseMetadataLine(label: string, value: string): string {
+  return `${label}: ${value}`;
+}
+
+function releaseTracksInputs(release: GithubRelease, { codexCliTag, codexPlusPlusTag }: ReleaseInputs): boolean {
+  const body = release.body ?? "";
+  return (
+    body.includes(releaseMetadataLine("Codex CLI", codexCliTag)) &&
+    body.includes(releaseMetadataLine("Codex++", codexPlusPlusTag))
+  );
+}
+
+function resolveRepoReleaseRevision({
+  appVersion,
+  currentSha,
+  releases,
+  codexCliTag,
+  codexPlusPlusTag,
+}: ResolveRepoReleaseRevisionOptions): { currentCommitReleaseTag: string; repoReleaseRevision: number } {
+  let latestRevision = -1;
+  let currentCommitRevision: number | undefined;
+  let currentCommitReleaseTag = "";
+
+  for (const release of releases) {
+    const tagName = release.tag_name ?? "";
+    const revision = releaseRevisionFromTag(tagName, appVersion);
+    if (revision === undefined) {
+      continue;
+    }
+
+    latestRevision = Math.max(latestRevision, revision);
+    if (
+      currentSha &&
+      release.target_commitish?.toLowerCase() === currentSha.toLowerCase() &&
+      releaseTracksInputs(release, { codexCliTag, codexPlusPlusTag })
+    ) {
+      if (currentCommitRevision === undefined || revision > currentCommitRevision) {
+        currentCommitRevision = revision;
+        currentCommitReleaseTag = tagName;
+      }
+    }
+  }
+
+  return {
+    currentCommitReleaseTag,
+    repoReleaseRevision: currentCommitRevision ?? latestRevision + 1,
+  };
+}
+
+function releaseApiUrl(repository: string): URL {
+  const url = repositoryApiUrl(repository, "/releases");
+  url.searchParams.set("per_page", "100");
+  return url;
+}
+
+function githubHeaders(): HeadersInit {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+  };
+  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
+async function fetchExistingReleases(): Promise<GithubRelease[]> {
+  const repository = process.env.GITHUB_REPOSITORY;
+  if (!repository) {
+    return [];
+  }
+
+  const response = await fetch(releaseApiUrl(repository), { headers: githubHeaders() });
+  if (!response.ok) {
+    fail(`Failed to fetch GitHub releases: ${response.status} ${response.statusText}`);
+  }
+
+  return (await response.json()) as GithubRelease[];
+}
+
+async function fetchLatestReleaseTag(repository: string, label: string): Promise<string> {
+  const response = await fetch(repositoryApiUrl(repository, "/releases/latest"), {
+    headers: githubHeaders(),
+  });
+  if (!response.ok) {
+    fail(`Failed to fetch ${label} release: ${response.status} ${response.statusText}`);
+  }
+
+  const release = (await response.json()) as GithubRelease;
+  const tagName = release.tag_name ?? "";
+  if (!tagName) {
+    fail(`The latest ${label} release does not have a tag.`);
+  }
+
+  return tagName;
+}
+
+async function main(): Promise<void> {
+  const response = await fetch(appcastUrl);
+  if (!response.ok) {
+    fail(`Failed to fetch Codex appcast: ${response.status} ${response.statusText}`);
+  }
+
+  const appcast = await response.text();
+  const item = firstMatch(
+    appcast,
+    /(<item\b[\s\S]*?<\/item>)/i,
+    "No Codex app release was found in the appcast.",
+  );
+  const appVersion = firstMatch(
+    item,
+    /<sparkle:shortVersionString>([^<]+)<\/sparkle:shortVersionString>/i,
+    "The selected Codex app release does not have a version.",
+  );
+  const buildNumber =
+    item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim() ?? "";
+  const cliTag = await fetchLatestReleaseTag(codexCliRepository, "Codex CLI");
+  const codexPlusPlusTag = await fetchLatestReleaseTag(codexPlusPlusRepository, "Codex++");
+  const releases = await fetchExistingReleases();
+  const { currentCommitReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevision({
+    appVersion,
+    currentSha: process.env.GITHUB_SHA,
+    releases,
+    codexCliTag: cliTag,
+    codexPlusPlusTag,
+  });
+  const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
+  const releaseTag = `codex-app-${releaseVersion}`;
+  const hydrationCacheKey = `windows-arm64-hydrated-v5-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}`;
+  const nativeModulesCacheInputHash = hashCacheInputs([
+    "package-lock.json",
+    "scripts/hydrate-codex-app.ts",
+    "scripts/patch-better-sqlite3-electron.ts",
+  ]);
+  const nativeModulesCacheKey = `windows-arm64-native-modules-v1-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-inputs-${nativeModulesCacheInputHash}`;
+
+  githubOutput("codex_app_version", appVersion);
+  githubOutput("codex_app_build", buildNumber);
+  githubOutput("codex_cli_tag", cliTag);
+  githubOutput("codex_plus_plus_tag", codexPlusPlusTag);
+  githubOutput("repo_release_revision", repoReleaseRevision);
+  githubOutput("release_version", releaseVersion);
+  githubOutput("release_tag", releaseTag);
+  githubOutput("current_commit_release_tag", currentCommitReleaseTag);
+  githubOutput("hydration_cache_key", hydrationCacheKey);
+  githubOutput("native_modules_cache_key", nativeModulesCacheKey);
+
+  console.log(
+    JSON.stringify(
+      {
+        codexAppVersion: appVersion,
+        codexAppBuild: buildNumber,
+        codexCliTag: cliTag,
+        codexPlusPlusTag,
+        repoReleaseRevision,
+        releaseVersion,
+        releaseTag,
+        currentCommitReleaseTag,
+        nativeModulesCacheKey,
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

@@ -1,18 +1,32 @@
-import crypto from 'node:crypto';
-import childProcess from 'node:child_process';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import asar from '@electron/asar';
+import childProcess from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import asar from "@electron/asar";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const desktopRoot = path.resolve(__dirname, '..');
+type CliOptions = {
+  appAsarPath: string | null;
+  dmgPath: string | null;
+  keepTemp: boolean;
+  outputRoot: string;
+};
+
+type PackageJson = {
+  buildNumber?: string;
+  codexBuildNumber?: string;
+  devDependencies?: {
+    electron?: string;
+  };
+  main?: string;
+  version?: string;
+};
+
+const desktopRoot = process.cwd();
 const repoRoot = path.resolve(desktopRoot, '..');
 const defaultRecoveredRoot = path.join(desktopRoot, 'recovered', 'app-asar-extracted');
 
-function parseArgValue(argv, name) {
+function parseArgValue(argv: string[], name: string): string | null {
   const index = argv.findIndex((arg) => arg === name);
   if (index === -1) {
     return null;
@@ -26,7 +40,7 @@ function parseArgValue(argv, name) {
   return value;
 }
 
-function parseCli(argv) {
+function parseCli(argv: string[]): CliOptions {
   const defaultAppAsarPath = path.join(
     repoRoot,
     'codex-dmg',
@@ -48,34 +62,34 @@ function parseCli(argv) {
   const dmgPath = appAsarPath ? null : explicitDmgPath ?? defaultDmgPath;
 
   return {
-    dmgPath: appAsarPath ? null : path.resolve(process.cwd(), dmgPath),
+    dmgPath: dmgPath ? path.resolve(process.cwd(), dmgPath) : null,
     appAsarPath: appAsarPath ? path.resolve(process.cwd(), appAsarPath) : null,
     outputRoot: path.resolve(process.cwd(), outputRoot),
     keepTemp,
   };
 }
 
-function sha256(filePath) {
+function sha256(filePath: string): string {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
-async function extractDmgToTemp(dmgPath, tempRoot) {
+async function extractDmgToTemp(dmgPath: string, tempRoot: string): Promise<void> {
   childProcess.execFileSync('7z', ['x', '-y', dmgPath, `-o${tempRoot}`], {
     cwd: repoRoot,
     stdio: 'pipe',
   });
 }
 
-function assertExists(targetPath, label) {
+function assertExists(targetPath: string, label: string): void {
   if (!fs.existsSync(targetPath)) {
     throw new Error(`${label} is missing: ${targetPath}`);
   }
 }
 
-function findAppResourcesRoot(extractRoot) {
-  const matches = [];
+function findAppResourcesRoot(extractRoot: string): string {
+  const matches: string[] = [];
 
-  function walk(currentPath) {
+  function walk(currentPath: string): void {
     for (const entry of fs.readdirSync(currentPath, { withFileTypes: true })) {
       const entryPath = path.join(currentPath, entry.name);
       if (entry.isDirectory()) {
@@ -101,7 +115,7 @@ function findAppResourcesRoot(extractRoot) {
   return matches.sort((left, right) => left.localeCompare(right))[0];
 }
 
-function syncExactDirectory(sourceRoot, destinationRoot) {
+function syncExactDirectory(sourceRoot: string, destinationRoot: string): void {
   fs.rmSync(destinationRoot, { recursive: true, force: true });
   fs.mkdirSync(path.dirname(destinationRoot), { recursive: true });
   fs.cpSync(sourceRoot, destinationRoot, {
@@ -110,7 +124,7 @@ function syncExactDirectory(sourceRoot, destinationRoot) {
   });
 }
 
-async function main() {
+async function main(): Promise<void> {
   const { dmgPath, appAsarPath, outputRoot, keepTemp } = parseCli(process.argv.slice(2));
   if (!dmgPath && !appAsarPath) {
     throw new Error('Expected either --dmg or --app-asar');
@@ -127,6 +141,9 @@ async function main() {
   try {
     let resolvedAppAsarPath = appAsarPath;
     if (!resolvedAppAsarPath) {
+      if (!dmgPath) {
+        throw new Error('Expected a Codex DMG path when --app-asar is not provided');
+      }
       await extractDmgToTemp(dmgPath, tempRoot);
       const appResourcesRoot = findAppResourcesRoot(tempRoot);
       resolvedAppAsarPath = path.join(appResourcesRoot, 'app.asar');
@@ -137,7 +154,7 @@ async function main() {
 
     const upstreamPackage = JSON.parse(
       fs.readFileSync(path.join(extractedAppRoot, 'package.json'), 'utf8'),
-    );
+    ) as PackageJson;
 
     syncExactDirectory(extractedAppRoot, outputRoot);
 
@@ -171,4 +188,7 @@ async function main() {
   }
 }
 
-await main();
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

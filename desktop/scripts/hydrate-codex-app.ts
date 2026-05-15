@@ -1617,7 +1617,7 @@ async function main(): Promise<void> {
   execFileSync(
     process.execPath,
     [
-      path.join(desktopRoot, "scripts", "refresh-recovered-from-dmg.mjs"),
+      path.join(desktopRoot, ".cache", "scripts", "refresh-recovered-from-dmg.js"),
       "--app-asar",
       appAsar,
       "--output",
