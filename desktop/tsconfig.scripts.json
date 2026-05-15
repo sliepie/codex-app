@@ -14,6 +14,7 @@
     "scripts/decode-self-signed-pfx.ts",
     "scripts/hydrate-codex-app.ts",
     "scripts/hydrate-codex-cli.ts",
+    "scripts/patch-better-sqlite3-electron.ts",
     "scripts/patch-windows-self-signed-bundle.ts",
     "scripts/prepare-self-signed-msix-payload.ts",
     "scripts/write-self-signed-appinstaller.ts"

@@ -14,12 +14,16 @@ const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
   hasArm64RuntimePayload,
-  patchElectronCppgcHeapForMsvcHeader,
-  patchBetterSqlite3ForV8ExternalPointerApi,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
 } = require(
   path.join(desktopRoot, ".cache", "scripts", "hydrate-codex-app.js"),
+);
+const {
+  patchElectronCppgcHeapForMsvcHeader,
+  patchBetterSqlite3ForV8ExternalPointerApi,
+} = require(
+  path.join(desktopRoot, ".cache", "scripts", "patch-better-sqlite3-electron.js"),
 );
 
 function writeFixture(filePath, source) {

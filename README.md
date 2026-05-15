@@ -114,7 +114,9 @@ Native app dependencies are discovered from the recovered macOS
 when the recovered package contains shipped native payloads or prebuilds. A
 source-only build recipe is not enough by itself; update the dependency or build
 tooling first. Keep any third-party source or header patch in the hydration
-script narrow, runtime-gated, and covered by tests.
+script narrow, runtime-gated, and covered by tests. The removable Electron 42
+`better-sqlite3` rebuild workaround lives in
+`desktop/scripts/patch-better-sqlite3-electron.ts`.
 
 ## Vendored `node_repl.exe`
 
