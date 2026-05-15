@@ -1,14 +1,13 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 type NpmEnvironment = Record<string, string | undefined>;
 
 type BetterSqlite3ElectronRebuildOptions = {
-  desktopRoot: string;
   electronVersion: string;
   nodeModulesRoot: string;
-  targetArch: string;
 };
 
 function normalizeRuntimeVersion(version: string): string {
@@ -27,16 +26,12 @@ function packageRoot(nodeModulesRoot: string, packageName: string): string {
   return path.join(nodeModulesRoot, ...packageName.split("/"));
 }
 
-function electronGypDevDir(): string {
-  const existingDevDir = process.env.npm_config_devdir;
-  if (existingDevDir) {
-    return existingDevDir;
+function electronRebuildDevDir(): string {
+  const homeDir = os.homedir();
+  if (!homeDir) {
+    throw new Error("A user home directory is required to prepare Electron headers.");
   }
-  const userProfile = process.env.USERPROFILE;
-  if (!userProfile) {
-    throw new Error("USERPROFILE is required to prepare Electron headers on Windows.");
-  }
-  return path.join(userProfile, ".electron-gyp");
+  return path.resolve(homeDir, ".electron-gyp");
 }
 
 function replaceSourceOnce(filePath: string, needle: string, replacement: string): boolean {
@@ -167,7 +162,7 @@ export function patchElectronCppgcHeapForMsvcHeader(headerPath: string): void {
   console.log(`Patched Electron cppgc heap header for MSVC: ${headerPath}`);
 }
 
-function prepareElectronHeadersForNativeRebuild(
+export function prepareElectronHeadersForNativeRebuild(
   desktopRoot: string,
   electronVersion: string,
   targetArch: string,
@@ -185,7 +180,7 @@ function prepareElectronHeadersForNativeRebuild(
     throw new Error(`Missing node-gyp CLI for Electron header preparation: ${nodeGypCli}`);
   }
 
-  const devDir = electronGypDevDir();
+  const devDir = electronRebuildDevDir();
   const normalizedElectronVersion = normalizeRuntimeVersion(electronVersion);
   const env = {
     ...process.env,
@@ -218,14 +213,9 @@ function prepareElectronHeadersForNativeRebuild(
 
 export function prepareBetterSqlite3ElectronRebuild(
   options: BetterSqlite3ElectronRebuildOptions,
-): NpmEnvironment | undefined {
+): void {
   patchBetterSqlite3ForV8ExternalPointerApi(
     options.nodeModulesRoot,
     options.electronVersion,
-  );
-  return prepareElectronHeadersForNativeRebuild(
-    options.desktopRoot,
-    options.electronVersion,
-    options.targetArch,
   );
 }

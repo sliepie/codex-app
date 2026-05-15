@@ -1,5 +1,9 @@
 import crypto from "node:crypto";
 import { appendFileSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
 const appcastUrl =
   process.env.CODEX_APPCAST_URL ??
@@ -31,7 +35,7 @@ function hashCacheInputs(paths) {
   for (const inputPath of paths) {
     hash.update(inputPath);
     hash.update("\0");
-    hash.update(readFileSync(inputPath));
+    hash.update(readFileSync(path.resolve(desktopRoot, inputPath)));
     hash.update("\0");
   }
   return hash.digest("hex");

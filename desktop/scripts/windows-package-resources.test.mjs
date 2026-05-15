@@ -22,6 +22,7 @@ const {
 const {
   patchElectronCppgcHeapForMsvcHeader,
   patchBetterSqlite3ForV8ExternalPointerApi,
+  prepareElectronHeadersForNativeRebuild,
 } = require(
   path.join(desktopRoot, ".cache", "scripts", "patch-better-sqlite3-electron.js"),
 );
@@ -498,6 +499,20 @@ class StackStartMarker {
   assert.equal(source.match(/#include <intrin\.h>/g)?.length, 1);
 });
 
+test("exports generic Electron header preparation separately from better-sqlite3 patching", () => {
+  assert.equal(typeof prepareElectronHeadersForNativeRebuild, "function");
+
+  const hydrateSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+  assert.match(
+    hydrateSource,
+    /prepareElectronHeadersForNativeRebuild\(\s*desktopRoot,\s*runtimeVersion,\s*targetRuntimeArch,\s*\) \?\? process\.env/s,
+  );
+  assert.match(hydrateSource, /prepareBetterSqlite3ElectronRebuild\({\s*electronVersion: runtimeVersion,/s);
+});
+
 test("allows the upstream bundle to omit the browser plugin", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
@@ -822,6 +837,13 @@ test("caches rebuilt native Node modules separately from hydrated app resources"
     );
   }
   assert.match(resolverSource, /native_modules_cache_key/);
+
+  const hydrateSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+  assert.match(hydrateSource, /inputHash: cacheInputHash\(electronNativeModuleCacheInputPaths\)/);
+  assert.match(hydrateSource, /version: 4/);
 
   for (const workflowName of [
     "windows-arm64-pr-build.yml",

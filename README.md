@@ -116,7 +116,10 @@ source-only build recipe is not enough by itself; update the dependency or build
 tooling first. Keep any third-party source or header patch in the hydration
 script narrow, runtime-gated, and covered by tests. The removable Electron 42
 `better-sqlite3` rebuild workaround lives in
-`desktop/scripts/patch-better-sqlite3-electron.ts`.
+`desktop/scripts/patch-better-sqlite3-electron.ts`. When upstream
+`better-sqlite3` no longer needs it, remove that script, its hydration import
+and call sites, the native-module cache-key input, and the scripts tsconfig
+entry in the same change.
 
 ## Vendored `node_repl.exe`
 
