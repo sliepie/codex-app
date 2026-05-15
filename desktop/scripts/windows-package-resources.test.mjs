@@ -14,6 +14,7 @@ const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
   hasArm64RuntimePayload,
+  patchElectronCppgcHeapForMsvcHeader,
   patchBetterSqlite3ForV8ExternalPointerApi,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
@@ -460,6 +461,37 @@ test("leaves better-sqlite3 source unchanged before Electron 42", () => {
     ),
     /BETTER_SQLITE3_EXTERNAL_POINTER_TAG/,
   );
+});
+
+test("patches Electron cppgc heap header for MSVC rebuilds", () => {
+  const headerPath = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), "codex-electron-headers-")),
+    "include",
+    "node",
+    "cppgc",
+    "heap.h",
+  );
+  writeFixture(
+    headerPath,
+    `#include "v8config.h"  // NOLINT(build/include_directory)
+
+namespace cppgc {
+class StackStartMarker {
+ public:
+  StackStartMarker() : stack_start_(__builtin_frame_address(0)) {}
+};
+}
+`,
+  );
+
+  patchElectronCppgcHeapForMsvcHeader(headerPath);
+  patchElectronCppgcHeapForMsvcHeader(headerPath);
+
+  const source = fs.readFileSync(headerPath, "utf8");
+  assert.match(source, /#include <intrin\.h>/);
+  assert.match(source, /#pragma intrinsic\(_AddressOfReturnAddress\)/);
+  assert.match(source, /StackStartMarker\(\) : stack_start_\(_AddressOfReturnAddress\(\)\) \{\}/);
+  assert.equal(source.match(/#include <intrin\.h>/g)?.length, 1);
 });
 
 test("allows the upstream bundle to omit the browser plugin", () => {

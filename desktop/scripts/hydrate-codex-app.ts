@@ -1162,6 +1162,7 @@ function runElectronRebuild(
   if (!fs.existsSync(electronRebuildCli)) {
     throw new Error(`Missing electron-rebuild CLI: ${electronRebuildCli}`);
   }
+  const env = prepareElectronHeadersForNativeRebuild(electronVersion) ?? process.env;
 
   execFileSync(
     process.execPath,
@@ -1177,7 +1178,7 @@ function runElectronRebuild(
       nativeModuleNames.join(","),
       "--force",
     ],
-    { cwd: desktopRoot, stdio: "inherit" },
+    { cwd: desktopRoot, env, stdio: "inherit" },
   );
 }
 
@@ -1187,6 +1188,101 @@ function runtimeMajorVersion(runtimeVersion: string): number | undefined {
     return undefined;
   }
   return Number.parseInt(majorText, 10);
+}
+
+function electronGypDevDir(): string {
+  const existingDevDir = process.env.npm_config_devdir;
+  if (existingDevDir) {
+    return existingDevDir;
+  }
+  const userProfile = process.env.USERPROFILE;
+  if (!userProfile) {
+    throw new Error("USERPROFILE is required to prepare Electron headers on Windows.");
+  }
+  return path.join(userProfile, ".electron-gyp");
+}
+
+export function patchElectronCppgcHeapForMsvcHeader(headerPath: string): void {
+  if (!fs.existsSync(headerPath)) {
+    throw new Error(`Missing Electron cppgc heap header: ${headerPath}`);
+  }
+
+  const includeAnchor = '#include "v8config.h"  // NOLINT(build/include_directory)';
+  const includeBlock = `${includeAnchor}
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#include <intrin.h>
+#pragma intrinsic(_AddressOfReturnAddress)
+#endif`;
+  const constructor =
+    "StackStartMarker() : stack_start_(__builtin_frame_address(0)) {}";
+  const replacement = `#if defined(_MSC_VER) && !defined(__clang__)
+  StackStartMarker() : stack_start_(_AddressOfReturnAddress()) {}
+#else
+  StackStartMarker() : stack_start_(__builtin_frame_address(0)) {}
+#endif`;
+
+  let source = fs.readFileSync(headerPath, "utf8");
+  if (source.includes("_AddressOfReturnAddress")) {
+    console.log(`Electron cppgc heap header already patched for MSVC: ${headerPath}`);
+    return;
+  }
+  if (!source.includes(includeAnchor)) {
+    throw new Error(`Could not find Electron cppgc heap include anchor in ${headerPath}`);
+  }
+  if (!source.includes(constructor)) {
+    throw new Error(`Could not find Electron cppgc heap stack marker in ${headerPath}`);
+  }
+
+  source = source.replace(includeAnchor, includeBlock);
+  source = source.replace(constructor, replacement);
+  fs.writeFileSync(headerPath, source, "utf8");
+  console.log(`Patched Electron cppgc heap header for MSVC: ${headerPath}`);
+}
+
+function prepareElectronHeadersForNativeRebuild(electronVersion: string): NpmEnvironment | undefined {
+  if (process.platform !== "win32") {
+    return undefined;
+  }
+  const electronMajor = runtimeMajorVersion(electronVersion);
+  if (electronMajor === undefined || electronMajor < 42) {
+    return undefined;
+  }
+
+  const nodeGypCli = path.join(desktopRoot, "node_modules", "node-gyp", "bin", "node-gyp.js");
+  if (!fs.existsSync(nodeGypCli)) {
+    throw new Error(`Missing node-gyp CLI for Electron header preparation: ${nodeGypCli}`);
+  }
+
+  const devDir = electronGypDevDir();
+  const normalizedElectronVersion = normalizeRuntimeVersion(electronVersion);
+  const env = {
+    ...process.env,
+    npm_config_devdir: devDir,
+  };
+
+  execFileSync(
+    process.execPath,
+    [
+      nodeGypCli,
+      "install",
+      "--target",
+      normalizedElectronVersion,
+      "--arch",
+      targetRuntimeArch,
+      "--dist-url",
+      "https://electronjs.org/headers",
+      "--devdir",
+      devDir,
+    ],
+    { cwd: desktopRoot, env, stdio: "inherit" },
+  );
+
+  patchElectronCppgcHeapForMsvcHeader(
+    path.join(devDir, normalizedElectronVersion, "include", "node", "cppgc", "heap.h"),
+  );
+
+  return env;
 }
 
 function replaceSourceOnce(filePath: string, needle: string, replacement: string): boolean {
