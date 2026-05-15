@@ -2,6 +2,7 @@ const SECTION_TITLES_TO_HIDE = new Set([
   "Codex++ Updates",
   "Auto-Repair Watcher",
 ]);
+const SIDEBAR_MAX_LEFT = 420;
 
 const hiddenElements = new Map();
 
@@ -37,6 +38,46 @@ function hideElement(element) {
   }
 }
 
+function visibleInLeftSidebar(element) {
+  const rect = element.getBoundingClientRect();
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    rect.left >= 0 &&
+    rect.right <= SIDEBAR_MAX_LEFT
+  );
+}
+
+function containsExactText(element, text) {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    if (node.textContent?.trim() === text) {
+      return true;
+    }
+    node = walker.nextNode();
+  }
+
+  return false;
+}
+
+function hasCodexPlusPlusSidebarContext(element) {
+  let current = element.parentElement;
+  let depth = 0;
+  while (current && depth <= 5) {
+    if (
+      visibleInLeftSidebar(current) &&
+      containsExactText(current, "CODEX++")
+    ) {
+      return true;
+    }
+    current = current.parentElement;
+    depth += 1;
+  }
+
+  return false;
+}
+
 function clearHiddenElements() {
   for (const [element, display] of hiddenElements) {
     element.style.display = display;
@@ -61,6 +102,19 @@ function hideSectionByTitle(title) {
   }
 }
 
+function hideSidebarUpdateButton() {
+  for (const node of textNodesMatching("Update")) {
+    const button = node.parentElement?.closest("button,[role='button']");
+    if (
+      button &&
+      visibleInLeftSidebar(button) &&
+      hasCodexPlusPlusSidebarContext(button)
+    ) {
+      hideElement(button);
+    }
+  }
+}
+
 function applyOverrides() {
   animationFrame = 0;
   try {
@@ -68,6 +122,7 @@ function applyOverrides() {
     for (const title of SECTION_TITLES_TO_HIDE) {
       hideSectionByTitle(title);
     }
+    hideSidebarUpdateButton();
   } catch (error) {
     log.warn("Codex++ updater UI overrides failed", error);
   }
