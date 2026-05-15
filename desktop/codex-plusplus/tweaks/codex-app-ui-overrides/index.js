@@ -25,6 +25,8 @@ function installStyle() {
     ".group\\/folder-row button svg,.group\\/folder-row button .icon-xs,.group\\/folder-row button .icon-sm{opacity:1!important;visibility:visible!important;}",
     ".group\\/projects-section-header>.opacity-0,.group\\/projects-section-header .opacity-0:has(button),.group\\/chats-section-header>.opacity-0,.group\\/chats-section-header .opacity-0:has(button),.group\\/custom-section-header>.opacity-0,.group\\/custom-section-header .opacity-0:has(button){opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
     ".group\\/projects-section-header button svg,.group\\/projects-section-header button .icon-xs,.group\\/projects-section-header button .icon-sm,.group\\/chats-section-header button svg,.group\\/chats-section-header button .icon-xs,.group\\/chats-section-header button .icon-sm,.group\\/custom-section-header button svg,.group\\/custom-section-header button .icon-xs,.group\\/custom-section-header button .icon-sm{opacity:1!important;visibility:visible!important;}",
+    "[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0{display:flex!important;opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
+    "[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0 svg,[data-app-shell-tab-controller='right'] .group\\/tab [role='button'].absolute.inset-y-0.start-0 .icon-xs{opacity:1!important;visibility:visible!important;}",
   ].join("\n");
   document.head.appendChild(style);
 }
