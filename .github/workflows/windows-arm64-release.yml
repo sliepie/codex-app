@@ -36,6 +36,12 @@ jobs:
           cache: npm
           cache-dependency-path: desktop/package-lock.json
 
+      - name: Restore Electron cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .cache/electron
+          key: windows-arm64-electron-${{ runner.os }}-${{ hashFiles('desktop/package-lock.json') }}
+
       - name: Install dependencies
         working-directory: desktop
         run: npm ci
@@ -65,13 +71,6 @@ jobs:
           CURRENT_COMMIT_RELEASE_TAG: ${{ steps.upstream.outputs.current_commit_release_tag }}
         run: |
           Write-Output "Codex app $env:RELEASE_VERSION build $env:CODEX_APP_BUILD with CLI $env:CODEX_CLI_TAG and Codex++ $env:CODEX_PLUS_PLUS_TAG already has repo release $env:CURRENT_COMMIT_RELEASE_TAG for this commit."
-
-      - name: Restore Electron cache
-        if: steps.upstream.outputs.current_commit_release_tag == ''
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: .cache/electron
-          key: windows-arm64-electron-${{ runner.os }}-${{ hashFiles('desktop/package-lock.json') }}
 
       - name: Restore hydrated release cache
         if: steps.upstream.outputs.current_commit_release_tag == ''
@@ -103,14 +102,25 @@ jobs:
             desktop/resources/native/windows-updater.node
           key: windows-oai-updater-${{ runner.os }}-${{ env.PACKAGE_ARCHITECTURE }}-${{ hashFiles('desktop/scripts/build-windows-oai-update-checker.ps1', 'desktop/native/windows-oai-update-checker/Cargo.lock', 'desktop/native/windows-oai-update-checker/Cargo.toml', 'desktop/native/windows-oai-update-checker/src/**') }}
 
-      - name: Prepare and verify Windows ARM64 inputs
+      - name: Build Windows updater
+        if: steps.upstream.outputs.current_commit_release_tag == ''
+        working-directory: desktop
+        run: npm run build:windows-oai-update-checker -- -Architecture arm64
+
+      - name: Hydrate Windows ARM64 inputs
         if: steps.upstream.outputs.current_commit_release_tag == ''
         working-directory: desktop
         env:
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
           CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
           CODEX_PLUS_PLUS_SHA: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
-        run: npm run prepare:win:arm64
+          GH_TOKEN: ${{ github.token }}
+        run: npm run hydrate:app:compiled && npm run hydrate:cli:compiled
+
+      - name: Verify Windows ARM64 inputs
+        if: steps.upstream.outputs.current_commit_release_tag == ''
+        working-directory: desktop
+        run: npm run verify:browser-client-runtime:compiled
 
       - name: Make Windows ARM64 ZIP
         if: steps.upstream.outputs.current_commit_release_tag == ''

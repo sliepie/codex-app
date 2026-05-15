@@ -14,6 +14,7 @@ const hiddenElements = new Map();
 let animationFrame = 0;
 let initialApplyTimer = 0;
 let log = console;
+let mutationObserver = null;
 
 function textNodesMatching(text) {
   if (!document.body) {
@@ -123,11 +124,30 @@ function onSettingsSurface(event) {
   }
 }
 
+function startMutationObserver() {
+  if (mutationObserver || !document.body || typeof MutationObserver !== "function") {
+    return;
+  }
+
+  mutationObserver = new MutationObserver(() => scheduleInitialApply());
+  mutationObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function stopMutationObserver() {
+  if (!mutationObserver) {
+    return;
+  }
+
+  mutationObserver.disconnect();
+  mutationObserver = null;
+}
+
 module.exports = {
   start(api) {
     log = api?.log || console;
 
     window.addEventListener("codexpp:settings-surface", onSettingsSurface);
+    startMutationObserver();
     scheduleInitialApply();
   },
 
@@ -137,6 +157,7 @@ module.exports = {
       animationFrame = 0;
     }
     clearInitialApplyTimer();
+    stopMutationObserver();
     window.removeEventListener("codexpp:settings-surface", onSettingsSurface);
 
     clearHiddenElements();

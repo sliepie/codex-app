@@ -7,11 +7,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Get-CodexDesktopProcess {
+function Get-CodexProcess {
     Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
         Where-Object {
-            $_.Name -eq "Codex.exe" -or
-                ($_.Name -eq "codex.exe" -and $_.CommandLine -match "app-server|OpenAI\.Codex|Codex Desktop")
+            $_.Name -eq "Codex.exe" -or $_.Name -eq "codex.exe"
         } |
         Select-Object -Property Name, ProcessId
 }
@@ -22,7 +21,7 @@ function Format-BytesAsMb {
     return "{0:n1}" -f ($Bytes / 1MB)
 }
 
-$runningCodex = @(Get-CodexDesktopProcess)
+$runningCodex = @(Get-CodexProcess)
 if ($runningCodex.Count -gt 0) {
     $summary = ($runningCodex | ForEach-Object { "$($_.Name) pid=$($_.ProcessId)" }) -join ", "
     throw "Codex is still running ($summary). Close Codex, then run this helper again."

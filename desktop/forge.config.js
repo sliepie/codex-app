@@ -60,7 +60,16 @@ function recoveredOriginalMain(upstreamPackageJson) {
     typeof upstreamPackageJson.main === 'string' && upstreamPackageJson.main.trim()
       ? upstreamPackageJson.main.trim().replace(/\\/g, '/')
       : '.vite/build/bootstrap.js';
-  return path.posix.join('recovered/app-asar-extracted', upstreamMain.replace(/^\.\//, ''));
+  const normalizedMain = path.posix.normalize(upstreamMain.replace(/^\.\//, ''));
+  if (
+    path.posix.isAbsolute(normalizedMain) ||
+    normalizedMain === '..' ||
+    normalizedMain.startsWith('../') ||
+    /^[A-Za-z]:/.test(normalizedMain)
+  ) {
+    throw new Error('Recovered Codex main must stay inside recovered/app-asar-extracted: ' + upstreamMain);
+  }
+  return path.posix.join('recovered/app-asar-extracted', normalizedMain);
 }
 
 function readRecoveredPackageJson() {

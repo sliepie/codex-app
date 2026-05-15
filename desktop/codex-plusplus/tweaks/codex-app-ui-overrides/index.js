@@ -6,6 +6,7 @@ const managedStyles = new Map();
 let animationFrame = 0;
 let reapplyTimer = 0;
 let log = console;
+let mutationObserver = null;
 
 const VISIBLE_CONTROL_DECLARATIONS =
   "opacity:1!important;pointer-events:auto!important;visibility:visible!important;";
@@ -421,6 +422,24 @@ function onSettingsSurface(event) {
   }
 }
 
+function startMutationObserver() {
+  if (mutationObserver || !document.body || typeof MutationObserver !== "function") {
+    return;
+  }
+
+  mutationObserver = new MutationObserver(() => scheduleDelayedApply());
+  mutationObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function stopMutationObserver() {
+  if (!mutationObserver) {
+    return;
+  }
+
+  mutationObserver.disconnect();
+  mutationObserver = null;
+}
+
 function addReapplyListeners() {
   window.addEventListener("resize", scheduleDelayedApply);
   window.addEventListener("popstate", scheduleDelayedApply);
@@ -439,6 +458,7 @@ module.exports = {
   start(api) {
     log = api?.log || console;
     addReapplyListeners();
+    startMutationObserver();
     scheduleApply();
   },
 
@@ -448,6 +468,7 @@ module.exports = {
       animationFrame = 0;
     }
     clearReapplyTimer();
+    stopMutationObserver();
     removeReapplyListeners();
 
     document.getElementById(STYLE_ID)?.remove();

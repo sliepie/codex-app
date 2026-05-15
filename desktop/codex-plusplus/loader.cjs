@@ -9,6 +9,7 @@ const fallbackOriginalMain = "recovered/app-asar-extracted/.vite/build/bootstrap
 const packagedRoot = path.join(__dirname, "..");
 const originalMain = readPackagedOriginalMain();
 const runtimeDir = path.join(__dirname, "runtime");
+const preloadPath = path.join(runtimeDir, "preload.js");
 const bundledTweaksDir = path.join(__dirname, "tweaks");
 const userRoot = resolveUserRoot();
 const configFile = path.join(userRoot, "config.json");
@@ -130,6 +131,34 @@ function isTrustedBundledMarker(marker, expectedId) {
   );
 }
 
+function isTrustedInstalledBundledMarker(marker, installedDirName) {
+  return (
+    isPlainObject(marker) &&
+    marker.source === "codex-app" &&
+    marker.id === installedDirName &&
+    isSafeTweakId(marker.id) &&
+    typeof marker.version === "string" &&
+    marker.version.trim() !== ""
+  );
+}
+
+function readConfigOrEmpty() {
+  if (!fs.existsSync(configFile)) {
+    return {};
+  }
+
+  try {
+    const config = readJson(configFile);
+    return isPlainObject(config) ? config : {};
+  } catch {
+    return {};
+  }
+}
+
+function isCodexPlusPlusSafeModeEnabled() {
+  return readConfigOrEmpty().codexPlusPlus?.safeMode === true;
+}
+
 function disableCodexPlusPlusAutoUpdate() {
   let config = {};
   if (fs.existsSync(configFile)) {
@@ -228,13 +257,46 @@ function installBundledTweak(sourceDir, targetDir, marker) {
   }
 }
 
+function removeUnbundledAppTweaks(tweaksDir, bundledIds) {
+  for (const entry of fs.readdirSync(tweaksDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || bundledIds.has(entry.name)) {
+      continue;
+    }
+
+    const targetDir = path.join(tweaksDir, entry.name);
+    const markerPath = path.join(targetDir, ".codex-app-bundled-tweak.json");
+    if (!fs.existsSync(markerPath)) {
+      continue;
+    }
+
+    let marker;
+    try {
+      marker = readJson(markerPath);
+    } catch (error) {
+      log("codex-plusplus bundled tweak marker read failed for " + entry.name, error);
+      continue;
+    }
+
+    if (!isTrustedInstalledBundledMarker(marker, entry.name)) {
+      continue;
+    }
+
+    fs.rmSync(targetDir, { recursive: true, force: true });
+  }
+}
+
 function syncBundledTweaks() {
+  const tweaksDir = path.join(userRoot, "tweaks");
+
   if (!fs.existsSync(bundledTweaksDir)) {
+    if (fs.existsSync(tweaksDir)) {
+      removeUnbundledAppTweaks(tweaksDir, new Set());
+    }
     return;
   }
 
-  const tweaksDir = path.join(userRoot, "tweaks");
   fs.mkdirSync(tweaksDir, { recursive: true });
+  const bundledIds = new Set();
 
   for (const entry of fs.readdirSync(bundledTweaksDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) {
@@ -242,14 +304,16 @@ function syncBundledTweaks() {
     }
 
     try {
-      syncBundledTweak(entry, tweaksDir);
+      syncBundledTweak(entry, tweaksDir, bundledIds);
     } catch (error) {
       log("codex-plusplus bundled tweak sync failed for " + entry.name, error);
     }
   }
+
+  removeUnbundledAppTweaks(tweaksDir, bundledIds);
 }
 
-function syncBundledTweak(entry, tweaksDir) {
+function syncBundledTweak(entry, tweaksDir, bundledIds) {
   const sourceDir = path.join(bundledTweaksDir, entry.name);
   const manifestPath = path.join(sourceDir, "manifest.json");
   if (!fs.existsSync(manifestPath)) {
@@ -258,6 +322,7 @@ function syncBundledTweak(entry, tweaksDir) {
 
   const manifest = readJson(manifestPath);
   assertBundledManifest(manifest, entry.name);
+  bundledIds.add(manifest.id);
   const targetDir = path.join(tweaksDir, manifest.id);
   const markerPath = path.join(targetDir, ".codex-app-bundled-tweak.json");
   const marker = {
@@ -291,6 +356,66 @@ function runStartupStep(label, fn) {
   }
 }
 
+function registerPreload(session, label) {
+  try {
+    const registerPreloadScript = session.registerPreloadScript;
+    if (typeof registerPreloadScript === "function") {
+      registerPreloadScript.call(session, {
+        type: "frame",
+        filePath: preloadPath,
+        id: "codex-plusplus",
+      });
+      return;
+    }
+
+    if (typeof session.getPreloads === "function" && typeof session.setPreloads === "function") {
+      const existing = session.getPreloads();
+      if (!existing.includes(preloadPath)) {
+        session.setPreloads([...existing, preloadPath]);
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("existing ID")) {
+      return;
+    }
+    log("codex-plusplus early preload registration failed for " + label, error);
+  }
+}
+
+function registerEarlyPreloadHooks() {
+  let electron;
+  try {
+    electron = require("electron");
+  } catch {
+    return;
+  }
+
+  const app = electron && electron.app;
+  const session = electron && electron.session;
+  if (!app || !session) {
+    return;
+  }
+
+  if (typeof app.whenReady === "function") {
+    app
+      .whenReady()
+      .then(() => {
+        if (!isCodexPlusPlusSafeModeEnabled() && session.defaultSession) {
+          registerPreload(session.defaultSession, "defaultSession");
+        }
+      })
+      .catch((error) => log("codex-plusplus early preload ready hook failed", error));
+  }
+
+  if (typeof app.on === "function") {
+    app.on("session-created", (createdSession) => {
+      if (!isCodexPlusPlusSafeModeEnabled()) {
+        registerPreload(createdSession, "session-created");
+      }
+    });
+  }
+}
+
 function startCodexPlusPlusIntegration() {
   runStartupStep("codex-plusplus user root setup failed", () => {
     fs.mkdirSync(userRoot, { recursive: true });
@@ -312,5 +437,8 @@ function scheduleCodexPlusPlusIntegration() {
   setTimeout(startCodexPlusPlusIntegration, 0);
 }
 
+process.env.CODEX_PLUSPLUS_USER_ROOT = userRoot;
+process.env.CODEX_PLUSPLUS_RUNTIME = runtimeDir;
+registerEarlyPreloadHooks();
 require(path.join(packagedRoot, originalMain));
 scheduleCodexPlusPlusIntegration();

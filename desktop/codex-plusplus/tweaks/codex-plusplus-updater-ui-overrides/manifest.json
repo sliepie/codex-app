@@ -1,7 +1,7 @@
 {
   "id": "app.sliepie.codex.codex-plusplus-updater-ui",
   "name": "Codex++ updater UI",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "githubRepo": "sliepie/codex-app",
   "description": "Hides standalone Codex++ updater controls from bundled Codex builds.",
   "author": "sliepie",

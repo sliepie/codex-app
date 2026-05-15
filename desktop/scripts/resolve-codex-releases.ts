@@ -1,9 +1,8 @@
 import crypto from "node:crypto";
 import { appendFileSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const desktopRoot = process.cwd();
 
 const appcastUrl =
   process.env.CODEX_APPCAST_URL ??

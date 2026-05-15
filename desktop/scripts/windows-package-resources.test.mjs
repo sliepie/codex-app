@@ -591,10 +591,14 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.match(loaderSource, /autoUpdate: false/);
   assert.match(loaderSource, /bundledVersionIsNewer\(marker\.version, current\.version\)/);
   assert.match(loaderSource, /__codexpp\.originalMain/);
+  assert.match(loaderSource, /registerEarlyPreloadHooks\(\);[\s\S]*require\(path\.join\(packagedRoot, originalMain\)\)/);
+  assert.match(loaderSource, /removeUnbundledAppTweaks\(tweaksDir, bundledIds\)/);
   assert.match(loaderSource, /maxLogBytes = 10 \* 1024 \* 1024/);
 
   const forgeSource = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
   assert.match(forgeSource, /originalMain: recoveredOriginalMain\(upstreamPackageJson\)/);
+  assert.match(forgeSource, /path\.posix\.isAbsolute\(normalizedMain\)/);
+  assert.match(forgeSource, /normalizedMain\.startsWith\('\.\.\/'\)/);
   assert.match(forgeSource, /assertCodexPlusPlusPackageInputs\(buildPath\)/);
 });
 
@@ -696,6 +700,46 @@ test("Codex++ loader starts original Codex before runtime integration", (t) => {
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
 });
 
+test("Codex++ loader registers preload hooks before original Codex startup", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.root, "node_modules", "electron", "index.js"),
+    [
+      'const fs = require("node:fs");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      "const session = {",
+      "  registerPreloadScript() { fs.appendFileSync(trace, \"preload\\n\"); },",
+      "};",
+      "module.exports = {",
+      "  app: {",
+      "    whenReady() {",
+      "      return {",
+      "        then(callback) {",
+      "          fs.appendFileSync(trace, \"when-ready-hook\\n\");",
+      "          callback();",
+      "          return { catch() {} };",
+      "        },",
+      "      };",
+      "    },",
+      "    on(event) {",
+      "      if (event === \"session-created\") fs.appendFileSync(trace, \"session-created-hook\\n\");",
+      "    },",
+      "  },",
+      "  session: { defaultSession: session },",
+      "};",
+      "",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
+    "when-ready-hook",
+    "preload",
+    "session-created-hook",
+    "original",
+    "runtime",
+  ]);
+});
+
 test("Codex++ loader still starts runtime when a bundled tweak marker is corrupt", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   writeFixture(
@@ -769,6 +813,36 @@ test("Codex++ loader upgrades trusted bundled tweak installs", (t) => {
   );
 });
 
+test("Codex++ loader removes trusted app-owned bundled tweaks no longer packaged", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  const removedTweakRoot = path.join(
+    fixture.appData,
+    "codex-plusplus",
+    "tweaks",
+    "app.sliepie.codex.mobile-pairing",
+  );
+  const userTweakRoot = path.join(fixture.appData, "codex-plusplus", "tweaks", "user-tweak");
+
+  writeFixture(path.join(removedTweakRoot, "index.js"), 'module.exports = "removed";\n');
+  writeFixture(
+    path.join(removedTweakRoot, ".codex-app-bundled-tweak.json"),
+    JSON.stringify(
+      { source: "codex-app", id: "app.sliepie.codex.mobile-pairing", version: "0.1.0" },
+      null,
+      2,
+    ) + "\n",
+  );
+  writeFixture(path.join(userTweakRoot, "index.js"), 'module.exports = "user";\n');
+  writeFixture(
+    path.join(userTweakRoot, ".codex-app-bundled-tweak.json"),
+    JSON.stringify({ source: "other", id: "user-tweak", version: "1.0.0" }, null, 2) + "\n",
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.equal(fs.existsSync(removedTweakRoot), false);
+  assert.equal(fs.existsSync(userTweakRoot), true);
+});
+
 test("Codex++ loader rejects unsafe bundled tweak ids", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   writeFixture(
@@ -820,12 +894,14 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   }
 });
 
-test("Codex app UI override installs styles without observing renderer mutations", () => {
+test("Codex app UI override installs styles and observes renderer mutations", () => {
   const tweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
   const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
   const appendedStyles = [];
   const eventListeners = [];
   let mutationObserverCount = 0;
+  let mutationObserveCount = 0;
+  let mutationDisconnectCount = 0;
 
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
@@ -846,8 +922,13 @@ test("Codex app UI override installs styles without observing renderer mutations
       mutationObserverCount += 1;
     }
 
-    observe() {}
-    disconnect() {}
+    observe() {
+      mutationObserveCount += 1;
+    }
+
+    disconnect() {
+      mutationDisconnectCount += 1;
+    }
   };
   globalThis.window = {
     innerHeight: 1000,
@@ -885,7 +966,8 @@ test("Codex app UI override installs styles without observing renderer mutations
 
     module.exports.start({ log: console });
 
-    assert.equal(mutationObserverCount, 0);
+    assert.equal(mutationObserverCount, 1);
+    assert.equal(mutationObserveCount, 1);
     assert.deepEqual(eventListeners, [
       "resize",
       "popstate",
@@ -899,6 +981,7 @@ test("Codex app UI override installs styles without observing renderer mutations
     );
 
     module.exports.stop();
+    assert.equal(mutationDisconnectCount, 1);
     assert.deepEqual(eventListeners, [
       "resize",
       "popstate",
@@ -917,7 +1000,7 @@ test("Codex app UI override installs styles without observing renderer mutations
   }
 });
 
-test("Codex++ updater UI override hides update controls without observing renderer mutations", () => {
+test("Codex++ updater UI override hides update controls and observes renderer mutations", () => {
   const tweakRoot = path.join(
     desktopRoot,
     "codex-plusplus",
@@ -929,6 +1012,8 @@ test("Codex++ updater UI override hides update controls without observing render
   const windowEvents = [];
   const windowHandlers = new Map();
   let mutationObserverCount = 0;
+  let mutationObserveCount = 0;
+  let mutationDisconnectCount = 0;
   let timeoutId = 0;
   let timeoutDelay = 0;
   let clearedTimeoutId = 0;
@@ -963,8 +1048,13 @@ test("Codex++ updater UI override hides update controls without observing render
       mutationObserverCount += 1;
     }
 
-    observe() {}
-    disconnect() {}
+    observe() {
+      mutationObserveCount += 1;
+    }
+
+    disconnect() {
+      mutationDisconnectCount += 1;
+    }
   };
   globalThis.window = {
     requestAnimationFrame(callback) {
@@ -1013,7 +1103,8 @@ test("Codex++ updater UI override hides update controls without observing render
 
     module.exports.start({ log: console });
 
-    assert.equal(mutationObserverCount, 0);
+    assert.equal(mutationObserverCount, 1);
+    assert.equal(mutationObserveCount, 1);
     assert.deepEqual(documentEvents, []);
     assert.deepEqual(windowEvents, ["codexpp:settings-surface"]);
     assert.equal(timeoutDelay, 250);
@@ -1028,6 +1119,7 @@ test("Codex++ updater UI override hides update controls without observing render
     assert.equal(clearedTimeoutId, 1);
 
     module.exports.stop();
+    assert.equal(mutationDisconnectCount, 1);
 
     assert.deepEqual(documentEvents, []);
     assert.deepEqual(windowEvents, [
@@ -1202,12 +1294,34 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.match(releaseWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node \.\/\.cache\/scripts\/resolve-codex-releases\.js/);
   assert.match(prWorkflowSource, /name: Build desktop scripts[\s\S]*run: npm run build:scripts/);
   assert.match(prWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node \.\/\.cache\/scripts\/resolve-codex-releases\.js/);
+  assert.ok(prWorkflowSource.indexOf("name: Restore Electron cache") < prWorkflowSource.indexOf("name: Install dependencies"));
+  assert.ok(releaseWorkflowSource.indexOf("name: Restore Electron cache") < releaseWorkflowSource.indexOf("name: Install dependencies"));
+  assert.match(prWorkflowSource, /name: Build Windows updater[\s\S]*run: npm run build:windows-oai-update-checker -- -Architecture arm64/);
+  assert.match(releaseWorkflowSource, /name: Build Windows updater[\s\S]*run: npm run build:windows-oai-update-checker -- -Architecture arm64/);
+  assert.match(prWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run hydrate:app:compiled && npm run hydrate:cli:compiled/);
+  assert.match(releaseWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run hydrate:app:compiled && npm run hydrate:cli:compiled/);
+  assert.match(prWorkflowSource, /name: Verify Windows ARM64 inputs[\s\S]*run: npm run verify:browser-client-runtime:compiled/);
+  assert.match(releaseWorkflowSource, /name: Verify Windows ARM64 inputs[\s\S]*run: npm run verify:browser-client-runtime:compiled/);
   assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases && npm run test:windows-package-resources && npm run test:verify-browser-client-runtime/);
   assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases && npm run test:windows-package-resources && npm run test:verify-browser-client-runtime/);
   assert.equal(packageJson.scripts["build:scripts"], "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json");
-  assert.equal(packageJson.scripts["decode:self-signed-pfx"], "node ./.cache/scripts/decode-self-signed-pfx.js");
+  assert.equal(packageJson.scripts["verify:browser-client-runtime"], "npm run build:scripts && npm run verify:browser-client-runtime:compiled");
+  assert.equal(packageJson.scripts["verify:browser-client-runtime:compiled"], "node ./.cache/scripts/verify-browser-client-runtime.js");
+  assert.equal(packageJson.scripts["decode:self-signed-pfx"], "npm run build:scripts && node ./.cache/scripts/decode-self-signed-pfx.js");
   assert.match(releaseWorkflowSource, /node \.\/\.cache\/scripts\/decode-self-signed-pfx\.js --output/);
   assert.doesNotMatch(releaseWorkflowSource, /npm run decode:self-signed-pfx/);
+});
+
+test("log cleanup helper blocks any Codex process before moving SQLite logs", () => {
+  const scriptSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "Clear-CodexLocalLogs.ps1"),
+    "utf8",
+  );
+
+  assert.match(scriptSource, /\$_\.Name -eq "Codex\.exe" -or \$_.Name -eq "codex\.exe"/);
+  assert.doesNotMatch(scriptSource, /CommandLine -match/);
+  assert.match(scriptSource, /Get-ChildItem -LiteralPath \$codexHomePath -Filter "logs_2\.sqlite\*"/);
+  assert.match(scriptSource, /Move-Item -LiteralPath \$file\.FullName -Destination \$destination -Force/);
 });
 
 test("authenticates Codex++ GitHub release lookup when a token is available", () => {
@@ -1310,7 +1424,7 @@ test("keys native updater cache by builder script and Rust crate sources", () =>
 
 test("caches rebuilt native Node modules separately from hydrated app resources", () => {
   const resolverSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "resolve-codex-releases.mjs"),
+    path.join(desktopRoot, "scripts", "resolve-codex-releases.ts"),
     "utf8",
   );
   for (const cacheKeyInput of [
