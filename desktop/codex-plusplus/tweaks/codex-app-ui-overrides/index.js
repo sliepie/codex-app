@@ -17,12 +17,14 @@ function installStyle() {
   style.textContent = [
     ".group\\/windows-top-bar{margin-inline-start:0.5rem;}",
     '[style*="view-transition-name: sidebar-trigger"]{transform:translateX(2px);}',
-    "[data-app-action-sidebar-project-row]:hover .opacity-0,[data-app-action-sidebar-project-row]:focus-within .opacity-0,[data-app-action-sidebar-project-row]:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
-    "[data-app-action-sidebar-thread-row]:hover .opacity-0,[data-app-action-sidebar-thread-row]:focus-within .opacity-0,[data-app-action-sidebar-thread-row]:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
-    ".group\\/folder-row:hover .opacity-0,.group\\/folder-row:focus-within .opacity-0,.group\\/folder-row:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
-    ".group\\/projects-section-header:hover .opacity-0,.group\\/projects-section-header:focus-within .opacity-0,.group\\/projects-section-header:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
-    ".group\\/chats-section-header:hover .opacity-0,.group\\/chats-section-header:focus-within .opacity-0,.group\\/chats-section-header:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
-    ".group\\/custom-section-header:hover .opacity-0,.group\\/custom-section-header:focus-within .opacity-0,.group\\/custom-section-header:has([data-state=open]) .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
+    "[data-app-action-sidebar-project-row]>.opacity-0,[data-app-action-sidebar-project-row] .opacity-0:has(button),[data-app-action-sidebar-project-row] button.opacity-0,[data-app-action-sidebar-project-row] button .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
+    "[data-app-action-sidebar-project-row] button svg,[data-app-action-sidebar-project-row] button .icon-xs,[data-app-action-sidebar-project-row] button .icon-sm{opacity:1!important;visibility:visible!important;}",
+    "[data-app-action-sidebar-thread-row] .opacity-0:has(button),[data-app-action-sidebar-thread-row] button.opacity-0,[data-app-action-sidebar-thread-row] button .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
+    "[data-app-action-sidebar-thread-row] button svg,[data-app-action-sidebar-thread-row] button .icon-xs,[data-app-action-sidebar-thread-row] button .icon-sm{opacity:1!important;visibility:visible!important;}",
+    ".group\\/folder-row>.opacity-0,.group\\/folder-row .opacity-0:has(button),.group\\/folder-row button.opacity-0,.group\\/folder-row button .opacity-0{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
+    ".group\\/folder-row button svg,.group\\/folder-row button .icon-xs,.group\\/folder-row button .icon-sm{opacity:1!important;visibility:visible!important;}",
+    ".group\\/projects-section-header>.opacity-0,.group\\/projects-section-header .opacity-0:has(button),.group\\/chats-section-header>.opacity-0,.group\\/chats-section-header .opacity-0:has(button),.group\\/custom-section-header>.opacity-0,.group\\/custom-section-header .opacity-0:has(button){opacity:1!important;pointer-events:auto!important;visibility:visible!important;}",
+    ".group\\/projects-section-header button svg,.group\\/projects-section-header button .icon-xs,.group\\/projects-section-header button .icon-sm,.group\\/chats-section-header button svg,.group\\/chats-section-header button .icon-xs,.group\\/chats-section-header button .icon-sm,.group\\/custom-section-header button svg,.group\\/custom-section-header button .icon-xs,.group\\/custom-section-header button .icon-sm{opacity:1!important;visibility:visible!important;}",
   ].join("\n");
   document.head.appendChild(style);
 }
