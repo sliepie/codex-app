@@ -1,4 +1,5 @@
-import { appendFileSync } from "node:fs";
+import crypto from "node:crypto";
+import { appendFileSync, readFileSync } from "node:fs";
 
 const appcastUrl =
   process.env.CODEX_APPCAST_URL ??
@@ -23,6 +24,17 @@ function githubOutput(name, value) {
   if (process.env.GITHUB_OUTPUT) {
     appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
   }
+}
+
+function hashCacheInputs(paths) {
+  const hash = crypto.createHash("sha256");
+  for (const inputPath of paths) {
+    hash.update(inputPath);
+    hash.update("\0");
+    hash.update(readFileSync(inputPath));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
 }
 
 function escapeRegExp(value) {
@@ -183,6 +195,12 @@ const { currentCommitReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevis
 const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
 const releaseTag = `codex-app-${releaseVersion}`;
 const hydrationCacheKey = `windows-arm64-hydrated-v5-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}`;
+const nativeModulesCacheInputHash = hashCacheInputs([
+  "package-lock.json",
+  "scripts/hydrate-codex-app.ts",
+  "scripts/patch-better-sqlite3-electron.ts",
+]);
+const nativeModulesCacheKey = `windows-arm64-native-modules-v1-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-inputs-${nativeModulesCacheInputHash}`;
 
 githubOutput("codex_app_version", appVersion);
 githubOutput("codex_app_build", buildNumber);
@@ -193,6 +211,7 @@ githubOutput("release_version", releaseVersion);
 githubOutput("release_tag", releaseTag);
 githubOutput("current_commit_release_tag", currentCommitReleaseTag);
 githubOutput("hydration_cache_key", hydrationCacheKey);
+githubOutput("native_modules_cache_key", nativeModulesCacheKey);
 
 console.log(
   JSON.stringify(
@@ -205,6 +224,7 @@ console.log(
       releaseVersion,
       releaseTag,
       currentCommitReleaseTag,
+      nativeModulesCacheKey,
     },
     null,
     2,

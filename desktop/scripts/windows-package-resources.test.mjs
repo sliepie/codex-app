@@ -806,6 +806,42 @@ test("keys native updater cache by builder script and Rust crate sources", () =>
   }
 });
 
+test("caches rebuilt native Node modules separately from hydrated app resources", () => {
+  const resolverSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "resolve-codex-releases.mjs"),
+    "utf8",
+  );
+  for (const cacheKeyInput of [
+    "package-lock.json",
+    "scripts/hydrate-codex-app.ts",
+    "scripts/patch-better-sqlite3-electron.ts",
+  ]) {
+    assert.ok(
+      resolverSource.includes(cacheKeyInput),
+      `native module cache key should include ${cacheKeyInput}`,
+    );
+  }
+  assert.match(resolverSource, /native_modules_cache_key/);
+
+  for (const workflowName of [
+    "windows-arm64-pr-build.yml",
+    "windows-arm64-release.yml",
+  ]) {
+    const workflowSource = fs.readFileSync(
+      path.join(repoRoot, ".github", "workflows", workflowName),
+      "utf8",
+    );
+    const hydratedCacheBlock = workflowSource.match(
+      /- name: Restore hydrated release cache[\s\S]*?- name: Restore native Node module cache/,
+    )?.[0];
+
+    assert.ok(hydratedCacheBlock, `${workflowName} should restore a separate native module cache`);
+    assert.doesNotMatch(hydratedCacheBlock, /desktop\/\.cache\/runtime-node-modules/);
+    assert.match(workflowSource, /path: desktop\/\.cache\/runtime-node-modules/);
+    assert.match(workflowSource, /key: \$\{\{ steps\.upstream\.outputs\.native_modules_cache_key \}\}/);
+  }
+});
+
 test("native updater build stamp covers the builder script", () => {
   const source = fs.readFileSync(
     path.join(desktopRoot, "scripts", "build-windows-oai-update-checker.ps1"),

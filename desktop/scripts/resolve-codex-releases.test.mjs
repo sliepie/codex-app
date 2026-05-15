@@ -128,6 +128,10 @@ test("starts new Codex app releases at repo revision zero", async () => {
     output.hydration_cache_key,
     "windows-arm64-hydrated-v5-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7",
   );
+  assert.match(
+    output.native_modules_cache_key,
+    /^windows-arm64-native-modules-v1-app-26\.429\.61741-build-2429-cli-rust-v0\.129\.0-codex-plusplus-v0\.1\.7-inputs-[a-f0-9]{64}$/,
+  );
 });
 
 test("increments the repo revision when the same Codex app version has a prior numeric release", async () => {

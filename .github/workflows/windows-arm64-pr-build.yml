@@ -52,8 +52,13 @@ jobs:
           path: |
             desktop/.cache/codex-app
             desktop/.cache/codex-cli
-            desktop/.cache/runtime-node-modules
           key: ${{ steps.upstream.outputs.hydration_cache_key }}
+
+      - name: Restore native Node module cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: desktop/.cache/runtime-node-modules
+          key: ${{ steps.upstream.outputs.native_modules_cache_key }}
 
       - name: Restore native updater cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
