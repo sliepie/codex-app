@@ -11,7 +11,7 @@ function writeFixture(filePath, source) {
   fs.writeFileSync(filePath, source, "utf8");
 }
 
-function writePeFixture(filePath, versionText) {
+function writePeFixture(filePath, versionText, machine = 0xaa64) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const versionBytes = Buffer.from(versionText, "latin1");
   const bytes = Buffer.alloc(0x120 + versionBytes.length);
@@ -19,7 +19,7 @@ function writePeFixture(filePath, versionText) {
   bytes[1] = 0x5a;
   bytes.writeInt32LE(0x80, 0x3c);
   bytes.write("PE\0\0", 0x80, "latin1");
-  bytes.writeUInt16LE(0xaa64, 0x84);
+  bytes.writeUInt16LE(machine, 0x84);
   versionBytes.copy(bytes, 0x120);
   fs.writeFileSync(filePath, bytes);
 }
@@ -86,6 +86,11 @@ test("accepts browser client native payload metadata matching the bundled Node A
       null,
       2,
     )}\n`,
+  );
+
+  writePeFixture(
+    path.join(classicLevelRoot, "build", "Release", "classic-level.node"),
+    "native payload",
   );
 
   const result = await verifyBrowserClientRuntime({ desktopRoot });
@@ -159,5 +164,19 @@ test("rejects browser client native payloads built for the Electron ABI", async 
   await assert.rejects(
     () => verifyBrowserClientRuntime({ desktopRoot }),
     /classic-level@3\.0\.0 does not match Node v24\.14\.0 ABI 137/,
+  );
+});
+
+test("rejects Windows ARM64 native paths with non-ARM64 payloads", async () => {
+  const { classicLevelRoot, desktopRoot } = createDesktopFixture();
+  writePeFixture(
+    path.join(classicLevelRoot, "bin", "win32-arm64-137", "classic-level.node"),
+    "x64 native payload",
+    0x8664,
+  );
+
+  await assert.rejects(
+    () => verifyBrowserClientRuntime({ desktopRoot }),
+    /Browser client native payload classic-level\.node is not ARM64: machine 0x8664/,
   );
 });

@@ -156,6 +156,7 @@ function hasMatchingRuntimeMetadata(packageRoot: string, expectedAbi: string): b
     path.join(packageRoot, "build", "Release", ".codex-runtime-meta.json"),
     path.join(packageRoot, "build", "Release", ".forge-meta"),
   ]) {
+    const metadataRoot = path.dirname(metadataPath);
     const metadata = readRuntimeMetadata(metadataPath);
     if (
       metadata?.abi === expectedAbi &&
@@ -163,7 +164,7 @@ function hasMatchingRuntimeMetadata(packageRoot: string, expectedAbi: string): b
       metadata.platform === targetPlatform &&
       (!metadata.runtime || metadata.runtime === "node")
     ) {
-      return true;
+      return hasArm64NodePayload(metadataRoot);
     }
   }
 
@@ -180,9 +181,28 @@ function hasNapiPrebuildEvidence(packageRoot: string): boolean {
   );
 }
 
+function hasArm64NodePayload(directory: string): boolean {
+  if (!fs.existsSync(directory)) {
+    return false;
+  }
+
+  let found = false;
+  for (const entry of fs.readdirSync(directory)) {
+    if (!entry.endsWith(".node")) {
+      continue;
+    }
+
+    const filePath = path.join(directory, entry);
+    assertArm64Pe(filePath, `Browser client native payload ${path.relative(directory, filePath)}`);
+    found = true;
+  }
+
+  return found;
+}
+
 function hasMatchingAbiPath(packageRoot: string, expectedAbi: string): boolean {
   const binRoot = path.join(packageRoot, "bin", `${targetPlatform}-${targetArch}-${expectedAbi}`);
-  if (fs.existsSync(binRoot) && fs.readdirSync(binRoot).some((entry) => entry.endsWith(".node"))) {
+  if (hasArm64NodePayload(binRoot)) {
     return true;
   }
 
@@ -204,13 +224,24 @@ function hasMatchingAbiPath(packageRoot: string, expectedAbi: string): boolean {
     }
 
     const abiTag = tags.find((tag) => tag.startsWith("abi"));
+    let matchesRuntime = false;
     if (abiTag) {
-      return abiTag === `abi${expectedAbi}`;
+      matchesRuntime = abiTag === `abi${expectedAbi}`;
+    } else if (tags.includes("napi")) {
+      matchesRuntime = true;
+    } else {
+      matchesRuntime = hasNapiEvidence;
     }
-    if (tags.includes("napi")) {
-      return true;
+
+    if (!matchesRuntime) {
+      return false;
     }
-    return hasNapiEvidence;
+
+    assertArm64Pe(
+      path.join(prebuildRoot, entry),
+      `Browser client prebuild payload ${entry}`,
+    );
+    return true;
   });
 }
 

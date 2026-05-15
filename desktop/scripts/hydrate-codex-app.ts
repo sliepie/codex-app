@@ -2123,6 +2123,7 @@ async function main(): Promise<void> {
     /<enclosure\b[^>]*\burl="([^"]+)"/i,
     `Codex app version ${selectedVersion} does not have a full download URL.`,
   );
+  const expectedDownloadLength = item.match(/<enclosure\b[^>]*\blength="([0-9]+)"/i)?.[1];
 
   const zipPath = path.join(options.cacheRoot, path.basename(new URL(downloadUrl).pathname));
   const extractRoot = path.join(options.cacheRoot, `extract-${selectedVersion}`);
@@ -2136,6 +2137,15 @@ async function main(): Promise<void> {
 
   if (!fs.existsSync(zipPath)) {
     await downloadFile(downloadUrl, zipPath);
+  }
+  if (expectedDownloadLength) {
+    const expectedSize = Number(expectedDownloadLength);
+    const actualSize = fs.statSync(zipPath).size;
+    if (actualSize !== expectedSize) {
+      throw new Error(
+        `Downloaded Codex app ZIP size mismatch for ${selectedVersion}: expected ${expectedSize}, got ${actualSize}.`,
+      );
+    }
   }
 
   if (!fs.existsSync(extractRoot)) {

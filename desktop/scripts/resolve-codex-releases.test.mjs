@@ -41,11 +41,19 @@ function releaseInputsBody({
   ].join("\\n");
 }
 
-function startServer(releases) {
+function startServer(
+  releases,
+  {
+    appcastSource = appcast,
+    codexCliTag = "rust-v0.129.0",
+    codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+    codexPlusPlusTag = "v0.1.7",
+  } = {},
+) {
   const server = http.createServer((request, response) => {
     if (request.url === "/appcast.xml") {
       response.writeHead(200, { "Content-Type": "application/xml" });
-      response.end(appcast);
+      response.end(appcastSource);
       return;
     }
 
@@ -57,22 +65,22 @@ function startServer(releases) {
 
     if (request.url === "/repos/openai/codex/releases/latest") {
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ tag_name: "rust-v0.129.0" }));
+      response.end(JSON.stringify({ tag_name: codexCliTag }));
       return;
     }
 
     if (request.url === "/repos/b-nnett/codex-plusplus/releases/latest") {
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ tag_name: "v0.1.7" }));
+      response.end(JSON.stringify({ tag_name: codexPlusPlusTag }));
       return;
     }
 
-    if (request.url === "/repos/b-nnett/codex-plusplus/git/ref/tags/v0.1.7") {
+    if (request.url === `/repos/b-nnett/codex-plusplus/git/ref/tags/${codexPlusPlusTag}`) {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(
         JSON.stringify({
           object: {
-            sha: "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+            sha: codexPlusPlusSha,
             type: "commit",
           },
         }),
@@ -106,8 +114,20 @@ async function hashCacheInputs(paths) {
   return hash.digest("hex");
 }
 
-async function runResolver({ releases, sha = "abcdef1234567890" }) {
-  const server = await startServer(releases);
+async function runResolver({
+  releases,
+  appcastSource,
+  codexCliTag,
+  codexPlusPlusSha,
+  codexPlusPlusTag,
+  sha = "abcdef1234567890",
+}) {
+  const server = await startServer(releases, {
+    appcastSource,
+    codexCliTag,
+    codexPlusPlusSha,
+    codexPlusPlusTag,
+  });
   const directory = await mkdtemp(path.join(tmpdir(), "codex-release-resolver-"));
   const outputPath = path.join(directory, "github-output.txt");
 
@@ -154,7 +174,7 @@ async function runResolver({ releases, sha = "abcdef1234567890" }) {
 test("starts new Codex app releases at repo revision zero", async () => {
   const output = await runResolver({ releases: [] });
   const expectedNativeModulesCacheKey =
-    `windows-arm64-native-modules-v1-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7-inputs-${await hashCacheInputs(nativeModuleCacheInputPaths)}`;
+    `windows-arm64-native-modules-v1-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413-inputs-${await hashCacheInputs(nativeModuleCacheInputPaths)}`;
 
   assert.equal(output.release_version, "26.429.61741.0");
   assert.equal(output.codex_cli_tag, "rust-v0.129.0");
@@ -294,4 +314,14 @@ test("treats legacy three-part release tags as repo revision zero", async () => 
   assert.equal(output.repo_release_revision, "1");
   assert.equal(output.release_tag, "codex-app-26.429.61741.1");
   assert.equal(output.current_commit_release_tag, "");
+});
+
+test("rejects unsafe upstream release metadata before writing workflow outputs", async () => {
+  await assert.rejects(
+    () => runResolver({
+      releases: [],
+      codexCliTag: "rust-v0.129.0$(Invoke-Expression)",
+    }),
+    /Codex CLI tag has an unexpected format/,
+  );
 });

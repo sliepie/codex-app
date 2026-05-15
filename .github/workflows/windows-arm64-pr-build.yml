@@ -18,7 +18,6 @@ jobs:
       codex_plus_plus_tag: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
       codex_plus_plus_sha: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
     env:
-      GH_TOKEN: ${{ github.token }}
       PACKAGE_ARCHITECTURE: arm64
       electron_config_cache: ${{ github.workspace }}\.cache\electron
     concurrency:
@@ -40,10 +39,20 @@ jobs:
         working-directory: desktop
         run: npm ci
 
+      - name: Build desktop scripts
+        working-directory: desktop
+        run: npm run build:scripts
+
       - name: Resolve upstream release versions
         id: upstream
         working-directory: desktop
-        run: npm run build:scripts && node ./.cache/scripts/resolve-codex-releases.js
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./.cache/scripts/resolve-codex-releases.js
+
+      - name: Run targeted desktop tests
+        working-directory: desktop
+        run: npm run test:resolve-codex-releases && npm run test:windows-package-resources && npm run test:verify-browser-client-runtime
 
       - name: Restore Electron cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -100,7 +109,7 @@ jobs:
 
   publish-alpha-release:
     needs: build-windows-arm64
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
     runs-on: windows-2025-vs2026
     permissions:
       contents: write

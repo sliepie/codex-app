@@ -11,6 +11,10 @@ const appcastUrl =
 const codexCliRepository = process.env.CODEX_CLI_REPOSITORY ?? "openai/codex";
 const codexPlusPlusRepository = process.env.CODEX_PLUS_PLUS_REPOSITORY ?? "b-nnett/codex-plusplus";
 const githubApiUrl = process.env.GITHUB_API_URL ?? "https://api.github.com";
+const appVersionPattern = /^\d+\.\d+\.\d+$/;
+const buildNumberPattern = /^\d+$/;
+const releaseTagPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const shaPattern = /^[0-9a-f]{40}$/i;
 
 type GithubRelease = {
   body?: string | null;
@@ -57,6 +61,14 @@ function firstMatch(text: string, pattern: RegExp, message: string): string {
     fail(message);
   }
   return match[1].trim();
+}
+
+function assertMatches(label: string, value: string, pattern: RegExp): string {
+  if (!pattern.test(value)) {
+    fail(`${label} has an unexpected format: ${JSON.stringify(value)}`);
+  }
+
+  return value;
 }
 
 function githubOutput(name: string, value: number | string): void {
@@ -263,20 +275,43 @@ async function main(): Promise<void> {
     /(<item\b[\s\S]*?<\/item>)/i,
     "No Codex app release was found in the appcast.",
   );
-  const appVersion = firstMatch(
-    item,
-    /<sparkle:shortVersionString>([^<]+)<\/sparkle:shortVersionString>/i,
-    "The selected Codex app release does not have a version.",
+  const appVersion = assertMatches(
+    "Codex app version",
+    firstMatch(
+      item,
+      /<sparkle:shortVersionString>([^<]+)<\/sparkle:shortVersionString>/i,
+      "The selected Codex app release does not have a version.",
+    ),
+    appVersionPattern,
   );
-  const buildNumber =
-    item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim() ?? "";
-  const cliTag = await fetchLatestReleaseTag(codexCliRepository, "Codex CLI");
-  const codexPlusPlusTag = await fetchLatestReleaseTag(codexPlusPlusRepository, "Codex++");
-  const codexPlusPlusSha = await fetchGitTagCommitSha(
-    codexPlusPlusRepository,
-    codexPlusPlusTag,
-    "Codex++",
+  const buildNumber = assertMatches(
+    "Codex app build number",
+    firstMatch(
+      item,
+      /<sparkle:version>([^<]+)<\/sparkle:version>/i,
+      "The selected Codex app release does not have a build number.",
+    ),
+    buildNumberPattern,
   );
+  const cliTag = assertMatches(
+    "Codex CLI tag",
+    await fetchLatestReleaseTag(codexCliRepository, "Codex CLI"),
+    releaseTagPattern,
+  );
+  const codexPlusPlusTag = assertMatches(
+    "Codex++ tag",
+    await fetchLatestReleaseTag(codexPlusPlusRepository, "Codex++"),
+    releaseTagPattern,
+  );
+  const codexPlusPlusSha = assertMatches(
+    "Codex++ commit SHA",
+    await fetchGitTagCommitSha(
+      codexPlusPlusRepository,
+      codexPlusPlusTag,
+      "Codex++",
+    ),
+    shaPattern,
+  ).toLowerCase();
   const releases = await fetchExistingReleases();
   const { currentCommitReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevision({
     appVersion,

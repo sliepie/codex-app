@@ -42,13 +42,12 @@ Codex.
 
 Main release builds in `Windows ARM64 Release Artifacts` build and publish the
 ZIP plus self-signed MSIX/App Installer path when the release build is not
-skipped by the build marker. Scheduled and `main` push runs only skip when the
-build marker exists and the matching GitHub Release is still published. Deleting
-that release forces the next scheduled or `main` push run to rebuild and publish
-the same version again. Manual workflow runs against `main` always rebuild and
-publish the same release assets for the currently resolved upstream Codex app
-version. Manual workflow runs against other branches build artifacts only and do
-not publish GitHub Release or Pages assets.
+skipped by the build marker. Scheduled, `main` push, and manual `main` runs
+skip when the build marker exists and the matching GitHub Release is still
+published. Deleting that release forces the next scheduled, `main` push, or
+manual `main` run to rebuild and publish the same version again. Manual
+workflow runs against other branches build artifacts only and do not publish
+GitHub Release or Pages assets.
 
 Set these repository variables:
 

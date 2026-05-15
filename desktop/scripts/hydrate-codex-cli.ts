@@ -1,12 +1,12 @@
-import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import extract from "extract-zip";
 
 type ReleaseAsset = {
+  digest?: string | null;
+  downloadUrl: string;
   name: string;
-  url: string;
   size: number;
 };
 
@@ -15,6 +15,20 @@ type ReleaseInfo = {
   name: string;
   url: string;
   assets: ReleaseAsset[];
+};
+
+type GithubReleaseAsset = {
+  browser_download_url?: string | null;
+  digest?: string | null;
+  name?: string | null;
+  size?: number | null;
+};
+
+type GithubRelease = {
+  assets?: GithubReleaseAsset[] | null;
+  html_url?: string | null;
+  name?: string | null;
+  tag_name?: string | null;
 };
 
 type RequiredAsset = {
@@ -116,6 +130,12 @@ function sha256(filePath: string): string {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
+function verifySha256(filePath: string, expectedSha: string, label: string): void {
+  if (sha256(filePath).toLowerCase() !== expectedSha.toLowerCase()) {
+    throw new Error(`Checksum mismatch for ${label}`);
+  }
+}
+
 function parseSha256(text: string, label: string): string {
   const match = text.match(/\b[a-fA-F0-9]{64}\b/);
   if (!match?.[0]) {
@@ -125,6 +145,19 @@ function parseSha256(text: string, label: string): string {
   return match[0];
 }
 
+function parseAssetDigest(digest: string | null | undefined, label: string): string {
+  const match = digest?.match(/^sha256:([a-fA-F0-9]{64})$/);
+  if (!match?.[1]) {
+    throw new Error(`Missing SHA-256 digest for ${label}`);
+  }
+
+  return match[1];
+}
+
+function verifyAssetDigest(asset: ReleaseAsset, filePath: string): void {
+  verifySha256(filePath, parseAssetDigest(asset.digest, asset.name), asset.name);
+}
+
 async function fetchText(url: string): Promise<string> {
   const response = await fetch(url, { headers: headersForUrl(url) });
   if (!response.ok) {
@@ -132,6 +165,55 @@ async function fetchText(url: string): Promise<string> {
   }
 
   return response.text();
+}
+
+function repositoryApiUrl(repository: string, releasePath: string): URL {
+  const [owner, repo] = repository.split("/");
+  if (!owner || !repo) {
+    throw new Error(`Invalid GitHub repository value: ${repository}`);
+  }
+
+  return new URL(
+    `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${releasePath}`,
+  );
+}
+
+function normalizeReleaseInfo(release: GithubRelease, repository: string): ReleaseInfo {
+  if (!release.tag_name) {
+    throw new Error(`GitHub release for ${repository} did not include a tag name.`);
+  }
+
+  return {
+    tagName: release.tag_name,
+    name: release.name ?? "",
+    url: release.html_url ?? `https://github.com/${repository}/releases/tag/${release.tag_name}`,
+    assets: (release.assets ?? []).map((asset) => {
+      if (!asset.name || !asset.browser_download_url) {
+        throw new Error(`GitHub release ${release.tag_name} has an asset without a name or download URL.`);
+      }
+
+      return {
+        digest: asset.digest,
+        downloadUrl: asset.browser_download_url,
+        name: asset.name,
+        size: asset.size ?? 0,
+      };
+    }),
+  };
+}
+
+async function fetchGitHubRelease(repository: string, tagName?: string): Promise<ReleaseInfo> {
+  const releasePath = tagName
+    ? `/releases/tags/${encodeURIComponent(tagName)}`
+    : "/releases/latest";
+  const response = await fetch(repositoryApiUrl(repository, releasePath), {
+    headers: githubHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch GitHub release for ${repository}: ${response.status} ${response.statusText}`);
+  }
+
+  return normalizeReleaseInfo((await response.json()) as GithubRelease, repository);
 }
 
 function findSingleFile(root: string, fileName: string): string {
@@ -205,15 +287,6 @@ function readBundledNodeVersion(): string {
   return version;
 }
 
-function releaseViewArgs(options: Options): string[] {
-  const args = ["release", "view"];
-  if (options.codexTag) {
-    args.push(options.codexTag);
-  }
-  args.push("--repo", options.codexRepo, "--json", "tagName,name,url,assets");
-  return args;
-}
-
 async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<ReleaseAsset> {
   const nodeVersion = readBundledNodeVersion();
   const archiveName = `node-${nodeVersion}-win-arm64.zip`;
@@ -238,9 +311,7 @@ async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<
   if (!expectedSha) {
     throw new Error(`Missing Node checksum for ${archiveName}`);
   }
-  if (sha256(archivePath).toLowerCase() !== expectedSha.toLowerCase()) {
-    throw new Error(`Checksum mismatch for ${archiveName}`);
-  }
+  verifySha256(archivePath, expectedSha, archiveName);
 
   if (!fs.existsSync(extractRoot)) {
     fs.mkdirSync(extractRoot, { recursive: true });
@@ -249,23 +320,18 @@ async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<
 
   fs.copyFileSync(findSingleFile(extractRoot, "node.exe"), outputPath);
   return {
+    downloadUrl: archiveUrl,
     name: archiveName,
-    url: archiveUrl,
     size: fs.statSync(archivePath).size,
   };
 }
 
 async function hydrateRipgrepExe(options: Options, resourcesRoot: string): Promise<ReleaseAsset> {
-  const releaseJson = execFileSync(
-    "gh",
-    ["release", "view", "--repo", options.ripgrepRepo, "--json", "tagName,assets"],
-    { encoding: "utf8" },
-  );
-  const release = JSON.parse(releaseJson) as { tagName: string; assets: ReleaseAsset[] };
+  const release = await fetchGitHubRelease(options.ripgrepRepo);
   const version = release.tagName.replace(/^v/, "");
   const assetName = `ripgrep-${version}-aarch64-pc-windows-msvc.zip`;
   const asset = release.assets.find((asset) => asset.name === assetName);
-  if (!asset?.url) {
+  if (!asset) {
     throw new Error(`Missing ripgrep release asset: ${assetName}`);
   }
 
@@ -278,15 +344,18 @@ async function hydrateRipgrepExe(options: Options, resourcesRoot: string): Promi
     fs.rmSync(extractRoot, { recursive: true, force: true });
   }
   if (!fs.existsSync(archivePath)) {
-    await downloadFile(asset.url, archivePath);
+    await downloadFile(asset.downloadUrl, archivePath);
   }
 
   const checksumAsset = release.assets.find((asset) => asset.name === `${assetName}.sha256`);
-  if (checksumAsset?.url) {
-    const expectedSha = parseSha256(await fetchText(checksumAsset.url), assetName);
-    if (sha256(archivePath).toLowerCase() !== expectedSha.toLowerCase()) {
-      throw new Error(`Checksum mismatch for ${assetName}`);
-    }
+  if (checksumAsset) {
+    verifySha256(
+      archivePath,
+      parseSha256(await fetchText(checksumAsset.downloadUrl), assetName),
+      assetName,
+    );
+  } else {
+    verifyAssetDigest(asset, archivePath);
   }
 
   if (!fs.existsSync(extractRoot)) {
@@ -308,12 +377,7 @@ async function main(): Promise<void> {
   fs.mkdirSync(options.cacheRoot, { recursive: true });
   fs.mkdirSync(resourcesRoot, { recursive: true });
 
-  const releaseJson = execFileSync(
-    "gh",
-    releaseViewArgs(options),
-    { encoding: "utf8" },
-  );
-  const release = JSON.parse(releaseJson) as ReleaseInfo;
+  const release = await fetchGitHubRelease(options.codexRepo, options.codexTag);
   const assetsByName = new Map(release.assets.map((asset) => [asset.name, asset]));
   const releaseCacheRoot = path.join(options.cacheRoot, release.tagName);
   fs.mkdirSync(releaseCacheRoot, { recursive: true });
@@ -321,7 +385,7 @@ async function main(): Promise<void> {
   const hydratedAssets = [];
   for (const requiredAsset of requiredAssets) {
     const asset = assetsByName.get(requiredAsset.assetName);
-    if (!asset?.url) {
+    if (!asset) {
       throw new Error(`Missing Codex release asset: ${requiredAsset.assetName}`);
     }
 
@@ -332,14 +396,15 @@ async function main(): Promise<void> {
       fs.rmSync(downloadPath, { force: true });
     }
     if (!fs.existsSync(downloadPath)) {
-      await downloadFile(asset.url, downloadPath);
+      await downloadFile(asset.downloadUrl, downloadPath);
     }
+    verifyAssetDigest(asset, downloadPath);
 
     fs.copyFileSync(downloadPath, outputPath);
     hydratedAssets.push({
       assetName: requiredAsset.assetName,
       outputName: requiredAsset.outputName,
-      downloadUrl: asset.url,
+      downloadUrl: asset.downloadUrl,
       size: asset.size,
     });
   }
@@ -348,7 +413,7 @@ async function main(): Promise<void> {
   hydratedAssets.push({
     assetName: nodeAsset.name,
     outputName: "node.exe",
-    downloadUrl: nodeAsset.url,
+    downloadUrl: nodeAsset.downloadUrl,
     size: nodeAsset.size,
   });
 
@@ -356,7 +421,7 @@ async function main(): Promise<void> {
   hydratedAssets.push({
     assetName: ripgrepAsset.name,
     outputName: "rg.exe",
-    downloadUrl: ripgrepAsset.url,
+    downloadUrl: ripgrepAsset.downloadUrl,
     size: ripgrepAsset.size,
   });
 

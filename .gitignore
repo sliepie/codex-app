@@ -40,6 +40,7 @@ pnpm-debug.log*
 .env
 .env.*
 *.pfx
+*.pfx.base64.txt
 *.p12
 *.key
 

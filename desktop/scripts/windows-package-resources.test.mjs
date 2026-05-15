@@ -978,7 +978,7 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /publish-alpha-release:/);
   assert.match(
     workflowSource,
-    /if: github\.event\.pull_request\.head\.repo\.full_name == github\.repository/,
+    /if: github\.event\.pull_request\.head\.repo\.full_name == github\.repository && github\.event\.pull_request\.draft == false/,
   );
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
@@ -1003,10 +1003,35 @@ test("release workflow tracks Codex++ in package inputs and release metadata", (
 
   assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
-  assert.match(workflowSource, /Codex\+\+: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
-  assert.match(workflowSource, /Codex\+\+ commit: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
+  assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
+  assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--notes "\$notes"/);
+});
+
+test("release workflows scope GitHub credentials away from install and build scripts", () => {
+  const releaseWorkflowSource = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
+    "utf8",
+  );
+  const prWorkflowSource = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "windows-arm64-pr-build.yml"),
+    "utf8",
+  );
+  const packageJson = JSON.parse(fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"));
+
+  assert.doesNotMatch(releaseWorkflowSource, /env:\r?\n\s+GH_TOKEN: \$\{\{ github\.token \}\}\r?\n\s+IS_RELEASE_EVENT:/);
+  assert.doesNotMatch(prWorkflowSource, /env:\r?\n\s+GH_TOKEN: \$\{\{ github\.token \}\}\r?\n\s+PACKAGE_ARCHITECTURE:/);
+  assert.match(releaseWorkflowSource, /name: Build desktop scripts[\s\S]*run: npm run build:scripts/);
+  assert.match(releaseWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node \.\/\.cache\/scripts\/resolve-codex-releases\.js/);
+  assert.match(prWorkflowSource, /name: Build desktop scripts[\s\S]*run: npm run build:scripts/);
+  assert.match(prWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node \.\/\.cache\/scripts\/resolve-codex-releases\.js/);
+  assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases && npm run test:windows-package-resources && npm run test:verify-browser-client-runtime/);
+  assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases && npm run test:windows-package-resources && npm run test:verify-browser-client-runtime/);
+  assert.equal(packageJson.scripts["build:scripts"], "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json");
+  assert.equal(packageJson.scripts["decode:self-signed-pfx"], "node ./.cache/scripts/decode-self-signed-pfx.js");
+  assert.match(releaseWorkflowSource, /node \.\/\.cache\/scripts\/decode-self-signed-pfx\.js --output/);
+  assert.doesNotMatch(releaseWorkflowSource, /npm run decode:self-signed-pfx/);
 });
 
 test("authenticates Codex++ GitHub release lookup when a token is available", () => {
@@ -1036,6 +1061,26 @@ test("authenticates GitHub release asset downloads when a token is available", (
   assert.match(scriptSource, /headers\.Authorization = `Bearer \$\{token\}`/);
   assert.match(scriptSource, /hostname === "api\.github\.com" \|\| hostname === "github\.com"/);
   assert.match(scriptSource, /fetch\(url, \{ headers: headersForUrl\(url\) \}\)/);
+  assert.match(scriptSource, /fetchGitHubRelease\(options\.codexRepo, options\.codexTag\)/);
+  assert.match(scriptSource, /verifyAssetDigest\(asset, downloadPath\)/);
+  assert.doesNotMatch(scriptSource, /execFileSync\(\s*"gh"/);
+});
+
+test("verifies hydrated upstream artifact integrity metadata", () => {
+  const appHydratorSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+  const cliHydratorSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
+    "utf8",
+  );
+
+  assert.match(appHydratorSource, /expectedDownloadLength/);
+  assert.match(appHydratorSource, /Downloaded Codex app ZIP size mismatch/);
+  assert.match(cliHydratorSource, /parseAssetDigest/);
+  assert.match(cliHydratorSource, /verifyAssetDigest\(asset, downloadPath\)/);
+  assert.match(cliHydratorSource, /verifyAssetDigest\(asset, archivePath\)/);
 });
 
 test("repo Node toolchain matches the Electron runtime Node major", () => {
@@ -1199,4 +1244,20 @@ test("pins packaged Windows updater metadata to the prod OAI identity", () => {
     source,
     /packageJson\.codexWindowsPackageIdentity = codexWindowsProdOaiPackageIdentity;/,
   );
+});
+
+test("node REPL updater only accepts the official Store package family", () => {
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "update-node-repl.ps1"),
+    "utf8",
+  );
+
+  assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
+  assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
+  assert.match(source, /Where-Object \{ \$_\.PackageFamilyName -eq \$PackageFamilyName \}/);
+});
+
+test("ignores generated signing-secret base64 exports", () => {
+  const gitignoreSource = fs.readFileSync(path.join(repoRoot, ".gitignore"), "utf8");
+  assert.match(gitignoreSource, /^\*\.pfx\.base64\.txt$/m);
 });

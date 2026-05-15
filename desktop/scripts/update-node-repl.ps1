@@ -2,6 +2,7 @@
 param(
     [string] $ProductId = "9PLM9XGG6VKS",
     [string] $PackageName = "OpenAI.Codex",
+    [string] $PackageFamilyName = "OpenAI.Codex_2p2nqsd0c76g0",
     [string] $OutputPath
 )
 
@@ -31,6 +32,7 @@ function Invoke-Winget {
 
 function Get-CodexAppPackage {
     Get-AppxPackage -Name $PackageName -ErrorAction SilentlyContinue |
+        Where-Object { $_.PackageFamilyName -eq $PackageFamilyName } |
         Sort-Object -Property Version -Descending |
         Select-Object -First 1
 }
@@ -124,7 +126,7 @@ try {
 
     $package = Get-CodexAppPackage
     if ($null -eq $package) {
-        throw "Codex Store package was not found after winget completed."
+        throw "Official Codex Store package family $PackageFamilyName was not found after winget completed."
     }
 
     $sourcePath = Resolve-NodeReplPath -Package $package

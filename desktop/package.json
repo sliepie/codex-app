@@ -23,7 +23,7 @@
     "hydrate:cli": "npm run build:scripts && node ./.cache/scripts/hydrate-codex-cli.js",
     "hydrate:app:compiled": "node ./.cache/scripts/hydrate-codex-app.js",
     "hydrate:cli:compiled": "node ./.cache/scripts/hydrate-codex-cli.js",
-    "decode:self-signed-pfx": "npm run build:scripts && node ./.cache/scripts/decode-self-signed-pfx.js",
+    "decode:self-signed-pfx": "node ./.cache/scripts/decode-self-signed-pfx.js",
     "package:win:arm64:compiled": "electron-forge package --platform win32 --arch arm64",
     "package:win:arm64": "npm run prepare:win:arm64 && npm run package:win:arm64:compiled",
     "prepare:self-signed-msix-payload": "npm run build:scripts && node ./.cache/scripts/prepare-self-signed-msix-payload.js",
