@@ -555,6 +555,10 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);
+  assert.equal(
+    config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json"),
+    false,
+  );
 
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
@@ -578,6 +582,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
     .map((entry) => entry.name)
     .sort();
   assert.deepEqual(tweakNames, [
+    "codex-app-ui-overrides",
     "codex-mobile-pairing",
     "codex-plusplus-updater-ui-overrides",
   ]);
@@ -597,6 +602,86 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
       assert.equal(typeof module.exports.start, "function");
       assert.equal(typeof module.exports.stop, "function");
     });
+  }
+});
+
+test("Codex app UI override installs styles without observing renderer mutations", () => {
+  const tweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
+  const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+  const appendedStyles = [];
+  const eventListeners = [];
+  let mutationObserverCount = 0;
+
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const previousMutationObserver = globalThis.MutationObserver;
+  const previousNodeFilter = globalThis.NodeFilter;
+
+  const fakeElement = {
+    className: "",
+    parentElement: null,
+    style: {},
+    getBoundingClientRect: () => ({ width: 0, height: 0, left: 0, bottom: 0 }),
+    querySelector: () => null,
+  };
+
+  globalThis.NodeFilter = { SHOW_TEXT: 4 };
+  globalThis.MutationObserver = class {
+    constructor() {
+      mutationObserverCount += 1;
+    }
+
+    observe() {}
+    disconnect() {}
+  };
+  globalThis.window = {
+    innerHeight: 1000,
+    requestAnimationFrame(callback) {
+      callback();
+      return 1;
+    },
+    cancelAnimationFrame() {},
+    addEventListener(type) {
+      eventListeners.push(type);
+    },
+    removeEventListener() {},
+  };
+  globalThis.document = {
+    body: fakeElement,
+    documentElement: fakeElement,
+    head: {
+      appendChild(style) {
+        appendedStyles.push(style);
+      },
+    },
+    getElementById: () => null,
+    createElement: () => ({ id: "", textContent: "", remove() {} }),
+    createTreeWalker: () => ({ nextNode: () => null }),
+    querySelectorAll: () => [],
+  };
+
+  try {
+    const module = { exports: {} };
+    const exports = module.exports;
+    const fn = new Function("module", "exports", "console", source);
+    fn(module, exports, console);
+
+    module.exports.start({ log: console });
+
+    assert.equal(mutationObserverCount, 0);
+    assert.deepEqual(eventListeners, []);
+    assert.equal(appendedStyles.length, 1);
+    assert.match(
+      appendedStyles[0].textContent,
+      /top:calc\(0\.75rem \+ 26px\)!important/,
+    );
+
+    module.exports.stop();
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+    globalThis.MutationObserver = previousMutationObserver;
+    globalThis.NodeFilter = previousNodeFilter;
   }
 });
 
