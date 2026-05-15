@@ -19,6 +19,13 @@ const {
 } = require(
   path.join(desktopRoot, ".cache", "scripts", "hydrate-codex-app.js"),
 );
+const {
+  patchElectronCppgcHeapForMsvcHeader,
+  patchBetterSqlite3ForV8ExternalPointerApi,
+  prepareElectronHeadersForNativeRebuild,
+} = require(
+  path.join(desktopRoot, ".cache", "scripts", "patch-better-sqlite3-electron.js"),
+);
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -371,6 +378,141 @@ test("Mach-O native payloads are not ready for Windows ARM64", () => {
   assert.equal(hasArm64RuntimePayload(packageRoot), false);
 });
 
+function writeBetterSqlite3SourceFixture(nodeModulesRoot) {
+  const moduleRoot = path.join(nodeModulesRoot, "better-sqlite3");
+  writeFixture(
+    path.join(moduleRoot, "src", "better_sqlite3.cpp"),
+    `void init(v8::Isolate* isolate, Addon* addon) {
+\tv8::Local<v8::External> data = v8::External::New(isolate, addon);
+}
+`,
+  );
+  writeFixture(
+    path.join(moduleRoot, "src", "util", "macros.cpp"),
+    `#define EasyIsolate v8::Isolate* isolate = v8::Isolate::GetCurrent()
+#define OnlyIsolate info.GetIsolate()
+#define OnlyContext isolate->GetCurrentContext()
+#define OnlyAddon static_cast<Addon*>(info.Data().As<v8::External>()->Value())
+`,
+  );
+  writeFixture(
+    path.join(moduleRoot, "src", "util", "helpers.cpp"),
+    `void SetPrototypeGetter() {
+\trecv->InstanceTemplate()->SetNativeDataProperty(
+\t\tInternalizedFromLatin1(isolate, name),
+\t\tfunc,
+\t\t0,
+\t\tdata
+\t);
+}
+`,
+  );
+}
+
+test("patches better-sqlite3 source for Electron 42 rebuilds", () => {
+  const nodeModulesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-native-modules-"));
+  writeBetterSqlite3SourceFixture(nodeModulesRoot);
+
+  patchBetterSqlite3ForV8ExternalPointerApi(nodeModulesRoot, "42.0.1");
+  patchBetterSqlite3ForV8ExternalPointerApi(nodeModulesRoot, "42.0.1");
+
+  assert.match(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "better_sqlite3.cpp"),
+      "utf8",
+    ),
+    /BETTER_SQLITE3_EXTERNAL_NEW\(isolate, addon\)/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "util", "macros.cpp"),
+      "utf8",
+    ),
+    /BETTER_SQLITE3_EXTERNAL_POINTER_TAG/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "util", "macros.cpp"),
+      "utf8",
+    ),
+    /BETTER_SQLITE3_EXTERNAL_VALUE\(info\.Data\(\)\.As<v8::External>\(\)\)/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "util", "helpers.cpp"),
+      "utf8",
+    ),
+    /\t\tnullptr,/,
+  );
+});
+
+test("leaves better-sqlite3 source unchanged before Electron 42", () => {
+  const nodeModulesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-native-modules-"));
+  writeBetterSqlite3SourceFixture(nodeModulesRoot);
+
+  patchBetterSqlite3ForV8ExternalPointerApi(nodeModulesRoot, "41.2.0");
+
+  assert.match(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "better_sqlite3.cpp"),
+      "utf8",
+    ),
+    /v8::External::New\(isolate, addon\)/,
+  );
+  assert.doesNotMatch(
+    fs.readFileSync(
+      path.join(nodeModulesRoot, "better-sqlite3", "src", "util", "macros.cpp"),
+      "utf8",
+    ),
+    /BETTER_SQLITE3_EXTERNAL_POINTER_TAG/,
+  );
+});
+
+test("patches Electron cppgc heap header for MSVC rebuilds", () => {
+  const headerPath = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), "codex-electron-headers-")),
+    "include",
+    "node",
+    "cppgc",
+    "heap.h",
+  );
+  writeFixture(
+    headerPath,
+    `#include "v8config.h"  // NOLINT(build/include_directory)
+
+namespace cppgc {
+class StackStartMarker {
+ public:
+  StackStartMarker() : stack_start_(__builtin_frame_address(0)) {}
+};
+}
+`,
+  );
+
+  patchElectronCppgcHeapForMsvcHeader(headerPath);
+  patchElectronCppgcHeapForMsvcHeader(headerPath);
+
+  const source = fs.readFileSync(headerPath, "utf8");
+  assert.match(source, /#include <intrin\.h>/);
+  assert.match(source, /#pragma intrinsic\(_AddressOfReturnAddress\)/);
+  assert.match(source, /StackStartMarker\(\) : stack_start_\(_AddressOfReturnAddress\(\)\) \{\}/);
+  assert.equal(source.match(/#include <intrin\.h>/g)?.length, 1);
+});
+
+test("exports generic Electron header preparation separately from better-sqlite3 patching", () => {
+  assert.equal(typeof prepareElectronHeadersForNativeRebuild, "function");
+
+  const hydrateSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+  assert.match(
+    hydrateSource,
+    /prepareElectronHeadersForNativeRebuild\(\s*desktopRoot,\s*runtimeVersion,\s*targetRuntimeArch,\s*\) \?\? process\.env/s,
+  );
+  assert.match(hydrateSource, /prepareBetterSqlite3ElectronRebuild\({\s*electronVersion: runtimeVersion,/s);
+});
+
 test("allows the upstream bundle to omit the browser plugin", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
@@ -676,6 +818,53 @@ test("keys native updater cache by builder script and Rust crate sources", () =>
         `${workflowName} cache key should include ${cacheKeyInput}`,
       );
     }
+  }
+});
+
+test("caches rebuilt native Node modules separately from hydrated app resources", () => {
+  const resolverSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "resolve-codex-releases.mjs"),
+    "utf8",
+  );
+  for (const cacheKeyInput of [
+    "package-lock.json",
+    "scripts/hydrate-codex-app.ts",
+    "scripts/patch-better-sqlite3-electron.ts",
+  ]) {
+    assert.ok(
+      resolverSource.includes(cacheKeyInput),
+      `native module cache key should include ${cacheKeyInput}`,
+    );
+  }
+  assert.match(resolverSource, /native_modules_cache_key/);
+
+  const hydrateSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+  assert.match(hydrateSource, /inputHash: cacheInputHash\(electronNativeModuleCacheInputPaths\)/);
+  assert.match(hydrateSource, /version: 4/);
+
+  for (const workflowName of [
+    "windows-arm64-pr-build.yml",
+    "windows-arm64-release.yml",
+  ]) {
+    const workflowSource = fs.readFileSync(
+      path.join(repoRoot, ".github", "workflows", workflowName),
+      "utf8",
+    );
+    const hydratedCacheBlock = workflowSource.match(
+      /- name: Restore hydrated release cache[\s\S]*?- name: Prepare native Node module cache directory/,
+    )?.[0];
+
+    assert.ok(hydratedCacheBlock, `${workflowName} should restore a separate native module cache`);
+    assert.doesNotMatch(hydratedCacheBlock, /desktop\/\.cache\/runtime-node-modules/);
+    assert.match(
+      workflowSource,
+      /New-Item -ItemType Directory -Force -Path desktop\/\.cache\/runtime-node-modules/,
+    );
+    assert.match(workflowSource, /path: desktop\/\.cache\/runtime-node-modules/);
+    assert.match(workflowSource, /key: \$\{\{ steps\.upstream\.outputs\.native_modules_cache_key \}\}/);
   }
 });
 

@@ -3,6 +3,10 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import extract from "extract-zip";
+import {
+  prepareBetterSqlite3ElectronRebuild,
+  prepareElectronHeadersForNativeRebuild,
+} from "./patch-better-sqlite3-electron";
 
 type Options = {
   version?: string;
@@ -70,6 +74,11 @@ export type CodexPlusPlusRelease = {
 
 const desktopRoot = process.cwd();
 const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-node-modules");
+const electronNativeModuleCacheInputPaths = [
+  "package-lock.json",
+  "scripts/hydrate-codex-app.ts",
+  "scripts/patch-better-sqlite3-electron.ts",
+] as const;
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
 const codexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
@@ -703,6 +712,17 @@ function runtimeAbi(runtime: NativeNodeModuleRuntime, runtimeVersion: string): s
   return nodeAbi.getAbi(normalizeRuntimeVersion(runtimeVersion), runtime);
 }
 
+function cacheInputHash(inputPaths: readonly string[]): string {
+  const hash = crypto.createHash("sha256");
+  for (const inputPath of inputPaths) {
+    hash.update(inputPath);
+    hash.update("\0");
+    hash.update(fs.readFileSync(path.resolve(desktopRoot, inputPath)));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
+
 function runtimeCacheKey(
   nativeModules: NativeNodeModule[],
   runtime: NativeNodeModuleRuntime,
@@ -713,9 +733,10 @@ function runtimeCacheKey(
       .createHash("sha256")
       .update(JSON.stringify({
         electronVersion: runtimeVersion,
+        inputHash: cacheInputHash(electronNativeModuleCacheInputPaths),
         nativeModules,
         target: "win32-arm64",
-        version: 2,
+        version: 4,
       }))
       .digest("hex");
   }
@@ -1150,6 +1171,7 @@ function runElectronRebuild(
   nativeModuleNames: string[],
   electronVersion: string,
   moduleRoot: string,
+  env: NpmEnvironment = process.env,
 ): void {
   const electronRebuildCli = path.join(
     desktopRoot,
@@ -1177,7 +1199,7 @@ function runElectronRebuild(
       nativeModuleNames.join(","),
       "--force",
     ],
-    { cwd: desktopRoot, stdio: "inherit" },
+    { cwd: desktopRoot, env, stdio: "inherit" },
   );
 }
 
@@ -1456,7 +1478,27 @@ function syncNativeNodeModulesTarget(
       console.log(
         `Falling back to Electron source rebuild for Windows ARM64 native modules in ${target.label}: ${moduleNamesRequiringRebuild.join(", ")}`,
       );
-      runElectronRebuild(moduleNamesRequiringRebuild, runtimeVersion, moduleRoot);
+      const rebuildIncludesBetterSqlite3 = modulesRequiringRebuild.some(
+        (nativeModule) => nativeModule.name === "better-sqlite3",
+      );
+      if (rebuildIncludesBetterSqlite3) {
+        prepareBetterSqlite3ElectronRebuild({
+          electronVersion: runtimeVersion,
+          nodeModulesRoot: target.nodeModulesRoot,
+        });
+      }
+      const rebuildEnv =
+        prepareElectronHeadersForNativeRebuild(
+          desktopRoot,
+          runtimeVersion,
+          targetRuntimeArch,
+        ) ?? process.env;
+      runElectronRebuild(
+        moduleNamesRequiringRebuild,
+        runtimeVersion,
+        moduleRoot,
+        rebuildEnv,
+      );
       return;
     }
 

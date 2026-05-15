@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,6 +9,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const scriptPath = fileURLToPath(new URL("./resolve-codex-releases.mjs", import.meta.url));
+const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const nativeModuleCacheInputPaths = [
+  "package-lock.json",
+  "scripts/hydrate-codex-app.ts",
+  "scripts/patch-better-sqlite3-electron.ts",
+];
 
 const appcast = `<?xml version="1.0" encoding="utf-8"?>
 <rss>
@@ -70,6 +77,17 @@ function startServer(releases) {
   });
 }
 
+async function hashCacheInputs(paths) {
+  const hash = crypto.createHash("sha256");
+  for (const inputPath of paths) {
+    hash.update(inputPath);
+    hash.update("\0");
+    hash.update(await readFile(path.resolve(desktopRoot, inputPath)));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
+
 async function runResolver({ releases, sha = "abcdef1234567890" }) {
   const server = await startServer(releases);
   const directory = await mkdtemp(path.join(tmpdir(), "codex-release-resolver-"));
@@ -117,6 +135,8 @@ async function runResolver({ releases, sha = "abcdef1234567890" }) {
 
 test("starts new Codex app releases at repo revision zero", async () => {
   const output = await runResolver({ releases: [] });
+  const expectedNativeModulesCacheKey =
+    `windows-arm64-native-modules-v1-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7-inputs-${await hashCacheInputs(nativeModuleCacheInputPaths)}`;
 
   assert.equal(output.release_version, "26.429.61741.0");
   assert.equal(output.codex_cli_tag, "rust-v0.129.0");
@@ -127,6 +147,10 @@ test("starts new Codex app releases at repo revision zero", async () => {
   assert.equal(
     output.hydration_cache_key,
     "windows-arm64-hydrated-v5-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7",
+  );
+  assert.equal(
+    output.native_modules_cache_key,
+    expectedNativeModulesCacheKey,
   );
 });
 
