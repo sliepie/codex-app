@@ -116,8 +116,21 @@ function disableCodexPlusPlusAutoUpdate() {
     return;
   }
 
+  const codexPlusPlusConfig = config.codexPlusPlus;
+  if (
+    codexPlusPlusConfig &&
+    (typeof codexPlusPlusConfig !== "object" || Array.isArray(codexPlusPlusConfig))
+  ) {
+    log("codex-plusplus config shape is invalid", "Expected object in config.codexPlusPlus");
+    return;
+  }
+
+  if (codexPlusPlusConfig && codexPlusPlusConfig.autoUpdate === false) {
+    return;
+  }
+
   config.codexPlusPlus = {
-    ...config.codexPlusPlus,
+    ...codexPlusPlusConfig,
     autoUpdate: false,
   };
   try {
@@ -156,46 +169,74 @@ function syncBundledTweaks() {
       continue;
     }
 
-    const sourceDir = path.join(bundledTweaksDir, entry.name);
-    const manifestPath = path.join(sourceDir, "manifest.json");
-    if (!fs.existsSync(manifestPath)) {
-      continue;
+    try {
+      syncBundledTweak(entry, tweaksDir);
+    } catch (error) {
+      log("codex-plusplus bundled tweak sync failed for " + entry.name, error);
     }
-
-    const manifest = readJson(manifestPath);
-    const targetDir = path.join(tweaksDir, manifest.id || entry.name);
-    const markerPath = path.join(targetDir, ".codex-app-bundled-tweak.json");
-    const marker = {
-      source: "codex-app",
-      id: manifest.id,
-      version: manifest.version,
-    };
-
-    if (fs.existsSync(targetDir)) {
-      if (!fs.existsSync(markerPath)) {
-        continue;
-      }
-      const current = readJson(markerPath);
-      if (!bundledVersionIsNewer(marker.version, current.version)) {
-        continue;
-      }
-      fs.rmSync(targetDir, { recursive: true, force: true });
-    }
-
-    copyDirectory(sourceDir, targetDir);
-    writeJson(markerPath, marker);
   }
 }
 
-try {
-  fs.mkdirSync(userRoot, { recursive: true });
-  syncBundledTweaks();
-  disableCodexPlusPlusAutoUpdate();
+function syncBundledTweak(entry, tweaksDir) {
+  const sourceDir = path.join(bundledTweaksDir, entry.name);
+  const manifestPath = path.join(sourceDir, "manifest.json");
+  if (!fs.existsSync(manifestPath)) {
+    return;
+  }
+
+  const manifest = readJson(manifestPath);
+  const targetDir = path.join(tweaksDir, manifest.id || entry.name);
+  const markerPath = path.join(targetDir, ".codex-app-bundled-tweak.json");
+  const marker = {
+    source: "codex-app",
+    id: manifest.id,
+    version: manifest.version,
+  };
+
+  if (fs.existsSync(targetDir)) {
+    if (!fs.existsSync(markerPath)) {
+      return;
+    }
+    const current = readJson(markerPath);
+    if (!bundledVersionIsNewer(marker.version, current.version)) {
+      return;
+    }
+    fs.rmSync(targetDir, { recursive: true, force: true });
+  }
+
+  copyDirectory(sourceDir, targetDir);
+  writeJson(markerPath, marker);
+}
+
+function runStartupStep(label, fn) {
+  try {
+    return fn();
+  } catch (error) {
+    log(label, error);
+    return undefined;
+  }
+}
+
+function startCodexPlusPlusIntegration() {
+  runStartupStep("codex-plusplus user root setup failed", () => {
+    fs.mkdirSync(userRoot, { recursive: true });
+  });
+  runStartupStep("codex-plusplus bundled tweak sync failed", syncBundledTweaks);
+  runStartupStep("codex-plusplus config update failed", disableCodexPlusPlusAutoUpdate);
   process.env.CODEX_PLUSPLUS_USER_ROOT = userRoot;
   process.env.CODEX_PLUSPLUS_RUNTIME = runtimeDir;
-  require(path.join(runtimeDir, "main.js"));
-} catch (error) {
-  log("codex-plusplus integrated startup failed", error);
+  runStartupStep("codex-plusplus runtime startup failed", () => {
+    require(path.join(runtimeDir, "main.js"));
+  });
+}
+
+function scheduleCodexPlusPlusIntegration() {
+  if (typeof setImmediate === "function") {
+    setImmediate(startCodexPlusPlusIntegration);
+    return;
+  }
+  setTimeout(startCodexPlusPlusIntegration, 0);
 }
 
 require(path.join(packagedRoot, originalMain));
+scheduleCodexPlusPlusIntegration();

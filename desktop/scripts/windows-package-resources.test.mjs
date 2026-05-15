@@ -597,6 +597,85 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.match(forgeSource, /originalMain: recoveredOriginalMain\(upstreamPackageJson\)/);
 });
 
+function createCodexPlusPlusLoaderFixture(t) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plusplus-loader-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  const loaderPath = path.join(root, "codex-plusplus", "loader.cjs");
+  const originalMain = "recovered/app-asar-extracted/.vite/build/bootstrap.js";
+  const originalMainPath = path.join(root, originalMain);
+  const runtimeMainPath = path.join(root, "codex-plusplus", "runtime", "main.js");
+  const appData = path.join(root, "AppData");
+  const tracePath = path.join(root, "trace.txt");
+
+  fs.mkdirSync(path.dirname(loaderPath), { recursive: true });
+  fs.copyFileSync(path.join(desktopRoot, "codex-plusplus", "loader.cjs"), loaderPath);
+  writeFixture(
+    path.join(root, "package.json"),
+    JSON.stringify({ __codexpp: { originalMain } }, null, 2) + "\n",
+  );
+  writeFixture(
+    originalMainPath,
+    'require("node:fs").appendFileSync(process.env.CODEX_LOADER_TRACE, "original\\n");\n',
+  );
+  writeFixture(
+    runtimeMainPath,
+    'require("node:fs").appendFileSync(process.env.CODEX_LOADER_TRACE, "runtime\\n");\n',
+  );
+
+  return { root, loaderPath, appData, tracePath };
+}
+
+function runCodexPlusPlusLoaderFixture(fixture) {
+  execFileSync(process.execPath, [fixture.loaderPath], {
+    cwd: fixture.root,
+    env: {
+      ...process.env,
+      APPDATA: fixture.appData,
+      CODEX_LOADER_TRACE: fixture.tracePath,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  return fs.readFileSync(fixture.tracePath, "utf8").trim().split(/\r?\n/);
+}
+
+test("Codex++ loader starts original Codex before runtime integration", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+});
+
+test("Codex++ loader still starts runtime when a bundled tweak marker is corrupt", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "manifest.json"),
+    JSON.stringify({ id: "app-tweak", version: "1.1.0" }, null, 2) + "\n",
+  );
+  writeFixture(
+    path.join(
+      fixture.appData,
+      "codex-plusplus",
+      "tweaks",
+      "app-tweak",
+      ".codex-app-bundled-tweak.json",
+    ),
+    "{broken json",
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+});
+
+test("Codex++ loader does not rewrite already disabled updater config", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  const configPath = path.join(fixture.appData, "codex-plusplus", "config.json");
+  const configSource = '{"codexPlusPlus":{"autoUpdate":false},"keep":"format"}\n';
+  writeFixture(configPath, configSource);
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.equal(fs.readFileSync(configPath, "utf8"), configSource);
+});
+
 test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
   const tweaksRoot = path.join(desktopRoot, "codex-plusplus", "tweaks");
   const tweakNames = fs
