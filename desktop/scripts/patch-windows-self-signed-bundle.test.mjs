@@ -49,7 +49,7 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
-    "function localBin(parts){return(0,path.join)(process.env.LOCALAPPDATA??(0,path.join)((0,os.homedir)(),`AppData`,`Local`),...parts)}",
+    "var runtimeRoot=`codex-primary-runtime`,latestFile=`LATEST.json`,publicBase=`https://persistent.oaistatic.com`;function targetKey(target){return`${platformName(target.platform)}-${archName(target.arch)}`}function manifestUrl(target,config,release){return[(config.baseUrl??(release===`latest`?publicBase:`https://oaisidekickupdates.blob.core.windows.net/owl`)).replace(/\\/+$/,``),runtimeRoot,...release===`latest-alpha`?[`alpha`]:[],`latest`,targetKey(target),latestFile].join(`/`)}function localBin(parts){return(0,path.join)(process.env.LOCALAPPDATA??(0,path.join)((0,os.homedir)(),`AppData`,`Local`),...parts)}",
   );
   writeFixture(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
@@ -94,6 +94,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/index-fixture.js",
       "webview/assets/agent-settings-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
+      ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
@@ -101,6 +102,57 @@ test("writes patch report file paths relative to the recovered app root", () => 
   );
   assert.ok(report.patches.every((patch) => !path.isAbsolute(patch.file)));
   assert.ok(report.patches.every((patch) => !patch.file.includes("..")));
+});
+
+test("routes Windows ARM64 primary runtime manifest checks to GitHub Releases", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const workspaceRootDropHandlerPath = path.join(
+    recoveredRoot,
+    ".vite",
+    "build",
+    "workspace-root-drop-handler-fixture.js",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(workspaceRootDropHandlerPath, "utf8");
+  assert.match(
+    bundle,
+    /release===`latest`&&targetKey\(target\)===`win32-arm64`\)return`https:\/\/github\.com\/sliepie\/codex-app\/releases\/download\/codex-primary-runtime-win32-arm64\/LATEST\.json`/,
+  );
+  assert.match(bundle, /oaisidekickupdates\.blob\.core\.windows\.net\/owl/);
+
+  const evaluateManifestUrl = new Function(
+    `${bundle};function platformName(value){return value}function archName(value){return value}return manifestUrl(arguments[0],arguments[1],arguments[2]);`,
+  );
+  assert.equal(
+    evaluateManifestUrl({ platform: "win32", arch: "arm64" }, {}, "latest"),
+    "https://github.com/sliepie/codex-app/releases/download/codex-primary-runtime-win32-arm64/LATEST.json",
+  );
+  assert.equal(
+    evaluateManifestUrl({ platform: "win32", arch: "x64" }, {}, "latest"),
+    "https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-x64/LATEST.json",
+  );
+  assert.equal(
+    evaluateManifestUrl({ platform: "win32", arch: "arm64" }, {}, "latest-alpha"),
+    "https://oaisidekickupdates.blob.core.windows.net/owl/codex-primary-runtime/alpha/latest/win32-arm64/LATEST.json",
+  );
+  assert.equal(
+    evaluateManifestUrl(
+      { platform: "win32", arch: "arm64" },
+      { baseUrl: "https://example.test/runtime" },
+      "latest",
+    ),
+    "https://example.test/runtime/codex-primary-runtime/latest/win32-arm64/LATEST.json",
+  );
+
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "route Windows ARM64 primary runtime manifest to GitHub release",
+  );
+  assert.equal(patch?.status, "applied");
 });
 
 test("patches app main bundle when upstream moves index targets there", () => {
@@ -307,7 +359,7 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 8);
+  assert.equal(report.patches.length, 9);
   assert.ok(
     report.patches.every((patch) =>
       patch.name === "restore Windows title bar overlay controls height"
@@ -420,7 +472,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 8);
+  assert.equal(report.patches.length, 9);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),

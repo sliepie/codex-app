@@ -17,6 +17,11 @@ const workspaceDependencyFeatureMapAppliedPattern =
   /return\{(?=[^{}]*workspace_dependencies:!0)(?=[^{}]*\[[^\]]+\]:[^{}]*?\.groupName===`Test`)[^{}]*\}/;
 const packageLocalCacheRelocationAppliedPattern =
   /process\.resourcesPath\?\.replace[\s\S]*?`Packages`[\s\S]*?`LocalCache`[\s\S]*?`Local`/;
+const windowsArm64PrimaryRuntimeManifestUrl =
+  "https://github.com/sliepie/codex-app/releases/download/codex-primary-runtime-win32-arm64/LATEST.json";
+const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
+  escapeRegExp(windowsArm64PrimaryRuntimeManifestUrl),
+);
 const windowsTitleBarOverlayDefaultHeightPattern = new RegExp(
   String.raw`\b(${identifierPattern})=36,${identifierPattern}=\x60#1f1f1f\x60,${identifierPattern}=\x60#ffffff\x60;function\s+${identifierPattern}\(\)\{return\{color:${identifierPattern},symbolColor:${identifierPattern}\.nativeTheme\.shouldUseDarkColors\?${identifierPattern}:${identifierPattern},height:\1\}\}`,
 );
@@ -67,6 +72,10 @@ function readOption(argv: string[], ...names: string[]): string | undefined {
     }
   }
   return undefined;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function toReportPath(root: string, filePath: string): string {
@@ -428,6 +437,29 @@ function alreadyAppliedPatch(evidence: string | RegExp): SourcePatcher {
   };
 }
 
+function patchWindowsArm64PrimaryRuntimeManifestUrl(): SourcePatcher {
+  return functionContainingAllPatch(
+    ["latest-alpha", "latest", "oaisidekickupdates.blob.core.windows.net/owl"],
+    windowsArm64PrimaryRuntimeManifestUrlPattern,
+    (range) => {
+      const args = range.args.split(",").map((arg) => arg.trim());
+      if (args.length !== 3 || args.some((arg) => !new RegExp(`^${identifierPattern}$`).test(arg))) {
+        throw new Error(`Unexpected primary runtime manifest URL helper args: ${range.args}`);
+      }
+
+      const [targetArg, configArg, releaseArg] = args;
+      const targetExpressionMatch = range.body.match(
+        new RegExp(String.raw`\`latest\`,(${identifierPattern}\(${targetArg}\)),`),
+      );
+      if (!targetExpressionMatch?.[1]) {
+        throw new Error("Unable to find primary runtime target expression.");
+      }
+
+      return `${range.asyncPrefix}function ${range.name}(${range.args}){if(${configArg}.baseUrl==null&&${releaseArg}===\`latest\`&&${targetExpressionMatch[1]}===\`win32-arm64\`)return\`${windowsArm64PrimaryRuntimeManifestUrl}\`;${range.body}}`;
+    },
+  );
+}
+
 function failIfUnmodifiedBundleContains(evidence: string | RegExp, reason: string): SourcePatcher {
   return (source) => {
     const matched =
@@ -723,6 +755,16 @@ function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult
         ),
       ],
       { missingTargetMarkers: ["process.env.LOCALAPPDATA", "`AppData`,`Local`"] },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "route Windows ARM64 primary runtime manifest to GitHub release",
+      [
+        alreadyAppliedPatch(windowsArm64PrimaryRuntimeManifestUrlPattern),
+        patchWindowsArm64PrimaryRuntimeManifestUrl(),
+      ],
+      { missingTargetMarkers: ["latest-alpha", "oaisidekickupdates.blob.core.windows.net/owl"] },
     ),
   ];
 }

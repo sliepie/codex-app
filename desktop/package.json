@@ -40,6 +40,7 @@
     "make:win:arm64:compiled": "electron-forge make --platform win32 --arch arm64",
     "make:win:arm64:ci": "npm run prepare:win:arm64 && npm run make:win:arm64:compiled",
     "make:win:arm64": "npm run prepare:win:arm64 && npm run make:win:arm64:compiled",
+    "build:primary-runtime:win:arm64": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-primary-runtime-win-arm64.ps1",
     "update:node-repl": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-node-repl.ps1"
   },
   "keywords": [

@@ -1,0 +1,88 @@
+name: Windows ARM64 Primary Runtime
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 0,12 * * *"
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  publish-primary-runtime:
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: windows-2025-vs2026
+    concurrency:
+      group: primary-runtime-windows-arm64
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - name: Build Windows ARM64 primary runtime feed
+        working-directory: desktop
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PRIMARY_RUNTIME_ARM64_MANIFEST_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_MANIFEST_URL || vars.PRIMARY_RUNTIME_ARM64_MANIFEST_URL }}
+          PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL }}
+          PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL }}
+        run: npm run build:primary-runtime:win:arm64
+
+      - name: Upload Windows ARM64 primary runtime artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: codex-primary-runtime-win32-arm64
+          path: desktop/out/primary-runtime/win32-arm64/*
+          if-no-files-found: error
+
+      - name: Publish Windows ARM64 primary runtime release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: codex-primary-runtime-win32-arm64
+          RELEASE_TITLE: codex-primary-runtime win32-arm64
+        run: |
+          $repo = $env:GITHUB_REPOSITORY
+          $assetRoot = "desktop/out/primary-runtime/win32-arm64"
+          $assets = Get-ChildItem -LiteralPath $assetRoot -File
+          $latestManifest = $assets | Where-Object { $_.Name -eq "LATEST.json" } | Select-Object -First 1
+          $archives = @($assets | Where-Object { $_.Name -ne "LATEST.json" })
+          if ($null -eq $latestManifest -or $archives.Count -lt 1) {
+            throw "Expected LATEST.json and a runtime archive in $assetRoot."
+          }
+
+          gh release view $env:RELEASE_TAG --repo "$repo" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:RELEASE_TAG --repo "$repo" --target "$env:GITHUB_SHA" --title "$env:RELEASE_TITLE" --notes "Windows ARM64 primary runtime feed for Codex workspace dependencies." --latest=false
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to create GitHub release $env:RELEASE_TAG."
+            }
+          }
+
+          $releaseId = gh api "repos/$repo/releases/tags/$env:RELEASE_TAG" --jq ".id"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to resolve GitHub release id for $env:RELEASE_TAG."
+          }
+
+          gh api -X PATCH "repos/$repo/releases/$releaseId" -f make_latest=false *> $null
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to mark $env:RELEASE_TAG as not latest."
+          }
+
+          gh release upload $env:RELEASE_TAG $archives.FullName --repo "$repo" --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to upload primary runtime archive assets to $env:RELEASE_TAG."
+          }
+
+          gh release upload $env:RELEASE_TAG $latestManifest.FullName --repo "$repo" --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to upload primary runtime manifest to $env:RELEASE_TAG."
+          }

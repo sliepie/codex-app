@@ -54,6 +54,32 @@ Alpha PR ZIP:
 
 - https://github.com/sliepie/codex-app/releases/download/codex-app-alpha/codex-app-windows-arm64.zip
 
+## Workspace dependency runtime
+
+The packaged Windows ARM64 app routes primary runtime manifest checks to this
+GitHub Release asset:
+
+- https://github.com/sliepie/codex-app/releases/download/codex-primary-runtime-win32-arm64/LATEST.json
+
+The official public x64 runtime manifest exists at
+`https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-x64/LATEST.json`,
+but the matching public Windows ARM64 manifest currently returns 404. The OAI
+alpha blob feed is not publicly readable from this environment; both tested
+alpha manifest URLs returned 403.
+
+The `Windows ARM64 Primary Runtime` workflow can publish the GitHub-hosted feed
+in either of these explicit modes:
+
+- Mirror a private or OAI ARM64 runtime by setting
+  `PRIMARY_RUNTIME_ARM64_MANIFEST_URL`.
+- Compose from the public x64 runtime by setting both
+  `PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL` and
+  `PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL` to complete ARM64 replacement
+  archives for `dependencies/node` and `dependencies/python`.
+
+The workflow refuses to publish a composed ARM64 bundle if x64 native payloads
+remain in the replacement dependency trees.
+
 ### Release Assets
 
 The latest GitHub Release also exposes direct links for the self-signed install
