@@ -74,7 +74,9 @@ trees with complete ARM64 replacement archives from
 not configured yet, the scheduled workflow exits without publishing a new
 GitHub-hosted feed.
 
-The builder refuses to publish an ARM64 bundle if x64 native payloads remain in
+Replacement archives must contain the full runtime dependency trees, not just
+standalone Node or Python installers. The builder refuses to publish an ARM64
+bundle if required runtime paths are missing or if x64 native payloads remain in
 the runtime tree.
 
 ### Release Assets

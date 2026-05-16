@@ -261,7 +261,6 @@ async function findReplacementRoot(extractRoot: string, name: string): Promise<s
     path.join(extractRoot, runtimeRootDirectoryName, "dependencies", name),
     path.join(extractRoot, "dependencies", name),
     path.join(extractRoot, name),
-    ...(name === "python" ? [path.join(extractRoot, "tools")] : []),
   ];
 
   for (const candidate of candidates) {
@@ -280,6 +279,49 @@ async function findReplacementRoot(extractRoot: string, name: string): Promise<s
   throw new Error(
     `Could not find '${name}' replacement root in ${extractRoot}. Expected ${name}, dependencies/${name}, or ${runtimeRootDirectoryName}/dependencies/${name}.`,
   );
+}
+
+function assertRequiredFile(root: string, relativePath: string): void {
+  const filePath = path.join(root, ...relativePath.split("/"));
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    throw new Error(`Replacement tree is missing required file: ${relativePath}`);
+  }
+}
+
+function assertRequiredDirectory(root: string, relativePath: string): void {
+  const directoryPath = path.join(root, ...relativePath.split("/"));
+  if (!fs.existsSync(directoryPath) || !fs.statSync(directoryPath).isDirectory()) {
+    throw new Error(`Replacement tree is missing required directory: ${relativePath}`);
+  }
+}
+
+function assertPythonVersionDll(root: string): void {
+  const entries = fs.readdirSync(root, { withFileTypes: true });
+  const hasVersionDll = entries.some((entry) => entry.isFile() && /^python\d{2,}\.dll$/i.test(entry.name));
+  if (!hasVersionDll) {
+    throw new Error("Replacement tree is missing a versioned python DLL such as python312.dll.");
+  }
+}
+
+function assertCompleteReplacementTree(name: string, replacementRoot: string): void {
+  if (name === "node") {
+    assertRequiredFile(replacementRoot, "bin/node.exe");
+    assertRequiredDirectory(replacementRoot, "node_modules");
+    assertRequiredFile(replacementRoot, "node_modules/@oai/artifact-tool/package.json");
+    return;
+  }
+
+  if (name === "python") {
+    assertRequiredFile(replacementRoot, "python.exe");
+    assertRequiredFile(replacementRoot, "python3.dll");
+    assertPythonVersionDll(replacementRoot);
+    assertRequiredDirectory(replacementRoot, "DLLs");
+    assertRequiredDirectory(replacementRoot, "Lib/site-packages");
+    assertRequiredDirectory(replacementRoot, "Lib/site-packages/artifact_tool_v2");
+    return;
+  }
+
+  throw new Error(`Unsupported replacement dependency: ${name}`);
 }
 
 function archivePathForReplacement(workRoot: string, archiveUrl: string, name: string): string {
@@ -310,6 +352,7 @@ async function replaceDependencyDirectory(archiveUrl: string, name: string, payl
   const extractPath = path.join(workRoot, `${name}-replacement-extract`);
   await expandInputArchive(downloadPath, extractPath);
   const replacementRoot = await findReplacementRoot(extractPath, name);
+  assertCompleteReplacementTree(name, replacementRoot);
   const targetPath = path.join(payloadRoot, runtimeRootDirectoryName, "dependencies", name);
 
   await fs.promises.rm(targetPath, { recursive: true, force: true });
