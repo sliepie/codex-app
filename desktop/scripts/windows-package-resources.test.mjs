@@ -1312,7 +1312,6 @@ test("keeps the TypeScript beta script compiler floating", () => {
 
 test("Windows ARM64 workflows use the documented VS2026 runner image", () => {
   for (const workflowName of [
-    "primary-runtime-windows-arm64.yml",
     "windows-arm64-pr-build.yml",
     "windows-arm64-release.yml",
   ]) {
@@ -1324,6 +1323,17 @@ test("Windows ARM64 workflows use the documented VS2026 runner image", () => {
     assert.match(workflowSource, /runs-on: windows-2025-vs2026/);
     assert.doesNotMatch(workflowSource, /runs-on: windows-latest/);
   }
+});
+
+test("primary runtime workflow runs on Ubuntu because it does not package the app", () => {
+  const workflowSource = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "primary-runtime-windows-arm64.yml"),
+    "utf8",
+  );
+
+  assert.match(workflowSource, /runs-on: ubuntu-24\.04/);
+  assert.doesNotMatch(workflowSource, /runs-on: windows-2025-vs2026/);
+  assert.match(workflowSource, /-OutputRoot "\$\{\{ github\.workspace \}\}\/desktop\/out\/primary-runtime-pr\/win32-arm64"/);
 });
 
 test("PR builds publish the ZIP to a mutable alpha release", () => {

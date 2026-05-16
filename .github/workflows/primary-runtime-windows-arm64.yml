@@ -33,7 +33,7 @@ permissions:
 jobs:
   validate-primary-runtime:
     if: github.event_name == 'pull_request'
-    runs-on: windows-2025-vs2026
+    runs-on: ubuntu-24.04
     concurrency:
       group: primary-runtime-windows-arm64-pr-${{ github.ref }}
       cancel-in-progress: true
@@ -66,7 +66,7 @@ jobs:
         working-directory: desktop
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: npm run build:primary-runtime:win:arm64:compiled -- -Arm64ManifestUrl "${{ steps.smoke.outputs.manifest_path }}" -OutputRoot "${{ github.workspace }}\desktop\out\primary-runtime-pr\win32-arm64"
+        run: npm run build:primary-runtime:win:arm64:compiled -- -Arm64ManifestUrl "${{ steps.smoke.outputs.manifest_path }}" -OutputRoot "${{ github.workspace }}/desktop/out/primary-runtime-pr/win32-arm64"
 
       - name: Upload Windows ARM64 primary runtime PR artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -77,7 +77,7 @@ jobs:
 
   publish-primary-runtime:
     if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main')
-    runs-on: windows-2025-vs2026
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     concurrency:
