@@ -10,8 +10,8 @@ on:
       - ".node-version"
       - "desktop/**"
       - "!desktop/scripts/build-primary-runtime-win-arm64.ts"
-      - "!desktop/scripts/create-primary-runtime-smoke-fixture.ts"
       - "!desktop/scripts/publish-primary-runtime-release.ts"
+      - "!desktop/scripts/resolve-primary-runtime-source.ts"
 
 permissions:
   contents: read
