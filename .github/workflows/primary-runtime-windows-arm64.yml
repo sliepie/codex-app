@@ -1,0 +1,125 @@
+name: Windows ARM64 Primary Runtime
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/primary-runtime-windows-arm64.yml"
+      - ".node-version"
+      - "desktop/package.json"
+      - "desktop/tsconfig.scripts.json"
+      - "desktop/scripts/build-primary-runtime-win-arm64.ts"
+      - "desktop/scripts/create-primary-runtime-smoke-fixture.ts"
+      - "desktop/scripts/publish-primary-runtime-release.ts"
+  workflow_dispatch:
+  schedule:
+    - cron: "30 0,12 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/primary-runtime-windows-arm64.yml"
+      - ".node-version"
+      - "desktop/package.json"
+      - "desktop/tsconfig.scripts.json"
+      - "desktop/scripts/build-primary-runtime-win-arm64.ts"
+      - "desktop/scripts/create-primary-runtime-smoke-fixture.ts"
+      - "desktop/scripts/publish-primary-runtime-release.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-primary-runtime:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: primary-runtime-windows-arm64-pr-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build desktop scripts
+        working-directory: desktop
+        run: npm run build:scripts
+
+      - name: Create primary runtime smoke fixture
+        id: smoke
+        working-directory: desktop
+        run: npm run create:primary-runtime-smoke-fixture:compiled
+
+      - name: Validate Windows ARM64 primary runtime feed
+        working-directory: desktop
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: npm run build:primary-runtime:win:arm64:compiled -- -Arm64ManifestUrl "${{ steps.smoke.outputs.manifest_path }}" -OutputRoot "${{ github.workspace }}/desktop/out/primary-runtime-pr/win32-arm64"
+
+      - name: Upload Windows ARM64 primary runtime PR artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: codex-primary-runtime-win32-arm64-pr
+          path: desktop/out/primary-runtime-pr/win32-arm64/*
+          if-no-files-found: error
+
+  publish-primary-runtime:
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: primary-runtime-windows-arm64
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build Windows ARM64 primary runtime feed
+        working-directory: desktop
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PRIMARY_RUNTIME_ARM64_MANIFEST_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_MANIFEST_URL || vars.PRIMARY_RUNTIME_ARM64_MANIFEST_URL }}
+          PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL }}
+          PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL }}
+        run: npm run build:primary-runtime:win:arm64
+
+      - name: Upload Windows ARM64 primary runtime artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: codex-primary-runtime-win32-arm64
+          path: desktop/out/primary-runtime/win32-arm64/*
+          if-no-files-found: error
+
+      - name: Publish Windows ARM64 primary runtime release
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: codex-primary-runtime-win32-arm64
+          RELEASE_TITLE: codex-primary-runtime win32-arm64
+        run: npm run publish:primary-runtime:win:arm64:compiled

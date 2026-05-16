@@ -12,6 +12,8 @@
   },
   "include": [
     "scripts/decode-self-signed-pfx.ts",
+    "scripts/build-primary-runtime-win-arm64.ts",
+    "scripts/create-primary-runtime-smoke-fixture.ts",
     "scripts/hydrate-codex-app.ts",
     "scripts/hydrate-codex-cli.ts",
     "scripts/patch-better-sqlite3-electron.ts",
@@ -19,6 +21,7 @@
     "scripts/prepare-self-signed-msix-payload.ts",
     "scripts/refresh-recovered-from-dmg.ts",
     "scripts/resolve-codex-releases.ts",
+    "scripts/publish-primary-runtime-release.ts",
     "scripts/verify-browser-client-runtime.ts",
     "scripts/write-self-signed-appinstaller.ts"
   ]
