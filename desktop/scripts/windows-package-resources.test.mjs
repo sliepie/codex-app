@@ -1325,17 +1325,6 @@ test("Windows ARM64 workflows use the documented VS2026 runner image", () => {
   }
 });
 
-test("primary runtime workflow runs on Ubuntu because it does not package the app", () => {
-  const workflowSource = fs.readFileSync(
-    path.join(repoRoot, ".github", "workflows", "primary-runtime-windows-arm64.yml"),
-    "utf8",
-  );
-
-  assert.match(workflowSource, /runs-on: ubuntu-24\.04/);
-  assert.doesNotMatch(workflowSource, /runs-on: windows-2025-vs2026/);
-  assert.match(workflowSource, /-OutputRoot "\$\{\{ github\.workspace \}\}\/desktop\/out\/primary-runtime-pr\/win32-arm64"/);
-});
-
 test("PR builds publish the ZIP to a mutable alpha release", () => {
   const workflowSource = fs.readFileSync(
     path.join(repoRoot, ".github", "workflows", "windows-arm64-pr-build.yml"),
@@ -1343,12 +1332,6 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   );
 
   assert.match(workflowSource, /permissions:\r?\n  contents: read/);
-  assert.match(workflowSource, /pull_request:[\s\S]*paths:[\s\S]*desktop\/\*\*[\s\S]*!desktop\/scripts\/build-primary-runtime-win-arm64\.ts/);
-  assert.match(workflowSource, /!desktop\/scripts\/create-primary-runtime-smoke-fixture\.ts/);
-  assert.match(workflowSource, /!desktop\/scripts\/publish-primary-runtime-release\.ts/);
-  assert.doesNotMatch(workflowSource, /primary-runtime-windows-arm64\.yml/);
-  assert.doesNotMatch(workflowSource, /detect-app-package-changes:/);
-  assert.doesNotMatch(workflowSource, /gh pr diff/);
   assert.match(workflowSource, /name: codex-app-windows-arm64-pr/);
   assert.match(workflowSource, /publish-alpha-release:/);
   assert.match(
@@ -1368,31 +1351,6 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--prerelease --latest=false/);
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--prerelease --latest=false/);
   assert.match(workflowSource, /gh release upload \$tag \$zip\.FullName[\s\S]*--clobber/);
-});
-
-test("primary runtime workflow validates PRs without publishing releases", () => {
-  const workflowSource = fs.readFileSync(
-    path.join(repoRoot, ".github", "workflows", "primary-runtime-windows-arm64.yml"),
-    "utf8",
-  );
-
-  assert.match(workflowSource, /pull_request:[\s\S]*branches:[\s\S]*- main[\s\S]*paths:[\s\S]*primary-runtime-windows-arm64\.yml[\s\S]*desktop\/scripts\/build-primary-runtime-win-arm64\.ts/);
-  assert.match(workflowSource, /push:[\s\S]*branches:[\s\S]*- main[\s\S]*paths:[\s\S]*primary-runtime-windows-arm64\.yml[\s\S]*desktop\/scripts\/publish-primary-runtime-release\.ts/);
-  assert.match(workflowSource, /permissions:\r?\n  contents: read/);
-  assert.match(workflowSource, /validate-primary-runtime:/);
-  assert.match(workflowSource, /if: github\.event_name == 'pull_request'/);
-  assert.match(workflowSource, /cache: npm[\s\S]*cache-dependency-path: desktop\/package-lock\.json/);
-  assert.match(workflowSource, /name: Install dependencies[\s\S]*working-directory: desktop[\s\S]*run: npm ci/);
-  assert.match(workflowSource, /name: Build desktop scripts[\s\S]*run: npm run build:scripts/);
-  assert.match(workflowSource, /name: Create primary runtime smoke fixture/);
-  assert.match(workflowSource, /run: npm run create:primary-runtime-smoke-fixture:compiled/);
-  assert.match(workflowSource, /npm run build:primary-runtime:win:arm64:compiled -- -Arm64ManifestUrl "\$\{\{ steps\.smoke\.outputs\.manifest_path \}\}"/);
-  assert.match(workflowSource, /name: codex-primary-runtime-win32-arm64-pr/);
-  assert.match(workflowSource, /publish-primary-runtime:[\s\S]*if: github\.event_name != 'pull_request' && \(github\.event_name != 'workflow_dispatch' \|\| github\.ref == 'refs\/heads\/main'\)/);
-  assert.match(workflowSource, /publish-primary-runtime:[\s\S]*permissions:\r?\n      contents: write/);
-  assert.match(workflowSource, /name: Publish Windows ARM64 primary runtime release/);
-  assert.match(workflowSource, /run: npm run publish:primary-runtime:win:arm64:compiled/);
-  assert.doesNotMatch(workflowSource, /Get-FileHash|Compress-Archive|gh release/);
 });
 
 test("release workflow tracks Codex++ in package inputs and release metadata", () => {
@@ -1456,10 +1414,6 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.match(prWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache\/restore@/);
   assert.match(releaseWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache@/);
   assert.equal(packageJson.scripts["build:scripts"], "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json");
-  assert.equal(packageJson.scripts["build:primary-runtime:win:arm64"], "npm run build:scripts && npm run build:primary-runtime:win:arm64:compiled");
-  assert.equal(packageJson.scripts["build:primary-runtime:win:arm64:compiled"], "node ./.cache/scripts/build-primary-runtime-win-arm64.js");
-  assert.equal(packageJson.scripts["create:primary-runtime-smoke-fixture:compiled"], "node ./.cache/scripts/create-primary-runtime-smoke-fixture.js");
-  assert.equal(packageJson.scripts["publish:primary-runtime:win:arm64:compiled"], "node ./.cache/scripts/publish-primary-runtime-release.js");
   assert.equal(packageJson.scripts["verify:browser-client-runtime"], "npm run build:scripts && npm run verify:browser-client-runtime:compiled");
   assert.equal(packageJson.scripts["verify:browser-client-runtime:compiled"], "node ./.cache/scripts/verify-browser-client-runtime.js");
   assert.equal(packageJson.scripts["test:resolve-codex-releases:compiled"], "node --test scripts/resolve-codex-releases.test.mjs");
