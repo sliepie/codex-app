@@ -35,6 +35,13 @@ jobs:
           cache: npm
           cache-dependency-path: desktop/package-lock.json
 
+      - name: Resolve upstream release versions
+        id: upstream
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/resolve-codex-releases.ts
+
       - name: Restore Electron cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
@@ -49,16 +56,9 @@ jobs:
         working-directory: desktop
         run: npm run build:scripts
 
-      - name: Resolve upstream release versions
-        id: upstream
-        working-directory: desktop
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node ./.cache/scripts/resolve-codex-releases.js
-
       - name: Run targeted desktop tests
         working-directory: desktop
-        run: npm run test:resolve-codex-releases && npm run test:windows-package-resources && npm run test:verify-browser-client-runtime
+        run: npm run test:resolve-codex-releases:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled
 
       - name: Restore hydrated release cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -93,6 +93,8 @@ jobs:
       - name: Hydrate Windows ARM64 inputs
         working-directory: desktop
         env:
+          CODEX_APP_VERSION: ${{ steps.upstream.outputs.codex_app_version }}
+          CODEX_APP_BUILD: ${{ steps.upstream.outputs.codex_app_build }}
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
           CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
           CODEX_PLUS_PLUS_SHA: ${{ steps.upstream.outputs.codex_plus_plus_sha }}

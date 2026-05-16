@@ -285,7 +285,7 @@ function isPackageFile(file) {
     '/recovered/app-asar-extracted/package.json',
     '/codex-plusplus',
     '/package.json',
-  ].some((allowedPath) => file.startsWith(allowedPath)) ||
+  ].some((allowedPath) => matchesPath(file, allowedPath)) ||
     isRecoveredNodeModule(file) ||
     isInstalledRuntimeNodeModule(file);
 }
@@ -386,6 +386,10 @@ const config = {
         return false;
       }
       const normalizedFile = file.replace(/\\/g, '/');
+
+      if (path.extname(normalizedFile).toLowerCase() === '.pdb') {
+        return true;
+      }
 
       if (isRecoveredNativeNodeModule(normalizedFile) || isForeignPrebuild(normalizedFile)) {
         return true;

@@ -22,7 +22,13 @@ type PackageJson = {
   version?: string;
 };
 
-const desktopRoot = process.cwd();
+function resolveDesktopRoot(): string {
+  return path.basename(__dirname) === "scripts" && path.basename(path.dirname(__dirname)) === ".cache"
+    ? path.resolve(__dirname, "..", "..")
+    : path.resolve(__dirname, "..");
+}
+
+const desktopRoot = resolveDesktopRoot();
 const repoRoot = path.resolve(desktopRoot, '..');
 const defaultRecoveredRoot = path.join(desktopRoot, 'recovered', 'app-asar-extracted');
 

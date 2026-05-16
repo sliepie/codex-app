@@ -27,6 +27,8 @@ function writePeFixture(filePath, versionText, machine = 0xaa64) {
 function createDesktopFixture() {
   const desktopRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-browser-runtime-"));
   const appVersion = "26.506.21252";
+  const appBuildNumber = "61741";
+  const appExtractDir = `extract-${appVersion}-build-${appBuildNumber}`;
   const browserPluginRoot = path.join(
     desktopRoot,
     "resources",
@@ -44,14 +46,14 @@ function createDesktopFixture() {
 
   writeFixture(
     path.join(desktopRoot, ".cache", "codex-app", "latest-release.json"),
-    `${JSON.stringify({ version: appVersion }, null, 2)}\n`,
+    `${JSON.stringify({ buildNumber: appBuildNumber, extractDir: appExtractDir, version: appVersion }, null, 2)}\n`,
   );
   writeFixture(
     path.join(
       desktopRoot,
       ".cache",
       "codex-app",
-      `extract-${appVersion}`,
+      appExtractDir,
       "Codex.app",
       "Contents",
       "Resources",
@@ -69,8 +71,25 @@ function createDesktopFixture() {
     `${JSON.stringify({ name: "classic-level", version: "3.0.0" }, null, 2)}\n`,
   );
 
-  return { browserPluginRoot, classicLevelRoot, desktopRoot };
+  return { appBuildNumber, appExtractDir, appVersion, browserPluginRoot, classicLevelRoot, desktopRoot };
 }
+
+test("accepts legacy app extract cache metadata without extractDir", async () => {
+  const { appBuildNumber, appExtractDir, appVersion, browserPluginRoot, desktopRoot } = createDesktopFixture();
+  const codexAppCacheRoot = path.join(desktopRoot, ".cache", "codex-app");
+  const legacyExtractDir = `extract-${appVersion}`;
+  fs.renameSync(path.join(codexAppCacheRoot, appExtractDir), path.join(codexAppCacheRoot, legacyExtractDir));
+  writeFixture(
+    path.join(codexAppCacheRoot, "latest-release.json"),
+    `${JSON.stringify({ buildNumber: appBuildNumber, version: appVersion }, null, 2)}\n`,
+  );
+  fs.rmSync(browserPluginRoot, { recursive: true, force: true });
+
+  const result = await verifyBrowserClientRuntime({ desktopRoot });
+
+  assert.equal(result.nodeVersion, "v24.14.0");
+  assert.equal(result.browserPluginPresent, false);
+});
 
 test("accepts browser client native payload metadata matching the bundled Node ABI", async () => {
   const { classicLevelRoot, desktopRoot } = createDesktopFixture();

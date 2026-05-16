@@ -8,7 +8,13 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Get-CodexProcess {
-    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+    try {
+        $processes = Get-CimInstance Win32_Process -ErrorAction Stop
+    } catch {
+        throw "Could not inspect running Codex processes. Close Codex manually or fix process enumeration before moving logs. $($_.Exception.Message)"
+    }
+
+    $processes |
         Where-Object {
             $_.Name -eq "Codex.exe" -or $_.Name -eq "codex.exe"
         } |

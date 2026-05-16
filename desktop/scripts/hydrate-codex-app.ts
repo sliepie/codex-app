@@ -10,8 +10,10 @@ import {
 
 type Options = {
   version?: string;
+  buildNumber?: string;
   appcastUrl: string;
   cacheRoot: string;
+  codexPlusPlusRepo: string;
   codexPlusPlusSha?: string;
   codexPlusPlusTag?: string;
   force: boolean;
@@ -90,7 +92,13 @@ type GithubGitTag = {
   } | null;
 };
 
-const desktopRoot = process.cwd();
+function resolveDesktopRoot(): string {
+  return path.basename(__dirname) === "scripts" && path.basename(path.dirname(__dirname)) === ".cache"
+    ? path.resolve(__dirname, "..", "..")
+    : path.resolve(__dirname, "..");
+}
+
+const desktopRoot = resolveDesktopRoot();
 const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-node-modules");
 const electronNativeModuleCacheInputPaths = [
   "package-lock.json",
@@ -98,7 +106,7 @@ const electronNativeModuleCacheInputPaths = [
   "scripts/patch-better-sqlite3-electron.ts",
 ] as const;
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
-const codexPlusPlusRepo = "b-nnett/codex-plusplus";
+const defaultCodexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
 const openAiBundledMarketplaceName = "openai-bundled";
 const excludedBundledPluginNames = new Set(["computer-use", "chrome", "latex"]);
@@ -130,11 +138,18 @@ function parseOptions(argv: string[]): Options {
     path.join(desktopRoot, ".cache", "codex-app");
 
   return {
-    version: readOption(argv, "--version", "-Version"),
+    version: readOption(argv, "--version", "-Version") ?? process.env.CODEX_APP_VERSION,
+    buildNumber:
+      readOption(argv, "--build-number", "-BuildNumber") ??
+      process.env.CODEX_APP_BUILD,
     appcastUrl:
       readOption(argv, "--appcast-url", "-AppcastUrl") ??
       "https://persistent.oaistatic.com/codex-app-prod/appcast.xml",
     cacheRoot,
+    codexPlusPlusRepo:
+      readOption(argv, "--codex-plusplus-repo", "-CodexPlusPlusRepo") ??
+      process.env.CODEX_PLUS_PLUS_REPOSITORY ??
+      defaultCodexPlusPlusRepo,
     codexPlusPlusTag:
       readOption(argv, "--codex-plusplus-tag", "-CodexPlusPlusTag") ??
       process.env.CODEX_PLUS_PLUS_TAG,
@@ -153,7 +168,15 @@ function firstMatch(text: string, pattern: RegExp, message: string): string {
   return match[1].trim();
 }
 
-function findReleaseItem(appcast: string, version?: string): string {
+function releaseItemVersion(item: string): string | undefined {
+  return item.match(/<sparkle:shortVersionString>([^<]+)<\/sparkle:shortVersionString>/i)?.[1]?.trim();
+}
+
+function releaseItemBuildNumber(item: string): string | undefined {
+  return item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim();
+}
+
+function findReleaseItem(appcast: string, version?: string, buildNumber?: string): string {
   const items = [...appcast.matchAll(/<item\b[\s\S]*?<\/item>/gi)].map(
     (match) => match[0],
   );
@@ -164,10 +187,16 @@ function findReleaseItem(appcast: string, version?: string): string {
     return items.find((item) => /<enclosure\b/i.test(item)) ?? items[0];
   }
 
-  const item = items.find((candidate) =>
-    candidate.includes(`<sparkle:shortVersionString>${version}</sparkle:shortVersionString>`),
-  );
+  const item = items.find((candidate) => {
+    if (releaseItemVersion(candidate) !== version) {
+      return false;
+    }
+    return !buildNumber || releaseItemBuildNumber(candidate) === buildNumber;
+  });
   if (!item) {
+    if (buildNumber) {
+      throw new Error(`Codex app version ${version} build ${buildNumber} was not found in the appcast.`);
+    }
     throw new Error(`Codex app version ${version} was not found in the appcast.`);
   }
   return item;
@@ -344,6 +373,10 @@ function sanitizePathSegment(value: string): string {
   return value.replace(/[^A-Za-z0-9._-]/g, "_");
 }
 
+function appExtractCacheSegment(version: string, buildNumber?: string): string {
+  return sanitizePathSegment(buildNumber ? `${version}-build-${buildNumber}` : version);
+}
+
 function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
@@ -357,12 +390,24 @@ function githubHeaders(): Record<string, string> {
   return headers;
 }
 
-async function fetchCodexPlusPlusRelease(tagName?: string): Promise<CodexPlusPlusRelease> {
+function repositoryApiPath(repository: string): string {
+  const parts = repository.split("/");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    throw new Error("Invalid GitHub repository value: " + repository);
+  }
+
+  return encodeURIComponent(parts[0]) + "/" + encodeURIComponent(parts[1]);
+}
+
+async function fetchCodexPlusPlusRelease(
+  repository: string,
+  tagName?: string,
+): Promise<CodexPlusPlusRelease> {
   const releasePath = tagName
     ? `releases/tags/${encodeURIComponent(tagName)}`
     : "releases/latest";
   const response = await fetch(
-    `https://api.github.com/repos/${codexPlusPlusRepo}/${releasePath}`,
+    `https://api.github.com/repos/${repositoryApiPath(repository)}/${releasePath}`,
     {
       headers: githubHeaders(),
     },
@@ -376,9 +421,12 @@ async function fetchCodexPlusPlusRelease(tagName?: string): Promise<CodexPlusPlu
   return await response.json() as CodexPlusPlusRelease;
 }
 
-async function fetchCodexPlusPlusTagCommitSha(tagName: string): Promise<string> {
+async function fetchCodexPlusPlusTagCommitSha(
+  repository: string,
+  tagName: string,
+): Promise<string> {
   const response = await fetch(
-    `https://api.github.com/repos/${codexPlusPlusRepo}/git/ref/tags/${encodeURIComponent(tagName)}`,
+    `https://api.github.com/repos/${repositoryApiPath(repository)}/git/ref/tags/${encodeURIComponent(tagName)}`,
     { headers: githubHeaders() },
   );
   if (!response.ok) {
@@ -399,7 +447,7 @@ async function fetchCodexPlusPlusTagCommitSha(tagName: string): Promise<string> 
   }
 
   const tagResponse = await fetch(
-    object.url ?? `https://api.github.com/repos/${codexPlusPlusRepo}/git/tags/${sha}`,
+    object.url ?? `https://api.github.com/repos/${repositoryApiPath(repository)}/git/tags/${sha}`,
     { headers: githubHeaders() },
   );
   if (!tagResponse.ok) {
@@ -451,6 +499,7 @@ export function syncCodexPlusPlusRuntimeAssets(
   sourceRoot: string,
   release: CodexPlusPlusRelease,
   destinationRoot = codexPlusPlusRoot,
+  repository = defaultCodexPlusPlusRepo,
 ): void {
   const runtimeSourceRoot = path.join(
     sourceRoot,
@@ -468,6 +517,14 @@ export function syncCodexPlusPlusRuntimeAssets(
       throw new Error(`Codex++ release is missing runtime asset ${fileName}.`);
     }
   }
+  const preloadSource = fs.readFileSync(path.join(runtimeSourceRoot, "preload.js"), "utf8");
+  if (
+    !preloadSource.includes("codexpp:settings-surface") ||
+    !preloadSource.includes("__codexppSettingsSurfaceVisible") ||
+    !/\bdetail\s*:\s*\{[\s\S]*?\bvisible\b/.test(preloadSource)
+  ) {
+    throw new Error("Codex++ release runtime is missing the settings surface event contract.");
+  }
   if (!fs.existsSync(licensePath)) {
     throw new Error("Codex++ release is missing LICENSE.");
   }
@@ -480,7 +537,7 @@ export function syncCodexPlusPlusRuntimeAssets(
     path.join(destinationRoot, "release.json"),
     `${JSON.stringify(
       {
-        repo: codexPlusPlusRepo,
+        repo: repository,
         tagName: release.tag_name,
         commitSha: release.commitSha,
         releaseUrl: release.html_url,
@@ -497,23 +554,24 @@ export function syncCodexPlusPlusRuntimeAssets(
 
 async function hydrateCodexPlusPlusRuntime(
   cacheRoot: string,
+  repository: string,
   force: boolean,
   pinnedTagName?: string,
   pinnedCommitSha?: string,
 ): Promise<void> {
-  const release = await fetchCodexPlusPlusRelease(pinnedTagName);
+  const release = await fetchCodexPlusPlusRelease(repository, pinnedTagName);
   const tagName = release.tag_name?.trim();
   if (!tagName) {
     throw new Error("Latest Codex++ release is missing a tag.");
   }
-  const commitSha = await fetchCodexPlusPlusTagCommitSha(tagName);
+  const commitSha = await fetchCodexPlusPlusTagCommitSha(repository, tagName);
   if (pinnedCommitSha && pinnedCommitSha.toLowerCase() !== commitSha.toLowerCase()) {
     throw new Error(
       `Codex++ tag ${tagName} resolved to ${commitSha}, expected ${pinnedCommitSha}.`,
     );
   }
 
-  const zipballUrl = `https://api.github.com/repos/${codexPlusPlusRepo}/zipball/${commitSha}`;
+  const zipballUrl = `https://api.github.com/repos/${repositoryApiPath(repository)}/zipball/${commitSha}`;
   const safeTagName = sanitizePathSegment(`${tagName}-${commitSha.slice(0, 12)}`);
   const codexPlusPlusCacheRoot = path.join(cacheRoot, "codex-plusplus");
   const zipPath = path.join(codexPlusPlusCacheRoot, `${safeTagName}.zip`);
@@ -539,11 +597,16 @@ async function hydrateCodexPlusPlusRuntime(
     throw new Error("Could not find Codex++ runtime assets in the latest release archive.");
   }
 
-  syncCodexPlusPlusRuntimeAssets(sourceRoot, {
-    ...release,
-    commitSha,
-    zipball_url: zipballUrl,
-  });
+  syncCodexPlusPlusRuntimeAssets(
+    sourceRoot,
+    {
+      ...release,
+      commitSha,
+      zipball_url: zipballUrl,
+    },
+    codexPlusPlusRoot,
+    repository,
+  );
   console.log(`Hydrated Codex++ ${tagName} (${commitSha}) from ${release.html_url ?? zipballUrl}`);
 }
 
@@ -591,7 +654,8 @@ function hasNativePayload(packageRoot: string): boolean {
 
     if (
       entry.isFile() &&
-      [".node", ".dll", ".dylib", ".so", ".exe"].includes(path.extname(entry.name))
+      (entry.name === "binding.gyp" ||
+        [".node", ".dll", ".dylib", ".so", ".exe"].includes(path.extname(entry.name)))
     ) {
       return true;
     }
@@ -1425,7 +1489,7 @@ export function collectNativeNodeModuleTargets(
   return targets;
 }
 
-function removeForeignPrebuilds(nodeModulesRoot: string): void {
+function removeForeignPrebuildsRecursive(nodeModulesRoot: string): void {
   if (!fs.existsSync(nodeModulesRoot)) {
     return;
   }
@@ -1444,8 +1508,62 @@ function removeForeignPrebuilds(nodeModulesRoot: string): void {
       continue;
     }
 
-    removeForeignPrebuilds(entryPath);
+    removeForeignPrebuildsRecursive(entryPath);
   }
+}
+
+function removeUnusedNodePtyFallbackPayloads(nodeModulesRoot: string): void {
+  const nodePtyRoot = packageRoot(nodeModulesRoot, "node-pty");
+  if (!fs.existsSync(nodePtyRoot)) {
+    return;
+  }
+
+  for (const payloadPath of [
+    path.join(
+      nodePtyRoot,
+      "prebuilds",
+      `${targetRuntimePlatform}-${targetRuntimeArch}`,
+      "conpty",
+    ),
+    path.join(nodePtyRoot, "third_party", "conpty"),
+    path.join(
+      nodePtyRoot,
+      "prebuilds",
+      `${targetRuntimePlatform}-${targetRuntimeArch}`,
+      "winpty.dll",
+    ),
+    path.join(
+      nodePtyRoot,
+      "prebuilds",
+      `${targetRuntimePlatform}-${targetRuntimeArch}`,
+      "winpty-agent.exe",
+    ),
+  ]) {
+    fs.rmSync(payloadPath, { recursive: true, force: true });
+  }
+}
+
+function removeDebugSymbolPayloads(nodeModulesRoot: string): void {
+  if (!fs.existsSync(nodeModulesRoot)) {
+    return;
+  }
+
+  for (const entry of fs.readdirSync(nodeModulesRoot, { withFileTypes: true })) {
+    const entryPath = path.join(nodeModulesRoot, entry.name);
+    if (entry.isDirectory()) {
+      removeDebugSymbolPayloads(entryPath);
+      continue;
+    }
+    if (entry.isFile() && path.extname(entry.name).toLowerCase() === ".pdb") {
+      fs.rmSync(entryPath, { force: true });
+    }
+  }
+}
+
+export function pruneUnusedNativePayloads(nodeModulesRoot: string): void {
+  removeForeignPrebuildsRecursive(nodeModulesRoot);
+  removeUnusedNodePtyFallbackPayloads(nodeModulesRoot);
+  removeDebugSymbolPayloads(nodeModulesRoot);
 }
 
 function syncNativeNodeModulesTarget(
@@ -1473,7 +1591,7 @@ function syncNativeNodeModulesTarget(
   ) {
     console.log(`Restored native Node modules from cache for ${target.label}.`);
   }
-  removeForeignPrebuilds(target.nodeModulesRoot);
+  pruneUnusedNativePayloads(target.nodeModulesRoot);
 
   if (nativeNodeModulesReady(target, runtimeVersion)) {
     if (!fs.existsSync(runtimeCacheNodeModulesRoot(nativeModules, target.runtime, runtimeVersion))) {
@@ -1516,7 +1634,7 @@ function syncNativeNodeModulesTarget(
   }
 
   const nativeModuleNames = nativeModules.map((nativeModule) => nativeModule.name);
-  removeForeignPrebuilds(target.nodeModulesRoot);
+  pruneUnusedNativePayloads(target.nodeModulesRoot);
   if (target.runtime === "electron") {
     runElectronPrebuildInstall(
       target,
@@ -1524,7 +1642,7 @@ function syncNativeNodeModulesTarget(
       runtimeVersion,
     );
     writeRuntimeMetadata(target.nodeModulesRoot, nativeModules, target.runtime, abi);
-    removeForeignPrebuilds(target.nodeModulesRoot);
+    pruneUnusedNativePayloads(target.nodeModulesRoot);
   }
 
   if (nativeNodeModulesReady(target, runtimeVersion)) {
@@ -1579,7 +1697,7 @@ function syncNativeNodeModulesTarget(
     runNodeRebuild(modulesRequiringRebuild, runtimeVersion, target.nodeModulesRoot);
   });
   writeRuntimeMetadata(target.nodeModulesRoot, nativeModules, target.runtime, abi);
-  removeForeignPrebuilds(target.nodeModulesRoot);
+  pruneUnusedNativePayloads(target.nodeModulesRoot);
   if (!nativeNodeModulesReady(target, runtimeVersion)) {
     throw new Error(
       `Native Node modules did not produce Windows ARM64 ${target.runtime} ABI ${abi} payloads in ${target.label}.`,
@@ -2073,14 +2191,18 @@ async function main(): Promise<void> {
     );
   }
 
-  const item = findReleaseItem(await appcastResponse.text(), options.version);
+  const item = findReleaseItem(await appcastResponse.text(), options.version, options.buildNumber);
   const selectedVersion = firstMatch(
     item,
     /<sparkle:shortVersionString>([^<]+)<\/sparkle:shortVersionString>/i,
     "The selected Codex app release does not have a version.",
   );
-  const selectedBuildNumber =
-    item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim() ?? "";
+  const selectedBuildNumber = releaseItemBuildNumber(item) ?? "";
+  if (options.buildNumber && selectedBuildNumber !== options.buildNumber) {
+    throw new Error(
+      `Codex app version ${selectedVersion} resolved to build ${selectedBuildNumber}, expected ${options.buildNumber}.`,
+    );
+  }
   const downloadUrl = firstMatch(
     item,
     /<enclosure\b[^>]*\burl="([^"]+)"/i,
@@ -2088,8 +2210,11 @@ async function main(): Promise<void> {
   );
   const expectedDownloadLength = item.match(/<enclosure\b[^>]*\blength="([0-9]+)"/i)?.[1];
 
-  const zipPath = path.join(options.cacheRoot, path.basename(new URL(downloadUrl).pathname));
-  const extractRoot = path.join(options.cacheRoot, `extract-${selectedVersion}`);
+  const appCacheSegment = appExtractCacheSegment(selectedVersion, selectedBuildNumber);
+  const downloadExtension = path.extname(new URL(downloadUrl).pathname) || ".zip";
+  const zipPath = path.join(options.cacheRoot, `${appCacheSegment}${downloadExtension}`);
+  const extractDir = `extract-${appCacheSegment}`;
+  const extractRoot = path.join(options.cacheRoot, extractDir);
   const recoveredRoot = path.join(desktopRoot, "recovered", "app-asar-extracted");
   const releaseInfoPath = path.join(options.cacheRoot, "latest-release.json");
 
@@ -2125,6 +2250,7 @@ async function main(): Promise<void> {
   syncBundledPluginResources(appResourcesRoot);
   await hydrateCodexPlusPlusRuntime(
     options.cacheRoot,
+    options.codexPlusPlusRepo,
     options.force,
     options.codexPlusPlusTag,
     options.codexPlusPlusSha,
@@ -2151,6 +2277,7 @@ async function main(): Promise<void> {
       {
         version: selectedVersion,
         buildNumber: selectedBuildNumber,
+        extractDir,
         downloadUrl,
       },
       null,

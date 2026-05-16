@@ -2,7 +2,18 @@ import crypto from "node:crypto";
 import { appendFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-const desktopRoot = process.cwd();
+function scriptDirectory(): string {
+  return typeof __dirname === "string" ? __dirname : path.dirname(path.resolve(process.argv[1] ?? "."));
+}
+
+function resolveDesktopRoot(): string {
+  const directory = scriptDirectory();
+  return path.basename(directory) === "scripts" && path.basename(path.dirname(directory)) === ".cache"
+    ? path.resolve(directory, "..", "..")
+    : path.resolve(directory, "..");
+}
+
+const desktopRoot = resolveDesktopRoot();
 
 const appcastUrl =
   process.env.CODEX_APPCAST_URL ??
@@ -92,13 +103,13 @@ function escapeRegExp(value: string): string {
 }
 
 function repositoryApiUrl(repository: string, path: string): URL {
-  const [owner, repo] = repository.split("/");
-  if (!owner || !repo) {
+  const parts = repository.split("/");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
     fail(`Invalid GitHub repository value: ${repository}`);
   }
 
   return new URL(
-    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${path}`,
+    `/repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}${path}`,
     githubApiUrl.endsWith("/") ? githubApiUrl : `${githubApiUrl}/`,
   );
 }

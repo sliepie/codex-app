@@ -33,33 +33,13 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .node-version
-          cache: npm
-          cache-dependency-path: desktop/package-lock.json
-
-      - name: Restore Electron cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: .cache/electron
-          key: windows-arm64-electron-${{ runner.os }}-${{ hashFiles('desktop/package-lock.json') }}
-
-      - name: Install dependencies
-        working-directory: desktop
-        run: npm ci
-
-      - name: Build desktop scripts
-        working-directory: desktop
-        run: npm run build:scripts
 
       - name: Resolve upstream release versions
         id: upstream
         working-directory: desktop
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node ./.cache/scripts/resolve-codex-releases.js
-
-      - name: Run targeted desktop tests
-        working-directory: desktop
-        run: npm run test:resolve-codex-releases && npm run test:windows-package-resources && npm run test:verify-browser-client-runtime
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/resolve-codex-releases.ts
 
       - name: Skip released commit
         if: steps.upstream.outputs.current_commit_release_tag != ''
@@ -71,6 +51,36 @@ jobs:
           CURRENT_COMMIT_RELEASE_TAG: ${{ steps.upstream.outputs.current_commit_release_tag }}
         run: |
           Write-Output "Codex app $env:RELEASE_VERSION build $env:CODEX_APP_BUILD with CLI $env:CODEX_CLI_TAG and Codex++ $env:CODEX_PLUS_PLUS_TAG already has repo release $env:CURRENT_COMMIT_RELEASE_TAG for this commit."
+
+      - name: Restore npm cache
+        if: steps.upstream.outputs.current_commit_release_tag == ''
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Restore Electron cache
+        if: steps.upstream.outputs.current_commit_release_tag == ''
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .cache/electron
+          key: windows-arm64-electron-${{ runner.os }}-${{ hashFiles('desktop/package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.upstream.outputs.current_commit_release_tag == ''
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build desktop scripts
+        if: steps.upstream.outputs.current_commit_release_tag == ''
+        working-directory: desktop
+        run: npm run build:scripts
+
+      - name: Run targeted desktop tests
+        if: steps.upstream.outputs.current_commit_release_tag == ''
+        working-directory: desktop
+        run: npm run test:resolve-codex-releases:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled
 
       - name: Restore hydrated release cache
         if: steps.upstream.outputs.current_commit_release_tag == ''
@@ -111,6 +121,8 @@ jobs:
         if: steps.upstream.outputs.current_commit_release_tag == ''
         working-directory: desktop
         env:
+          CODEX_APP_VERSION: ${{ steps.upstream.outputs.codex_app_version }}
+          CODEX_APP_BUILD: ${{ steps.upstream.outputs.codex_app_build }}
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
           CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
           CODEX_PLUS_PLUS_SHA: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
@@ -214,7 +226,7 @@ jobs:
       - name: Prepare self-signed MSIX payload
         if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && steps.upstream.outputs.current_commit_release_tag == ''
         working-directory: desktop
-        run: npm run prepare:self-signed-msix-payload -- --package-root "${{ github.workspace }}\desktop\out\Codex-win32-${{ env.PACKAGE_ARCHITECTURE }}" --output-root "${{ github.workspace }}\codex"
+        run: npm run prepare:self-signed-msix-payload:compiled -- --package-root "${{ github.workspace }}\desktop\out\Codex-win32-${{ env.PACKAGE_ARCHITECTURE }}" --output-root "${{ github.workspace }}\codex"
 
       - name: Build self-signed MSIX
         if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && steps.upstream.outputs.current_commit_release_tag == ''
@@ -253,7 +265,7 @@ jobs:
           APPINSTALLER_URI: ${{ vars.SELF_SIGNED_APPINSTALLER_URI }}
           PAGES_BASE_URL: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}
           PACKAGE_URI: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}/Codex-${{ env.PACKAGE_ARCHITECTURE }}-self-signed.msix
-        run: npm run write:self-signed-appinstaller -- --architecture "${{ env.PACKAGE_ARCHITECTURE }}" --output "${{ github.workspace }}\out\windows\self-signed\release-assets\Codex.appinstaller"
+        run: npm run write:self-signed-appinstaller:compiled -- --architecture "${{ env.PACKAGE_ARCHITECTURE }}" --output "${{ github.workspace }}\out\windows\self-signed\release-assets\Codex.appinstaller"
 
       - name: Upload self-signed MSIX artifacts
         if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && steps.upstream.outputs.current_commit_release_tag == ''

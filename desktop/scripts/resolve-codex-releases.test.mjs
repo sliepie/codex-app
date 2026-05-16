@@ -15,6 +15,7 @@ const nativeModuleCacheInputPaths = [
   "scripts/patch-better-sqlite3-electron.ts",
 ];
 const scriptPath = fileURLToPath(new URL("../.cache/scripts/resolve-codex-releases.js", import.meta.url));
+const typescriptScriptPath = fileURLToPath(new URL("resolve-codex-releases.ts", import.meta.url));
 
 const appcast = `<?xml version="1.0" encoding="utf-8"?>
 <rss>
@@ -46,6 +47,7 @@ function startServer(
   {
     appcastSource = appcast,
     codexCliTag = "rust-v0.129.0",
+    codexPlusPlusRepo = "b-nnett/codex-plusplus",
     codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
     codexPlusPlusTag = "v0.1.7",
   } = {},
@@ -69,13 +71,13 @@ function startServer(
       return;
     }
 
-    if (request.url === "/repos/b-nnett/codex-plusplus/releases/latest") {
+    if (request.url === `/repos/${codexPlusPlusRepo}/releases/latest`) {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ tag_name: codexPlusPlusTag }));
       return;
     }
 
-    if (request.url === `/repos/b-nnett/codex-plusplus/git/ref/tags/${codexPlusPlusTag}`) {
+    if (request.url === `/repos/${codexPlusPlusRepo}/git/ref/tags/${codexPlusPlusTag}`) {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(
         JSON.stringify({
@@ -118,13 +120,16 @@ async function runResolver({
   releases,
   appcastSource,
   codexCliTag,
+  codexPlusPlusRepo = "b-nnett/codex-plusplus",
   codexPlusPlusSha,
   codexPlusPlusTag,
   sha = "abcdef1234567890",
+  scriptArgs = [scriptPath],
 }) {
   const server = await startServer(releases, {
     appcastSource,
     codexCliTag,
+    codexPlusPlusRepo,
     codexPlusPlusSha,
     codexPlusPlusTag,
   });
@@ -135,11 +140,12 @@ async function runResolver({
     await new Promise((resolve, reject) => {
       execFile(
         process.execPath,
-        [scriptPath],
+        scriptArgs,
         {
           env: {
             ...process.env,
             CODEX_APPCAST_URL: `${server.origin}/appcast.xml`,
+            CODEX_PLUS_PLUS_REPOSITORY: codexPlusPlusRepo,
             GH_TOKEN: "test-token",
             GITHUB_API_URL: server.origin,
             GITHUB_OUTPUT: outputPath,
@@ -190,6 +196,37 @@ test("starts new Codex app releases at repo revision zero", async () => {
   assert.equal(
     output.native_modules_cache_key,
     expectedNativeModulesCacheKey,
+  );
+});
+
+test("runs release resolver directly from TypeScript before dependency install", async () => {
+  const output = await runResolver({
+    releases: [],
+    scriptArgs: [
+      "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
+      "--experimental-strip-types",
+      typescriptScriptPath,
+    ],
+  });
+
+  assert.equal(output.codex_app_version, "26.429.61741");
+  assert.equal(output.codex_app_build, "2429");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.0");
+});
+
+test("resolves Codex++ releases from the configured repository", async () => {
+  const output = await runResolver({
+    releases: [],
+    codexPlusPlusRepo: "sliepie/codex-plusplus",
+    codexPlusPlusSha: "1111111111111111111111111111111111111111",
+    codexPlusPlusTag: "v0.2.0",
+  });
+
+  assert.equal(output.codex_plus_plus_tag, "v0.2.0");
+  assert.equal(output.codex_plus_plus_sha, "1111111111111111111111111111111111111111");
+  assert.match(
+    output.hydration_cache_key,
+    /codex-plusplus-v0\.2\.0-1111111111111111111111111111111111111111/,
   );
 });
 

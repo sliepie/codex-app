@@ -15,6 +15,7 @@ const {
   collectNativeNodeModuleTargets,
   hasArm64RuntimePayload,
   patchCodexWindowServicesSource,
+  pruneUnusedNativePayloads,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
 } = require(
@@ -205,7 +206,7 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   );
   writeFixture(
     path.join(sourceRoot, "packages", "installer", "assets", "runtime", "preload.js"),
-    "module.exports = {};\n",
+    "window.__codexppSettingsSurfaceVisible = true; window.dispatchEvent(new CustomEvent('codexpp:settings-surface', { detail: { visible: true } }));\n",
   );
   writeFixture(path.join(sourceRoot, "LICENSE"), "MIT\n");
 
@@ -219,6 +220,7 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
       published_at: "2026-05-12T14:08:09Z",
     },
     destinationRoot,
+    "sliepie/codex-plusplus",
   );
 
   assert.equal(
@@ -227,9 +229,35 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   );
   assert.equal(fs.readFileSync(path.join(destinationRoot, "LICENSE"), "utf8"), "MIT\n");
   const release = JSON.parse(fs.readFileSync(path.join(destinationRoot, "release.json"), "utf8"));
-  assert.equal(release.repo, "b-nnett/codex-plusplus");
+  assert.equal(release.repo, "sliepie/codex-plusplus");
   assert.equal(release.tagName, "v0.1.7");
   assert.equal(release.commitSha, "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413");
+});
+
+test("rejects Codex++ runtime assets without the settings surface event contract", () => {
+  const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plusplus-source-"));
+  const destinationRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plusplus-output-"));
+  writeFixture(
+    path.join(sourceRoot, "packages", "installer", "assets", "runtime", "main.js"),
+    "module.exports = {};\n",
+  );
+  writeFixture(
+    path.join(sourceRoot, "packages", "installer", "assets", "runtime", "preload.js"),
+    "module.exports = {};\n",
+  );
+  writeFixture(path.join(sourceRoot, "LICENSE"), "MIT\n");
+
+  assert.throws(
+    () =>
+      syncCodexPlusPlusRuntimeAssets(sourceRoot, {
+        tag_name: "v0.1.7",
+        commitSha: "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+        html_url: "https://github.com/sliepie/codex-plusplus/releases/tag/v0.1.7",
+        zipball_url: "https://api.github.com/repos/sliepie/codex-plusplus/zipball/v0.1.7",
+        published_at: "2026-05-12T14:08:09Z",
+      }, destinationRoot, "sliepie/codex-plusplus"),
+    /settings surface event contract/,
+  );
 });
 
 test("patches recovered Codex window services source", () => {
@@ -387,6 +415,75 @@ test("foreign-only native prebuilds are not ready for Windows ARM64", () => {
   writePeFixture(path.join(packageRoot, "build", "Release", "classic-level.node"), 0xaa64);
 
   assert.equal(hasArm64RuntimePayload(packageRoot), true);
+});
+
+test("discovers source-only native packages that declare binding.gyp", () => {
+  const recoveredRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-recovered-"));
+  const pluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugins-"));
+  const packageRoot = path.join(recoveredRoot, "node_modules", "source-native");
+  writeFixture(
+    path.join(packageRoot, "package.json"),
+    `${JSON.stringify({ name: "source-native", version: "1.0.0" }, null, 2)}\n`,
+  );
+  writeFixture(path.join(packageRoot, "binding.gyp"), "{}\n");
+
+  const targets = collectNativeNodeModuleTargets(recoveredRoot, pluginsRoot);
+
+  assert.deepEqual(targets.map((target) => target.nativeModules).flat(), [
+    { name: "source-native", version: "1.0.0" },
+  ]);
+});
+
+test("prunes unused node-pty fallback and debug payloads", () => {
+  const nodeModulesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-native-modules-"));
+  const nodePtyRoot = path.join(nodeModulesRoot, "node-pty");
+
+  for (const filePath of [
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "conpty.node"),
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "conpty.pdb"),
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "conpty_console_list.node"),
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "conpty_console_list.pdb"),
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "pty.node"),
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "pty.pdb"),
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "winpty.dll"),
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "winpty.pdb"),
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "winpty-agent.exe"),
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "winpty-agent.pdb"),
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "conpty", "conpty.dll"),
+    path.join(nodePtyRoot, "prebuilds", "win32-arm64", "conpty", "OpenConsole.exe"),
+    path.join(nodePtyRoot, "third_party", "conpty", "1.23.251008001", "win10-arm64", "conpty.dll"),
+    path.join(nodePtyRoot, "third_party", "conpty", "1.23.251008001", "win10-arm64", "OpenConsole.exe"),
+    path.join(nodePtyRoot, "third_party", "conpty", "1.23.251008001", "win10-x64", "conpty.dll"),
+    path.join(nodePtyRoot, "third_party", "conpty", "1.23.251008001", "win10-x64", "OpenConsole.exe"),
+    path.join(nodePtyRoot, "prebuilds", "win32-x64", "pty.node"),
+  ]) {
+    writePeFixture(filePath, filePath.includes("x64") ? 0x8664 : 0xaa64);
+  }
+
+  pruneUnusedNativePayloads(nodeModulesRoot);
+
+  assert.equal(fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "conpty")), false);
+  assert.equal(fs.existsSync(path.join(nodePtyRoot, "third_party", "conpty")), false);
+  assert.equal(fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-x64")), false);
+  assert.equal(fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "conpty.pdb")), false);
+  assert.equal(
+    fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "conpty_console_list.pdb")),
+    false,
+  );
+  assert.equal(fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "pty.pdb")), false);
+  assert.equal(fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "winpty.pdb")), false);
+  assert.equal(fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "winpty-agent.pdb")), false);
+  assert.equal(fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "conpty.node")), true);
+  assert.equal(
+    fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "conpty_console_list.node")),
+    true,
+  );
+  assert.equal(fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "pty.node")), true);
+  assert.equal(fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "winpty.dll")), false);
+  assert.equal(
+    fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "winpty-agent.exe")),
+    false,
+  );
 });
 
 test("Mach-O native payloads are not ready for Windows ARM64", () => {
@@ -572,7 +669,15 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.ok(config.packagerConfig.extraResource.includes("resources/plugins"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus-old/loader.cjs"), true);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);
+  assert.equal(config.packagerConfig.ignore("/package.json.bak"), true);
+  assert.equal(
+    config.packagerConfig.ignore(
+      "/recovered/app-asar-extracted/node_modules/node-pty/prebuilds/win32-arm64/conpty.pdb",
+    ),
+    true,
+  );
   assert.equal(
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json"),
     false,
@@ -592,8 +697,11 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.match(loaderSource, /bundledVersionIsNewer\(marker\.version, current\.version\)/);
   assert.match(loaderSource, /__codexpp\.originalMain/);
   assert.match(loaderSource, /registerEarlyPreloadHooks\(\);[\s\S]*require\(path\.join\(packagedRoot, originalMain\)\)/);
-  assert.match(loaderSource, /removeUnbundledAppTweaks\(tweaksDir, bundledIds\)/);
+  assert.match(loaderSource, /canRemoveStaleTweaks/);
   assert.match(loaderSource, /maxLogBytes = 10 \* 1024 \* 1024/);
+  assert.match(loaderSource, /if \(size > maxLogBytes\)/);
+  assert.match(loaderSource, /function trimLogToRetainedBytes/);
+  assert.match(loaderSource, /fs\.readSync\(/);
 
   const forgeSource = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
   assert.match(forgeSource, /originalMain: recoveredOriginalMain\(upstreamPackageJson\)/);
@@ -815,6 +923,7 @@ test("Codex++ loader upgrades trusted bundled tweak installs", (t) => {
 
 test("Codex++ loader removes trusted app-owned bundled tweaks no longer packaged", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
+  fs.mkdirSync(path.join(fixture.root, "codex-plusplus", "tweaks"), { recursive: true });
   const removedTweakRoot = path.join(
     fixture.appData,
     "codex-plusplus",
@@ -843,6 +952,32 @@ test("Codex++ loader removes trusted app-owned bundled tweaks no longer packaged
   assert.equal(fs.existsSync(userTweakRoot), true);
 });
 
+test("Codex++ loader keeps installed tweaks when bundled tweak discovery fails", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.root, "codex-plusplus", "tweaks", "bad-tweak", "manifest.json"),
+    JSON.stringify({ id: "../escaped", version: "1.0.0" }, null, 2) + "\n",
+  );
+  const installedTweakRoot = path.join(
+    fixture.appData,
+    "codex-plusplus",
+    "tweaks",
+    "app.sliepie.codex.mobile-pairing",
+  );
+  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
+  writeFixture(
+    path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"),
+    JSON.stringify(
+      { source: "codex-app", id: "app.sliepie.codex.mobile-pairing", version: "0.1.0" },
+      null,
+      2,
+    ) + "\n",
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.equal(fs.existsSync(installedTweakRoot), true);
+});
+
 test("Codex++ loader rejects unsafe bundled tweak ids", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   writeFixture(
@@ -864,6 +999,37 @@ test("Codex++ loader does not rewrite already disabled updater config", (t) => {
   assert.equal(fs.readFileSync(configPath, "utf8"), configSource);
 });
 
+test("Codex++ loader disables updater when nested config shape is invalid", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  const configPath = path.join(fixture.appData, "codex-plusplus", "config.json");
+  writeFixture(configPath, JSON.stringify({ codexPlusPlus: "invalid", keep: true }, null, 2) + "\n");
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(configPath, "utf8")), {
+    codexPlusPlus: { autoUpdate: false },
+    keep: true,
+  });
+});
+
+test("Codex++ loader disables updater when config JSON is malformed", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  const configPath = path.join(fixture.appData, "codex-plusplus", "config.json");
+  writeFixture(configPath, "{broken json\n");
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(configPath, "utf8")), {
+    codexPlusPlus: { autoUpdate: false },
+  });
+  const invalidConfigFiles = fs
+    .readdirSync(path.dirname(configPath))
+    .filter((name) => name.startsWith("config.json.invalid"));
+  assert.equal(invalidConfigFiles.length, 1);
+  assert.equal(
+    fs.readFileSync(path.join(path.dirname(configPath), invalidConfigFiles[0]), "utf8"),
+    "{broken json\n",
+  );
+});
+
 test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
   const tweaksRoot = path.join(desktopRoot, "codex-plusplus", "tweaks");
   const tweakNames = fs
@@ -883,6 +1049,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
     assert.notEqual(manifest.id.includes("keyboard"), true);
 
     const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+    assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
     assert.doesNotThrow(() => {
       const module = { exports: {} };
       const exports = module.exports;
@@ -894,18 +1061,19 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   }
 });
 
-test("Codex app UI override installs styles and observes renderer mutations", () => {
+test("Codex app UI override installs styles without observing renderer mutations", () => {
   const tweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
   const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+  assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
   const appendedStyles = [];
   const eventListeners = [];
-  let mutationObserverCount = 0;
-  let mutationObserveCount = 0;
-  let mutationDisconnectCount = 0;
+  const windowHandlers = new Map();
+  let timeoutId = 0;
+  let timeoutDelay = 0;
+  const clearedTimeoutIds = [];
 
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
-  const previousMutationObserver = globalThis.MutationObserver;
   const previousNodeFilter = globalThis.NodeFilter;
 
   const fakeElement = {
@@ -914,34 +1082,49 @@ test("Codex app UI override installs styles and observes renderer mutations", ()
     style: {},
     getBoundingClientRect: () => ({ width: 0, height: 0, left: 0, bottom: 0 }),
     querySelector: () => null,
+    querySelectorAll: () => [],
   };
+  const sidebarRoot = {
+    className: "",
+    parentElement: null,
+    style: {},
+    getBoundingClientRect: () => ({ width: 200, height: 800, left: 0, bottom: 800 }),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  };
+  const sidebarAnchor = {
+    className: "",
+    parentElement: sidebarRoot,
+    style: {},
+    getBoundingClientRect: () => ({ width: 200, height: 40, left: 0, bottom: 80 }),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  };
+  const treeWalkRoots = [];
 
   globalThis.NodeFilter = { SHOW_TEXT: 4 };
-  globalThis.MutationObserver = class {
-    constructor() {
-      mutationObserverCount += 1;
-    }
-
-    observe() {
-      mutationObserveCount += 1;
-    }
-
-    disconnect() {
-      mutationDisconnectCount += 1;
-    }
-  };
   globalThis.window = {
     innerHeight: 1000,
     requestAnimationFrame(callback) {
       callback();
-      return 1;
+      return 0;
     },
     cancelAnimationFrame() {},
-    addEventListener(type) {
+    setTimeout(_callback, delay) {
+      timeoutId += 1;
+      timeoutDelay = delay;
+      return timeoutId;
+    },
+    clearTimeout(id) {
+      clearedTimeoutIds.push(id);
+    },
+    addEventListener(type, handler) {
       eventListeners.push(type);
+      windowHandlers.set(type, handler);
     },
     removeEventListener(type) {
       eventListeners.push(`remove:${type}`);
+      windowHandlers.delete(type);
     },
   };
   globalThis.document = {
@@ -954,8 +1137,12 @@ test("Codex app UI override installs styles and observes renderer mutations", ()
     },
     getElementById: () => null,
     createElement: () => ({ id: "", textContent: "", remove() {} }),
-    createTreeWalker: () => ({ nextNode: () => null }),
-    querySelectorAll: () => [],
+    createTreeWalker: (root) => {
+      treeWalkRoots.push(root);
+      return { nextNode: () => null };
+    },
+    querySelectorAll: (selector) =>
+      selector === ".group\\/chats-section-header" ? [sidebarAnchor] : [],
   };
 
   try {
@@ -966,41 +1153,32 @@ test("Codex app UI override installs styles and observes renderer mutations", ()
 
     module.exports.start({ log: console });
 
-    assert.equal(mutationObserverCount, 1);
-    assert.equal(mutationObserveCount, 1);
-    assert.deepEqual(eventListeners, [
-      "resize",
-      "popstate",
-      "hashchange",
-      "codexpp:settings-surface",
-    ]);
+    assert.deepEqual(eventListeners, []);
+    assert.equal(timeoutDelay, 0);
+    assert.equal(timeoutId, 0);
     assert.equal(appendedStyles.length, 1);
+    assert.equal(treeWalkRoots.length, 0);
+    assert.equal(treeWalkRoots.includes(fakeElement), false);
     assert.match(
       appendedStyles[0].textContent,
       /top:calc\(0\.75rem \+ 26px\)!important/,
     );
 
+    assert.equal(windowHandlers.size, 0);
+    assert.equal(timeoutId, 0);
+    assert.deepEqual(clearedTimeoutIds, []);
+
     module.exports.stop();
-    assert.equal(mutationDisconnectCount, 1);
-    assert.deepEqual(eventListeners, [
-      "resize",
-      "popstate",
-      "hashchange",
-      "codexpp:settings-surface",
-      "remove:resize",
-      "remove:popstate",
-      "remove:hashchange",
-      "remove:codexpp:settings-surface",
-    ]);
+    assert.deepEqual(eventListeners, []);
+    assert.deepEqual(clearedTimeoutIds, []);
   } finally {
     globalThis.window = previousWindow;
     globalThis.document = previousDocument;
-    globalThis.MutationObserver = previousMutationObserver;
     globalThis.NodeFilter = previousNodeFilter;
   }
 });
 
-test("Codex++ updater UI override hides update controls and observes renderer mutations", () => {
+test("Codex++ updater UI override installs static styles without observing renderer mutations", () => {
   const tweakRoot = path.join(
     desktopRoot,
     "codex-plusplus",
@@ -1008,91 +1186,25 @@ test("Codex++ updater UI override hides update controls and observes renderer mu
     "codex-plusplus-updater-ui-overrides",
   );
   const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
-  const documentEvents = [];
-  const windowEvents = [];
-  const windowHandlers = new Map();
-  let mutationObserverCount = 0;
-  let mutationObserveCount = 0;
-  let mutationDisconnectCount = 0;
-  let timeoutId = 0;
-  let timeoutDelay = 0;
-  let clearedTimeoutId = 0;
+  assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+  const appendedStyles = [];
+  let removed = false;
 
-  const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
-  const previousMutationObserver = globalThis.MutationObserver;
-  const previousNodeFilter = globalThis.NodeFilter;
-
-  const releaseButton = {
-    title: "Open Codex++ releases",
-    textContent: "Update",
-    style: {},
-    isConnected: true,
-  };
-  const updateSection = { style: {}, isConnected: true };
-  const watcherSection = { style: {}, isConnected: true };
-  const textNodes = [
-    {
-      textContent: "Codex++ Updates",
-      parentElement: { closest: (selector) => (selector === "section" ? updateSection : null) },
-    },
-    {
-      textContent: "Auto-Repair Watcher",
-      parentElement: { closest: (selector) => (selector === "section" ? watcherSection : null) },
-    },
-  ];
-
-  globalThis.NodeFilter = { SHOW_TEXT: 4 };
-  globalThis.MutationObserver = class {
-    constructor() {
-      mutationObserverCount += 1;
-    }
-
-    observe() {
-      mutationObserveCount += 1;
-    }
-
-    disconnect() {
-      mutationDisconnectCount += 1;
-    }
-  };
-  globalThis.window = {
-    requestAnimationFrame(callback) {
-      callback();
-      return 1;
-    },
-    cancelAnimationFrame() {},
-    setTimeout(_callback, delay) {
-      timeoutId += 1;
-      timeoutDelay = delay;
-      return timeoutId;
-    },
-    clearTimeout(id) {
-      clearedTimeoutId = id;
-    },
-    addEventListener(type, handler) {
-      windowEvents.push(type);
-      windowHandlers.set(type, handler);
-    },
-    removeEventListener(type) {
-      windowEvents.push(`remove:${type}`);
-      windowHandlers.delete(type);
-    },
-  };
   globalThis.document = {
-    body: {},
-    documentElement: {},
-    addEventListener(type) {
-      documentEvents.push(type);
+    head: {
+      appendChild(style) {
+        appendedStyles.push(style);
+      },
     },
-    removeEventListener(type) {
-      documentEvents.push(`remove:${type}`);
-    },
-    createTreeWalker: () => {
-      let index = 0;
-      return { nextNode: () => textNodes[index++] ?? null };
-    },
-    querySelectorAll: () => [releaseButton],
+    getElementById: () => appendedStyles[0] ?? null,
+    createElement: () => ({
+      id: "",
+      textContent: "",
+      remove() {
+        removed = true;
+      },
+    }),
   };
 
   try {
@@ -1103,38 +1215,16 @@ test("Codex++ updater UI override hides update controls and observes renderer mu
 
     module.exports.start({ log: console });
 
-    assert.equal(mutationObserverCount, 1);
-    assert.equal(mutationObserveCount, 1);
-    assert.deepEqual(documentEvents, []);
-    assert.deepEqual(windowEvents, ["codexpp:settings-surface"]);
-    assert.equal(timeoutDelay, 250);
-    assert.equal(timeoutId, 1);
-    assert.equal(releaseButton.style.display, "none");
-    assert.equal(updateSection.style.display, "none");
-    assert.equal(watcherSection.style.display, "none");
-
-    windowHandlers.get("codexpp:settings-surface")?.({ detail: { visible: true } });
-
-    assert.equal(timeoutId, 2);
-    assert.equal(clearedTimeoutId, 1);
+    assert.equal(appendedStyles.length, 1);
+    assert.match(appendedStyles[0].textContent, /button\[title="Open Codex\+\+ releases"\]/);
+    assert.match(appendedStyles[0].textContent, /\[data-codexpp="tweaks-panel"\] section:has\(> \[data-codexpp-config-card\]\)/);
+    assert.match(appendedStyles[0].textContent, /\[data-codexpp="tweaks-panel"\] section:has\(> \[data-codexpp-config-card\]\) \+ section/);
 
     module.exports.stop();
-    assert.equal(mutationDisconnectCount, 1);
 
-    assert.deepEqual(documentEvents, []);
-    assert.deepEqual(windowEvents, [
-      "codexpp:settings-surface",
-      "remove:codexpp:settings-surface",
-    ]);
-    assert.equal(clearedTimeoutId, timeoutId);
-    assert.equal(releaseButton.style.display, "");
-    assert.equal(updateSection.style.display, "");
-    assert.equal(watcherSection.style.display, "");
+    assert.equal(removed, true);
   } finally {
-    globalThis.window = previousWindow;
     globalThis.document = previousDocument;
-    globalThis.MutationObserver = previousMutationObserver;
-    globalThis.NodeFilter = previousNodeFilter;
   }
 });
 
@@ -1290,26 +1380,50 @@ test("release workflows scope GitHub credentials away from install and build scr
 
   assert.doesNotMatch(releaseWorkflowSource, /env:\r?\n\s+GH_TOKEN: \$\{\{ github\.token \}\}\r?\n\s+IS_RELEASE_EVENT:/);
   assert.doesNotMatch(prWorkflowSource, /env:\r?\n\s+GH_TOKEN: \$\{\{ github\.token \}\}\r?\n\s+PACKAGE_ARCHITECTURE:/);
-  assert.match(releaseWorkflowSource, /name: Build desktop scripts[\s\S]*run: npm run build:scripts/);
-  assert.match(releaseWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node \.\/\.cache\/scripts\/resolve-codex-releases\.js/);
+  assert.match(releaseWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types \.\/scripts\/resolve-codex-releases\.ts/);
+  assert.match(prWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types \.\/scripts\/resolve-codex-releases\.ts/);
+  assert.ok(releaseWorkflowSource.indexOf("name: Resolve upstream release versions") < releaseWorkflowSource.indexOf("name: Skip released commit"));
+  assert.doesNotMatch(
+    releaseWorkflowSource.slice(0, releaseWorkflowSource.indexOf("name: Skip released commit")),
+    /cache: npm/,
+  );
+  assert.ok(releaseWorkflowSource.indexOf("name: Skip released commit") < releaseWorkflowSource.indexOf("name: Restore Electron cache"));
+  assert.match(releaseWorkflowSource, /name: Restore npm cache[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*cache: npm[\s\S]*cache-dependency-path: desktop\/package-lock\.json/);
+  assert.ok(releaseWorkflowSource.indexOf("name: Restore npm cache") < releaseWorkflowSource.indexOf("name: Install dependencies"));
+  assert.match(releaseWorkflowSource, /name: Restore Electron cache[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''/);
+  assert.match(releaseWorkflowSource, /name: Install dependencies[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*run: npm ci/);
+  assert.match(releaseWorkflowSource, /name: Build desktop scripts[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*run: npm run build:scripts/);
+  assert.ok(prWorkflowSource.indexOf("name: Resolve upstream release versions") < prWorkflowSource.indexOf("name: Restore Electron cache"));
   assert.match(prWorkflowSource, /name: Build desktop scripts[\s\S]*run: npm run build:scripts/);
-  assert.match(prWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node \.\/\.cache\/scripts\/resolve-codex-releases\.js/);
   assert.ok(prWorkflowSource.indexOf("name: Restore Electron cache") < prWorkflowSource.indexOf("name: Install dependencies"));
   assert.ok(releaseWorkflowSource.indexOf("name: Restore Electron cache") < releaseWorkflowSource.indexOf("name: Install dependencies"));
   assert.match(prWorkflowSource, /name: Build Windows updater[\s\S]*run: npm run build:windows-oai-update-checker -- -Architecture arm64/);
   assert.match(releaseWorkflowSource, /name: Build Windows updater[\s\S]*run: npm run build:windows-oai-update-checker -- -Architecture arm64/);
+  assert.match(prWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
+  assert.match(releaseWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
   assert.match(prWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run hydrate:app:compiled && npm run hydrate:cli:compiled/);
   assert.match(releaseWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run hydrate:app:compiled && npm run hydrate:cli:compiled/);
   assert.match(prWorkflowSource, /name: Verify Windows ARM64 inputs[\s\S]*run: npm run verify:browser-client-runtime:compiled/);
   assert.match(releaseWorkflowSource, /name: Verify Windows ARM64 inputs[\s\S]*run: npm run verify:browser-client-runtime:compiled/);
-  assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases && npm run test:windows-package-resources && npm run test:verify-browser-client-runtime/);
-  assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases && npm run test:windows-package-resources && npm run test:verify-browser-client-runtime/);
+  assert.ok(
+    releaseWorkflowSource.indexOf("name: Skip released commit") <
+      releaseWorkflowSource.indexOf("name: Run targeted desktop tests"),
+  );
+  assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
+  assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
   assert.equal(packageJson.scripts["build:scripts"], "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json");
   assert.equal(packageJson.scripts["verify:browser-client-runtime"], "npm run build:scripts && npm run verify:browser-client-runtime:compiled");
   assert.equal(packageJson.scripts["verify:browser-client-runtime:compiled"], "node ./.cache/scripts/verify-browser-client-runtime.js");
+  assert.equal(packageJson.scripts["test:resolve-codex-releases:compiled"], "node --test scripts/resolve-codex-releases.test.mjs");
+  assert.equal(packageJson.scripts["test:windows-package-resources:compiled"], "node --test scripts/windows-package-resources.test.mjs");
+  assert.equal(packageJson.scripts["test:verify-browser-client-runtime:compiled"], "node --test scripts/verify-browser-client-runtime.test.mjs");
   assert.equal(packageJson.scripts["decode:self-signed-pfx"], "npm run build:scripts && node ./.cache/scripts/decode-self-signed-pfx.js");
+  assert.equal(packageJson.scripts["prepare:self-signed-msix-payload:compiled"], "node ./.cache/scripts/prepare-self-signed-msix-payload.js");
+  assert.equal(packageJson.scripts["write:self-signed-appinstaller:compiled"], "node ./.cache/scripts/write-self-signed-appinstaller.js");
   assert.match(releaseWorkflowSource, /node \.\/\.cache\/scripts\/decode-self-signed-pfx\.js --output/);
   assert.doesNotMatch(releaseWorkflowSource, /npm run decode:self-signed-pfx/);
+  assert.match(releaseWorkflowSource, /npm run prepare:self-signed-msix-payload:compiled/);
+  assert.match(releaseWorkflowSource, /npm run write:self-signed-appinstaller:compiled/);
 });
 
 test("log cleanup helper blocks any Codex process before moving SQLite logs", () => {
@@ -1319,6 +1433,9 @@ test("log cleanup helper blocks any Codex process before moving SQLite logs", ()
   );
 
   assert.match(scriptSource, /\$_\.Name -eq "Codex\.exe" -or \$_.Name -eq "codex\.exe"/);
+  assert.match(scriptSource, /Get-CimInstance Win32_Process -ErrorAction Stop/);
+  assert.match(scriptSource, /Could not inspect running Codex processes/);
+  assert.doesNotMatch(scriptSource, /Get-CimInstance Win32_Process -ErrorAction SilentlyContinue/);
   assert.doesNotMatch(scriptSource, /CommandLine -match/);
   assert.match(scriptSource, /Get-ChildItem -LiteralPath \$codexHomePath -Filter "logs_2\.sqlite\*"/);
   assert.match(scriptSource, /Move-Item -LiteralPath \$file\.FullName -Destination \$destination -Force/);
@@ -1333,11 +1450,19 @@ test("authenticates Codex++ GitHub release lookup when a token is available", ()
   assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
   assert.match(scriptSource, /headers\.Authorization = `Bearer \$\{token\}`/);
   assert.match(scriptSource, /headers: githubHeaders\(\)/);
+  assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_REPOSITORY/);
+  assert.match(scriptSource, /process\.env\.CODEX_APP_VERSION/);
+  assert.match(scriptSource, /process\.env\.CODEX_APP_BUILD/);
+  assert.match(scriptSource, /--build-number/);
+  assert.match(scriptSource, /function findReleaseItem\(appcast: string, version\?: string, buildNumber\?: string\)/);
+  assert.match(scriptSource, /releaseItemBuildNumber\(candidate\) === buildNumber/);
+  assert.match(scriptSource, /findReleaseItem\(await appcastResponse\.text\(\), options\.version, options\.buildNumber\)/);
+  assert.match(scriptSource, /--codex-plusplus-repo/);
   assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_TAG/);
   assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_SHA/);
-  assert.match(scriptSource, /fetchCodexPlusPlusRelease\(pinnedTagName\)/);
-  assert.match(scriptSource, /fetchCodexPlusPlusTagCommitSha\(tagName\)/);
-  assert.match(scriptSource, /zipball\/\$\{commitSha\}/);
+  assert.match(scriptSource, /fetchCodexPlusPlusRelease\(repository, pinnedTagName\)/);
+  assert.match(scriptSource, /fetchCodexPlusPlusTagCommitSha\(repository, tagName\)/);
+  assert.match(scriptSource, /repos\/\$\{repositoryApiPath\(repository\)\}\/zipball\/\$\{commitSha\}/);
   assert.match(scriptSource, /downloadFile\(zipballUrl, zipPath, githubHeaders\(\)\)/);
 });
 
@@ -1354,6 +1479,57 @@ test("authenticates GitHub release asset downloads when a token is available", (
   assert.match(scriptSource, /fetchGitHubRelease\(options\.codexRepo, options\.codexTag\)/);
   assert.match(scriptSource, /verifyAssetDigest\(asset, downloadPath\)/);
   assert.doesNotMatch(scriptSource, /execFileSync\(\s*"gh"/);
+});
+
+test("Codex app hydration keys extracted app cache by version and build", () => {
+  const appHydratorSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+  const cliHydratorSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
+    "utf8",
+  );
+  const verifierSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "verify-browser-client-runtime.ts"),
+    "utf8",
+  );
+
+  assert.match(appHydratorSource, /function appExtractCacheSegment\(version: string, buildNumber\?: string\)/);
+  assert.match(appHydratorSource, /const appCacheSegment = appExtractCacheSegment\(selectedVersion, selectedBuildNumber\)/);
+  assert.match(appHydratorSource, /const zipPath = path\.join\(options\.cacheRoot, `\$\{appCacheSegment\}\$\{downloadExtension\}`\)/);
+  assert.match(
+    appHydratorSource,
+    /const extractDir = `extract-\$\{appCacheSegment\}`/,
+  );
+  assert.match(appHydratorSource, /extractDir,/);
+  assert.match(cliHydratorSource, /function appExtractCacheSegment\(version: string, buildNumber\?: string\)/);
+  assert.match(cliHydratorSource, /buildNumber\?: string/);
+  assert.match(cliHydratorSource, /extractDir\?: string/);
+  assert.match(
+    cliHydratorSource,
+    /function appExtractDirCandidates\(version: string, buildNumber\?: string, extractDir\?: string\)/,
+  );
+  assert.match(verifierSource, /function appExtractCacheSegment\(version: string, buildNumber\?: string\)/);
+  assert.match(
+    verifierSource,
+    /function appExtractDirCandidates\(version: string, buildNumber\?: string, extractDir\?: string\)/,
+  );
+});
+
+test("operational scripts resolve desktop root from script location", () => {
+  for (const scriptName of [
+    "hydrate-codex-app.ts",
+    "hydrate-codex-cli.ts",
+    "refresh-recovered-from-dmg.ts",
+    "resolve-codex-releases.ts",
+  ]) {
+    const scriptSource = fs.readFileSync(path.join(desktopRoot, "scripts", scriptName), "utf8");
+    assert.match(scriptSource, /function resolveDesktopRoot\(\): string/);
+    assert.match(scriptSource, /path\.basename\((?:__dirname|directory)\) === "scripts"/);
+    assert.match(scriptSource, /path\.basename\(path\.dirname\((?:__dirname|directory)\)\) === "\.cache"/);
+    assert.doesNotMatch(scriptSource, /const desktopRoot = process\.cwd\(\)/);
+  }
 });
 
 test("verifies hydrated upstream artifact integrity metadata", () => {

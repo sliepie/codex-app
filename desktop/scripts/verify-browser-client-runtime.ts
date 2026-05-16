@@ -82,30 +82,53 @@ function detectNodeVersionFromBinary(filePath: string, label: string): string {
   return version;
 }
 
-function readCodexAppReleaseVersion(codexAppCacheRoot: string): string {
+function appExtractCacheSegment(version: string, buildNumber?: string): string {
+  return (buildNumber ? `${version}-build-${buildNumber}` : version).replace(/[^A-Za-z0-9._-]/g, "_");
+}
+
+function appExtractDirCandidates(version: string, buildNumber?: string, extractDir?: string): string[] {
+  if (extractDir) {
+    return [extractDir];
+  }
+
+  const buildKeyedExtractDir = `extract-${appExtractCacheSegment(version, buildNumber)}`;
+  const legacyExtractDir = `extract-${appExtractCacheSegment(version)}`;
+  return buildNumber ? [buildKeyedExtractDir, legacyExtractDir] : [legacyExtractDir];
+}
+
+function readCodexAppReleaseInfo(codexAppCacheRoot: string): {
+  buildNumber?: string;
+  extractDir?: string;
+  version: string;
+} {
   const releaseInfoPath = path.join(codexAppCacheRoot, "latest-release.json");
-  const releaseInfo = readJson<{ version?: string }>(releaseInfoPath);
+  const releaseInfo = readJson<{
+    buildNumber?: string;
+    extractDir?: string;
+    version?: string;
+  }>(releaseInfoPath);
   if (!releaseInfo.version) {
     throw new Error(`Missing Codex app release version: ${releaseInfoPath}`);
   }
+  if (releaseInfo.extractDir && /[\\/]/.test(releaseInfo.extractDir)) {
+    throw new Error(`Invalid Codex app extract directory: ${releaseInfo.extractDir}`);
+  }
 
-  return releaseInfo.version;
+  return {
+    buildNumber: releaseInfo.buildNumber,
+    extractDir: releaseInfo.extractDir,
+    version: releaseInfo.version,
+  };
 }
 
 function readBundledNodeVersion(desktopRoot: string): string {
   const codexAppCacheRoot = path.join(desktopRoot, ".cache", "codex-app");
-  const appVersion = readCodexAppReleaseVersion(codexAppCacheRoot);
-  return detectNodeVersionFromBinary(
-    path.join(
-      codexAppCacheRoot,
-      `extract-${appVersion}`,
-      "Codex.app",
-      "Contents",
-      "Resources",
-      "node",
-    ),
-    "bundled macOS Node",
+  const { buildNumber, extractDir, version } = readCodexAppReleaseInfo(codexAppCacheRoot);
+  const candidates = appExtractDirCandidates(version, buildNumber, extractDir).map((candidate) =>
+    path.join(codexAppCacheRoot, candidate, "Codex.app", "Contents", "Resources", "node"),
   );
+  const nodePath = candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+  return detectNodeVersionFromBinary(nodePath, "bundled macOS Node");
 }
 
 function readPeMachine(filePath: string): number {

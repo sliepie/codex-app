@@ -45,7 +45,13 @@ type Options = {
   force: boolean;
 };
 
-const desktopRoot = process.cwd();
+function resolveDesktopRoot(): string {
+  return path.basename(__dirname) === "scripts" && path.basename(path.dirname(__dirname)) === ".cache"
+    ? path.resolve(__dirname, "..", "..")
+    : path.resolve(__dirname, "..");
+}
+
+const desktopRoot = resolveDesktopRoot();
 const codexAppCacheRoot = path.join(desktopRoot, ".cache", "codex-app");
 
 const requiredAssets: RequiredAsset[] = [
@@ -168,13 +174,13 @@ async function fetchText(url: string): Promise<string> {
 }
 
 function repositoryApiUrl(repository: string, releasePath: string): URL {
-  const [owner, repo] = repository.split("/");
-  if (!owner || !repo) {
+  const parts = repository.split("/");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
     throw new Error(`Invalid GitHub repository value: ${repository}`);
   }
 
   return new URL(
-    `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${releasePath}`,
+    `https://api.github.com/repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}${releasePath}`,
   );
 }
 
@@ -239,28 +245,47 @@ function findSingleFiles(root: string, fileName: string): string[] {
   return matches;
 }
 
-function readCodexAppReleaseInfo(): { version: string } {
+function appExtractCacheSegment(version: string, buildNumber?: string): string {
+  return (buildNumber ? `${version}-build-${buildNumber}` : version).replace(/[^A-Za-z0-9._-]/g, "_");
+}
+
+function appExtractDirCandidates(version: string, buildNumber?: string, extractDir?: string): string[] {
+  if (extractDir) {
+    return [extractDir];
+  }
+
+  const buildKeyedExtractDir = `extract-${appExtractCacheSegment(version, buildNumber)}`;
+  const legacyExtractDir = `extract-${appExtractCacheSegment(version)}`;
+  return buildNumber ? [buildKeyedExtractDir, legacyExtractDir] : [legacyExtractDir];
+}
+
+function readCodexAppReleaseInfo(): { buildNumber?: string; extractDir?: string; version: string } {
   const releaseInfoPath = path.join(codexAppCacheRoot, "latest-release.json");
   const releaseInfo = JSON.parse(fs.readFileSync(releaseInfoPath, "utf8")) as {
+    buildNumber?: string;
+    extractDir?: string;
     version?: string;
   };
   if (!releaseInfo.version) {
     throw new Error(`Missing Codex app release version: ${releaseInfoPath}`);
   }
+  if (releaseInfo.extractDir && /[\\/]/.test(releaseInfo.extractDir)) {
+    throw new Error(`Invalid Codex app extract directory: ${releaseInfo.extractDir}`);
+  }
 
-  return { version: releaseInfo.version };
+  return {
+    buildNumber: releaseInfo.buildNumber,
+    extractDir: releaseInfo.extractDir,
+    version: releaseInfo.version,
+  };
 }
 
 function findMacNodePath(): string {
-  const { version } = readCodexAppReleaseInfo();
-  const nodePath = path.join(
-    codexAppCacheRoot,
-    `extract-${version}`,
-    "Codex.app",
-    "Contents",
-    "Resources",
-    "node",
+  const { buildNumber, extractDir, version } = readCodexAppReleaseInfo();
+  const candidates = appExtractDirCandidates(version, buildNumber, extractDir).map((candidate) =>
+    path.join(codexAppCacheRoot, candidate, "Codex.app", "Contents", "Resources", "node"),
   );
+  const nodePath = candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
   if (!fs.existsSync(nodePath)) {
     throw new Error(`Missing bundled macOS Node executable: ${nodePath}`);
   }
