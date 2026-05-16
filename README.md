@@ -71,8 +71,9 @@ runtime package, and replaces the `dependencies/node` and `dependencies/python`
 trees with complete ARM64 replacement archives from
 `PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL` and
 `PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL`. If those replacement archives are
-not configured yet, the scheduled workflow exits without publishing a new
-GitHub-hosted feed.
+not configured yet, scheduled workflow runs exit without publishing a new
+GitHub-hosted feed, while push and manual publish runs fail with an explicit
+configuration error.
 
 Replacement archives must contain the full runtime dependency trees, not just
 standalone Node or Python installers. The builder refuses to publish an ARM64

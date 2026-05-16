@@ -108,6 +108,7 @@ jobs:
         env:
           PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL }}
           PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL }}
+          PRIMARY_RUNTIME_REQUIRE_ARM64_REPLACEMENTS: ${{ github.event_name != 'schedule' }}
         run: npm run resolve:primary-runtime-source
 
       - name: Install dependencies

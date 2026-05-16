@@ -11,6 +11,14 @@ function optionalEnv(name: string): string | undefined {
   return value.trim();
 }
 
+function enabledEnv(name: string): boolean {
+  const value = process.env[name];
+  if (value == null) {
+    return false;
+  }
+  return ["1", "true", "yes"].includes(value.trim().toLowerCase());
+}
+
 function setOutput(name: string, value: string): void {
   const outputPath = process.env.GITHUB_OUTPUT;
   if (outputPath == null || outputPath.trim() === "") {
@@ -36,6 +44,17 @@ async function main(): Promise<void> {
   const nodeArchiveUrl = optionalEnv("PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL");
   const pythonArchiveUrl = optionalEnv("PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL");
   if (nodeArchiveUrl == null || pythonArchiveUrl == null) {
+    if (enabledEnv("PRIMARY_RUNTIME_REQUIRE_ARM64_REPLACEMENTS")) {
+      const missing = [
+        nodeArchiveUrl == null ? "PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL" : undefined,
+        pythonArchiveUrl == null ? "PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL" : undefined,
+      ].filter((name) => name != null);
+      throw new Error(
+        "Cannot publish Windows ARM64 primary runtime because required ARM64 replacement archive inputs are missing: " +
+          missing.join(", ") +
+          ". Set both values as repository secrets or variables.",
+      );
+    }
     setOutput("should_publish", "false");
     console.log("Skipping Windows ARM64 primary runtime publishing because complete ARM64 node/python replacement archives are not configured.");
     return;
