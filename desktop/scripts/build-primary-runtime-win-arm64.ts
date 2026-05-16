@@ -27,8 +27,6 @@ type PrimaryRuntimeManifest = {
 };
 
 type BuildOptions = {
-  sourceManifestUrl: string;
-  arm64ManifestUrl?: string;
   arm64NodeArchiveUrl?: string;
   arm64PythonArchiveUrl?: string;
   repository: string;
@@ -40,6 +38,8 @@ const runtimeRootDirectoryName = "codex-primary-runtime";
 const targetPlatform = "win32";
 const targetArch = "arm64";
 const manifestFileName = "LATEST.json";
+const publicWindowsX64ManifestUrl =
+  "https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-x64/LATEST.json";
 
 function resolveDesktopRoot(): string {
   if (path.basename(__dirname) === "scripts" && path.basename(path.dirname(__dirname)) === ".cache") {
@@ -75,12 +75,6 @@ function readOptions(argv: readonly string[]): BuildOptions {
     path.join(desktopRoot, "out", "primary-runtime", "win32-arm64");
 
   return {
-    sourceManifestUrl:
-      readOption(argv, ["-SourceManifestUrl", "--source-manifest-url"]) ??
-      "https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-x64/LATEST.json",
-    arm64ManifestUrl:
-      readOption(argv, ["-Arm64ManifestUrl", "--arm64-manifest-url"]) ??
-      process.env.PRIMARY_RUNTIME_ARM64_MANIFEST_URL,
     arm64NodeArchiveUrl:
       readOption(argv, ["-Arm64NodeArchiveUrl", "--arm64-node-archive-url"]) ??
       process.env.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL,
@@ -255,7 +249,7 @@ async function expandInputArchive(archivePath: string, destination: string): Pro
   const extension = getSupportedArchiveExtension(archivePath);
   if (extension == null || (extension !== ".zip" && extension !== ".tar.xz")) {
     const lowerPath = archivePath.toLowerCase();
-    if (!lowerPath.endsWith(".tgz") && !lowerPath.endsWith(".tar.gz")) {
+    if (!lowerPath.endsWith(".tgz") && !lowerPath.endsWith(".tar.gz") && !lowerPath.endsWith(".nupkg")) {
       throw new Error(`Unsupported archive format: ${archivePath}`);
     }
   }
@@ -287,6 +281,49 @@ async function findReplacementRoot(extractRoot: string, name: string): Promise<s
   );
 }
 
+function assertRequiredFile(root: string, relativePath: string): void {
+  const filePath = path.join(root, ...relativePath.split("/"));
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    throw new Error(`Replacement tree is missing required file: ${relativePath}`);
+  }
+}
+
+function assertRequiredDirectory(root: string, relativePath: string): void {
+  const directoryPath = path.join(root, ...relativePath.split("/"));
+  if (!fs.existsSync(directoryPath) || !fs.statSync(directoryPath).isDirectory()) {
+    throw new Error(`Replacement tree is missing required directory: ${relativePath}`);
+  }
+}
+
+function assertPythonVersionDll(root: string): void {
+  const entries = fs.readdirSync(root, { withFileTypes: true });
+  const hasVersionDll = entries.some((entry) => entry.isFile() && /^python\d{2,}\.dll$/i.test(entry.name));
+  if (!hasVersionDll) {
+    throw new Error("Replacement tree is missing a versioned python DLL such as python312.dll.");
+  }
+}
+
+function assertCompleteReplacementTree(name: string, replacementRoot: string): void {
+  if (name === "node") {
+    assertRequiredFile(replacementRoot, "bin/node.exe");
+    assertRequiredDirectory(replacementRoot, "node_modules");
+    assertRequiredFile(replacementRoot, "node_modules/@oai/artifact-tool/package.json");
+    return;
+  }
+
+  if (name === "python") {
+    assertRequiredFile(replacementRoot, "python.exe");
+    assertRequiredFile(replacementRoot, "python3.dll");
+    assertPythonVersionDll(replacementRoot);
+    assertRequiredDirectory(replacementRoot, "DLLs");
+    assertRequiredDirectory(replacementRoot, "Lib/site-packages");
+    assertRequiredDirectory(replacementRoot, "Lib/site-packages/artifact_tool_v2");
+    return;
+  }
+
+  throw new Error(`Unsupported replacement dependency: ${name}`);
+}
+
 function archivePathForReplacement(workRoot: string, archiveUrl: string, name: string): string {
   const lowerUrl = archiveUrl.toLowerCase();
   const basePath = path.join(workRoot, `${name}-replacement`);
@@ -302,6 +339,9 @@ function archivePathForReplacement(workRoot: string, archiveUrl: string, name: s
   if (/\.tar\.gz($|\?)/.test(lowerUrl)) {
     return `${basePath}.tar.gz`;
   }
+  if (/\.nupkg($|\?)/.test(lowerUrl)) {
+    return `${basePath}.nupkg`;
+  }
   return `${basePath}.zip`;
 }
 
@@ -312,6 +352,7 @@ async function replaceDependencyDirectory(archiveUrl: string, name: string, payl
   const extractPath = path.join(workRoot, `${name}-replacement-extract`);
   await expandInputArchive(downloadPath, extractPath);
   const replacementRoot = await findReplacementRoot(extractPath, name);
+  assertCompleteReplacementTree(name, replacementRoot);
   const targetPath = path.join(payloadRoot, runtimeRootDirectoryName, "dependencies", name);
 
   await fs.promises.rm(targetPath, { recursive: true, force: true });
@@ -474,48 +515,15 @@ async function newReleaseManifest(
   return manifest;
 }
 
-async function publishMirroredArm64Bundle(manifestUrl: string, options: BuildOptions, workRoot: string): Promise<void> {
-  const manifestPath = path.join(workRoot, "arm64-source-LATEST.json");
-  await saveUrlOrFile(manifestUrl, manifestPath);
-  const manifest = await readJsonFile<PrimaryRuntimeManifest>(manifestPath);
-
-  if (manifest.targetPlatform !== targetPlatform || manifest.targetArch !== targetArch) {
-    throw new Error(
-      `ARM64 source manifest target mismatch. Expected ${targetPlatform}-${targetArch}, got ${manifest.targetPlatform}-${manifest.targetArch}.`,
-    );
-  }
-
-  const archiveName = resolveArchiveName(manifest, `codex-primary-runtime-win32-arm64-${manifest.bundleVersion}`);
-  const archivePath = path.join(options.outputRoot, archiveName);
-  await saveUrlOrFile(manifest.archiveUrl, archivePath);
-
-  const actualHash = await sha256File(archivePath);
-  if (!isBlank(manifest.archiveSha256) && actualHash !== manifest.archiveSha256.toLowerCase()) {
-    throw new Error(`Downloaded ARM64 archive hash mismatch. Expected ${manifest.archiveSha256}, got ${actualHash}.`);
-  }
-
-  const payloadRoot = path.join(workRoot, "arm64-source-payload");
-  await expandInputArchive(archivePath, payloadRoot);
-  const runtimeRoot = path.join(payloadRoot, runtimeRootDirectoryName);
-  if (!fs.existsSync(runtimeRoot) || !fs.statSync(runtimeRoot).isDirectory()) {
-    throw new Error(`Mirrored ARM64 archive does not contain ${runtimeRootDirectoryName} at its root.`);
-  }
-  await assertNoX64NativePayload(runtimeRoot);
-
-  const releaseManifest = await newReleaseManifest(manifest, archivePath, options);
-  await writeJsonFile(path.join(options.outputRoot, manifestFileName), releaseManifest);
-}
-
 async function publishComposedArm64Bundle(options: BuildOptions, workRoot: string): Promise<void> {
   if (isBlank(options.arm64NodeArchiveUrl) || isBlank(options.arm64PythonArchiveUrl)) {
-    throw new Error(`Cannot compose a Windows ARM64 primary runtime from the public x64 bundle without complete ARM64 replacements.
+    throw new Error(`Cannot compose a Windows ARM64 primary runtime from the public OAI x64 bundle without complete ARM64 replacements.
 
-Public OAI win32-arm64 currently has no manifest, and the OAI alpha blob feed is not publicly readable from this environment.
-Set PRIMARY_RUNTIME_ARM64_MANIFEST_URL to mirror a private/OAI ARM64 runtime bundle, or set both PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL and PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL to archives containing complete dependencies/node and dependencies/python trees.`);
+Set PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL and PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL to archives containing complete dependencies/node and dependencies/python trees.`);
   }
 
   const sourceManifestPath = path.join(workRoot, "source-LATEST.json");
-  await saveUrlOrFile(options.sourceManifestUrl, sourceManifestPath);
+  await saveUrlOrFile(publicWindowsX64ManifestUrl, sourceManifestPath);
   const sourceManifest = await readJsonFile<PrimaryRuntimeManifest>(sourceManifestPath);
 
   if (sourceManifest.targetPlatform !== targetPlatform || sourceManifest.targetArch !== "x64") {
@@ -557,11 +565,7 @@ async function main(): Promise<void> {
   await cleanDirectory(workRoot);
 
   try {
-    if (isBlank(options.arm64ManifestUrl)) {
-      await publishComposedArm64Bundle(options, workRoot);
-    } else {
-      await publishMirroredArm64Bundle(options.arm64ManifestUrl, options, workRoot);
-    }
+    await publishComposedArm64Bundle(options, workRoot);
   } finally {
     await fs.promises.rm(workRoot, { recursive: true, force: true });
   }

@@ -61,24 +61,23 @@ GitHub Release asset:
 
 - https://github.com/sliepie/codex-app/releases/download/codex-primary-runtime-win32-arm64/LATEST.json
 
-The official public x64 runtime manifest exists at
-`https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-x64/LATEST.json`,
-but the matching public Windows ARM64 manifest currently returns 404. The OAI
-alpha blob feed is not publicly readable from this environment; both tested
-alpha manifest URLs returned 403.
+The `Windows ARM64 Primary Runtime` workflow composes the GitHub-hosted feed
+from the official public OAI Windows x64 runtime manifest:
 
-The `Windows ARM64 Primary Runtime` workflow can publish the GitHub-hosted feed
-in either of these explicit modes:
+- https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-x64/LATEST.json
 
-- Mirror a private or OAI ARM64 runtime by setting
-  `PRIMARY_RUNTIME_ARM64_MANIFEST_URL`.
-- Compose from the public x64 runtime by setting both
-  `PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL` and
-  `PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL` to complete ARM64 replacement
-  archives for `dependencies/node` and `dependencies/python`.
+The workflow checks this public OAI URL every six hours, downloads the x64
+runtime package, and replaces the `dependencies/node` and `dependencies/python`
+trees with complete ARM64 replacement archives from
+`PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL` and
+`PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL`. If those replacement archives are
+not configured yet, the scheduled workflow exits without publishing a new
+GitHub-hosted feed.
 
-The workflow refuses to publish a composed ARM64 bundle if x64 native payloads
-remain in the replacement dependency trees.
+Replacement archives must contain the full runtime dependency trees, not just
+standalone Node or Python installers. The builder refuses to publish an ARM64
+bundle if required runtime paths are missing or if x64 native payloads remain in
+the runtime tree.
 
 ### Release Assets
 
