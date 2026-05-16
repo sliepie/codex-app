@@ -61,24 +61,15 @@ GitHub Release asset:
 
 - https://github.com/sliepie/codex-app/releases/download/codex-primary-runtime-win32-arm64/LATEST.json
 
-The `Windows ARM64 Primary Runtime` workflow composes the GitHub-hosted feed
-from the official public OAI Windows x64 runtime manifest:
+The `Windows ARM64 Primary Runtime` workflow mirrors the GitHub-hosted feed
+from the official public OAI Windows ARM64 runtime manifest:
 
-- https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-x64/LATEST.json
+- https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-arm64/LATEST.json
 
-The workflow checks this public OAI URL every six hours, downloads the x64
-runtime package, and replaces the `dependencies/node` and `dependencies/python`
-trees with complete ARM64 replacement archives from
-`PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL` and
-`PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL`. If those replacement archives are
-not configured yet, scheduled workflow runs exit without publishing a new
-GitHub-hosted feed, while push and manual publish runs fail with an explicit
-configuration error.
-
-Replacement archives must contain the full runtime dependency trees, not just
-standalone Node or Python installers. The builder refuses to publish an ARM64
-bundle if required runtime paths are missing or if x64 native payloads remain in
-the runtime tree.
+If that official ARM64 manifest is unavailable, scheduled workflow runs exit
+without publishing a new GitHub-hosted feed, while push and manual publish runs
+fail with an explicit configuration error. The builder still verifies mirrored
+archives before publishing so an x64 payload cannot be released as ARM64.
 
 ### Release Assets
 

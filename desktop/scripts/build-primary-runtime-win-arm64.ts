@@ -40,6 +40,8 @@ const targetArch = "arm64";
 const manifestFileName = "LATEST.json";
 const publicWindowsX64ManifestUrl =
   "https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-x64/LATEST.json";
+const publicWindowsArm64ManifestUrl =
+  "https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-arm64/LATEST.json";
 
 function resolveDesktopRoot(): string {
   if (path.basename(__dirname) === "scripts" && path.basename(path.dirname(__dirname)) === ".cache") {
@@ -515,6 +517,38 @@ async function newReleaseManifest(
   return manifest;
 }
 
+async function publishMirroredArm64Bundle(manifestUrl: string, options: BuildOptions, workRoot: string): Promise<void> {
+  const manifestPath = path.join(workRoot, "arm64-source-LATEST.json");
+  await saveUrlOrFile(manifestUrl, manifestPath);
+  const manifest = await readJsonFile<PrimaryRuntimeManifest>(manifestPath);
+
+  if (manifest.targetPlatform !== targetPlatform || manifest.targetArch !== targetArch) {
+    throw new Error(
+      `ARM64 source manifest target mismatch. Expected ${targetPlatform}-${targetArch}, got ${manifest.targetPlatform}-${manifest.targetArch}.`,
+    );
+  }
+
+  const archiveName = resolveArchiveName(manifest, `codex-primary-runtime-win32-arm64-${manifest.bundleVersion}`);
+  const archivePath = path.join(options.outputRoot, archiveName);
+  await saveUrlOrFile(manifest.archiveUrl, archivePath);
+
+  const actualHash = await sha256File(archivePath);
+  if (!isBlank(manifest.archiveSha256) && actualHash !== manifest.archiveSha256.toLowerCase()) {
+    throw new Error(`Downloaded ARM64 archive hash mismatch. Expected ${manifest.archiveSha256}, got ${actualHash}.`);
+  }
+
+  const payloadRoot = path.join(workRoot, "arm64-source-payload");
+  await expandInputArchive(archivePath, payloadRoot);
+  const runtimeRoot = path.join(payloadRoot, runtimeRootDirectoryName);
+  if (!fs.existsSync(runtimeRoot) || !fs.statSync(runtimeRoot).isDirectory()) {
+    throw new Error(`Mirrored ARM64 archive does not contain ${runtimeRootDirectoryName} at its root.`);
+  }
+  await assertNoX64NativePayload(runtimeRoot);
+
+  const releaseManifest = await newReleaseManifest(manifest, archivePath, options);
+  await writeJsonFile(path.join(options.outputRoot, manifestFileName), releaseManifest);
+}
+
 async function publishComposedArm64Bundle(options: BuildOptions, workRoot: string): Promise<void> {
   if (isBlank(options.arm64NodeArchiveUrl) || isBlank(options.arm64PythonArchiveUrl)) {
     throw new Error(`Cannot compose a Windows ARM64 primary runtime from the public OAI x64 bundle without complete ARM64 replacements.
@@ -565,7 +599,7 @@ async function main(): Promise<void> {
   await cleanDirectory(workRoot);
 
   try {
-    await publishComposedArm64Bundle(options, workRoot);
+    await publishMirroredArm64Bundle(publicWindowsArm64ManifestUrl, options, workRoot);
   } finally {
     await fs.promises.rm(workRoot, { recursive: true, force: true });
   }

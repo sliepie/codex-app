@@ -60,9 +60,6 @@ jobs:
       - name: Resolve Windows ARM64 primary runtime inputs
         id: runtime-source
         working-directory: desktop
-        env:
-          PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL }}
-          PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL }}
         run: npm run resolve:primary-runtime-source
 
       - name: Validate Windows ARM64 primary runtime feed
@@ -70,8 +67,6 @@ jobs:
         working-directory: desktop
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL }}
-          PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL }}
         run: npm run build:primary-runtime:win:arm64:compiled -- -OutputRoot "${{ github.workspace }}/desktop/out/primary-runtime-pr/win32-arm64"
 
       - name: Upload Windows ARM64 primary runtime PR artifact
@@ -106,9 +101,7 @@ jobs:
         id: runtime-source
         working-directory: desktop
         env:
-          PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL }}
-          PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL }}
-          PRIMARY_RUNTIME_REQUIRE_ARM64_REPLACEMENTS: ${{ github.event_name != 'schedule' }}
+          PRIMARY_RUNTIME_REQUIRE_OFFICIAL_ARM64_RUNTIME: ${{ github.event_name != 'schedule' }}
         run: npm run resolve:primary-runtime-source
 
       - name: Install dependencies
@@ -126,8 +119,6 @@ jobs:
         working-directory: desktop
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL }}
-          PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL: ${{ secrets.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL || vars.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL }}
         run: npm run build:primary-runtime:win:arm64:compiled
 
       - name: Upload Windows ARM64 primary runtime artifact
