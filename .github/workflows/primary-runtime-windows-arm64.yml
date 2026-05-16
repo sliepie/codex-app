@@ -8,7 +8,10 @@ on:
       - ".github/workflows/primary-runtime-windows-arm64.yml"
       - ".node-version"
       - "desktop/package.json"
-      - "desktop/scripts/build-primary-runtime-win-arm64.ps1"
+      - "desktop/tsconfig.scripts.json"
+      - "desktop/scripts/build-primary-runtime-win-arm64.ts"
+      - "desktop/scripts/create-primary-runtime-smoke-fixture.ts"
+      - "desktop/scripts/publish-primary-runtime-release.ts"
   workflow_dispatch:
   schedule:
     - cron: "30 0,12 * * *"
@@ -19,7 +22,10 @@ on:
       - ".github/workflows/primary-runtime-windows-arm64.yml"
       - ".node-version"
       - "desktop/package.json"
-      - "desktop/scripts/build-primary-runtime-win-arm64.ps1"
+      - "desktop/tsconfig.scripts.json"
+      - "desktop/scripts/build-primary-runtime-win-arm64.ts"
+      - "desktop/scripts/create-primary-runtime-smoke-fixture.ts"
+      - "desktop/scripts/publish-primary-runtime-release.ts"
 
 permissions:
   contents: read
@@ -41,73 +47,20 @@ jobs:
         with:
           node-version-file: .node-version
 
+      - name: Build desktop scripts
+        working-directory: desktop
+        run: npm run build:scripts
+
       - name: Create primary runtime smoke fixture
         id: smoke
-        shell: pwsh
-        run: |
-          $fixtureRoot = Join-Path $env:RUNNER_TEMP "primary-runtime-fixture"
-          $payloadRoot = Join-Path $fixtureRoot "payload"
-          $runtimeRoot = Join-Path $payloadRoot "codex-primary-runtime"
-          New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
-
-          $runtimeJson = [ordered]@{
-            bundleVersion = "ci"
-            targetPlatform = "win32"
-            targetArch = "arm64"
-          }
-          $encoding = New-Object System.Text.UTF8Encoding -ArgumentList $false
-          [System.IO.File]::WriteAllText((Join-Path $runtimeRoot "runtime.json"), ($runtimeJson | ConvertTo-Json -Depth 20), $encoding)
-
-          $archivePath = Join-Path $env:RUNNER_TEMP "codex-primary-runtime-win32-arm64-ci.zip"
-          if (Test-Path -LiteralPath $archivePath) {
-            Remove-Item -LiteralPath $archivePath -Force
-          }
-          Push-Location $payloadRoot
-          try {
-            Compress-Archive -Path "codex-primary-runtime" -DestinationPath $archivePath -Force
-          }
-          finally {
-            Pop-Location
-          }
-
-          $archive = Get-Item -LiteralPath $archivePath
-          $stream = [System.IO.File]::OpenRead($archive.FullName)
-          try {
-            $sha256 = [System.Security.Cryptography.SHA256]::Create()
-            try {
-              $hashBytes = $sha256.ComputeHash($stream)
-            }
-            finally {
-              $sha256.Dispose()
-            }
-          }
-          finally {
-            $stream.Dispose()
-          }
-          $archiveSha256 = -join ($hashBytes | ForEach-Object { $_.ToString("x2") })
-
-          $manifestPath = Join-Path $env:RUNNER_TEMP "primary-runtime-LATEST.json"
-          $manifest = [ordered]@{
-            archiveName = $archive.Name
-            archiveSha256 = $archiveSha256
-            archiveSizeBytes = $archive.Length
-            archiveUrl = $archive.FullName
-            bundleFormatVersion = 1
-            bundleVersion = "ci"
-            format = "zip"
-            latestManifestFileName = "LATEST.json"
-            runtimeRootDirectoryName = "codex-primary-runtime"
-            targetArch = "arm64"
-            targetPlatform = "win32"
-          }
-          [System.IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 20), $encoding)
-          "manifest_path=$manifestPath" >> $env:GITHUB_OUTPUT
+        working-directory: desktop
+        run: npm run create:primary-runtime-smoke-fixture:compiled
 
       - name: Validate Windows ARM64 primary runtime feed
         working-directory: desktop
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: npm run build:primary-runtime:win:arm64 -- -Arm64ManifestUrl "${{ steps.smoke.outputs.manifest_path }}" -OutputRoot "${{ github.workspace }}\desktop\out\primary-runtime-pr\win32-arm64"
+        run: npm run build:primary-runtime:win:arm64:compiled -- -Arm64ManifestUrl "${{ steps.smoke.outputs.manifest_path }}" -OutputRoot "${{ github.workspace }}\desktop\out\primary-runtime-pr\win32-arm64"
 
       - name: Upload Windows ARM64 primary runtime PR artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -151,44 +104,10 @@ jobs:
           if-no-files-found: error
 
       - name: Publish Windows ARM64 primary runtime release
+        working-directory: desktop
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           RELEASE_TAG: codex-primary-runtime-win32-arm64
           RELEASE_TITLE: codex-primary-runtime win32-arm64
-        run: |
-          $repo = $env:GITHUB_REPOSITORY
-          $assetRoot = "desktop/out/primary-runtime/win32-arm64"
-          $assets = Get-ChildItem -LiteralPath $assetRoot -File
-          $latestManifest = $assets | Where-Object { $_.Name -eq "LATEST.json" } | Select-Object -First 1
-          $archives = @($assets | Where-Object { $_.Name -ne "LATEST.json" })
-          if ($null -eq $latestManifest -or $archives.Count -lt 1) {
-            throw "Expected LATEST.json and a runtime archive in $assetRoot."
-          }
-
-          gh release view $env:RELEASE_TAG --repo "$repo" *> $null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $env:RELEASE_TAG --repo "$repo" --target "$env:GITHUB_SHA" --title "$env:RELEASE_TITLE" --notes "Windows ARM64 primary runtime feed for Codex workspace dependencies." --latest=false
-            if ($LASTEXITCODE -ne 0) {
-              throw "Failed to create GitHub release $env:RELEASE_TAG."
-            }
-          }
-
-          $releaseId = gh api "repos/$repo/releases/tags/$env:RELEASE_TAG" --jq ".id"
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to resolve GitHub release id for $env:RELEASE_TAG."
-          }
-
-          gh api -X PATCH "repos/$repo/releases/$releaseId" -f make_latest=false *> $null
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to mark $env:RELEASE_TAG as not latest."
-          }
-
-          gh release upload $env:RELEASE_TAG $archives.FullName --repo "$repo" --clobber
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to upload primary runtime archive assets to $env:RELEASE_TAG."
-          }
-
-          gh release upload $env:RELEASE_TAG $latestManifest.FullName --repo "$repo" --clobber
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to upload primary runtime manifest to $env:RELEASE_TAG."
-          }
+        run: npm run publish:primary-runtime:win:arm64:compiled

@@ -4,42 +4,20 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - ".github/workflows/windows-arm64-pr-build.yml"
+      - ".github/workflows/windows-arm64-release.yml"
+      - ".node-version"
+      - "desktop/**"
+      - "!desktop/scripts/build-primary-runtime-win-arm64.ts"
+      - "!desktop/scripts/create-primary-runtime-smoke-fixture.ts"
+      - "!desktop/scripts/publish-primary-runtime-release.ts"
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
-  detect-app-package-changes:
-    runs-on: ubuntu-24.04
-    outputs:
-      should_build: ${{ steps.filter.outputs.should_build }}
-    steps:
-      - name: Detect app package changes
-        id: filter
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
-          should_build=false
-          while IFS= read -r file; do
-            case "$file" in
-              .github/workflows/windows-arm64-pr-build.yml|.github/workflows/windows-arm64-release.yml|.node-version)
-                should_build=true
-                ;;
-              desktop/scripts/build-primary-runtime-win-arm64.ps1)
-                ;;
-              desktop/*)
-                should_build=true
-                ;;
-            esac
-          done < <(gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --name-only)
-          echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
-
   build-windows-arm64:
-    needs: detect-app-package-changes
-    if: needs.detect-app-package-changes.outputs.should_build == 'true'
     runs-on: windows-2025-vs2026
     outputs:
       codex_app_version: ${{ steps.upstream.outputs.codex_app_version }}
@@ -149,10 +127,8 @@ jobs:
           if-no-files-found: error
 
   publish-alpha-release:
-    needs:
-      - detect-app-package-changes
-      - build-windows-arm64
-    if: needs.detect-app-package-changes.outputs.should_build == 'true' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
+    needs: build-windows-arm64
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
     runs-on: windows-2025-vs2026
     permissions:
       contents: write
