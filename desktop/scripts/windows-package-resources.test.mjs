@@ -1371,6 +1371,8 @@ test("primary runtime workflow validates PRs without publishing releases", () =>
   assert.match(workflowSource, /permissions:\r?\n  contents: read/);
   assert.match(workflowSource, /validate-primary-runtime:/);
   assert.match(workflowSource, /if: github\.event_name == 'pull_request'/);
+  assert.match(workflowSource, /cache: npm[\s\S]*cache-dependency-path: desktop\/package-lock\.json/);
+  assert.match(workflowSource, /name: Install dependencies[\s\S]*working-directory: desktop[\s\S]*run: npm ci/);
   assert.match(workflowSource, /name: Build desktop scripts[\s\S]*run: npm run build:scripts/);
   assert.match(workflowSource, /name: Create primary runtime smoke fixture/);
   assert.match(workflowSource, /run: npm run create:primary-runtime-smoke-fixture:compiled/);
