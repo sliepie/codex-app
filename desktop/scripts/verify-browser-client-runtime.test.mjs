@@ -4,14 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { verifyBrowserClientRuntime } from "./verify-browser-client-runtime.mjs";
+import { verifyBrowserClientRuntime } from "../.cache/scripts/verify-browser-client-runtime.js";
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, source, "utf8");
 }
 
-function writePeFixture(filePath, versionText) {
+function writePeFixture(filePath, versionText, machine = 0xaa64) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const versionBytes = Buffer.from(versionText, "latin1");
   const bytes = Buffer.alloc(0x120 + versionBytes.length);
@@ -19,7 +19,7 @@ function writePeFixture(filePath, versionText) {
   bytes[1] = 0x5a;
   bytes.writeInt32LE(0x80, 0x3c);
   bytes.write("PE\0\0", 0x80, "latin1");
-  bytes.writeUInt16LE(0xaa64, 0x84);
+  bytes.writeUInt16LE(machine, 0x84);
   versionBytes.copy(bytes, 0x120);
   fs.writeFileSync(filePath, bytes);
 }
@@ -27,6 +27,8 @@ function writePeFixture(filePath, versionText) {
 function createDesktopFixture() {
   const desktopRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-browser-runtime-"));
   const appVersion = "26.506.21252";
+  const appBuildNumber = "61741";
+  const appExtractDir = `extract-${appVersion}-build-${appBuildNumber}`;
   const browserPluginRoot = path.join(
     desktopRoot,
     "resources",
@@ -44,14 +46,14 @@ function createDesktopFixture() {
 
   writeFixture(
     path.join(desktopRoot, ".cache", "codex-app", "latest-release.json"),
-    `${JSON.stringify({ version: appVersion }, null, 2)}\n`,
+    `${JSON.stringify({ buildNumber: appBuildNumber, extractDir: appExtractDir, version: appVersion }, null, 2)}\n`,
   );
   writeFixture(
     path.join(
       desktopRoot,
       ".cache",
       "codex-app",
-      `extract-${appVersion}`,
+      appExtractDir,
       "Codex.app",
       "Contents",
       "Resources",
@@ -69,8 +71,25 @@ function createDesktopFixture() {
     `${JSON.stringify({ name: "classic-level", version: "3.0.0" }, null, 2)}\n`,
   );
 
-  return { browserPluginRoot, classicLevelRoot, desktopRoot };
+  return { appBuildNumber, appExtractDir, appVersion, browserPluginRoot, classicLevelRoot, desktopRoot };
 }
+
+test("accepts legacy app extract cache metadata without extractDir", async () => {
+  const { appBuildNumber, appExtractDir, appVersion, browserPluginRoot, desktopRoot } = createDesktopFixture();
+  const codexAppCacheRoot = path.join(desktopRoot, ".cache", "codex-app");
+  const legacyExtractDir = `extract-${appVersion}`;
+  fs.renameSync(path.join(codexAppCacheRoot, appExtractDir), path.join(codexAppCacheRoot, legacyExtractDir));
+  writeFixture(
+    path.join(codexAppCacheRoot, "latest-release.json"),
+    `${JSON.stringify({ buildNumber: appBuildNumber, version: appVersion }, null, 2)}\n`,
+  );
+  fs.rmSync(browserPluginRoot, { recursive: true, force: true });
+
+  const result = await verifyBrowserClientRuntime({ desktopRoot });
+
+  assert.equal(result.nodeVersion, "v24.14.0");
+  assert.equal(result.browserPluginPresent, false);
+});
 
 test("accepts browser client native payload metadata matching the bundled Node ABI", async () => {
   const { classicLevelRoot, desktopRoot } = createDesktopFixture();
@@ -86,6 +105,11 @@ test("accepts browser client native payload metadata matching the bundled Node A
       null,
       2,
     )}\n`,
+  );
+
+  writePeFixture(
+    path.join(classicLevelRoot, "build", "Release", "classic-level.node"),
+    "native payload",
   );
 
   const result = await verifyBrowserClientRuntime({ desktopRoot });
@@ -159,5 +183,19 @@ test("rejects browser client native payloads built for the Electron ABI", async 
   await assert.rejects(
     () => verifyBrowserClientRuntime({ desktopRoot }),
     /classic-level@3\.0\.0 does not match Node v24\.14\.0 ABI 137/,
+  );
+});
+
+test("rejects Windows ARM64 native paths with non-ARM64 payloads", async () => {
+  const { classicLevelRoot, desktopRoot } = createDesktopFixture();
+  writePeFixture(
+    path.join(classicLevelRoot, "bin", "win32-arm64-137", "classic-level.node"),
+    "x64 native payload",
+    0x8664,
+  );
+
+  await assert.rejects(
+    () => verifyBrowserClientRuntime({ desktopRoot }),
+    /Browser client native payload classic-level\.node is not ARM64: machine 0x8664/,
   );
 });

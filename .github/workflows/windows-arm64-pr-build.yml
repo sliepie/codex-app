@@ -16,8 +16,8 @@ jobs:
       codex_app_build: ${{ steps.upstream.outputs.codex_app_build }}
       codex_cli_tag: ${{ steps.upstream.outputs.codex_cli_tag }}
       codex_plus_plus_tag: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
+      codex_plus_plus_sha: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
     env:
-      GH_TOKEN: ${{ github.token }}
       PACKAGE_ARCHITECTURE: arm64
       electron_config_cache: ${{ github.workspace }}\.cache\electron
     concurrency:
@@ -38,13 +38,27 @@ jobs:
       - name: Resolve upstream release versions
         id: upstream
         working-directory: desktop
-        run: node ./scripts/resolve-codex-releases.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/resolve-codex-releases.ts
 
       - name: Restore Electron cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .cache/electron
           key: windows-arm64-electron-${{ runner.os }}-${{ hashFiles('desktop/package-lock.json') }}
+
+      - name: Install dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build desktop scripts
+        working-directory: desktop
+        run: npm run build:scripts
+
+      - name: Run targeted desktop tests
+        working-directory: desktop
+        run: npm run test:resolve-codex-releases:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled
 
       - name: Restore hydrated release cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -72,16 +86,24 @@ jobs:
             desktop/resources/native/windows-updater.node
           key: windows-oai-updater-${{ runner.os }}-${{ env.PACKAGE_ARCHITECTURE }}-${{ hashFiles('desktop/scripts/build-windows-oai-update-checker.ps1', 'desktop/native/windows-oai-update-checker/Cargo.lock', 'desktop/native/windows-oai-update-checker/Cargo.toml', 'desktop/native/windows-oai-update-checker/src/**') }}
 
-      - name: Install dependencies
+      - name: Build Windows updater
         working-directory: desktop
-        run: npm ci
+        run: npm run build:windows-oai-update-checker -- -Architecture arm64
 
-      - name: Prepare and verify Windows ARM64 inputs
+      - name: Hydrate Windows ARM64 inputs
         working-directory: desktop
         env:
+          CODEX_APP_VERSION: ${{ steps.upstream.outputs.codex_app_version }}
+          CODEX_APP_BUILD: ${{ steps.upstream.outputs.codex_app_build }}
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
           CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
-        run: npm run prepare:win:arm64
+          CODEX_PLUS_PLUS_SHA: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: npm run hydrate:app:compiled && npm run hydrate:cli:compiled
+
+      - name: Verify Windows ARM64 inputs
+        working-directory: desktop
+        run: npm run verify:browser-client-runtime:compiled
 
       - name: Build Windows ARM64 ZIP
         working-directory: desktop
@@ -98,7 +120,7 @@ jobs:
 
   publish-alpha-release:
     needs: build-windows-arm64
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
     runs-on: windows-2025-vs2026
     permissions:
       contents: write
@@ -115,6 +137,7 @@ jobs:
       CODEX_APP_BUILD: ${{ needs.build-windows-arm64.outputs.codex_app_build }}
       CODEX_CLI_TAG: ${{ needs.build-windows-arm64.outputs.codex_cli_tag }}
       CODEX_PLUS_PLUS_TAG: ${{ needs.build-windows-arm64.outputs.codex_plus_plus_tag }}
+      CODEX_PLUS_PLUS_SHA: ${{ needs.build-windows-arm64.outputs.codex_plus_plus_sha }}
     concurrency:
       group: windows-arm64-pr-alpha-release
       cancel-in-progress: false
@@ -147,6 +170,7 @@ jobs:
           Upstream Codex app: $env:CODEX_APP_VERSION build $env:CODEX_APP_BUILD
           Codex CLI: $env:CODEX_CLI_TAG
           Codex++: $env:CODEX_PLUS_PLUS_TAG
+          Codex++ commit: $env:CODEX_PLUS_PLUS_SHA
           "@
 
           gh release view $tag --repo "$repo" *> $null

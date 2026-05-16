@@ -75,7 +75,7 @@ fs.writeFileSync(
     ProcessorArchitecture="${xmlEscape(options.architecture)}"
     Uri="${xmlEscape(options.packageUri)}" />
   <UpdateSettings>
-    <OnLaunch HoursBetweenUpdateChecks="0" ShowPrompt="false" UpdateBlocksActivation="true" />
+    <OnLaunch HoursBetweenUpdateChecks="0" ShowPrompt="true" UpdateBlocksActivation="true" />
     <AutomaticBackgroundTask />
   </UpdateSettings>
 </AppInstaller>

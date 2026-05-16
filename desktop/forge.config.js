@@ -9,10 +9,9 @@ const releaseInfoPath = path.join(__dirname, '.cache', 'codex-app', 'latest-rele
 const releaseInfo = fs.existsSync(releaseInfoPath)
   ? JSON.parse(fs.readFileSync(releaseInfoPath, 'utf8'))
   : null;
+const recoveredAppRoot = path.join(__dirname, 'recovered', 'app-asar-extracted');
 const recoveredNodeModulesRoot = path.join(
-  __dirname,
-  'recovered',
-  'app-asar-extracted',
+  recoveredAppRoot,
   'node_modules',
 );
 const targetRuntimeArch = 'arm64';
@@ -55,6 +54,37 @@ function listPackageRoots(nodeModulesRoot) {
 function readPackageJson(packageRoot) {
   return JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
 }
+
+function recoveredOriginalMain(upstreamPackageJson) {
+  const upstreamMain =
+    typeof upstreamPackageJson.main === 'string' && upstreamPackageJson.main.trim()
+      ? upstreamPackageJson.main.trim().replace(/\\/g, '/')
+      : '.vite/build/bootstrap.js';
+  const normalizedMain = path.posix.normalize(upstreamMain.replace(/^\.\//, ''));
+  if (
+    path.posix.isAbsolute(normalizedMain) ||
+    normalizedMain === '..' ||
+    normalizedMain.startsWith('../') ||
+    /^[A-Za-z]:/.test(normalizedMain)
+  ) {
+    throw new Error('Recovered Codex main must stay inside recovered/app-asar-extracted: ' + upstreamMain);
+  }
+  return path.posix.join('recovered/app-asar-extracted', normalizedMain);
+}
+
+function readRecoveredPackageJson() {
+  const packageJsonPath = path.join(recoveredAppRoot, 'package.json');
+  return fs.existsSync(packageJsonPath) ? readPackageJson(recoveredAppRoot) : null;
+}
+
+const configuredRecoveredOriginalMain = recoveredOriginalMain(readRecoveredPackageJson() ?? {});
+const requiredCodexPlusPlusPackageFiles = [
+  'codex-plusplus/loader.cjs',
+  'codex-plusplus/runtime/main.js',
+  'codex-plusplus/runtime/preload.js',
+  'codex-plusplus/LICENSE',
+  'codex-plusplus/release.json',
+];
 
 function packageListAllowsTarget(value, target) {
   if (!value) {
@@ -233,6 +263,10 @@ function isForeignPrebuild(file) {
 }
 
 function isPackageFile(file) {
+  if (file === '/' + configuredRecoveredOriginalMain) {
+    return true;
+  }
+
   if (
     [
       '/recovered',
@@ -251,7 +285,7 @@ function isPackageFile(file) {
     '/recovered/app-asar-extracted/package.json',
     '/codex-plusplus',
     '/package.json',
-  ].some((allowedPath) => file.startsWith(allowedPath)) ||
+  ].some((allowedPath) => matchesPath(file, allowedPath)) ||
     isRecoveredNodeModule(file) ||
     isInstalledRuntimeNodeModule(file);
 }
@@ -280,9 +314,39 @@ function syncPackagedPackageJson(buildPath) {
   packageJson.codexBuildNumber =
     releaseInfo?.buildNumber ?? upstreamPackageJson.codexBuildNumber ?? packageJson.codexBuildNumber;
   packageJson.codexWindowsPackageIdentity = codexWindowsProdOaiPackageIdentity;
+  packageJson.__codexpp = {
+    ...(packageJson.__codexpp && typeof packageJson.__codexpp === 'object'
+      ? packageJson.__codexpp
+      : {}),
+    originalMain: recoveredOriginalMain(upstreamPackageJson),
+  };
   packageJson.main = 'codex-plusplus/loader.cjs';
 
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
+}
+
+function assertRequiredPackageFile(buildPath, relativePath) {
+  const fullPath = path.join(buildPath, ...relativePath.split('/'));
+  if (!fs.existsSync(fullPath)) {
+    throw new Error('Missing required packaged file: ' + relativePath);
+  }
+}
+
+function assertCodexPlusPlusPackageInputs(buildPath) {
+  for (const relativePath of requiredCodexPlusPlusPackageFiles) {
+    assertRequiredPackageFile(buildPath, relativePath);
+  }
+
+  const packageJson = readPackageJson(buildPath);
+  const originalMain = packageJson.__codexpp?.originalMain;
+  if (typeof originalMain !== 'string' || !originalMain.trim()) {
+    throw new Error('Missing packaged Codex++ originalMain metadata.');
+  }
+  const normalizedOriginalMain = originalMain.trim().replace(/\\/g, '/').replace(/^\.\//, '');
+  if (!isPackageFile('/' + normalizedOriginalMain)) {
+    throw new Error('Packaged original main is not allowed by Forge ignore rules: ' + normalizedOriginalMain);
+  }
+  assertRequiredPackageFile(buildPath, normalizedOriginalMain);
 }
 
 const config = {
@@ -310,6 +374,7 @@ const config = {
       (buildPath, _electronVersion, _platform, _arch, callback) => {
         try {
           syncPackagedPackageJson(buildPath);
+          assertCodexPlusPlusPackageInputs(buildPath);
           callback();
         } catch (error) {
           callback(error);
@@ -321,6 +386,10 @@ const config = {
         return false;
       }
       const normalizedFile = file.replace(/\\/g, '/');
+
+      if (path.extname(normalizedFile).toLowerCase() === '.pdb') {
+        return true;
+      }
 
       if (isRecoveredNativeNodeModule(normalizedFile) || isForeignPrebuild(normalizedFile)) {
         return true;

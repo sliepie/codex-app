@@ -72,7 +72,7 @@ assets:
   Codex CLI and helper binaries from `openai/codex`.
 - `desktop/scripts/update-node-repl.ps1`: refreshes the vendored x64
   `node_repl.exe` fallback from the official Microsoft Store Codex app.
-- `desktop/scripts/refresh-recovered-from-dmg.mjs`: extracts the app payload
+- `desktop/scripts/refresh-recovered-from-dmg.ts`: extracts the app payload
   into `desktop/recovered/app-asar-extracted/`.
 - `desktop/forge.config.js`: packages the app and creates the Windows ARM64
   ZIP with Electron Forge.

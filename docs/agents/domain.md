@@ -14,8 +14,13 @@ If these files do not exist, proceed silently. Do not flag their absence or sugg
 ```text
 /
 |-- CONTEXT.md
+|-- desktop/
+|   |-- codex-plusplus/
+|   |-- resources/
+|   `-- scripts/
 |-- docs/adr/
-`-- src/
+|-- docs/windows/
+`-- packaging/windows/
 ```
 
 ## Use the glossary's vocabulary

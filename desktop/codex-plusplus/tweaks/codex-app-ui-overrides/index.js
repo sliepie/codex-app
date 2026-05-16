@@ -1,11 +1,4 @@
 const STYLE_ID = "codex-app-ui-overrides-style";
-const SIDEBAR_MAX_LEFT = 420;
-const managedStyles = new Map();
-
-let observer = null;
-let resizeHandler = null;
-let animationFrame = 0;
-let log = console;
 
 const VISIBLE_CONTROL_DECLARATIONS =
   "opacity:1!important;pointer-events:auto!important;visibility:visible!important;";
@@ -24,7 +17,6 @@ const SIDEBAR_PIN_ICON_DECLARATIONS =
   "width:0.875rem!important;height:0.875rem!important;min-width:0.875rem!important;min-height:0.875rem!important;";
 const SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS =
   SIDEBAR_PIN_ICON_DECLARATIONS;
-
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -234,10 +226,18 @@ const RIGHT_PANEL_TAB_STYLE_RULES = [
   ),
 ];
 
+const IMAGE_PREVIEW_STYLE_RULES = [
+  cssRule(
+    ".absolute.top-3.right-3.z-10.flex.items-center.gap-2",
+    "top:calc(0.75rem + 26px)!important;",
+  ),
+];
+
 const STYLE_RULES = [
   ...BASE_STYLE_RULES,
   ...SIDEBAR_ACTION_STYLE_RULES,
   ...RIGHT_PANEL_TAB_STYLE_RULES,
+  ...IMAGE_PREVIEW_STYLE_RULES,
 ];
 
 function installStyle() {
@@ -253,187 +253,12 @@ function installStyle() {
   document.head.appendChild(style);
 }
 
-function setManagedStyle(element, property, value) {
-  let previous = managedStyles.get(element);
-  if (!previous) {
-    previous = {};
-    managedStyles.set(element, previous);
-  }
-
-  if (!(property in previous)) {
-    previous[property] = element.style[property] || "";
-  }
-
-  if (element.style[property] !== value) {
-    element.style[property] = value;
-  }
-}
-
-function clearManagedStyles() {
-  for (const [element, previous] of managedStyles) {
-    for (const [property, value] of Object.entries(previous)) {
-      element.style[property] = value;
-    }
-  }
-  managedStyles.clear();
-}
-
-function classTokens(element) {
-  if (typeof element.className !== "string") {
-    return [];
-  }
-
-  return element.className.split(/\s+/).filter(Boolean);
-}
-
-function hasClasses(element, requiredClasses) {
-  const tokens = classTokens(element);
-  return requiredClasses.every((className) => tokens.includes(className));
-}
-
-function closestWithClasses(start, requiredClasses, maxDepth = 6) {
-  let current = start;
-  let depth = 0;
-  while (current && depth <= maxDepth) {
-    if (hasClasses(current, requiredClasses)) {
-      return current;
-    }
-    current = current.parentElement;
-    depth += 1;
-  }
-
-  return null;
-}
-
-function visibleInLeftSidebar(element) {
-  const rect = element.getBoundingClientRect();
-  return (
-    rect.width > 0 &&
-    rect.height > 0 &&
-    rect.left >= 0 &&
-    rect.left < SIDEBAR_MAX_LEFT
-  );
-}
-
-function textNodesMatching(text) {
-  if (!document.body) {
-    return [];
-  }
-
-  const matches = [];
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  let node = walker.nextNode();
-  while (node) {
-    if (node.textContent?.trim() === text) {
-      matches.push(node);
-    }
-    node = walker.nextNode();
-  }
-
-  return matches;
-}
-
-function nudgeChatsHeading() {
-  for (const node of textNodesMatching("Chats")) {
-    const parent = node.parentElement;
-    if (!parent) {
-      continue;
-    }
-
-    const target = closestWithClasses(parent, ["flex", "min-w-0", "flex-1"]);
-    if (target && visibleInLeftSidebar(target)) {
-      setManagedStyle(target, "transform", "translateX(1px)");
-    }
-  }
-}
-
-function nudgeNoChatsEmptyState() {
-  for (const node of textNodesMatching("No chats")) {
-    const target = node.parentElement;
-    if (target && visibleInLeftSidebar(target)) {
-      setManagedStyle(target, "transform", "translateX(1px)");
-    }
-  }
-}
-
-function nudgeFooterSettingsButton() {
-  for (const element of document.querySelectorAll(".min-w-0.flex-1")) {
-    if (!element.querySelector(".icon-sm") || !visibleInLeftSidebar(element)) {
-      continue;
-    }
-
-    const rect = element.getBoundingClientRect();
-    if (rect.bottom > window.innerHeight - 180) {
-      setManagedStyle(element, "transform", "translateX(-1px)");
-    }
-  }
-}
-
-function lowerImagePreviewControls() {
-  for (const element of document.querySelectorAll(
-    ".absolute.top-3.right-3.z-10.flex.items-center.gap-2",
-  )) {
-    setManagedStyle(element, "top", "calc(0.75rem + 26px)");
-  }
-}
-
-function applyOverrides() {
-  animationFrame = 0;
-  try {
-    installStyle();
-    nudgeChatsHeading();
-    nudgeNoChatsEmptyState();
-    nudgeFooterSettingsButton();
-    lowerImagePreviewControls();
-  } catch (error) {
-    log.warn("Codex app UI overrides failed", error);
-  }
-}
-
-function scheduleApply() {
-  if (animationFrame) {
-    return;
-  }
-
-  animationFrame = window.requestAnimationFrame(applyOverrides);
-}
-
 module.exports = {
-  start(api) {
-    log = api?.log || console;
-    resizeHandler = scheduleApply;
-    window.addEventListener("resize", resizeHandler);
-
-    observer = new MutationObserver(scheduleApply);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: [
-        "class",
-        "style",
-        "aria-label",
-      ],
-      childList: true,
-      subtree: true,
-    });
-
-    scheduleApply();
+  start() {
+    installStyle();
   },
 
   stop() {
-    if (animationFrame) {
-      window.cancelAnimationFrame(animationFrame);
-      animationFrame = 0;
-    }
-    if (observer) {
-      observer.disconnect();
-      observer = null;
-    }
-    if (resizeHandler) {
-      window.removeEventListener("resize", resizeHandler);
-      resizeHandler = null;
-    }
-
     document.getElementById(STYLE_ID)?.remove();
-    clearManagedStyles();
   },
 };

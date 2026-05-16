@@ -1,6 +1,38 @@
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+
+type PackageJson = {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  name?: string;
+  scripts?: Record<string, string>;
+  version?: string;
+};
+
+type RuntimeMetadata = {
+  abi?: string;
+  arch?: string;
+  platform?: string;
+  runtime?: string;
+};
+
+type NodeAbiModule = {
+  default?: {
+    getAbi?: (target: string, runtime: string) => string;
+  };
+  getAbi?: (target: string, runtime: string) => string;
+};
+
+type VerifyBrowserClientRuntimeOptions = {
+  desktopRoot?: string;
+};
+
+export type VerifyBrowserClientRuntimeResult = {
+  abi: string;
+  browserPluginPresent: boolean;
+  classicLevelVersion?: string;
+  nodeVersion: string;
+};
 
 const targetPlatform = "win32";
 const targetArch = "arm64";
@@ -12,28 +44,29 @@ const browserPluginRelativeRoot = path.join(
   "browser",
 );
 const classicLevelPackageName = "classic-level";
-const nodeAbiModule = await import("node-abi");
+const nodeAbiModule = require("node-abi") as NodeAbiModule;
 const getAbi = nodeAbiModule.getAbi ?? nodeAbiModule.default?.getAbi;
 
 if (typeof getAbi !== "function") {
   throw new Error("node-abi does not expose getAbi().");
 }
+const resolveNodeAbi = getAbi;
 
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+function readJson<T>(filePath: string): T {
+  return JSON.parse(fs.readFileSync(filePath, "utf8")) as T;
 }
 
-function normalizeVersion(version) {
+function normalizeVersion(version: string): string {
   return version.replace(/^v/i, "");
 }
 
-function detectNodeVersionFromBinary(filePath, label) {
+function detectNodeVersionFromBinary(filePath: string, label: string): string {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Missing ${label}: ${filePath}`);
   }
 
   const binaryText = fs.readFileSync(filePath).toString("latin1");
-  const counts = new Map();
+  const counts = new Map<string, number>();
   for (const match of binaryText.matchAll(/v\d+\.\d+\.\d+/g)) {
     const version = match[0];
     counts.set(version, (counts.get(version) ?? 0) + 1);
@@ -49,33 +82,56 @@ function detectNodeVersionFromBinary(filePath, label) {
   return version;
 }
 
-function readCodexAppReleaseVersion(codexAppCacheRoot) {
+function appExtractCacheSegment(version: string, buildNumber?: string): string {
+  return (buildNumber ? `${version}-build-${buildNumber}` : version).replace(/[^A-Za-z0-9._-]/g, "_");
+}
+
+function appExtractDirCandidates(version: string, buildNumber?: string, extractDir?: string): string[] {
+  if (extractDir) {
+    return [extractDir];
+  }
+
+  const buildKeyedExtractDir = `extract-${appExtractCacheSegment(version, buildNumber)}`;
+  const legacyExtractDir = `extract-${appExtractCacheSegment(version)}`;
+  return buildNumber ? [buildKeyedExtractDir, legacyExtractDir] : [legacyExtractDir];
+}
+
+function readCodexAppReleaseInfo(codexAppCacheRoot: string): {
+  buildNumber?: string;
+  extractDir?: string;
+  version: string;
+} {
   const releaseInfoPath = path.join(codexAppCacheRoot, "latest-release.json");
-  const releaseInfo = readJson(releaseInfoPath);
+  const releaseInfo = readJson<{
+    buildNumber?: string;
+    extractDir?: string;
+    version?: string;
+  }>(releaseInfoPath);
   if (!releaseInfo.version) {
     throw new Error(`Missing Codex app release version: ${releaseInfoPath}`);
   }
+  if (releaseInfo.extractDir && /[\\/]/.test(releaseInfo.extractDir)) {
+    throw new Error(`Invalid Codex app extract directory: ${releaseInfo.extractDir}`);
+  }
 
-  return releaseInfo.version;
+  return {
+    buildNumber: releaseInfo.buildNumber,
+    extractDir: releaseInfo.extractDir,
+    version: releaseInfo.version,
+  };
 }
 
-function readBundledNodeVersion(desktopRoot) {
+function readBundledNodeVersion(desktopRoot: string): string {
   const codexAppCacheRoot = path.join(desktopRoot, ".cache", "codex-app");
-  const appVersion = readCodexAppReleaseVersion(codexAppCacheRoot);
-  return detectNodeVersionFromBinary(
-    path.join(
-      codexAppCacheRoot,
-      `extract-${appVersion}`,
-      "Codex.app",
-      "Contents",
-      "Resources",
-      "node",
-    ),
-    "bundled macOS Node",
+  const { buildNumber, extractDir, version } = readCodexAppReleaseInfo(codexAppCacheRoot);
+  const candidates = appExtractDirCandidates(version, buildNumber, extractDir).map((candidate) =>
+    path.join(codexAppCacheRoot, candidate, "Codex.app", "Contents", "Resources", "node"),
   );
+  const nodePath = candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+  return detectNodeVersionFromBinary(nodePath, "bundled macOS Node");
 }
 
-function readPeMachine(filePath) {
+function readPeMachine(filePath: string): number {
   const bytes = fs.readFileSync(filePath);
   if (bytes.length < 0x40 || bytes[0] !== 0x4d || bytes[1] !== 0x5a) {
     throw new Error(`Expected a PE file: ${filePath}`);
@@ -89,14 +145,14 @@ function readPeMachine(filePath) {
   return bytes.readUInt16LE(peOffset + 4);
 }
 
-function assertArm64Pe(filePath, label) {
+function assertArm64Pe(filePath: string, label: string): void {
   const machine = readPeMachine(filePath);
   if (machine !== 0xaa64) {
     throw new Error(`${label} is not ARM64: machine 0x${machine.toString(16)}`);
   }
 }
 
-function readRuntimeMetadata(filePath) {
+function readRuntimeMetadata(filePath: string): RuntimeMetadata | undefined {
   if (!fs.existsSync(filePath)) {
     return undefined;
   }
@@ -107,7 +163,7 @@ function readRuntimeMetadata(filePath) {
   }
 
   try {
-    return JSON.parse(source);
+    return JSON.parse(source) as RuntimeMetadata;
   } catch {
     const parts = source.split("-");
     return {
@@ -118,11 +174,12 @@ function readRuntimeMetadata(filePath) {
   }
 }
 
-function hasMatchingRuntimeMetadata(packageRoot, expectedAbi) {
+function hasMatchingRuntimeMetadata(packageRoot: string, expectedAbi: string): boolean {
   for (const metadataPath of [
     path.join(packageRoot, "build", "Release", ".codex-runtime-meta.json"),
     path.join(packageRoot, "build", "Release", ".forge-meta"),
   ]) {
+    const metadataRoot = path.dirname(metadataPath);
     const metadata = readRuntimeMetadata(metadataPath);
     if (
       metadata?.abi === expectedAbi &&
@@ -130,15 +187,15 @@ function hasMatchingRuntimeMetadata(packageRoot, expectedAbi) {
       metadata.platform === targetPlatform &&
       (!metadata.runtime || metadata.runtime === "node")
     ) {
-      return true;
+      return hasArm64NodePayload(metadataRoot);
     }
   }
 
   return false;
 }
 
-function hasNapiPrebuildEvidence(packageRoot) {
-  const packageJson = readJson(path.join(packageRoot, "package.json"));
+function hasNapiPrebuildEvidence(packageRoot: string): boolean {
+  const packageJson = readJson<PackageJson>(path.join(packageRoot, "package.json"));
   const scripts = Object.values(packageJson.scripts ?? {});
   return (
     scripts.some((script) => /\bnapi\b/.test(script)) ||
@@ -147,9 +204,28 @@ function hasNapiPrebuildEvidence(packageRoot) {
   );
 }
 
-function hasMatchingAbiPath(packageRoot, expectedAbi) {
+function hasArm64NodePayload(directory: string): boolean {
+  if (!fs.existsSync(directory)) {
+    return false;
+  }
+
+  let found = false;
+  for (const entry of fs.readdirSync(directory)) {
+    if (!entry.endsWith(".node")) {
+      continue;
+    }
+
+    const filePath = path.join(directory, entry);
+    assertArm64Pe(filePath, `Browser client native payload ${path.relative(directory, filePath)}`);
+    found = true;
+  }
+
+  return found;
+}
+
+function hasMatchingAbiPath(packageRoot: string, expectedAbi: string): boolean {
   const binRoot = path.join(packageRoot, "bin", `${targetPlatform}-${targetArch}-${expectedAbi}`);
-  if (fs.existsSync(binRoot) && fs.readdirSync(binRoot).some((entry) => entry.endsWith(".node"))) {
+  if (hasArm64NodePayload(binRoot)) {
     return true;
   }
 
@@ -171,20 +247,31 @@ function hasMatchingAbiPath(packageRoot, expectedAbi) {
     }
 
     const abiTag = tags.find((tag) => tag.startsWith("abi"));
+    let matchesRuntime = false;
     if (abiTag) {
-      return abiTag === `abi${expectedAbi}`;
+      matchesRuntime = abiTag === `abi${expectedAbi}`;
+    } else if (tags.includes("napi")) {
+      matchesRuntime = true;
+    } else {
+      matchesRuntime = hasNapiEvidence;
     }
-    if (tags.includes("napi")) {
-      return true;
+
+    if (!matchesRuntime) {
+      return false;
     }
-    return hasNapiEvidence;
+
+    assertArm64Pe(
+      path.join(prebuildRoot, entry),
+      `Browser client prebuild payload ${entry}`,
+    );
+    return true;
   });
 }
 
-function listNativeEvidence(packageRoot) {
-  const evidence = [];
+function listNativeEvidence(packageRoot: string): string[] {
+  const evidence: string[] = [];
 
-  function walk(current) {
+  function walk(current: string): void {
     if (!fs.existsSync(current)) {
       return;
     }
@@ -208,9 +295,9 @@ function listNativeEvidence(packageRoot) {
   return evidence.length === 0 ? ["<none>"] : evidence;
 }
 
-function assertBrowserClientNativeAbi(packageRoot, expectedAbi, nodeVersion) {
+function assertBrowserClientNativeAbi(packageRoot: string, expectedAbi: string, nodeVersion: string): string {
   const packageJsonPath = path.join(packageRoot, "package.json");
-  const packageJson = readJson(packageJsonPath);
+  const packageJson = readJson<PackageJson>(packageJsonPath);
   if (packageJson.name !== classicLevelPackageName) {
     throw new Error(
       `Expected ${classicLevelPackageName} package at ${packageRoot}, got ${packageJson.name ?? "<missing>"}.`,
@@ -221,7 +308,7 @@ function assertBrowserClientNativeAbi(packageRoot, expectedAbi, nodeVersion) {
     hasMatchingRuntimeMetadata(packageRoot, expectedAbi) ||
     hasMatchingAbiPath(packageRoot, expectedAbi)
   ) {
-    return packageJson.version;
+    return packageJson.version ?? "<unknown>";
   }
 
   throw new Error(
@@ -233,7 +320,9 @@ function assertBrowserClientNativeAbi(packageRoot, expectedAbi, nodeVersion) {
   );
 }
 
-export async function verifyBrowserClientRuntime({ desktopRoot = process.cwd() } = {}) {
+export async function verifyBrowserClientRuntime({
+  desktopRoot = process.cwd(),
+}: VerifyBrowserClientRuntimeOptions = {}): Promise<VerifyBrowserClientRuntimeResult> {
   const bundledNodeVersion = readBundledNodeVersion(desktopRoot);
   const windowsNodePath = path.join(desktopRoot, "resources", "node.exe");
   assertArm64Pe(windowsNodePath, "Hydrated Windows Node runtime");
@@ -248,7 +337,7 @@ export async function verifyBrowserClientRuntime({ desktopRoot = process.cwd() }
     );
   }
 
-  const expectedAbi = getAbi(normalizeVersion(bundledNodeVersion), "node");
+  const expectedAbi = resolveNodeAbi(normalizeVersion(bundledNodeVersion), "node");
   const browserPluginRoot = path.join(desktopRoot, browserPluginRelativeRoot);
   if (!fs.existsSync(browserPluginRoot)) {
     return {
@@ -284,20 +373,22 @@ export async function verifyBrowserClientRuntime({ desktopRoot = process.cwd() }
   };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  try {
-    const result = await verifyBrowserClientRuntime();
-    if (result.browserPluginPresent) {
-      console.log(
-        `Verified browser client runtime: Node ${result.nodeVersion} ABI ${result.abi}, ${classicLevelPackageName}@${result.classicLevelVersion}.`,
-      );
-    } else {
-      console.log(
-        `Verified Windows Node runtime: Node ${result.nodeVersion} ABI ${result.abi}; no bundled browser plugin present.`,
-      );
-    }
-  } catch (error) {
+async function main(): Promise<void> {
+  const result = await verifyBrowserClientRuntime();
+  if (result.browserPluginPresent) {
+    console.log(
+      `Verified browser client runtime: Node ${result.nodeVersion} ABI ${result.abi}, ${classicLevelPackageName}@${result.classicLevelVersion}.`,
+    );
+  } else {
+    console.log(
+      `Verified Windows Node runtime: Node ${result.nodeVersion} ABI ${result.abi}; no bundled browser plugin present.`,
+    );
+  }
+}
+
+if (require.main === module) {
+  main().catch((error: unknown) => {
     console.error(error);
     process.exitCode = 1;
-  }
+  });
 }

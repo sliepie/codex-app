@@ -42,13 +42,12 @@ Codex.
 
 Main release builds in `Windows ARM64 Release Artifacts` build and publish the
 ZIP plus self-signed MSIX/App Installer path when the release build is not
-skipped by the build marker. Scheduled and `main` push runs only skip when the
-build marker exists and the matching GitHub Release is still published. Deleting
-that release forces the next scheduled or `main` push run to rebuild and publish
-the same version again. Manual workflow runs against `main` always rebuild and
-publish the same release assets for the currently resolved upstream Codex app
-version. Manual workflow runs against other branches build artifacts only and do
-not publish GitHub Release or Pages assets.
+skipped by the build marker. Scheduled, `main` push, and manual `main` runs
+skip when the build marker exists and the matching GitHub Release is still
+published. Deleting that release forces the next scheduled, `main` push, or
+manual `main` run to rebuild and publish the same version again. Manual
+workflow runs against other branches build artifacts only and do not publish
+GitHub Release or Pages assets.
 
 Set these repository variables:
 
@@ -128,11 +127,11 @@ native updater reports the update as ready without calling Microsoft Store
 download or install APIs. Package delivery for self-signed builds stays on the
 App Installer channel above.
 
-ZIP builds intentionally keep the same OAI update signal enabled even though
-they do not have a Windows AppModel package identity. The replacement native
-updater returns a stable `Codex` identity key for that state. The packaged
-metadata is intentionally pinned to the prod OAI identity `OpenAI.Codex`; this
-repo's Windows ARM64 package path does not target the public beta feed.
+ZIP builds do not have a Windows AppModel package identity, so the replacement
+native updater returns an empty identity and keeps the recovered Store updater
+disabled outside MSIX/AppX. The packaged metadata is intentionally pinned to
+the prod OAI identity `OpenAI.Codex`; this repo's Windows ARM64 package path
+does not target the public beta feed.
 
 ## Hosting rule
 
