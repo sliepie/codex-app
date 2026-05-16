@@ -61,15 +61,15 @@ GitHub Release asset:
 
 - https://github.com/sliepie/codex-app/releases/download/codex-primary-runtime-win32-arm64/LATEST.json
 
-The `Windows ARM64 Primary Runtime` workflow mirrors the GitHub-hosted feed
-from the official public OAI Windows ARM64 runtime manifest:
+The `Windows ARM64 Primary Runtime` workflow composes the GitHub-hosted feed
+from the official public OAI Windows x64 runtime manifest:
 
-- https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-arm64/LATEST.json
+- https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-x64/LATEST.json
 
-If that official ARM64 manifest is unavailable, scheduled workflow runs exit
-without publishing a new GitHub-hosted feed, while push and manual publish runs
-fail with an explicit configuration error. The builder still verifies mirrored
-archives before publishing so an x64 payload cannot be released as ARM64.
+The builder replaces native payloads with public Windows ARM64 equivalents when
+it can resolve an exact public package match. Native payloads without a public
+ARM64 equivalent are kept from the source x64 runtime so publishing is not
+blocked on private replacement archives.
 
 ### Release Assets
 

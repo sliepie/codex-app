@@ -100,8 +100,6 @@ jobs:
       - name: Resolve Windows ARM64 primary runtime inputs
         id: runtime-source
         working-directory: desktop
-        env:
-          PRIMARY_RUNTIME_REQUIRE_OFFICIAL_ARM64_RUNTIME: ${{ github.event_name != 'schedule' }}
         run: npm run resolve:primary-runtime-source
 
       - name: Install dependencies
