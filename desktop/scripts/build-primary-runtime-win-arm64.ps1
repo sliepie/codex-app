@@ -66,7 +66,21 @@ function Write-JsonFile([string] $Path, [object] $Value) {
 }
 
 function Get-Sha256([string] $Path) {
-  return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+  $stream = [System.IO.File]::OpenRead($Path)
+  try {
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+      $hashBytes = $sha256.ComputeHash($stream)
+    }
+    finally {
+      $sha256.Dispose()
+    }
+  }
+  finally {
+    $stream.Dispose()
+  }
+
+  return -join ($hashBytes | ForEach-Object { $_.ToString("x2") })
 }
 
 function Add-ManifestValue([System.Collections.Specialized.OrderedDictionary] $Manifest, [string] $Name, [object] $Value) {
