@@ -273,9 +273,17 @@ function run(command: string, args: readonly string[], description: string): voi
 
 async function expandInputArchive(archivePath: string, destination: string): Promise<void> {
   await cleanDirectory(destination);
+  const lowerPath = archivePath.toLowerCase();
+  if (
+    process.platform !== "win32" &&
+    (lowerPath.endsWith(".zip") || lowerPath.endsWith(".nupkg") || lowerPath.endsWith(".whl"))
+  ) {
+    run("unzip", ["-q", archivePath, "-d", destination], "extract archive " + archivePath);
+    return;
+  }
+
   const extension = getSupportedArchiveExtension(archivePath);
   if (extension == null || (extension !== ".zip" && extension !== ".tar.xz")) {
-    const lowerPath = archivePath.toLowerCase();
     if (!lowerPath.endsWith(".tgz") && !lowerPath.endsWith(".tar.gz") && !lowerPath.endsWith(".nupkg") && !lowerPath.endsWith(".whl")) {
       throw new Error(`Unsupported archive format: ${archivePath}`);
     }
