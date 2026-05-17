@@ -15,6 +15,7 @@ const {
   collectNativeNodeModuleTargets,
   hasArm64RuntimePayload,
   patchCodexWindowServicesSource,
+  patchMarkdownOperationDirectiveCrashSource,
   pruneUnusedNativePayloads,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
@@ -153,6 +154,32 @@ function createAppResourcesFixture() {
   return appResourcesRoot;
 }
 
+function createMarkdownDirectiveFixture() {
+  const tick = String.fromCharCode(96);
+  return [
+    "const codexDirective=\"codexDirective\";",
+    "function ar(e){return e;}",
+    "function g(e){return e;}",
+    "const c=null;",
+    "function Hr(e){return e.split(" +
+      tick +
+      "\n" +
+      tick +
+      ").filter(e=>!Ur(e)).join(" +
+      tick +
+      "\n" +
+      tick +
+      ")}",
+    "function Ur(e){let t=e.trimStart();if(!t.startsWith(\"::\")||t.startsWith(\":::\"))return!1;let n=2;for(;Wr(t.charCodeAt(n));)n+=1;return n===2?!1:s.has(t.slice(2,n))}",
+    "function Wr(e){return e>=65&&e<=90||e>=97&&e<=122||e>=48&&e<=57||e===45||e===95}",
+    "function Br(n,T){let E=n,ne=T?ar(Hr(E)):E,O=g(ne,c);return O}",
+  ].join("");
+}
+
+function evaluateMarkdownDirectiveFixture(source, operationNames = ["git-create-branch"]) {
+  return new Function("s", source + "; return { Hr, Br };")(new Set(operationNames));
+}
+
 test("generates Windows bundled plugin resources except macOS-only plugins", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
@@ -273,6 +300,42 @@ test("patches recovered Codex window services source", () => {
   assert.equal(result?.changed, true);
   assert.equal(result?.strategy, "service-factory-fingerprint");
   assert.match(result?.source ?? "", /globalThis\.__codexpp_window_services__=services;startApp\(\);/);
+});
+
+test("patches markdown operation directives before renderer parsing", () => {
+  const source = createMarkdownDirectiveFixture();
+
+  const result = patchMarkdownOperationDirectiveCrashSource(source);
+
+  assert.equal(result?.changed, true);
+  assert.equal(result?.strategy, "operation-directive-filter");
+  assert.match(result?.source ?? "", /E=Hr\(n\),ne=T\?ar\(E\):E/);
+
+  const patched = evaluateMarkdownDirectiveFixture(result?.source ?? "");
+  const content =
+    "before\n" +
+    "::git-create-branch{cwd=\"C:\\tmp\\foo\" branch=\"sliepie/fix\"}\n" +
+    "after";
+  assert.equal(patched.Br(content, false), "before\nafter");
+  assert.equal(patched.Br(content, true), "before\nafter");
+
+  const second = patchMarkdownOperationDirectiveCrashSource(result?.source ?? "");
+  assert.equal(second?.changed, false);
+  assert.equal(second?.strategy, "already-patched");
+});
+
+test("keeps non-operation directives and fenced operation directive examples", () => {
+  const result = patchMarkdownOperationDirectiveCrashSource(createMarkdownDirectiveFixture());
+  const patched = evaluateMarkdownDirectiveFixture(result?.source ?? "");
+  const content =
+    "alpha\n" +
+    "::note{cwd=\"C:\\tmp\\foo\"}\n" +
+    "```text\n" +
+    "::git-create-branch{cwd=\"C:\\tmp\\foo\" branch=\"sliepie/fix\"}\n" +
+    "```\n" +
+    "omega";
+
+  assert.equal(patched.Br(content, false), content);
 });
 
 test("discovers native modules copied inside every non-excluded bundled plugin resource", () => {

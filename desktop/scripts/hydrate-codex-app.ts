@@ -1749,6 +1749,67 @@ function patchWindowsSelfSignedBundle(recoveredRoot: string): void {
   );
 }
 
+function findRecoveredWebviewJavaScriptAssets(recoveredRoot: string): string[] {
+  const assetsRoot = path.join(recoveredRoot, "webview", "assets");
+  if (!fs.existsSync(assetsRoot)) return [];
+
+  const assets: string[] = [];
+  const visit = (current: string): void => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const entryPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        visit(entryPath);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.endsWith(".js")) continue;
+      assets.push(path.relative(recoveredRoot, entryPath).replace(/\\/g, "/"));
+    }
+  };
+
+  visit(assetsRoot);
+  return assets.sort();
+}
+
+function patchRecoveredMarkdownOperationDirectives(recoveredRoot: string): void {
+  const diagnostics: string[] = [];
+  let matchedDirectiveBundle = false;
+
+  for (const relativePath of findRecoveredWebviewJavaScriptAssets(recoveredRoot)) {
+    const filePath = path.join(recoveredRoot, relativePath);
+    const source = fs.readFileSync(filePath, "utf8");
+    if (!source.includes("codexDirective") || !source.includes("function Ur(")) continue;
+
+    matchedDirectiveBundle = true;
+    const patch = patchMarkdownOperationDirectiveCrashSource(source);
+    if (!patch) {
+      diagnostics.push(relativePath);
+      continue;
+    }
+
+    if (patch.changed) {
+      fs.writeFileSync(filePath, patch.source, "utf8");
+    }
+    console.log(
+      (patch.changed ? "Patched" : "Verified") +
+        " recovered Codex markdown operation directive filter in " +
+        relativePath +
+        " (" +
+        patch.strategy +
+        ").",
+    );
+  }
+
+  if (diagnostics.length > 0) {
+    throw new Error(
+      "Codex markdown operation directive filter could not be patched in " + diagnostics.join(", ") + ".",
+    );
+  }
+
+  if (!matchedDirectiveBundle) {
+    console.log("Recovered Codex markdown operation directive filter was not found; no renderer directive patch was needed.");
+  }
+}
+
 const codexWindowServicesKey = "__codexpp_window_services__";
 
 type CodexWindowServicesPatch = {
@@ -1760,6 +1821,12 @@ type CodexWindowServicesPatch = {
     | "service-factory-fingerprint"
     | "lifecycle-registration-fingerprint";
   serviceVar?: string;
+};
+
+type MarkdownOperationDirectivePatch = {
+  source: string;
+  changed: boolean;
+  strategy: "already-patched" | "operation-directive-filter";
 };
 
 type CodexWindowServicesSourceDiagnostics = {
@@ -1832,6 +1899,70 @@ export function describeCodexWindowServicesSource(
     objectCalls: countObjectCalls(source),
     matchedFingerprints: matchedWindowServicesFingerprints(source),
     snippet: diagnosticSnippet(source),
+  };
+}
+
+const markdownTemplateTick = String.fromCharCode(96);
+const markdownDirectiveFilterOriginal =
+  "function Hr(e){return e.split(" +
+  markdownTemplateTick +
+  "\n" +
+  markdownTemplateTick +
+  ").filter(e=>!Ur(e)).join(" +
+  markdownTemplateTick +
+  "\n" +
+  markdownTemplateTick +
+  ")}";
+const markdownDirectiveFilterReplacement =
+  "function Hr(e){let t=!1;return e.split(" +
+  markdownTemplateTick +
+  "\n" +
+  markdownTemplateTick +
+  ").filter(e=>{let n=e.trimStart(),r=t;return n.startsWith(\"```\")&&(t=!t),r||!Ur(e)}).join(" +
+  markdownTemplateTick +
+  "\n" +
+  markdownTemplateTick +
+  ")}";
+const markdownDirectiveInputOriginal = "E=n,ne=T?ar(Hr(E)):E";
+const markdownDirectiveInputReplacement = "E=Hr(n),ne=T?ar(E):E";
+
+export function patchMarkdownOperationDirectiveCrashSource(
+  source: string,
+): MarkdownOperationDirectivePatch | null {
+  if (!source.includes("codexDirective") || !source.includes("function Ur(")) return null;
+
+  const alreadyPatched =
+    source.includes(markdownDirectiveFilterReplacement) &&
+    source.includes(markdownDirectiveInputReplacement);
+  if (alreadyPatched) {
+    return { source, changed: false, strategy: "already-patched" };
+  }
+
+  if (
+    !source.includes(markdownDirectiveFilterReplacement) &&
+    !source.includes(markdownDirectiveFilterOriginal)
+  ) {
+    return null;
+  }
+  if (
+    !source.includes(markdownDirectiveInputReplacement) &&
+    !source.includes(markdownDirectiveInputOriginal)
+  ) {
+    return null;
+  }
+
+  let patched = source;
+  if (!patched.includes(markdownDirectiveFilterReplacement)) {
+    patched = patched.replace(markdownDirectiveFilterOriginal, markdownDirectiveFilterReplacement);
+  }
+  if (!patched.includes(markdownDirectiveInputReplacement)) {
+    patched = patched.replace(markdownDirectiveInputOriginal, markdownDirectiveInputReplacement);
+  }
+
+  return {
+    source: patched,
+    changed: patched !== source,
+    strategy: "operation-directive-filter",
   };
 }
 
@@ -2268,6 +2399,7 @@ async function main(): Promise<void> {
     { stdio: "inherit" },
   );
   patchWindowsSelfSignedBundle(recoveredRoot);
+  patchRecoveredMarkdownOperationDirectives(recoveredRoot);
   patchRecoveredCodexWindowServices(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
