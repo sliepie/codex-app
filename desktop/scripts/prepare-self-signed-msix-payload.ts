@@ -41,6 +41,17 @@ function copyDirectory(source: string, destination: string): void {
   fs.cpSync(source, destination, { recursive: true });
 }
 
+// Avoid AppX hard-linking this shared Chromium file to unrelated packages.
+function rewriteSwiftShaderIcdMetadata(appRoot: string): void {
+  const icdPath = path.join(appRoot, "vk_swiftshader_icd.json");
+  if (!fs.existsSync(icdPath)) {
+    return;
+  }
+
+  const swiftShaderIcd = JSON.parse(fs.readFileSync(icdPath, "utf8"));
+  fs.writeFileSync(icdPath, `${JSON.stringify(swiftShaderIcd, null, 2)}\n`, "utf8");
+}
+
 const options = parseOptions(process.argv.slice(2));
 const entryPoint = path.join(options.packageRoot, "Codex.exe");
 if (!fs.existsSync(entryPoint)) {
@@ -49,6 +60,7 @@ if (!fs.existsSync(entryPoint)) {
 
 const appRoot = path.join(options.outputRoot, "app");
 copyDirectory(options.packageRoot, appRoot);
+rewriteSwiftShaderIcdMetadata(appRoot);
 
 const assetsRoot = path.join(options.outputRoot, "assets");
 const msixAssetsRoot = path.join(process.cwd(), "assets", "windows", "msix");

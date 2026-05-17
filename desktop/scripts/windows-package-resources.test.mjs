@@ -1428,6 +1428,18 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.match(releaseWorkflowSource, /npm run write:self-signed-appinstaller:compiled/);
 });
 
+test("self-signed MSIX payload rewrites shared SwiftShader ICD metadata", () => {
+  const scriptSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "prepare-self-signed-msix-payload.ts"),
+    "utf8",
+  );
+
+  assert.match(scriptSource, /function rewriteSwiftShaderIcdMetadata\(appRoot: string\): void/);
+  assert.match(scriptSource, /path\.join\(appRoot, "vk_swiftshader_icd\.json"\)/);
+  assert.match(scriptSource, /JSON\.stringify\(swiftShaderIcd, null, 2\)/);
+  assert.match(scriptSource, /rewriteSwiftShaderIcdMetadata\(appRoot\);/);
+});
+
 test("log cleanup helper blocks any Codex process before moving SQLite logs", () => {
   const scriptSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "Clear-CodexLocalLogs.ps1"),
