@@ -16,8 +16,12 @@ const recoveredNodeModulesRoot = path.join(
 );
 const targetRuntimeArch = 'arm64';
 const targetRuntimePlatform = 'win32';
-const codexWindowsProdOaiPackageIdentity = 'OpenAI.Codex';
+const defaultCodexWindowsPackageIdentity = 'OpenAI.Codex';
 const requiredInstalledRuntimePackageNames = new Set(['tslib']);
+
+function resolveCodexWindowsPackageIdentity() {
+  return process.env.CODEX_WINDOWS_PACKAGE_IDENTITY?.trim() || defaultCodexWindowsPackageIdentity;
+}
 
 function listPackageRoots(nodeModulesRoot) {
   if (!fs.existsSync(nodeModulesRoot)) {
@@ -313,7 +317,7 @@ function syncPackagedPackageJson(buildPath) {
   packageJson.version = releaseInfo?.version ?? upstreamPackageJson.version ?? packageJson.version;
   packageJson.codexBuildNumber =
     releaseInfo?.buildNumber ?? upstreamPackageJson.codexBuildNumber ?? packageJson.codexBuildNumber;
-  packageJson.codexWindowsPackageIdentity = codexWindowsProdOaiPackageIdentity;
+  packageJson.codexWindowsPackageIdentity = resolveCodexWindowsPackageIdentity();
   packageJson.__codexpp = {
     ...(packageJson.__codexpp && typeof packageJson.__codexpp === 'object'
       ? packageJson.__codexpp
