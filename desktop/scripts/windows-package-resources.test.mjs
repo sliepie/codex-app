@@ -1705,12 +1705,12 @@ test("self-signed appinstaller updates immediately on launch", () => {
   );
 });
 
-test("pins packaged Windows updater metadata to the prod OAI identity", () => {
+test("hardcodes packaged Windows updater metadata to the self-signed identity", () => {
   const source = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
-  assert.match(source, /const codexWindowsProdOaiPackageIdentity = 'OpenAI\.Codex';/);
+  assert.match(source, /const codexWindowsPackageIdentity = 'Sliepie\.Codex\.SelfSigned';/);
   assert.match(
     source,
-    /packageJson\.codexWindowsPackageIdentity = codexWindowsProdOaiPackageIdentity;/,
+    /packageJson\.codexWindowsPackageIdentity = codexWindowsPackageIdentity;/,
   );
 });
 

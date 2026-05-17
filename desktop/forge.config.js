@@ -16,7 +16,7 @@ const recoveredNodeModulesRoot = path.join(
 );
 const targetRuntimeArch = 'arm64';
 const targetRuntimePlatform = 'win32';
-const codexWindowsProdOaiPackageIdentity = 'OpenAI.Codex';
+const codexWindowsPackageIdentity = 'Sliepie.Codex.SelfSigned';
 const requiredInstalledRuntimePackageNames = new Set(['tslib']);
 
 function listPackageRoots(nodeModulesRoot) {
@@ -313,7 +313,7 @@ function syncPackagedPackageJson(buildPath) {
   packageJson.version = releaseInfo?.version ?? upstreamPackageJson.version ?? packageJson.version;
   packageJson.codexBuildNumber =
     releaseInfo?.buildNumber ?? upstreamPackageJson.codexBuildNumber ?? packageJson.codexBuildNumber;
-  packageJson.codexWindowsPackageIdentity = codexWindowsProdOaiPackageIdentity;
+  packageJson.codexWindowsPackageIdentity = codexWindowsPackageIdentity;
   packageJson.__codexpp = {
     ...(packageJson.__codexpp && typeof packageJson.__codexpp === 'object'
       ? packageJson.__codexpp
