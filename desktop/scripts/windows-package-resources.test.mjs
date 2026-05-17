@@ -1163,6 +1163,10 @@ test("Codex app UI override installs styles without observing renderer mutations
       appendedStyles[0].textContent,
       /top:calc\(0\.75rem \+ 26px\)!important/,
     );
+    assert.match(
+      appendedStyles[0].textContent,
+      /\[data-app-action-sidebar-project-row\] button svg[^{}]*\{width:0\.875rem!important/,
+    );
 
     assert.equal(windowHandlers.size, 0);
     assert.equal(timeoutId, 0);
