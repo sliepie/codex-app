@@ -1671,7 +1671,7 @@ test("native updater build stamp covers the builder script", () => {
   assert.match(source, /Assert-SuccessfulNativeCommand -Description "cargo build for \$target"/);
 });
 
-test("ZIP builds do not enable the Windows Store updater", () => {
+test("non-official Windows packages do not enable the Windows Store updater", () => {
   const source = fs.readFileSync(
     path.join(desktopRoot, "native", "windows-oai-update-checker", "src", "lib.rs"),
     "utf8",
@@ -1679,6 +1679,11 @@ test("ZIP builds do not enable the Windows Store updater", () => {
 
   assert.match(source, /if first == APPMODEL_ERROR_NO_PACKAGE \{/);
   assert.match(source, /return Ok\(String::new\(\)\);/);
+  assert.match(
+    source,
+    /const OFFICIAL_PACKAGE_FAMILY_NAME: &str = "OpenAI\.Codex_2p2nqsd0c76g0";/,
+  );
+  assert.match(source, /if package_family_name != OFFICIAL_PACKAGE_FAMILY_NAME \{/);
   assert.doesNotMatch(source, /return Ok\("Codex"\.to_string\(\)\);/);
 });
 

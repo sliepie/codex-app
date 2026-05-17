@@ -15,6 +15,7 @@ mod addon {
     const NAPI_OK: NapiStatus = 0;
     const ERROR_INSUFFICIENT_BUFFER: i32 = 122;
     const APPMODEL_ERROR_NO_PACKAGE: i32 = 15700;
+    const OFFICIAL_PACKAGE_FAMILY_NAME: &str = "OpenAI.Codex_2p2nqsd0c76g0";
 
     #[link(name = "kernel32")]
     extern "system" {
@@ -270,7 +271,13 @@ mod addon {
             buffer.truncate(length as usize);
         }
 
-        String::from_utf16(&buffer)
-            .map_err(|_| "Current package family name is not valid UTF-16.".to_string())
+        let package_family_name = String::from_utf16(&buffer)
+            .map_err(|_| "Current package family name is not valid UTF-16.".to_string())?;
+
+        if package_family_name != OFFICIAL_PACKAGE_FAMILY_NAME {
+            return Ok(String::new());
+        }
+
+        Ok(package_family_name)
     }
 }
