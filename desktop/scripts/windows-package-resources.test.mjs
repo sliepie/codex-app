@@ -848,6 +848,70 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
   ]);
 });
 
+test("Codex++ loader disables GPU before self-signed Windows package startup", (t) => {
+  if (process.platform !== "win32") {
+    t.skip("Windows-only startup behavior");
+    return;
+  }
+
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.root, "package.json"),
+    JSON.stringify(
+      {
+        __codexpp: { originalMain: "recovered/app-asar-extracted/.vite/build/bootstrap.js" },
+        codexWindowsPackageIdentity: "Sliepie.Codex.SelfSigned",
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  writeFixture(
+    path.join(fixture.root, "node_modules", "electron", "index.js"),
+    [
+      'const fs = require("node:fs");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      "const session = {",
+      "  registerPreloadScript() { fs.appendFileSync(trace, \"preload\\n\"); },",
+      "};",
+      "module.exports = {",
+      "  app: {",
+      "    commandLine: {",
+      "      appendSwitch(name) { fs.appendFileSync(trace, \"switch:\" + name + \"\\n\"); },",
+      "    },",
+      "    disableHardwareAcceleration() {",
+      "      fs.appendFileSync(trace, \"disable-hardware-acceleration\\n\");",
+      "    },",
+      "    whenReady() {",
+      "      return {",
+      "        then(callback) {",
+      "          fs.appendFileSync(trace, \"when-ready-hook\\n\");",
+      "          callback();",
+      "          return { catch() {} };",
+      "        },",
+      "      };",
+      "    },",
+      "    on(event) {",
+      "      if (event === \"session-created\") fs.appendFileSync(trace, \"session-created-hook\\n\");",
+      "    },",
+      "  },",
+      "  session: { defaultSession: session },",
+      "};",
+      "",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
+    "disable-hardware-acceleration",
+    "switch:disable-gpu",
+    "when-ready-hook",
+    "preload",
+    "session-created-hook",
+    "original",
+    "runtime",
+  ]);
+});
+
 test("Codex++ loader still starts runtime when a bundled tweak marker is corrupt", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   writeFixture(
