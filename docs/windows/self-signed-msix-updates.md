@@ -129,10 +129,10 @@ App Installer channel above.
 
 ZIP builds do not have a Windows AppModel package identity, so the replacement
 native updater returns an empty identity and keeps the recovered Store updater
-disabled outside MSIX/AppX. Self-signed MSIX builds set
-`CODEX_WINDOWS_PACKAGE_IDENTITY` from `SELF_SIGNED_PACKAGE_NAME` before Forge
-packages the app so the in-app Windows updater metadata matches the installed
-MSIX identity instead of the official `OpenAI.Codex` Store package.
+disabled outside MSIX/AppX. The Windows ARM64 package hardcodes
+`Sliepie.Codex.SelfSigned` as its packaged updater identity so the in-app
+Windows updater metadata matches the installed self-signed MSIX instead of the
+official `OpenAI.Codex` Store package.
 
 ## Hosting rule
 

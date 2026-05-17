@@ -137,8 +137,6 @@ jobs:
       - name: Make Windows ARM64 ZIP
         if: steps.upstream.outputs.current_commit_release_tag == ''
         working-directory: desktop
-        env:
-          CODEX_WINDOWS_PACKAGE_IDENTITY: ${{ vars.SELF_SIGNED_PACKAGE_NAME }}
         run: npm run make:win:arm64:compiled
 
       - name: Upload Windows ARM64 artifact

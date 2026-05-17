@@ -1705,22 +1705,12 @@ test("self-signed appinstaller updates immediately on launch", () => {
   );
 });
 
-test("allows packaged Windows updater metadata to follow the package identity", () => {
+test("hardcodes packaged Windows updater metadata to the self-signed identity", () => {
   const source = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
-  assert.match(source, /const defaultCodexWindowsPackageIdentity = 'OpenAI\.Codex';/);
-  assert.match(source, /process\.env\.CODEX_WINDOWS_PACKAGE_IDENTITY\?\.trim\(\)/);
+  assert.match(source, /const codexWindowsPackageIdentity = 'Sliepie\.Codex\.SelfSigned';/);
   assert.match(
     source,
-    /packageJson\.codexWindowsPackageIdentity = resolveCodexWindowsPackageIdentity\(\);/,
-  );
-
-  const releaseWorkflowSource = fs.readFileSync(
-    path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
-    "utf8",
-  );
-  assert.match(
-    releaseWorkflowSource,
-    /CODEX_WINDOWS_PACKAGE_IDENTITY: \$\{\{ vars\.SELF_SIGNED_PACKAGE_NAME \}\}/,
+    /packageJson\.codexWindowsPackageIdentity = codexWindowsPackageIdentity;/,
   );
 });
 
