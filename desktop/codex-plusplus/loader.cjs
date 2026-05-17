@@ -5,11 +5,9 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const selfSignedWindowsPackageIdentity = "Sliepie.Codex.SelfSigned";
 const fallbackOriginalMain = "recovered/app-asar-extracted/.vite/build/bootstrap.js";
 const packagedRoot = path.join(__dirname, "..");
-const packagedPackageJson = readPackagedPackageJson();
-const originalMain = readPackagedOriginalMain(packagedPackageJson);
+const originalMain = readPackagedOriginalMain();
 const runtimeDir = path.join(__dirname, "runtime");
 const preloadPath = path.join(runtimeDir, "preload.js");
 const bundledTweaksDir = path.join(__dirname, "tweaks");
@@ -24,16 +22,9 @@ function resolveUserRoot() {
   return path.join(appData, "codex-plusplus");
 }
 
-function readPackagedPackageJson() {
+function readPackagedOriginalMain() {
   try {
-    return readJson(path.join(packagedRoot, "package.json"));
-  } catch {
-    return undefined;
-  }
-}
-
-function readPackagedOriginalMain(packageJson) {
-  try {
+    const packageJson = readJson(path.join(packagedRoot, "package.json"));
     const configured = packageJson && packageJson.__codexpp && packageJson.__codexpp.originalMain;
     if (typeof configured === "string" && configured.trim()) {
       return configured.trim().replace(/\\/g, "/").replace(/^\.\//, "");
@@ -43,40 +34,6 @@ function readPackagedOriginalMain(packageJson) {
   }
 
   return fallbackOriginalMain;
-}
-
-function isSelfSignedWindowsPackage() {
-  return (
-    process.platform === "win32" &&
-    packagedPackageJson &&
-    packagedPackageJson.codexWindowsPackageIdentity === selfSignedWindowsPackageIdentity
-  );
-}
-
-function disableGpuForSelfSignedWindowsPackage() {
-  if (!isSelfSignedWindowsPackage()) {
-    return;
-  }
-
-  let electron;
-  try {
-    electron = require("electron");
-  } catch {
-    return;
-  }
-
-  const app = electron && electron.app;
-  if (!app) {
-    return;
-  }
-
-  if (typeof app.disableHardwareAcceleration === "function") {
-    app.disableHardwareAcceleration();
-  }
-
-  if (app.commandLine && typeof app.commandLine.appendSwitch === "function") {
-    app.commandLine.appendSwitch("disable-gpu");
-  }
 }
 
 function appendCappedLog(filePath, message) {
@@ -553,7 +510,6 @@ function scheduleCodexPlusPlusIntegration() {
 
 process.env.CODEX_PLUSPLUS_USER_ROOT = userRoot;
 process.env.CODEX_PLUSPLUS_RUNTIME = runtimeDir;
-disableGpuForSelfSignedWindowsPackage();
 registerEarlyPreloadHooks();
 require(path.join(packagedRoot, originalMain));
 scheduleCodexPlusPlusIntegration();
