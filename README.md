@@ -66,18 +66,10 @@ from the official public OAI Windows x64 runtime manifest:
 
 - https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-x64/LATEST.json
 
-The workflow checks this public OAI URL every six hours, downloads the x64
-runtime package, and replaces the `dependencies/node` and `dependencies/python`
-trees with complete ARM64 replacement archives from
-`PRIMARY_RUNTIME_ARM64_NODE_ARCHIVE_URL` and
-`PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL`. If those replacement archives are
-not configured yet, the scheduled workflow exits without publishing a new
-GitHub-hosted feed.
-
-Replacement archives must contain the full runtime dependency trees, not just
-standalone Node or Python installers. The builder refuses to publish an ARM64
-bundle if required runtime paths are missing or if x64 native payloads remain in
-the runtime tree.
+The builder replaces native payloads with public Windows ARM64 equivalents when
+it can resolve an exact public package match. Native payloads without a public
+ARM64 equivalent are kept from the source x64 runtime so publishing is not
+blocked on private replacement archives.
 
 ### Release Assets
 
