@@ -11,6 +11,8 @@ const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
   "padding-inline-start:1.375rem!important;";
 const SIDEBAR_PIN_BUTTON_DECLARATIONS =
   "cursor:pointer!important;";
+const SIDEBAR_PROJECT_PIN_BUTTON_DECLARATIONS =
+  "cursor:pointer!important;width:1.25rem!important;height:1.25rem!important;min-width:1.25rem!important;flex:0 0 1.25rem!important;";
 const SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS =
   "cursor:pointer!important;width:1.25rem!important;height:1.25rem!important;";
 const SIDEBAR_PIN_ICON_DECLARATIONS =
@@ -64,6 +66,18 @@ const SIDEBAR_ACTION_STYLE_RULES = [
       "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button .icon-sm",
     ],
     SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    "[data-app-action-sidebar-project-row] button",
+    SIDEBAR_PROJECT_PIN_BUTTON_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      "[data-app-action-sidebar-project-row] button svg",
+      "[data-app-action-sidebar-project-row] button .icon-xs",
+      "[data-app-action-sidebar-project-row] button .icon-sm",
+    ],
+    SIDEBAR_PIN_ICON_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors("[data-app-action-sidebar-project-row]", [
