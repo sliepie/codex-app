@@ -17,10 +17,12 @@ const SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS =
   "cursor:pointer!important;width:1.25rem!important;height:1.25rem!important;";
 const SIDEBAR_PIN_ICON_DECLARATIONS =
   "width:0.875rem!important;height:0.875rem!important;min-width:0.875rem!important;min-height:0.875rem!important;";
-const SIDEBAR_THREAD_PIN_ICON_DECLARATIONS =
-  "width:0.75rem!important;height:0.75rem!important;min-width:0.75rem!important;min-height:0.75rem!important;";
+const SIDEBAR_CHAT_PIN_ICON_DECLARATIONS =
+  "width:0.625rem!important;height:0.625rem!important;min-width:0.625rem!important;min-height:0.625rem!important;";
 const SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS =
-  SIDEBAR_THREAD_PIN_ICON_DECLARATIONS;
+  SIDEBAR_PIN_ICON_DECLARATIONS;
+const SIDEBAR_CHATS_THREAD_ROW_SELECTOR =
+  ".px-row-x:has(.group\\/chats-section-header) [data-app-action-sidebar-thread-row]";
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -59,7 +61,7 @@ const SIDEBAR_ACTION_STYLE_RULES = [
       "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button .icon-xs",
       "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button .icon-sm",
     ],
-    SIDEBAR_THREAD_PIN_ICON_DECLARATIONS,
+    SIDEBAR_PIN_ICON_DECLARATIONS,
   ),
   cssRule(
     [
@@ -68,6 +70,25 @@ const SIDEBAR_ACTION_STYLE_RULES = [
       "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button .icon-sm",
     ],
     SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR} .w-4 span:has(button) button svg`,
+      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR} .w-4 span:has(button) button .icon-2xs`,
+      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR} .w-4 span:has(button) button .icon-xs`,
+      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.right-0.top-0.z-10 button svg`,
+      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.right-0.top-0.z-10 button .icon-xs`,
+      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.right-0.top-0.z-10 button .icon-sm`,
+    ],
+    SIDEBAR_CHAT_PIN_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR} .absolute.top-0.left-1.z-10 button svg`,
+      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR} .absolute.top-0.left-1.z-10 button .icon-xs`,
+      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR} .absolute.top-0.left-1.z-10 button .icon-sm`,
+    ],
+    SIDEBAR_CHAT_PIN_ICON_DECLARATIONS,
   ),
   cssRule(
     "[data-app-action-sidebar-project-row] button",
@@ -141,7 +162,7 @@ const SIDEBAR_ACTION_STYLE_RULES = [
       " .w-4 span:has(button) button .icon-2xs",
       " .w-4 span:has(button) button .icon-xs",
     ]),
-    SIDEBAR_THREAD_PIN_ICON_DECLARATIONS,
+    SIDEBAR_PIN_ICON_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors("[data-app-action-sidebar-thread-row]", [
@@ -150,6 +171,22 @@ const SIDEBAR_ACTION_STYLE_RULES = [
       " .absolute.top-0.left-1.z-10 button .icon-sm",
     ]),
     SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(SIDEBAR_CHATS_THREAD_ROW_SELECTOR, [
+      " .w-4 span:has(button) button svg",
+      " .w-4 span:has(button) button .icon-2xs",
+      " .w-4 span:has(button) button .icon-xs",
+    ]),
+    SIDEBAR_CHAT_PIN_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(SIDEBAR_CHATS_THREAD_ROW_SELECTOR, [
+      " .absolute.top-0.left-1.z-10 button svg",
+      " .absolute.top-0.left-1.z-10 button .icon-xs",
+      " .absolute.top-0.left-1.z-10 button .icon-sm",
+    ]),
+    SIDEBAR_CHAT_PIN_ICON_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(
