@@ -28,6 +28,10 @@ function createRecoveredFixture() {
   const recoveredRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-self-signed-patch-"));
 
   writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
+    "function Jn(){let r,i,a,o;r=(0,$.jsxs)(K,{electron:!0,children:[(0,$.jsx)(_r,{}),(0,$.jsx)(wr,{})]});return(0,$.jsx)(Y,{children:(0,$.jsx)(Y.Content,{children:(0,$.jsxs)(ht,{children:[r,i,a,o]})})})}function _r(){return(0,$.jsx)(F,{id:\x60settings.general.appearance.usePointerCursors.label\x60})}function wr(){return null}",
+  );
+  writeFixture(
     path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
     "let shortcutGate=Gate(`1981165915`);export{shortcutGate};",
   );
@@ -54,6 +58,12 @@ function createRecoveredFixture() {
   writeFixture(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
     "var dM=`#00000000`,vM=36,yM=`#1f1f1f`,bM=`#ffffff`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===`win32`?{titleBarStyle:`hidden`,titleBarOverlay:xM()}:null}function zx(config){return typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}",
+  );
+
+  fs.appendFileSync(
+    path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
+    "class WindowManagerFixture{refreshWindowBackdrops(){let e=new Set(this.windowHostIds.values());for(let t of e)this.refreshWindowBackdropForHost(t)}refreshWindowBackdropForHost(e){let t=this.isOpaqueWindowsEnabled(e);for(let r of n.BrowserWindow.getAllWindows()){}}async createWindow(r={}){let{appearance:l=\x60primary\x60,hostId:f=t.m}=r,_=l===\x60primary\x60?t.m:f,v=this.isOpaqueWindowsEnabled(_),y=wq({appearance:l,opaqueWindowsEnabled:v,platform:process.platform}),M=new n.BrowserWindow({...process.platform===\x60win32\x60?{autoHideMenuBar:!0}:{}});let ee=this.installWindowsTitleBarOverlaySync(M,l);process.platform===\x60win32\x60&&M.removeMenu()}}const handlers={\"set-configuration\":async({key:t,value:n})=>(this.globalState.set(t,n),t===e.Nr.APPEARANCE_THEME&&QE(n),(t===e.Nr.APPEARANCE_THEME||t===e.Nr.APPEARANCE_LIGHT_CHROME_THEME||t===e.Nr.APPEARANCE_DARK_CHROME_THEME)&&this.windowManager.refreshWindowBackdropForHost(this.hostConfig.id),{success:!0})};",
+    "utf8",
   );
 
   return recoveredRoot;
@@ -90,11 +100,13 @@ test("writes patch report file paths relative to the recovered app root", () => 
     report.patches.map((patch) => patch.file),
     [
       "webview/assets/settings-page-fixture.js",
+      "webview/assets/general-settings-fixture.js",
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
       "webview/assets/agent-settings-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
+      ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
@@ -188,10 +200,10 @@ test("reports a missing gate target as assumed enabled and continues", () => {
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches[1].name, "enable keyboard shortcuts command menu entries");
-  assert.equal(report.patches[1].status, "assumed-enabled");
-  assert.equal(report.patches[1].file, "webview/assets/index-fixture.js");
-  assert.match(report.patches[1].reason, /Gate target was not found/);
+  assert.equal(report.patches[2].name, "enable keyboard shortcuts command menu entries");
+  assert.equal(report.patches[2].status, "assumed-enabled");
+  assert.equal(report.patches[2].file, "webview/assets/index-fixture.js");
+  assert.match(report.patches[2].reason, /Gate target was not found/);
   assert.equal(report.patches.at(-1).name, "enable workspace dependencies app-server feature check");
   assert.equal(report.patches.at(-1).status, "applied");
 });
@@ -310,6 +322,13 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     /shortcutGate=!0/,
   );
   assert.match(
+    fs.readFileSync(
+      path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
+      "utf8",
+    ),
+    /hideWindowsMenuBar/,
+  );
+  assert.match(
     fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
     /commandGate=!0/,
   );
@@ -347,6 +366,14 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /setWindowsMenuBarHiddenForHost/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /codexWindowsMenuBarHidden/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /vM=36/,
   );
   assert.match(
@@ -359,7 +386,7 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 9);
+  assert.equal(report.patches.length, 11);
   assert.ok(
     report.patches.every((patch) =>
       patch.name === "restore Windows title bar overlay controls height"
@@ -456,6 +483,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
   assert.equal(first.status, 0, first.stderr || first.stdout);
   const files = [
     path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
@@ -472,7 +500,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 9);
+  assert.equal(report.patches.length, 11);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),
