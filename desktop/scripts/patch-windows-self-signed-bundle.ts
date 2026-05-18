@@ -460,6 +460,113 @@ function patchWindowsArm64PrimaryRuntimeManifestUrl(): SourcePatcher {
   );
 }
 
+type WindowsMenuBarSettingAliases = {
+  cacheModuleName: string;
+  intlHookName: string;
+  jsxRuntimeName: string;
+  messageComponentName: string;
+  platformHookName: string;
+  queryHookName: string;
+  saveSettingName: string;
+  settingRowComponentName: string;
+  settingsStateAtomName: string;
+  settingsStateHookName: string;
+  toggleComponentName: string;
+};
+
+function requireRegexMatch(match: RegExpMatchArray | null, description: string): RegExpMatchArray {
+  if (!match) {
+    throw new Error("Unable to find " + description + ".");
+  }
+  return match;
+}
+
+function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSettingAliases {
+  const headerMatch = requireRegexMatch(
+    source.match(
+      /let [A-Za-z_$][\w$]*=\(0,([A-Za-z_$][\w$]*)\.c\)\(\d+\),[A-Za-z_$][\w$]*=([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*)\),[A-Za-z_$][\w$]*=([A-Za-z_$][\w$]*)\(\),\{platform:[A-Za-z_$][\w$]*\}=([A-Za-z_$][\w$]*)\(\)/,
+    ),
+    "font smoothing settings hook aliases",
+  );
+  const queryMatch = requireRegexMatch(
+    source.match(
+      /let\{data:[A-Za-z_$][\w$]*,isLoading:[A-Za-z_$][\w$]*\}=([A-Za-z_$][\w$]*)\([A-Za-z_$][\w$]*\.USE_FONT_SMOOTHING,/,
+    ),
+    "font smoothing query hook alias",
+  );
+  const saveMatch = requireRegexMatch(
+    source.match(
+      /=>\{([A-Za-z_$][\w$]*)\([A-Za-z_$][\w$]*,[A-Za-z_$][\w$]*\.USE_FONT_SMOOTHING,[A-Za-z_$][\w$]*\)\}/,
+    ),
+    "font smoothing save helper alias",
+  );
+  const messageMatch = requireRegexMatch(
+    source.match(
+      /\(0,([A-Za-z_$][\w$]*)\.jsx\)\(([A-Za-z_$][\w$]*),\{id:\x60settings\.general\.appearance\.fontSmoothing\.label\x60/,
+    ),
+    "font smoothing message component alias",
+  );
+  const rowMatch = requireRegexMatch(
+    source.match(
+      /\(0,([A-Za-z_$][\w$]*)\.jsx\)\(([A-Za-z_$][\w$]*),\{label:[A-Za-z_$][\w$]*,description:[A-Za-z_$][\w$]*,control:\(0,\1\.jsx\)\(([A-Za-z_$][\w$]*),\{checked:/,
+    ),
+    "font smoothing row component aliases",
+  );
+  if (rowMatch[1] !== messageMatch[1]) {
+    throw new Error("Font smoothing JSX runtime aliases did not match.");
+  }
+
+  return {
+    cacheModuleName: headerMatch[1],
+    settingsStateHookName: headerMatch[2],
+    settingsStateAtomName: headerMatch[3],
+    intlHookName: headerMatch[4],
+    platformHookName: headerMatch[5],
+    queryHookName: queryMatch[1],
+    saveSettingName: saveMatch[1],
+    jsxRuntimeName: messageMatch[1],
+    messageComponentName: messageMatch[2],
+    settingRowComponentName: rowMatch[2],
+    toggleComponentName: rowMatch[3],
+  };
+}
+
+function buildWindowsMenuBarSettingFunction(aliases: WindowsMenuBarSettingAliases): string {
+  return (
+    "function CodexWindowsMenuBarSetting(){let e=(0," +
+    aliases.cacheModuleName +
+    ".c)(13),t=" +
+    aliases.settingsStateHookName +
+    "(" +
+    aliases.settingsStateAtomName +
+    "),n=" +
+    aliases.intlHookName +
+    "(),{platform:i}=" +
+    aliases.platformHookName +
+    "(),a=i===\x60windows\x60,o;e[0]===a?o=e[1]:(o={enabled:a},e[0]=a,e[1]=o);let{data:s,isLoading:c}=" +
+    aliases.queryHookName +
+    "(\x60hideWindowsMenuBar\x60,o),l=s!==!1;if(!a)return null;let u,d;e[2]===Symbol.for(\x60react.memo_cache_sentinel\x60)?(u=(0," +
+    aliases.jsxRuntimeName +
+    ".jsx)(" +
+    aliases.messageComponentName +
+    ",{id:\x60settings.general.appearance.hideWindowsMenuBar.label\x60,defaultMessage:\x60Hide menu bar\x60,description:\x60Label for Windows menu bar visibility setting\x60}),d=(0," +
+    aliases.jsxRuntimeName +
+    ".jsx)(" +
+    aliases.messageComponentName +
+    ",{id:\x60settings.general.appearance.hideWindowsMenuBar.description\x60,defaultMessage:\x60Hide the Windows File, Edit, View, Window, and Help menu bar\x60,description:\x60Description for Windows menu bar visibility setting\x60}),e[2]=u,e[3]=d):(u=e[2],d=e[3]);let f;e[4]===t?f=e[5]:(f=e=>{" +
+    aliases.saveSettingName +
+    "(t,\x60hideWindowsMenuBar\x60,e)},e[4]=t,e[5]=f);let p;e[6]===n?p=e[7]:(p=n.formatMessage({id:\x60settings.general.appearance.hideWindowsMenuBar.label\x60,defaultMessage:\x60Hide menu bar\x60,description:\x60Label for Windows menu bar visibility setting\x60}),e[6]=n,e[7]=p);let m;return e[8]!==l||e[9]!==c||e[10]!==f||e[11]!==p?(m=(0," +
+    aliases.jsxRuntimeName +
+    ".jsx)(" +
+    aliases.settingRowComponentName +
+    ",{label:u,description:d,control:(0," +
+    aliases.jsxRuntimeName +
+    ".jsx)(" +
+    aliases.toggleComponentName +
+    ",{checked:l,disabled:c,onChange:f,ariaLabel:p})}),e[8]=l,e[9]=c,e[10]=f,e[11]=p,e[12]=m):m=e[12],m}"
+  );
+}
+
 function patchWindowsMenuBarAppearanceSetting(): SourcePatcher {
   return (source) => {
     if (source.includes("CodexWindowsMenuBarSetting") && source.includes("hideWindowsMenuBar")) {
@@ -467,22 +574,6 @@ function patchWindowsMenuBarAppearanceSetting(): SourcePatcher {
     }
 
     const ranges = findFunctionRanges(source);
-    const appearanceRange = ranges.filter(
-      (range) =>
-        range.body.includes("electron:!0") &&
-        range.body.includes("children:[r,i,a,o]") &&
-        range.body.includes("(0,$.jsx)(_r,{})") &&
-        range.body.includes("(0,$.jsx)(wr,{})"),
-    );
-    if (appearanceRange.length === 0) {
-      return undefined;
-    }
-    if (appearanceRange.length !== 1) {
-      throw new Error(
-        "Expected exactly one appearance settings function, found " + appearanceRange.length + ".",
-      );
-    }
-
     const pointerCursorRange = ranges.filter((range) =>
       range.body.includes("settings.general.appearance.usePointerCursors.label"),
     );
@@ -493,9 +584,40 @@ function patchWindowsMenuBarAppearanceSetting(): SourcePatcher {
           ".",
       );
     }
+    const fontSmoothingRange = ranges.filter((range) =>
+      range.body.includes("settings.general.appearance.fontSmoothing.label"),
+    );
+    if (fontSmoothingRange.length !== 1) {
+      throw new Error(
+        "Expected exactly one font smoothing settings function, found " +
+          fontSmoothingRange.length +
+          ".",
+      );
+    }
 
-    const row = "children:[r,i,a,(0,$.jsx)(CodexWindowsMenuBarSetting,{}),o]";
-    const appearanceBody = appearanceRange[0].body.replace("children:[r,i,a,o]", row);
+    const aliases = extractWindowsMenuBarSettingAliases(fontSmoothingRange[0].body);
+    const pointerCursorCall =
+      "(0," + aliases.jsxRuntimeName + ".jsx)(" + pointerCursorRange[0].name + ",{})";
+    const fontSmoothingCall =
+      "(0," + aliases.jsxRuntimeName + ".jsx)(" + fontSmoothingRange[0].name + ",{})";
+    const appearanceRange = ranges.filter(
+      (range) =>
+        range.body.includes("electron:!0") &&
+        range.body.includes(pointerCursorCall) &&
+        range.body.includes(fontSmoothingCall),
+    );
+    if (appearanceRange.length === 0) {
+      return undefined;
+    }
+    if (appearanceRange.length !== 1) {
+      throw new Error(
+        "Expected exactly one appearance settings function, found " + appearanceRange.length + ".",
+      );
+    }
+
+    const row =
+      "(0," + aliases.jsxRuntimeName + ".jsx)(CodexWindowsMenuBarSetting,{})," + fontSmoothingCall;
+    const appearanceBody = appearanceRange[0].body.replace(fontSmoothingCall, row);
     if (appearanceBody === appearanceRange[0].body) {
       throw new Error("Unable to add Windows menu bar row to appearance settings.");
     }
@@ -509,8 +631,7 @@ function patchWindowsMenuBarAppearanceSetting(): SourcePatcher {
       "){" +
       appearanceBody +
       "}";
-    const settingFunction =
-      "function CodexWindowsMenuBarSetting(){let e=(0,Q.c)(13),t=w(C),n=N(),{platform:i}=be(),a=i===\x60windows\x60,o;e[0]===a?o=e[1]:(o={enabled:a},e[0]=a,e[1]=o);let{data:s,isLoading:c}=W(\x60hideWindowsMenuBar\x60,o),l=s===!0;if(!a)return null;let u,d;e[2]===Symbol.for(\x60react.memo_cache_sentinel\x60)?(u=(0,$.jsx)(F,{id:\x60settings.general.appearance.hideWindowsMenuBar.label\x60,defaultMessage:\x60Hide menu bar\x60,description:\x60Label for Windows menu bar visibility setting\x60}),d=(0,$.jsx)(F,{id:\x60settings.general.appearance.hideWindowsMenuBar.description\x60,defaultMessage:\x60Hide the Windows File, Edit, View, Window, and Help menu bar\x60,description:\x60Description for Windows menu bar visibility setting\x60}),e[2]=u,e[3]=d):(u=e[2],d=e[3]);let f;e[4]===t?f=e[5]:(f=e=>{G(t,\x60hideWindowsMenuBar\x60,e)},e[4]=t,e[5]=f);let p;e[6]===n?p=e[7]:(p=n.formatMessage({id:\x60settings.general.appearance.hideWindowsMenuBar.label\x60,defaultMessage:\x60Hide menu bar\x60,description:\x60Label for Windows menu bar visibility setting\x60}),e[6]=n,e[7]=p);let m;return e[8]!==l||e[9]!==c||e[10]!==f||e[11]!==p?(m=(0,$.jsx)(J,{label:u,description:d,control:(0,$.jsx)(q,{checked:l,disabled:c,onChange:f,ariaLabel:p})}),e[8]=l,e[9]=c,e[10]=f,e[11]=p,e[12]=m):m=e[12],m}";
+    const settingFunction = buildWindowsMenuBarSettingFunction(aliases);
 
     let nextSource =
       source.slice(0, appearanceRange[0].start) +
@@ -575,7 +696,7 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
         hostsName +
         ")this.refreshWindowBackdropForHost(" +
         hostName +
-        ")}isWindowsMenuBarHidden(e){return process.platform===\x60win32\x60&&this.options.getGlobalStateForHost(e).get(\x60hideWindowsMenuBar\x60)===!0}setWindowsMenuBarHiddenForHost(e,t){if(process.platform!==\x60win32\x60)return;for(let r of " +
+        ")}isWindowsMenuBarHidden(e){return process.platform===\x60win32\x60&&this.options.getGlobalStateForHost(e).get(\x60hideWindowsMenuBar\x60)!==!1}setWindowsMenuBarHiddenForHost(e,t){if(process.platform!==\x60win32\x60)return;for(let r of " +
         electronName +
         ".BrowserWindow.getAllWindows()){if(r.isDestroyed()||this.windowHostIds.get(r.id)!==e)continue;t?(r.setAutoHideMenuBar(!0),r.setMenuBarVisibility(!1),r.removeMenu()):(r.setMenu(" +
         electronName +
@@ -651,7 +772,7 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
     }
     nextSource = nextSource.replace(
       configTarget,
-      "\"set-configuration\":async({key:t,value:n})=>(this.globalState.set(t,n),t===\x60hideWindowsMenuBar\x60&&this.windowManager.setWindowsMenuBarHiddenForHost(this.hostConfig.id,n===!0),",
+      "\"set-configuration\":async({key:t,value:n})=>(this.globalState.set(t,n),t===\x60hideWindowsMenuBar\x60&&this.windowManager.setWindowsMenuBarHiddenForHost(this.hostConfig.id,n!==!1),",
     );
 
     return { source: nextSource, status: "applied", matcher: "semantic" };

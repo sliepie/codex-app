@@ -29,7 +29,7 @@ function createRecoveredFixture() {
 
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
-    "function Jn(){let r,i,a,o;r=(0,$.jsxs)(K,{electron:!0,children:[(0,$.jsx)(_r,{}),(0,$.jsx)(wr,{})]});return(0,$.jsx)(Y,{children:(0,$.jsx)(Y.Content,{children:(0,$.jsxs)(ht,{children:[r,i,a,o]})})})}function _r(){return(0,$.jsx)(F,{id:\x60settings.general.appearance.usePointerCursors.label\x60})}function wr(){return null}",
+    "function Jn(){let themeRow,pointerRow,sizeRow,fontRow;themeRow=(0,jsxKit.jsxs)(Shell,{electron:!0,children:[(0,jsxKit.jsx)(PointerCursorFixture,{}),(0,jsxKit.jsx)(FontSmoothingFixture,{})]});return(0,jsxKit.jsx)(Wrapper,{children:(0,jsxKit.jsx)(Wrapper.Content,{children:(0,jsxKit.jsxs)(List,{children:[themeRow,pointerRow,sizeRow,fontRow]})})})}function PointerCursorFixture(){return(0,jsxKit.jsx)(Message,{id:\x60settings.general.appearance.usePointerCursors.label\x60})}function FontSmoothingFixture(){let cache=(0,reactCache.c)(13),state=useStore(settingsAtom),intl=useIntl(),{platform:platform}=usePlatform(),mac=platform===\x60macOS\x60,options;cache[0]===mac?options=cache[1]:(options={enabled:mac},cache[0]=mac,cache[1]=options);let{data:value,isLoading:loading}=useSetting(settingsKeys.USE_FONT_SMOOTHING,options),checked=value??!0;if(!mac)return null;let label,description;cache[2]===Symbol.for(\x60react.memo_cache_sentinel\x60)?(label=(0,jsxKit.jsx)(Message,{id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60}),description=(0,jsxKit.jsx)(Message,{id:\x60settings.general.appearance.fontSmoothing.description\x60,defaultMessage:\x60Use native macOS font anti-aliasing\x60}),cache[2]=label,cache[3]=description):(label=cache[2],description=cache[3]);let onChange;cache[4]===state?onChange=cache[5]:(onChange=value=>{saveSetting(state,settingsKeys.USE_FONT_SMOOTHING,value)},cache[4]=state,cache[5]=onChange);let aria;cache[6]===intl?aria=cache[7]:(aria=intl.formatMessage({id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60}),cache[6]=intl,cache[7]=aria);let row;return cache[8]!==checked||cache[9]!==loading||cache[10]!==onChange||cache[11]!==aria?(row=(0,jsxKit.jsx)(SettingRow,{label:label,description:description,control:(0,jsxKit.jsx)(Toggle,{checked:checked,disabled:loading,onChange:onChange,ariaLabel:aria})}),cache[8]=checked,cache[9]=loading,cache[10]=onChange,cache[11]=aria,cache[12]=row):row=cache[12],row}",
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
@@ -329,6 +329,13 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     /hideWindowsMenuBar/,
   );
   assert.match(
+    fs.readFileSync(
+      path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
+      "utf8",
+    ),
+    /l=s!==!1/,
+  );
+  assert.match(
     fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
     /commandGate=!0/,
   );
@@ -371,6 +378,10 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /codexWindowsMenuBarHidden/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /get\(\x60hideWindowsMenuBar\x60\)!==!1/,
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
