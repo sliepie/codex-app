@@ -5,6 +5,8 @@ const VISIBLE_CONTROL_DECLARATIONS =
 const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
 const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
+const HIDDEN_CONTROL_DECLARATIONS =
+  "opacity:0!important;pointer-events:none!important;visibility:hidden!important;";
 const HIDDEN_META_DECLARATIONS =
   "opacity:0!important;visibility:hidden!important;";
 const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
@@ -23,10 +25,15 @@ const SIDEBAR_CHATS_PIN_ICON_DECLARATIONS =
   "width:0.75rem!important;height:0.75rem!important;min-width:0.75rem!important;min-height:0.75rem!important;";
 const SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS =
   SIDEBAR_PIN_ICON_DECLARATIONS;
-const SIDEBAR_CHATS_THREAD_TITLE_NUDGE_DECLARATIONS =
-  "position:relative!important;left:-2px!important;";
+const SIDEBAR_CHATS_THREAD_TITLE_DECLARATIONS =
+  "padding-inline-start:0!important;position:relative!important;left:-2px!important;";
 const SIDEBAR_CHATS_THREAD_ROW_SELECTOR =
   '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]';
+const USAGE_MENU_CONTENT_SELECTOR =
+  ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
+const USAGE_MENU_RATE_ROWS_DECLARATIONS =
+  "padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;";
+const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -86,10 +93,6 @@ const SIDEBAR_ACTION_STYLE_RULES = [
       `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10 button .icon-sm`,
     ],
     SIDEBAR_CHATS_PIN_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}:not(:hover):not(:focus-within) [data-thread-title-trigger]`,
-    SIDEBAR_CHATS_THREAD_TITLE_NUDGE_DECLARATIONS,
   ),
   cssRule(
     "[data-app-action-sidebar-project-row] button",
@@ -179,6 +182,21 @@ const SIDEBAR_ACTION_STYLE_RULES = [
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(SIDEBAR_CHATS_THREAD_ROW_SELECTOR, [
+      " .absolute.top-0.left-1.z-10",
+      " .absolute.top-0.left-1.z-10 button",
+    ]),
+    HIDDEN_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR} [data-thread-title-trigger]`,
+    SIDEBAR_CHATS_THREAD_TITLE_DECLARATIONS,
+  ),
+  cssRule(
+    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10):is(:hover,:focus-within) [data-thread-title-trigger]`,
+    SIDEBAR_CHATS_THREAD_TITLE_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors("[data-app-action-sidebar-thread-row]", [
@@ -278,7 +296,21 @@ const SETTINGS_STYLE_RULES = [
   ),
   cssRule(
     ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*))+.scrollbar-stable.flex-1.overflow-y-auto.p-panel",
-    "padding-top:0.5rem!important;",
+    "padding-top:0.5rem!important;padding-bottom:4rem!important;",
+  ),
+];
+
+const USAGE_MENU_STYLE_RULES = [
+  cssRule(
+    `${USAGE_MENU_CONTENT_SELECTOR}>.grid.items-center.gap-y-1\\.5.py-1`,
+    USAGE_MENU_RATE_ROWS_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      `${USAGE_MENU_CONTENT_SELECTOR}>a[href="https://openai.com/chatgpt/pricing"]`,
+      `${USAGE_MENU_CONTENT_SELECTOR}>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
+    ],
+    USAGE_MENU_LINK_DECLARATIONS,
   ),
 ];
 
@@ -288,6 +320,7 @@ const STYLE_RULES = [
   ...RIGHT_PANEL_TAB_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,
+  ...USAGE_MENU_STYLE_RULES,
 ];
 
 function installStyle() {

@@ -40,6 +40,13 @@ type FunctionRange = {
   start: number;
   end: number;
 };
+type MethodRange = {
+  name: string;
+  args: string;
+  body: string;
+  start: number;
+  end: number;
+};
 
 type ReplaceWithPatchersOptions = {
   missingTargetMarkers?: string[];
@@ -460,6 +467,435 @@ function patchWindowsArm64PrimaryRuntimeManifestUrl(): SourcePatcher {
   );
 }
 
+type WindowsMenuBarSettingAliases = {
+  cacheModuleName: string;
+  intlHookName: string;
+  jsxRuntimeName: string;
+  messageComponentName: string;
+  platformHookName: string;
+  queryHookName: string;
+  saveSettingName: string;
+  settingRowComponentName: string;
+  settingsStateInitializer: string;
+  toggleComponentName: string;
+};
+
+function requireRegexMatch(match: RegExpMatchArray | null, description: string): RegExpMatchArray {
+  if (!match) {
+    throw new Error("Unable to find " + description + ".");
+  }
+  return match;
+}
+
+function extractAssignedExpression(source: string, identifier: string, description: string): string {
+  const assignmentPattern = new RegExp(
+    "(?:\\blet\\s+|\\bconst\\s+|\\bvar\\s+|,|;)" + escapeRegExp(identifier) + "=",
+    "g",
+  );
+  const match = assignmentPattern.exec(source);
+  if (!match) {
+    throw new Error("Unable to find " + description + ".");
+  }
+
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+  let index = assignmentPattern.lastIndex;
+  const expressionStart = index;
+  while (index < source.length) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (character === "'" || character === "\"") {
+      index = skipQuotedString(source, index);
+      continue;
+    }
+    if (character === "`") {
+      index = skipTemplateLiteral(source, index);
+      continue;
+    }
+    if (character === "/" && next === "/") {
+      index = skipLineComment(source, index);
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      index = skipBlockComment(source, index);
+      continue;
+    }
+    if (character === "/" && canStartRegex(source, index)) {
+      index = skipRegexLiteral(source, index);
+      continue;
+    }
+
+    if (parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+      if (character === "," || character === ";") {
+        break;
+      }
+    }
+
+    if (character === "(") {
+      parenDepth += 1;
+    } else if (character === ")") {
+      parenDepth -= 1;
+    } else if (character === "[") {
+      bracketDepth += 1;
+    } else if (character === "]") {
+      bracketDepth -= 1;
+    } else if (character === "{") {
+      braceDepth += 1;
+    } else if (character === "}") {
+      braceDepth -= 1;
+    }
+
+    if (parenDepth < 0 || bracketDepth < 0 || braceDepth < 0) {
+      throw new Error("Unable to parse " + description + ".");
+    }
+
+    index += 1;
+  }
+
+  const expression = source.slice(expressionStart, index).trim();
+  if (!expression) {
+    throw new Error("Unable to find " + description + ".");
+  }
+  return expression;
+}
+
+function isWindowsMenuBarAppearancePatchApplied(source: string): boolean {
+  return (
+    source.includes("function CodexWindowsMenuBarSetting()") &&
+    source.includes("CodexWindowsMenuBarSetting,{})") &&
+    source.includes("settings.general.appearance.hideWindowsMenuBar.label") &&
+    source.includes("hideWindowsMenuBar")
+  );
+}
+
+function isWindowsMenuBarMainProcessPatchApplied(source: string): boolean {
+  return (
+    source.includes("isWindowsMenuBarHidden(") &&
+    source.includes("setWindowsMenuBarHiddenForHost(") &&
+    source.includes("autoHideMenuBar:codexWindowsMenuBarHidden") &&
+    source.includes("codexWindowsMenuBarHidden&&") &&
+    source.includes("setWindowsMenuBarHiddenForHost(this.hostConfig.id,") &&
+    source.includes("hideWindowsMenuBar")
+  );
+}
+
+function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSettingAliases {
+  const cacheMatch = requireRegexMatch(
+    source.match(/\(0,([A-Za-z_$][\w$]*)\.c\)\(\d+\)/),
+    "font smoothing cache hook alias",
+  );
+  const queryMatch = requireRegexMatch(
+    source.match(
+      /let\{data:[A-Za-z_$][\w$]*,isLoading:[A-Za-z_$][\w$]*\}=([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*)\.USE_FONT_SMOOTHING,/,
+    ),
+    "font smoothing query hook alias",
+  );
+  const saveMatch = requireRegexMatch(
+    source.match(
+      /=>\{([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*),([A-Za-z_$][\w$]*)\.USE_FONT_SMOOTHING,[A-Za-z_$][\w$]*\)\}/,
+    ),
+    "font smoothing save helper alias",
+  );
+  if (saveMatch[3] !== queryMatch[2]) {
+    throw new Error("Font smoothing setting key aliases did not match.");
+  }
+  const settingsStateInitializer = extractAssignedExpression(
+    source,
+    saveMatch[2],
+    "font smoothing settings state initializer",
+  );
+  const intlMatch = requireRegexMatch(
+    source.match(
+      /([A-Za-z_$][\w$]*)\.formatMessage\(\{id:\x60settings\.general\.appearance\.fontSmoothing\.label\x60/,
+    ),
+    "font smoothing intl alias",
+  );
+  const platformValueMatch = requireRegexMatch(
+    source.match(/([A-Za-z_$][\w$]*)===\x60macOS\x60/),
+    "font smoothing platform value alias",
+  );
+  const platformHookMatch = requireRegexMatch(
+    source.match(
+      new RegExp("\\{platform(?::" + escapeRegExp(platformValueMatch[1]) + ")?\\}=([A-Za-z_$][\\w$]*)\\(\\)"),
+    ),
+    "font smoothing platform hook alias",
+  );
+  const messageMatch = requireRegexMatch(
+    source.match(
+      /\(0,([A-Za-z_$][\w$]*)\.jsx\)\(([A-Za-z_$][\w$]*),\{id:\x60settings\.general\.appearance\.fontSmoothing\.label\x60/,
+    ),
+    "font smoothing message component alias",
+  );
+  const rowMatch = requireRegexMatch(
+    source.match(
+      /\(0,([A-Za-z_$][\w$]*)\.jsx\)\(([A-Za-z_$][\w$]*),\{label:[A-Za-z_$][\w$]*,description:[A-Za-z_$][\w$]*,control:\(0,\1\.jsx\)\(([A-Za-z_$][\w$]*),\{checked:/,
+    ),
+    "font smoothing row component aliases",
+  );
+  if (rowMatch[1] !== messageMatch[1]) {
+    throw new Error("Font smoothing JSX runtime aliases did not match.");
+  }
+
+  return {
+    cacheModuleName: cacheMatch[1],
+    settingsStateInitializer,
+    intlHookName: intlMatch[1],
+    platformHookName: platformHookMatch[1],
+    queryHookName: queryMatch[1],
+    saveSettingName: saveMatch[1],
+    jsxRuntimeName: messageMatch[1],
+    messageComponentName: messageMatch[2],
+    settingRowComponentName: rowMatch[2],
+    toggleComponentName: rowMatch[3],
+  };
+}
+
+function buildWindowsMenuBarSettingFunction(aliases: WindowsMenuBarSettingAliases): string {
+  return (
+    "function CodexWindowsMenuBarSetting(){let e=(0," +
+    aliases.cacheModuleName +
+    ".c)(13),t=" +
+    aliases.settingsStateInitializer +
+    ",n=" +
+    aliases.intlHookName +
+    "(),{platform:i}=" +
+    aliases.platformHookName +
+    "(),a=i===\x60windows\x60,o;e[0]===a?o=e[1]:(o={enabled:a},e[0]=a,e[1]=o);let{data:s,isLoading:c}=" +
+    aliases.queryHookName +
+    "(\x60hideWindowsMenuBar\x60,o),l=s!==!1;if(!a)return null;let u,d;e[2]===Symbol.for(\x60react.memo_cache_sentinel\x60)?(u=(0," +
+    aliases.jsxRuntimeName +
+    ".jsx)(" +
+    aliases.messageComponentName +
+    ",{id:\x60settings.general.appearance.hideWindowsMenuBar.label\x60,defaultMessage:\x60Hide menu bar\x60,description:\x60Label for Windows menu bar visibility setting\x60}),d=(0," +
+    aliases.jsxRuntimeName +
+    ".jsx)(" +
+    aliases.messageComponentName +
+    ",{id:\x60settings.general.appearance.hideWindowsMenuBar.description\x60,defaultMessage:\x60Hide the Windows File, Edit, View, Window, and Help menu bar\x60,description:\x60Description for Windows menu bar visibility setting\x60}),e[2]=u,e[3]=d):(u=e[2],d=e[3]);let f;e[4]===t?f=e[5]:(f=e=>{" +
+    aliases.saveSettingName +
+    "(t,\x60hideWindowsMenuBar\x60,e)},e[4]=t,e[5]=f);let p;e[6]===n?p=e[7]:(p=n.formatMessage({id:\x60settings.general.appearance.hideWindowsMenuBar.label\x60,defaultMessage:\x60Hide menu bar\x60,description:\x60Label for Windows menu bar visibility setting\x60}),e[6]=n,e[7]=p);let m;return e[8]!==l||e[9]!==c||e[10]!==f||e[11]!==p?(m=(0," +
+    aliases.jsxRuntimeName +
+    ".jsx)(" +
+    aliases.settingRowComponentName +
+    ",{label:u,description:d,control:(0," +
+    aliases.jsxRuntimeName +
+    ".jsx)(" +
+    aliases.toggleComponentName +
+    ",{checked:l,disabled:c,onChange:f,ariaLabel:p})}),e[8]=l,e[9]=c,e[10]=f,e[11]=p,e[12]=m):m=e[12],m}"
+  );
+}
+
+function patchWindowsMenuBarAppearanceSetting(): SourcePatcher {
+  return (source) => {
+    if (isWindowsMenuBarAppearancePatchApplied(source)) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+
+    const ranges = findFunctionRanges(source);
+    const pointerCursorRange = ranges.filter((range) =>
+      range.body.includes("settings.general.appearance.usePointerCursors.label"),
+    );
+    if (pointerCursorRange.length !== 1) {
+      throw new Error(
+        "Expected exactly one pointer cursor settings function, found " +
+          pointerCursorRange.length +
+          ".",
+      );
+    }
+    const fontSmoothingRange = ranges.filter((range) =>
+      range.body.includes("settings.general.appearance.fontSmoothing.label"),
+    );
+    if (fontSmoothingRange.length !== 1) {
+      throw new Error(
+        "Expected exactly one font smoothing settings function, found " +
+          fontSmoothingRange.length +
+          ".",
+      );
+    }
+
+    const aliases = extractWindowsMenuBarSettingAliases(fontSmoothingRange[0].body);
+    const pointerCursorCall =
+      "(0," + aliases.jsxRuntimeName + ".jsx)(" + pointerCursorRange[0].name + ",{})";
+    const fontSmoothingCall =
+      "(0," + aliases.jsxRuntimeName + ".jsx)(" + fontSmoothingRange[0].name + ",{})";
+    const appearanceRange = ranges.filter(
+      (range) =>
+        range.body.includes("electron:!0") &&
+        range.body.includes(pointerCursorCall) &&
+        range.body.includes(fontSmoothingCall),
+    );
+    if (appearanceRange.length === 0) {
+      return undefined;
+    }
+    if (appearanceRange.length !== 1) {
+      throw new Error(
+        "Expected exactly one appearance settings function, found " + appearanceRange.length + ".",
+      );
+    }
+
+    const row =
+      "(0," + aliases.jsxRuntimeName + ".jsx)(CodexWindowsMenuBarSetting,{})," + fontSmoothingCall;
+    const appearanceBody = appearanceRange[0].body.replace(fontSmoothingCall, row);
+    if (appearanceBody === appearanceRange[0].body) {
+      throw new Error("Unable to add Windows menu bar row to appearance settings.");
+    }
+
+    const appearanceFunction =
+      appearanceRange[0].asyncPrefix +
+      "function " +
+      appearanceRange[0].name +
+      "(" +
+      appearanceRange[0].args +
+      "){" +
+      appearanceBody +
+      "}";
+    const settingFunction = buildWindowsMenuBarSettingFunction(aliases);
+
+    let nextSource =
+      source.slice(0, appearanceRange[0].start) +
+      appearanceFunction +
+      source.slice(appearanceRange[0].end);
+    const pointerRangesAfterAppearancePatch = findFunctionRanges(nextSource).filter((range) =>
+      range.body.includes("settings.general.appearance.usePointerCursors.label"),
+    );
+    if (pointerRangesAfterAppearancePatch.length !== 1) {
+      throw new Error(
+        "Expected exactly one pointer cursor settings function after appearance patch, found " +
+          pointerRangesAfterAppearancePatch.length +
+          ".",
+      );
+    }
+
+    const insertAt = pointerRangesAfterAppearancePatch[0].end;
+    nextSource = nextSource.slice(0, insertAt) + settingFunction + nextSource.slice(insertAt);
+    return { source: nextSource, status: "applied", matcher: "semantic" };
+  };
+}
+
+function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
+  return (source) => {
+    if (isWindowsMenuBarMainProcessPatchApplied(source)) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+    if (
+      !source.includes("autoHideMenuBar") ||
+      !source.includes("removeMenu") ||
+      !source.includes("\"set-configuration\"")
+    ) {
+      return undefined;
+    }
+
+    let nextSource = source;
+
+    const refreshWindowBackdrops = findMethodRanges(nextSource, "refreshWindowBackdrops");
+    if (refreshWindowBackdrops.length !== 1) {
+      throw new Error(
+        "Expected exactly one refreshWindowBackdrops method, found " +
+          refreshWindowBackdrops.length +
+          ".",
+      );
+    }
+    const refreshWindowBackdropForHost = findMethodRanges(nextSource, "refreshWindowBackdropForHost");
+    if (refreshWindowBackdropForHost.length !== 1) {
+      throw new Error(
+        "Expected exactly one refreshWindowBackdropForHost method, found " +
+          refreshWindowBackdropForHost.length +
+          ".",
+      );
+    }
+    const electronMatch = refreshWindowBackdropForHost[0].body.match(
+      new RegExp("for\\(let " + identifierPattern + " of (" + identifierPattern + ")\\.BrowserWindow\\.getAllWindows\\(\\)\\)"),
+    );
+    if (!electronMatch?.[1]) {
+      throw new Error("Unable to find Electron import alias in refreshWindowBackdropForHost.");
+    }
+    const electronName = electronMatch[1];
+    const menuBarMethods =
+      "isWindowsMenuBarHidden(e){return process.platform===\x60win32\x60&&this.options.getGlobalStateForHost(e).get(\x60hideWindowsMenuBar\x60)!==!1}" +
+      "setWindowsMenuBarHiddenForHost(e,t){if(process.platform!==\x60win32\x60)return;for(let r of " +
+      electronName +
+      ".BrowserWindow.getAllWindows()){if(r.isDestroyed()||this.windowHostIds.get(r.id)!==e)continue;t?(r.setAutoHideMenuBar(!0),r.setMenuBarVisibility(!1),r.removeMenu()):(r.setMenu(" +
+      electronName +
+      ".Menu.getApplicationMenu()),r.setAutoHideMenuBar(!1),r.setMenuBarVisibility(!0))}}";
+    nextSource =
+      nextSource.slice(0, refreshWindowBackdrops[0].end) +
+      menuBarMethods +
+      nextSource.slice(refreshWindowBackdrops[0].end);
+
+    const opaqueTarget =
+      /([A-Za-z_$][\w$]*)=this\.isOpaqueWindowsEnabled\(([A-Za-z_$][\w$]*)\),([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(\{appearance:([A-Za-z_$][\w$]*),opaqueWindowsEnabled:\1,platform:process\.platform\}\)/g;
+    const opaqueMatches = Array.from(nextSource.matchAll(opaqueTarget));
+    if (opaqueMatches.length !== 1) {
+      throw new Error("Expected exactly one main window opacity target, found " + opaqueMatches.length + ".");
+    }
+    nextSource = nextSource.replace(
+      opaqueTarget,
+      (
+        _match,
+        opaqueName,
+        hostName,
+        optionsName,
+        windowOptionsFactoryName,
+        appearanceName,
+      ) =>
+        opaqueName +
+        "=this.isOpaqueWindowsEnabled(" +
+        hostName +
+        "),codexWindowsMenuBarHidden=this.isWindowsMenuBarHidden(" +
+        hostName +
+        ")," +
+        optionsName +
+        "=" +
+        windowOptionsFactoryName +
+        "({appearance:" +
+        appearanceName +
+        ",opaqueWindowsEnabled:" +
+        opaqueName +
+        ",platform:process.platform})",
+    );
+
+    const autoHideTarget =
+      /(\.\.\.\s*process\.platform\s*===\s*\x60win32\x60\s*\?\s*\{\s*autoHideMenuBar\s*:)\s*(?:!0|true)\s*(\}\s*:\s*\{\s*\})/g;
+    const autoHideMatches = Array.from(nextSource.matchAll(autoHideTarget));
+    if (autoHideMatches.length !== 1) {
+      throw new Error("Expected exactly one Windows auto-hide menu bar target, found " + autoHideMatches.length + ".");
+    }
+    nextSource = nextSource.replace(
+      autoHideTarget,
+      "$1codexWindowsMenuBarHidden$2",
+    );
+
+    const removeMenuTarget =
+      /(let [A-Za-z_$][\w$]*=this\.installWindowsTitleBarOverlaySync\(([A-Za-z_$][\w$]*),[A-Za-z_$][\w$]*\);)process\.platform===\x60win32\x60&&\2\.removeMenu\(\)/g;
+    const removeMenuMatches = Array.from(nextSource.matchAll(removeMenuTarget));
+    if (removeMenuMatches.length !== 1) {
+      throw new Error("Expected exactly one Windows removeMenu target, found " + removeMenuMatches.length + ".");
+    }
+    nextSource = nextSource.replace(
+      removeMenuTarget,
+      "$1codexWindowsMenuBarHidden&&$2.removeMenu()",
+    );
+
+    const configTarget =
+      /("set-configuration":async\(\{key:([A-Za-z_$][\w$]*),value:([A-Za-z_$][\w$]*)\}\)=>\(this\.globalState\.set\(\2,\3\),)/g;
+    const configMatches = Array.from(nextSource.matchAll(configTarget));
+    if (configMatches.length !== 1) {
+      throw new Error("Expected exactly one set-configuration target, found " + configMatches.length + ".");
+    }
+    nextSource = nextSource.replace(
+      configTarget,
+      (_match, prefix, keyName, valueName) =>
+        prefix +
+        keyName +
+        "===\x60hideWindowsMenuBar\x60&&this.windowManager.setWindowsMenuBarHiddenForHost(this.hostConfig.id," +
+        valueName +
+        "!==!1),",
+    );
+
+    return { source: nextSource, status: "applied", matcher: "semantic" };
+  };
+}
+
 function failIfUnmodifiedBundleContains(evidence: string | RegExp, reason: string): SourcePatcher {
   return (source) => {
     const matched =
@@ -521,6 +957,62 @@ function findFunctionRanges(source: string): FunctionRange[] {
       name: match[2],
       args: match[3],
       body: source.slice(functionPattern.lastIndex, index - 1),
+      start: match.index,
+      end: index,
+    });
+  }
+
+  return ranges;
+}
+
+function findMethodRanges(source: string, methodName: string): MethodRange[] {
+  const ranges: MethodRange[] = [];
+  const methodPattern = new RegExp("\\b(" + escapeRegExp(methodName) + ")\\(([^)]*)\\)\\{", "g");
+  let match: RegExpExecArray | null;
+
+  while ((match = methodPattern.exec(source)) !== null) {
+    let depth = 1;
+    let index = methodPattern.lastIndex;
+    while (index < source.length && depth > 0) {
+      const character = source[index];
+      const next = source[index + 1];
+      if (character === "'" || character === "\"") {
+        index = skipQuotedString(source, index);
+        continue;
+      }
+      if (character === "\x60") {
+        index = skipTemplateLiteral(source, index);
+        continue;
+      }
+      if (character === "/" && next === "/") {
+        index = skipLineComment(source, index);
+        continue;
+      }
+      if (character === "/" && next === "*") {
+        index = skipBlockComment(source, index);
+        continue;
+      }
+      if (character === "/" && canStartRegex(source, index)) {
+        index = skipRegexLiteral(source, index);
+        continue;
+      }
+
+      if (character === "{") {
+        depth += 1;
+      } else if (character === "}") {
+        depth -= 1;
+      }
+      index += 1;
+    }
+
+    if (depth !== 0) {
+      throw new Error("Unable to find end of method " + methodName + ".");
+    }
+
+    ranges.push({
+      name: match[1],
+      args: match[2],
+      body: source.slice(methodPattern.lastIndex, index - 1),
       start: match.index,
       end: index,
     });
@@ -652,6 +1144,24 @@ function patchSettingsPage(recoveredRoot: string): PatchResult[] {
   ];
 }
 
+function patchAppearanceSettings(recoveredRoot: string): PatchResult[] {
+  const filePath = findFileContaining(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^general-settings-.*\.js$/,
+    ["settings.general.appearance.usePointerCursors.label"],
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "add Windows menu bar visibility appearance setting",
+      [patchWindowsMenuBarAppearanceSetting()],
+      { missingTargetMarkers: ["settings.general.appearance.usePointerCursors.label"] },
+    ),
+  ];
+}
+
 function patchIndex(recoveredRoot: string): PatchResult[] {
   const filePath = findFileContaining(
     path.join(recoveredRoot, "webview", "assets"),
@@ -776,6 +1286,13 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
     replaceWithPatchers(
       recoveredRoot,
       filePath,
+      "add Windows menu bar visibility main-process behavior",
+      [patchWindowsMenuBarMainProcessBehavior()],
+      { required: true },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
       "restore Windows title bar overlay controls height",
       [
         regexPatch(
@@ -871,6 +1388,7 @@ function main(): void {
   const results: PatchResult[] = [];
   try {
     results.push(...patchSettingsPage(recoveredRoot));
+    results.push(...patchAppearanceSettings(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
