@@ -29,7 +29,7 @@ function createRecoveredFixture() {
 
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
-    "function Jn(){let themeRow,pointerRow,sizeRow,fontRow;themeRow=(0,jsxKit.jsxs)(Shell,{electron:!0,children:[(0,jsxKit.jsx)(PointerCursorFixture,{}),(0,jsxKit.jsx)(FontSmoothingFixture,{})]});return(0,jsxKit.jsx)(Wrapper,{children:(0,jsxKit.jsx)(Wrapper.Content,{children:(0,jsxKit.jsxs)(List,{children:[themeRow,pointerRow,sizeRow,fontRow]})})})}function PointerCursorFixture(){return(0,jsxKit.jsx)(Message,{id:\x60settings.general.appearance.usePointerCursors.label\x60})}function FontSmoothingFixture(){let cache=(0,reactCache.c)(13),state=useStore(settingsAtom),intl=useIntl(),{platform:platform}=usePlatform(),mac=platform===\x60macOS\x60,options;cache[0]===mac?options=cache[1]:(options={enabled:mac},cache[0]=mac,cache[1]=options);let{data:value,isLoading:loading}=useSetting(settingsKeys.USE_FONT_SMOOTHING,options),checked=value??!0;if(!mac)return null;let label,description;cache[2]===Symbol.for(\x60react.memo_cache_sentinel\x60)?(label=(0,jsxKit.jsx)(Message,{id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60}),description=(0,jsxKit.jsx)(Message,{id:\x60settings.general.appearance.fontSmoothing.description\x60,defaultMessage:\x60Use native macOS font anti-aliasing\x60}),cache[2]=label,cache[3]=description):(label=cache[2],description=cache[3]);let onChange;cache[4]===state?onChange=cache[5]:(onChange=value=>{saveSetting(state,settingsKeys.USE_FONT_SMOOTHING,value)},cache[4]=state,cache[5]=onChange);let aria;cache[6]===intl?aria=cache[7]:(aria=intl.formatMessage({id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60}),cache[6]=intl,cache[7]=aria);let row;return cache[8]!==checked||cache[9]!==loading||cache[10]!==onChange||cache[11]!==aria?(row=(0,jsxKit.jsx)(SettingRow,{label:label,description:description,control:(0,jsxKit.jsx)(Toggle,{checked:checked,disabled:loading,onChange:onChange,ariaLabel:aria})}),cache[8]=checked,cache[9]=loading,cache[10]=onChange,cache[11]=aria,cache[12]=row):row=cache[12],row}",
+    "function Jn(){let themeRow,pointerRow,sizeRow,fontRow;themeRow=(0,jsxKit.jsxs)(Shell,{electron:!0,children:[(0,jsxKit.jsx)(PointerCursorFixture,{}),(0,jsxKit.jsx)(FontSmoothingFixture,{})]});return(0,jsxKit.jsx)(Wrapper,{children:(0,jsxKit.jsx)(Wrapper.Content,{children:(0,jsxKit.jsxs)(List,{children:[themeRow,pointerRow,sizeRow,fontRow]})})})}function PointerCursorFixture(){return(0,jsxKit.jsx)(Message,{id:\x60settings.general.appearance.usePointerCursors.label\x60})}function FontSmoothingFixture(){let cache=(0,reactCache.c)(13),intl=useIntl();let{platform:platform}=usePlatform(),mac=platform===\x60macOS\x60,options;let state=useStore(settingsAtom);cache[0]===mac?options=cache[1]:(options={enabled:mac},cache[0]=mac,cache[1]=options);let{data:value,isLoading:loading}=useSetting(settingsKeys.USE_FONT_SMOOTHING,options),checked=value??!0;if(!mac)return null;let label,description;cache[2]===Symbol.for(\x60react.memo_cache_sentinel\x60)?(label=(0,jsxKit.jsx)(Message,{id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60}),description=(0,jsxKit.jsx)(Message,{id:\x60settings.general.appearance.fontSmoothing.description\x60,defaultMessage:\x60Use native macOS font anti-aliasing\x60}),cache[2]=label,cache[3]=description):(label=cache[2],description=cache[3]);let onChange;cache[4]===state?onChange=cache[5]:(onChange=value=>{saveSetting(state,settingsKeys.USE_FONT_SMOOTHING,value)},cache[4]=state,cache[5]=onChange);let aria;cache[6]===intl?aria=cache[7]:(aria=intl.formatMessage({id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60}),cache[6]=intl,cache[7]=aria);let row;return cache[8]!==checked||cache[9]!==loading||cache[10]!==onChange||cache[11]!==aria?(row=(0,jsxKit.jsx)(SettingRow,{label:label,description:description,control:(0,jsxKit.jsx)(Toggle,{checked:checked,disabled:loading,onChange:onChange,ariaLabel:aria})}),cache[8]=checked,cache[9]=loading,cache[10]=onChange,cache[11]=aria,cache[12]=row):row=cache[12],row}",
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
@@ -62,7 +62,7 @@ function createRecoveredFixture() {
 
   fs.appendFileSync(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "class WindowManagerFixture{refreshWindowBackdrops(){let e=new Set(this.windowHostIds.values());for(let t of e)this.refreshWindowBackdropForHost(t)}refreshWindowBackdropForHost(e){let t=this.isOpaqueWindowsEnabled(e);for(let r of n.BrowserWindow.getAllWindows()){}}async createWindow(r={}){let{appearance:l=\x60primary\x60,hostId:f=t.m}=r,_=l===\x60primary\x60?t.m:f,v=this.isOpaqueWindowsEnabled(_),y=Oq({appearance:l,opaqueWindowsEnabled:v,platform:process.platform}),M=new n.BrowserWindow({...process.platform===\x60win32\x60?{autoHideMenuBar:!0}:{}});let ee=this.installWindowsTitleBarOverlaySync(M,l);process.platform===\x60win32\x60&&M.removeMenu()}}const handlers={\"set-configuration\":async({key:t,value:n})=>(this.globalState.set(t,n),t===e.Nr.APPEARANCE_THEME&&QE(n),(t===e.Nr.APPEARANCE_THEME||t===e.Nr.APPEARANCE_LIGHT_CHROME_THEME||t===e.Nr.APPEARANCE_DARK_CHROME_THEME)&&this.windowManager.refreshWindowBackdropForHost(this.hostConfig.id),{success:!0})};",
+    "class WindowManagerFixture{refreshWindowBackdrops(){let e=new Set(this.windowHostIds.values());for(let t of e)this.refreshWindowBackdropForHost(t)}refreshWindowBackdropForHost(e){let t=this.isOpaqueWindowsEnabled(e);for(let r of n.BrowserWindow.getAllWindows()){}}async createWindow(r={}){let{appearance:l=\x60primary\x60,hostId:f=t.m}=r,_=l===\x60primary\x60?t.m:f,v=this.isOpaqueWindowsEnabled(_),y=Oq({appearance:l,opaqueWindowsEnabled:v,platform:process.platform}),M=new n.BrowserWindow({...process.platform===\x60win32\x60?{autoHideMenuBar:!0}:{}});let ee=this.installWindowsTitleBarOverlaySync(M,l);process.platform===\x60win32\x60&&M.removeMenu()}}const handlers={\"set-configuration\":async({key:configKey,value:configValue})=>(this.globalState.set(configKey,configValue),configKey===e.Nr.APPEARANCE_THEME&&QE(configValue),(configKey===e.Nr.APPEARANCE_THEME||configKey===e.Nr.APPEARANCE_LIGHT_CHROME_THEME||configKey===e.Nr.APPEARANCE_DARK_CHROME_THEME)&&this.windowManager.refreshWindowBackdropForHost(this.hostConfig.id),{success:!0})};",
     "utf8",
   );
 
@@ -336,6 +336,13 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     /l=s!==!1/,
   );
   assert.match(
+    fs.readFileSync(
+      path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
+      "utf8",
+    ),
+    /\(0,jsxKit\.jsx\)\(CodexWindowsMenuBarSetting,\{\}\),\(0,jsxKit\.jsx\)\(FontSmoothingFixture,\{\}\)/,
+  );
+  assert.match(
     fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
     /commandGate=!0/,
   );
@@ -385,6 +392,18 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /autoHideMenuBar:codexWindowsMenuBarHidden/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /codexWindowsMenuBarHidden&&M\.removeMenu\(\)/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /configKey===\x60hideWindowsMenuBar\x60&&this\.windowManager\.setWindowsMenuBarHiddenForHost\(this\.hostConfig\.id,configValue!==!1\)/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /vM=36/,
   );
   assert.match(
@@ -398,6 +417,12 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   assert.equal(report.patches.length, 11);
+  assert.equal(
+    report.patches.find(
+      (patch) => patch.name === "add Windows menu bar visibility appearance setting",
+    )?.status,
+    "applied",
+  );
   assert.ok(
     report.patches.every((patch) =>
       patch.name === "restore Windows title bar overlay controls height"
@@ -424,6 +449,35 @@ test("restores oversized Windows title bar overlay controls", () => {
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   const patch = report.patches.find(
     (patch) => patch.name === "restore Windows title bar overlay controls height",
+  );
+  assert.equal(patch?.status, "applied");
+});
+
+test("patches menu bar behavior when backdrop methods are not adjacent", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const mainPath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
+  fs.writeFileSync(
+    mainPath,
+    fs
+      .readFileSync(mainPath, "utf8")
+      .replace(
+        "}refreshWindowBackdropForHost(e){let",
+        "}debugBackdropRefresh(){return!0}refreshWindowBackdropForHost(e){let",
+      ),
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(mainPath, "utf8");
+  assert.match(bundle, /debugBackdropRefresh\(\)\{return!0\}/);
+  assert.match(bundle, /setWindowsMenuBarHiddenForHost/);
+  assert.match(bundle, /get\(\x60hideWindowsMenuBar\x60\)!==!1/);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "add Windows menu bar visibility main-process behavior",
   );
   assert.equal(patch?.status, "applied");
 });

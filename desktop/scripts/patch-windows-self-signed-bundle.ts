@@ -40,6 +40,13 @@ type FunctionRange = {
   start: number;
   end: number;
 };
+type MethodRange = {
+  name: string;
+  args: string;
+  body: string;
+  start: number;
+  end: number;
+};
 
 type ReplaceWithPatchersOptions = {
   missingTargetMarkers?: string[];
@@ -469,8 +476,7 @@ type WindowsMenuBarSettingAliases = {
   queryHookName: string;
   saveSettingName: string;
   settingRowComponentName: string;
-  settingsStateAtomName: string;
-  settingsStateHookName: string;
+  settingsStateInitializer: string;
   toggleComponentName: string;
 };
 
@@ -482,23 +488,46 @@ function requireRegexMatch(match: RegExpMatchArray | null, description: string):
 }
 
 function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSettingAliases {
-  const headerMatch = requireRegexMatch(
-    source.match(
-      /let [A-Za-z_$][\w$]*=\(0,([A-Za-z_$][\w$]*)\.c\)\(\d+\),[A-Za-z_$][\w$]*=([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*)\),[A-Za-z_$][\w$]*=([A-Za-z_$][\w$]*)\(\),\{platform:[A-Za-z_$][\w$]*\}=([A-Za-z_$][\w$]*)\(\)/,
-    ),
-    "font smoothing settings hook aliases",
+  const cacheMatch = requireRegexMatch(
+    source.match(/\(0,([A-Za-z_$][\w$]*)\.c\)\(\d+\)/),
+    "font smoothing cache hook alias",
   );
   const queryMatch = requireRegexMatch(
     source.match(
-      /let\{data:[A-Za-z_$][\w$]*,isLoading:[A-Za-z_$][\w$]*\}=([A-Za-z_$][\w$]*)\([A-Za-z_$][\w$]*\.USE_FONT_SMOOTHING,/,
+      /let\{data:[A-Za-z_$][\w$]*,isLoading:[A-Za-z_$][\w$]*\}=([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*)\.USE_FONT_SMOOTHING,/,
     ),
     "font smoothing query hook alias",
   );
   const saveMatch = requireRegexMatch(
     source.match(
-      /=>\{([A-Za-z_$][\w$]*)\([A-Za-z_$][\w$]*,[A-Za-z_$][\w$]*\.USE_FONT_SMOOTHING,[A-Za-z_$][\w$]*\)\}/,
+      /=>\{([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*),([A-Za-z_$][\w$]*)\.USE_FONT_SMOOTHING,[A-Za-z_$][\w$]*\)\}/,
     ),
     "font smoothing save helper alias",
+  );
+  if (saveMatch[3] !== queryMatch[2]) {
+    throw new Error("Font smoothing setting key aliases did not match.");
+  }
+  const settingsStateInitializerMatch = requireRegexMatch(
+    source.match(
+      new RegExp("(?:let |const |var |,|;)" + saveMatch[2] + "=([^,;]+)"),
+    ),
+    "font smoothing settings state initializer",
+  );
+  const intlMatch = requireRegexMatch(
+    source.match(
+      /([A-Za-z_$][\w$]*)\.formatMessage\(\{id:\x60settings\.general\.appearance\.fontSmoothing\.label\x60/,
+    ),
+    "font smoothing intl alias",
+  );
+  const platformValueMatch = requireRegexMatch(
+    source.match(/([A-Za-z_$][\w$]*)===\x60macOS\x60/),
+    "font smoothing platform value alias",
+  );
+  const platformHookMatch = requireRegexMatch(
+    source.match(
+      new RegExp("\\{platform(?::" + platformValueMatch[1] + ")?\\}=([A-Za-z_$][\\w$]*)\\(\\)"),
+    ),
+    "font smoothing platform hook alias",
   );
   const messageMatch = requireRegexMatch(
     source.match(
@@ -517,11 +546,10 @@ function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSett
   }
 
   return {
-    cacheModuleName: headerMatch[1],
-    settingsStateHookName: headerMatch[2],
-    settingsStateAtomName: headerMatch[3],
-    intlHookName: headerMatch[4],
-    platformHookName: headerMatch[5],
+    cacheModuleName: cacheMatch[1],
+    settingsStateInitializer: settingsStateInitializerMatch[1],
+    intlHookName: intlMatch[1],
+    platformHookName: platformHookMatch[1],
     queryHookName: queryMatch[1],
     saveSettingName: saveMatch[1],
     jsxRuntimeName: messageMatch[1],
@@ -536,10 +564,8 @@ function buildWindowsMenuBarSettingFunction(aliases: WindowsMenuBarSettingAliase
     "function CodexWindowsMenuBarSetting(){let e=(0," +
     aliases.cacheModuleName +
     ".c)(13),t=" +
-    aliases.settingsStateHookName +
-    "(" +
-    aliases.settingsStateAtomName +
-    "),n=" +
+    aliases.settingsStateInitializer +
+    ",n=" +
     aliases.intlHookName +
     "(),{platform:i}=" +
     aliases.platformHookName +
@@ -669,49 +695,40 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
 
     let nextSource = source;
 
-    const backdropTarget =
-      /refreshWindowBackdrops\(\)\{let ([A-Za-z_$][\w$]*)=new Set\(this\.windowHostIds\.values\(\)\);for\(let ([A-Za-z_$][\w$]*) of \1\)this\.refreshWindowBackdropForHost\(\2\)\}refreshWindowBackdropForHost\(([A-Za-z_$][\w$]*)\)\{let ([A-Za-z_$][\w$]*)=this\.isOpaqueWindowsEnabled\(\3\);for\(let ([A-Za-z_$][\w$]*) of ([A-Za-z_$][\w$]*)\.BrowserWindow\.getAllWindows\(\)\)/g;
-    const backdropMatches = Array.from(nextSource.matchAll(backdropTarget));
-    if (backdropMatches.length !== 1) {
+    const refreshWindowBackdrops = findMethodRanges(nextSource, "refreshWindowBackdrops");
+    if (refreshWindowBackdrops.length !== 1) {
       throw new Error(
-        "Expected exactly one window backdrop refresh target, found " + backdropMatches.length + ".",
+        "Expected exactly one refreshWindowBackdrops method, found " +
+          refreshWindowBackdrops.length +
+          ".",
       );
     }
-    nextSource = nextSource.replace(
-      backdropTarget,
-      (
-        _match,
-        hostsName,
-        hostName,
-        targetHostName,
-        opaqueName,
-        windowName,
-        electronName,
-      ) =>
-        "refreshWindowBackdrops(){let " +
-        hostsName +
-        "=new Set(this.windowHostIds.values());for(let " +
-        hostName +
-        " of " +
-        hostsName +
-        ")this.refreshWindowBackdropForHost(" +
-        hostName +
-        ")}isWindowsMenuBarHidden(e){return process.platform===\x60win32\x60&&this.options.getGlobalStateForHost(e).get(\x60hideWindowsMenuBar\x60)!==!1}setWindowsMenuBarHiddenForHost(e,t){if(process.platform!==\x60win32\x60)return;for(let r of " +
-        electronName +
-        ".BrowserWindow.getAllWindows()){if(r.isDestroyed()||this.windowHostIds.get(r.id)!==e)continue;t?(r.setAutoHideMenuBar(!0),r.setMenuBarVisibility(!1),r.removeMenu()):(r.setMenu(" +
-        electronName +
-        ".Menu.getApplicationMenu()),r.setAutoHideMenuBar(!1),r.setMenuBarVisibility(!0))}}refreshWindowBackdropForHost(" +
-        targetHostName +
-        "){let " +
-        opaqueName +
-        "=this.isOpaqueWindowsEnabled(" +
-        targetHostName +
-        ");for(let " +
-        windowName +
-        " of " +
-        electronName +
-        ".BrowserWindow.getAllWindows())",
+    const refreshWindowBackdropForHost = findMethodRanges(nextSource, "refreshWindowBackdropForHost");
+    if (refreshWindowBackdropForHost.length !== 1) {
+      throw new Error(
+        "Expected exactly one refreshWindowBackdropForHost method, found " +
+          refreshWindowBackdropForHost.length +
+          ".",
+      );
+    }
+    const electronMatch = refreshWindowBackdropForHost[0].body.match(
+      new RegExp("for\\(let " + identifierPattern + " of (" + identifierPattern + ")\\.BrowserWindow\\.getAllWindows\\(\\)\\)"),
     );
+    if (!electronMatch?.[1]) {
+      throw new Error("Unable to find Electron import alias in refreshWindowBackdropForHost.");
+    }
+    const electronName = electronMatch[1];
+    const menuBarMethods =
+      "isWindowsMenuBarHidden(e){return process.platform===\x60win32\x60&&this.options.getGlobalStateForHost(e).get(\x60hideWindowsMenuBar\x60)!==!1}" +
+      "setWindowsMenuBarHiddenForHost(e,t){if(process.platform!==\x60win32\x60)return;for(let r of " +
+      electronName +
+      ".BrowserWindow.getAllWindows()){if(r.isDestroyed()||this.windowHostIds.get(r.id)!==e)continue;t?(r.setAutoHideMenuBar(!0),r.setMenuBarVisibility(!1),r.removeMenu()):(r.setMenu(" +
+      electronName +
+      ".Menu.getApplicationMenu()),r.setAutoHideMenuBar(!1),r.setMenuBarVisibility(!0))}}";
+    nextSource =
+      nextSource.slice(0, refreshWindowBackdrops[0].end) +
+      menuBarMethods +
+      nextSource.slice(refreshWindowBackdrops[0].end);
 
     const opaqueTarget =
       /([A-Za-z_$][\w$]*)=this\.isOpaqueWindowsEnabled\(([A-Za-z_$][\w$]*)\),([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(\{appearance:([A-Za-z_$][\w$]*),opaqueWindowsEnabled:\1,platform:process\.platform\}\)/g;
@@ -766,13 +783,19 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
     );
 
     const configTarget =
-      "\"set-configuration\":async({key:t,value:n})=>(this.globalState.set(t,n),";
-    if (countOccurrences(nextSource, configTarget) !== 1) {
-      throw new Error("Expected exactly one set-configuration target.");
+      /("set-configuration":async\(\{key:([A-Za-z_$][\w$]*),value:([A-Za-z_$][\w$]*)\}\)=>\(this\.globalState\.set\(\2,\3\),)/g;
+    const configMatches = Array.from(nextSource.matchAll(configTarget));
+    if (configMatches.length !== 1) {
+      throw new Error("Expected exactly one set-configuration target, found " + configMatches.length + ".");
     }
     nextSource = nextSource.replace(
       configTarget,
-      "\"set-configuration\":async({key:t,value:n})=>(this.globalState.set(t,n),t===\x60hideWindowsMenuBar\x60&&this.windowManager.setWindowsMenuBarHiddenForHost(this.hostConfig.id,n!==!1),",
+      (_match, prefix, keyName, valueName) =>
+        prefix +
+        keyName +
+        "===\x60hideWindowsMenuBar\x60&&this.windowManager.setWindowsMenuBarHiddenForHost(this.hostConfig.id," +
+        valueName +
+        "!==!1),",
     );
 
     return { source: nextSource, status: "applied", matcher: "semantic" };
@@ -840,6 +863,62 @@ function findFunctionRanges(source: string): FunctionRange[] {
       name: match[2],
       args: match[3],
       body: source.slice(functionPattern.lastIndex, index - 1),
+      start: match.index,
+      end: index,
+    });
+  }
+
+  return ranges;
+}
+
+function findMethodRanges(source: string, methodName: string): MethodRange[] {
+  const ranges: MethodRange[] = [];
+  const methodPattern = new RegExp("\\b(" + escapeRegExp(methodName) + ")\\(([^)]*)\\)\\{", "g");
+  let match: RegExpExecArray | null;
+
+  while ((match = methodPattern.exec(source)) !== null) {
+    let depth = 1;
+    let index = methodPattern.lastIndex;
+    while (index < source.length && depth > 0) {
+      const character = source[index];
+      const next = source[index + 1];
+      if (character === "'" || character === "\"") {
+        index = skipQuotedString(source, index);
+        continue;
+      }
+      if (character === "\x60") {
+        index = skipTemplateLiteral(source, index);
+        continue;
+      }
+      if (character === "/" && next === "/") {
+        index = skipLineComment(source, index);
+        continue;
+      }
+      if (character === "/" && next === "*") {
+        index = skipBlockComment(source, index);
+        continue;
+      }
+      if (character === "/" && canStartRegex(source, index)) {
+        index = skipRegexLiteral(source, index);
+        continue;
+      }
+
+      if (character === "{") {
+        depth += 1;
+      } else if (character === "}") {
+        depth -= 1;
+      }
+      index += 1;
+    }
+
+    if (depth !== 0) {
+      throw new Error("Unable to find end of method " + methodName + ".");
+    }
+
+    ranges.push({
+      name: match[1],
+      args: match[2],
+      body: source.slice(methodPattern.lastIndex, index - 1),
       start: match.index,
       end: index,
     });
