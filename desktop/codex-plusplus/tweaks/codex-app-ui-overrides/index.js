@@ -36,7 +36,7 @@ const SIDEBAR_CHATS_THREAD_ROW_SELECTOR =
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
-  "padding-left:calc(var(--padding-row-x) + 1.25rem + 3px)!important;padding-right:var(--padding-row-x)!important;";
+  "padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;";
 const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
@@ -307,7 +307,7 @@ const SETTINGS_STYLE_RULES = [
   ),
   cssRule(
     ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*))+.scrollbar-stable.flex-1.overflow-y-auto.p-panel",
-    "padding-top:0.5rem!important;",
+    "padding-top:0.5rem!important;padding-bottom:0.5rem!important;",
   ),
 ];
 
