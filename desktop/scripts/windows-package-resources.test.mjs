@@ -1232,11 +1232,19 @@ test("Codex app UI override installs styles without observing renderer mutations
     );
     assert.match(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\] \.w-4 span:has\(button\) button[^{}]*\{cursor:pointer!important;width:1\.25rem!important;height:1\.25rem!important;min-width:1\.25rem!important;flex:0 0 1\.25rem!important;/,
+      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]>.absolute\.top-0\.left-1\.z-10\{left:0!important;width:1rem!important;padding-left:0!important;padding-right:0!important;justify-content:center!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
-      /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:empty:has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
+      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]>.absolute\.top-0\.left-1\.z-10 button[^{}]*\{cursor:pointer!important;width:1\.25rem!important;height:1\.25rem!important;min-width:1\.25rem!important;flex:0 0 1\.25rem!important;/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\)\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\{padding-top:0!important;\}/,
     );
 
     assert.equal(windowHandlers.size, 0);
