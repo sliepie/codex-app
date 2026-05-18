@@ -1232,7 +1232,7 @@ test("Codex app UI override installs styles without observing renderer mutations
     );
     assert.match(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\][^{}]*\{width:0\.625rem!important/,
+      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\] \.w-4 span:has\(button\) button[^{}]*\{cursor:pointer!important;width:1\.25rem!important;height:1\.25rem!important;min-width:1\.25rem!important;flex:0 0 1\.25rem!important;/,
     );
     assert.match(
       appendedStyles[0].textContent,
