@@ -487,6 +487,99 @@ function requireRegexMatch(match: RegExpMatchArray | null, description: string):
   return match;
 }
 
+function extractAssignedExpression(source: string, identifier: string, description: string): string {
+  const assignmentPattern = new RegExp(
+    "(?:\\blet\\s+|\\bconst\\s+|\\bvar\\s+|,|;)" + escapeRegExp(identifier) + "=",
+    "g",
+  );
+  const match = assignmentPattern.exec(source);
+  if (!match) {
+    throw new Error("Unable to find " + description + ".");
+  }
+
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+  let index = assignmentPattern.lastIndex;
+  const expressionStart = index;
+  while (index < source.length) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (character === "'" || character === "\"") {
+      index = skipQuotedString(source, index);
+      continue;
+    }
+    if (character === "`") {
+      index = skipTemplateLiteral(source, index);
+      continue;
+    }
+    if (character === "/" && next === "/") {
+      index = skipLineComment(source, index);
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      index = skipBlockComment(source, index);
+      continue;
+    }
+    if (character === "/" && canStartRegex(source, index)) {
+      index = skipRegexLiteral(source, index);
+      continue;
+    }
+
+    if (parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+      if (character === "," || character === ";") {
+        break;
+      }
+    }
+
+    if (character === "(") {
+      parenDepth += 1;
+    } else if (character === ")") {
+      parenDepth -= 1;
+    } else if (character === "[") {
+      bracketDepth += 1;
+    } else if (character === "]") {
+      bracketDepth -= 1;
+    } else if (character === "{") {
+      braceDepth += 1;
+    } else if (character === "}") {
+      braceDepth -= 1;
+    }
+
+    if (parenDepth < 0 || bracketDepth < 0 || braceDepth < 0) {
+      throw new Error("Unable to parse " + description + ".");
+    }
+
+    index += 1;
+  }
+
+  const expression = source.slice(expressionStart, index).trim();
+  if (!expression) {
+    throw new Error("Unable to find " + description + ".");
+  }
+  return expression;
+}
+
+function isWindowsMenuBarAppearancePatchApplied(source: string): boolean {
+  return (
+    source.includes("function CodexWindowsMenuBarSetting()") &&
+    source.includes("CodexWindowsMenuBarSetting,{})") &&
+    source.includes("settings.general.appearance.hideWindowsMenuBar.label") &&
+    source.includes("hideWindowsMenuBar")
+  );
+}
+
+function isWindowsMenuBarMainProcessPatchApplied(source: string): boolean {
+  return (
+    source.includes("isWindowsMenuBarHidden(") &&
+    source.includes("setWindowsMenuBarHiddenForHost(") &&
+    source.includes("autoHideMenuBar:codexWindowsMenuBarHidden") &&
+    source.includes("codexWindowsMenuBarHidden&&") &&
+    source.includes("setWindowsMenuBarHiddenForHost(this.hostConfig.id,") &&
+    source.includes("hideWindowsMenuBar")
+  );
+}
+
 function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSettingAliases {
   const cacheMatch = requireRegexMatch(
     source.match(/\(0,([A-Za-z_$][\w$]*)\.c\)\(\d+\)/),
@@ -507,10 +600,9 @@ function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSett
   if (saveMatch[3] !== queryMatch[2]) {
     throw new Error("Font smoothing setting key aliases did not match.");
   }
-  const settingsStateInitializerMatch = requireRegexMatch(
-    source.match(
-      new RegExp("(?:let |const |var |,|;)" + saveMatch[2] + "=([^,;]+)"),
-    ),
+  const settingsStateInitializer = extractAssignedExpression(
+    source,
+    saveMatch[2],
     "font smoothing settings state initializer",
   );
   const intlMatch = requireRegexMatch(
@@ -525,7 +617,7 @@ function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSett
   );
   const platformHookMatch = requireRegexMatch(
     source.match(
-      new RegExp("\\{platform(?::" + platformValueMatch[1] + ")?\\}=([A-Za-z_$][\\w$]*)\\(\\)"),
+      new RegExp("\\{platform(?::" + escapeRegExp(platformValueMatch[1]) + ")?\\}=([A-Za-z_$][\\w$]*)\\(\\)"),
     ),
     "font smoothing platform hook alias",
   );
@@ -547,7 +639,7 @@ function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSett
 
   return {
     cacheModuleName: cacheMatch[1],
-    settingsStateInitializer: settingsStateInitializerMatch[1],
+    settingsStateInitializer,
     intlHookName: intlMatch[1],
     platformHookName: platformHookMatch[1],
     queryHookName: queryMatch[1],
@@ -595,7 +687,7 @@ function buildWindowsMenuBarSettingFunction(aliases: WindowsMenuBarSettingAliase
 
 function patchWindowsMenuBarAppearanceSetting(): SourcePatcher {
   return (source) => {
-    if (source.includes("CodexWindowsMenuBarSetting") && source.includes("hideWindowsMenuBar")) {
+    if (isWindowsMenuBarAppearancePatchApplied(source)) {
       return { source, status: "already-applied", matcher: "semantic" };
     }
 
@@ -682,7 +774,7 @@ function patchWindowsMenuBarAppearanceSetting(): SourcePatcher {
 
 function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
   return (source) => {
-    if (source.includes("setWindowsMenuBarHiddenForHost") && source.includes("hideWindowsMenuBar")) {
+    if (isWindowsMenuBarMainProcessPatchApplied(source)) {
       return { source, status: "already-applied", matcher: "semantic" };
     }
     if (
@@ -1196,13 +1288,7 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
       filePath,
       "add Windows menu bar visibility main-process behavior",
       [patchWindowsMenuBarMainProcessBehavior()],
-      {
-        missingTargetMarkers: [
-          "autoHideMenuBar",
-          "removeMenu",
-          "\"set-configuration\"",
-        ],
-      },
+      { required: true },
     ),
     replaceWithPatchers(
       recoveredRoot,

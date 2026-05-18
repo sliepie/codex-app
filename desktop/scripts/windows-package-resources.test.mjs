@@ -1243,9 +1243,18 @@ test("Codex app UI override installs styles without observing renderer mutations
       appendedStyles[0].textContent,
       /\[data-app-action-sidebar-thread-row\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within\) \[data-thread-title-trigger\]\{padding-inline-start:1\.25rem!important;\}/,
     );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]:is(:hover,:focus-within) .absolute.top-0.left-1.z-10,[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]:is(:hover,:focus-within) .absolute.top-0.left-1.z-10 button{opacity:0!important;pointer-events:none!important;visibility:hidden!important;}`,
+      ),
+    );
     assert.match(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]:not\(:hover\):not\(:focus-within\) \[data-thread-title-trigger\]\{position:relative!important;left:-2px!important;\}/,
+      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\] \[data-thread-title-trigger\]\{padding-inline-start:0!important;position:relative!important;left:-2px!important;\}/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within\) \[data-thread-title-trigger\]\{padding-inline-start:0!important;position:relative!important;left:-2px!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
