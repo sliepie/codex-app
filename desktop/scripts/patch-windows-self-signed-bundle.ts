@@ -1365,7 +1365,7 @@ function findMethodRanges(source: string, methodName: string): MethodRange[] {
 
 function findClassRanges(source: string): ClassRange[] {
   const ranges: ClassRange[] = [];
-  const classPattern = /\bclass\s+(?:[A-Za-z_$][\w$]*)?(?:\s+extends\s+[^{}]+)?\{/g;
+  const classPattern = /\bclass(?:\s+[A-Za-z_$][\w$]*)?(?:\s+extends\s+[^{}]+)?\{/g;
   let match: RegExpExecArray | null;
 
   while ((match = classPattern.exec(source)) !== null) {

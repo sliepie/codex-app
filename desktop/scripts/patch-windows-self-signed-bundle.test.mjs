@@ -596,6 +596,31 @@ test("patches menu bar behavior when backdrop methods are not adjacent", () => {
   assert.equal(patch?.status, "applied");
 });
 
+test("patches menu bar behavior in anonymous class expressions", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const mainPath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
+  fs.writeFileSync(
+    mainPath,
+    fs
+      .readFileSync(mainPath, "utf8")
+      .replace("class WindowManagerFixture{", "var WindowManagerFixture=class{"),
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(mainPath, "utf8");
+  assert.match(bundle, /var WindowManagerFixture=class\{/);
+  assert.match(bundle, /setWindowsMenuBarHiddenForHost/);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "add Windows menu bar visibility main-process behavior",
+  );
+  assert.equal(patch?.status, "applied");
+});
+
 test("uses collision-free menu bar method locals when Electron alias is minified", () => {
   for (const [electronAlias, hostName, hiddenName, windowName] of [
     ["e", "_e", "t", "r"],
