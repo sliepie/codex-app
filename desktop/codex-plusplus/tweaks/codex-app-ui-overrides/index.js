@@ -86,6 +86,10 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     SIDEBAR_CHATS_PIN_ICON_DECLARATIONS,
   ),
   cssRule(
+    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}:has(>.absolute.top-0.left-1.z-10) [data-thread-title-trigger]`,
+    SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
     "[data-app-action-sidebar-project-row] button",
     SIDEBAR_PROJECT_PIN_BUTTON_DECLARATIONS,
   ),
