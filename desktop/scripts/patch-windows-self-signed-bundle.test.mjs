@@ -83,6 +83,10 @@ function runPatcher(recoveredRoot, reportPath) {
   });
 }
 
+function assertParsesAsFunctionBody(source) {
+  assert.doesNotThrow(() => new Function(source));
+}
+
 function moveIndexFixtureToAppMain(recoveredRoot) {
   const assetsRoot = path.join(recoveredRoot, "webview", "assets");
   const appMainPath = path.join(assetsRoot, "app-main-fixture.js");
@@ -361,6 +365,15 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   const result = runPatcher(recoveredRoot, reportPath);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
+  assertParsesAsFunctionBody(
+    fs.readFileSync(
+      path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
+      "utf8",
+    ),
+  );
+  assertParsesAsFunctionBody(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+  );
   assert.match(
     fs.readFileSync(
       path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
@@ -415,7 +428,7 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
       path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
       "utf8",
     ),
-    /saveSetting\(t,\x60hideWindowsMenuBar\x60,e\)/,
+    /saveSetting\(t,\x60hideWindowsMenuBar\x60,_e\)/,
   );
   assert.match(
     fs.readFileSync(
@@ -581,6 +594,244 @@ test("patches menu bar behavior when backdrop methods are not adjacent", () => {
     (patch) => patch.name === "add Windows menu bar visibility main-process behavior",
   );
   assert.equal(patch?.status, "applied");
+});
+
+test("patches menu bar behavior in anonymous class expressions", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const mainPath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
+  fs.writeFileSync(
+    mainPath,
+    fs
+      .readFileSync(mainPath, "utf8")
+      .replace("class WindowManagerFixture{", "var WindowManagerFixture=class{"),
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(mainPath, "utf8");
+  assert.match(bundle, /var WindowManagerFixture=class\{/);
+  assert.match(bundle, /setWindowsMenuBarHiddenForHost/);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "add Windows menu bar visibility main-process behavior",
+  );
+  assert.equal(patch?.status, "applied");
+});
+
+test("uses collision-free menu bar method locals when Electron alias is minified", () => {
+  for (const [electronAlias, hostName, hiddenName, windowName] of [
+    ["e", "_e", "t", "r"],
+    ["t", "e", "_t", "r"],
+    ["r", "e", "t", "_r"],
+  ]) {
+    const recoveredRoot = createRecoveredFixture();
+    const mainPath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
+    fs.writeFileSync(
+      mainPath,
+      fs
+        .readFileSync(mainPath, "utf8")
+        .replaceAll("n.BrowserWindow", electronAlias + ".BrowserWindow")
+        .replaceAll("n.Menu", electronAlias + ".Menu"),
+      "utf8",
+    );
+    const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+    const result = runPatcher(recoveredRoot, reportPath);
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const bundle = fs.readFileSync(mainPath, "utf8");
+    assertParsesAsFunctionBody(bundle);
+    assert.match(
+      bundle,
+      new RegExp(
+        "setWindowsMenuBarHiddenForHost\\(" +
+          hostName +
+          "," +
+          hiddenName +
+          "\\)\\{if\\(process\\.platform!==`win32`\\)return;for\\(let " +
+          windowName +
+          " of " +
+          electronAlias +
+          "\\.BrowserWindow\\.getAllWindows\\(\\)\\)",
+      ),
+    );
+    assert.match(
+      bundle,
+      new RegExp("this\\.windowHostIds\\.get\\(" + windowName + "\\.id\\)!==" + hostName),
+    );
+    assert.match(
+      bundle,
+      new RegExp(windowName + "\\.setMenu\\(" + electronAlias + "\\.Menu\\.getApplicationMenu\\(\\)\\)"),
+    );
+    assert.doesNotMatch(
+      bundle,
+      new RegExp(
+        "setWindowsMenuBarHiddenForHost\\(e,t\\)\\{if\\(process\\.platform!==`win32`\\)return;for\\(let r of " +
+          electronAlias +
+          "\\.BrowserWindow",
+      ),
+    );
+  }
+});
+
+test("rejects object-literal menu bar method targets before patching", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const mainPath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
+  fs.writeFileSync(
+    mainPath,
+    fs
+      .readFileSync(mainPath, "utf8")
+      .replace("class WindowManagerFixture{refreshWindowBackdrops()", "const WindowManagerFixture={refreshWindowBackdrops()")
+      .replace(
+        "for(let t of e)this.refreshWindowBackdropForHost(t)}refreshWindowBackdropForHost",
+        "for(let t of e)this.refreshWindowBackdropForHost(t)},refreshWindowBackdropForHost",
+      )
+      .replace(
+        "for(let r of n.BrowserWindow.getAllWindows()){}}async createWindow",
+        "for(let r of n.BrowserWindow.getAllWindows()){}},async createWindow",
+      )
+      .replace("M.removeMenu()}}const handlers", "M.removeMenu()}};const handlers"),
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.notEqual(result.status, 0);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "add Windows menu bar visibility main-process behavior",
+  );
+  assert.equal(patch?.status, "failed-required");
+  assert.match(patch?.reason ?? "", /class method/);
+});
+
+test("rejects stale already-applied menu bar main-process behavior", () => {
+  for (const mutate of [
+    (source) => source.replaceAll("!==!1", "===!0").replaceAll("value!==!1", "value===!0"),
+    (source) =>
+      source.replace(
+        "codexWindowsMenuBarHidden&&M.removeMenu()",
+        "process.platform===`win32`&&M.removeMenu()",
+      ),
+  ]) {
+    const recoveredRoot = createRecoveredFixture();
+    const mainPath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
+    fs.writeFileSync(
+      mainPath,
+      `${mutate(alreadyPatchedMenuBarMainProcessTargets)}function zx(config){return!0}async function qp(client){return!0}`,
+      "utf8",
+    );
+    const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+    const result = runPatcher(recoveredRoot, reportPath);
+
+    assert.notEqual(result.status, 0);
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    const patch = report.patches.find(
+      (patch) => patch.name === "add Windows menu bar visibility main-process behavior",
+    );
+    assert.equal(patch?.status, "failed-required");
+    assert.match(patch?.reason ?? "", /incomplete or stale/);
+  }
+});
+
+test("patches menu bar behavior when the key name appears in unrelated main-process code", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const mainPath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
+  fs.appendFileSync(mainPath, "const unrelatedMenuBarKey=`hideWindowsMenuBar`;", "utf8");
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "add Windows menu bar visibility main-process behavior",
+  );
+  assert.equal(patch?.status, "applied");
+});
+
+test("rejects stale already-applied menu bar appearance behavior", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+  const first = runPatcher(recoveredRoot, reportPath);
+  assert.equal(first.status, 0, first.stderr || first.stdout);
+
+  const generalPath = path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js");
+  fs.writeFileSync(
+    generalPath,
+    fs.readFileSync(generalPath, "utf8").replace("l=s!==!1", "l=s===!0"),
+    "utf8",
+  );
+
+  const second = runPatcher(recoveredRoot, reportPath);
+
+  assert.notEqual(second.status, 0);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "add Windows menu bar visibility appearance setting",
+  );
+  assert.equal(patch?.status, "failed-required");
+  assert.match(patch?.reason ?? "", /incomplete or stale/);
+});
+
+test("rejects stale menu bar appearance markers when the settings row is not in Appearance", () => {
+  for (const mutate of [
+    (source) => source.replace("(0,jsxKit.jsx)(CodexWindowsMenuBarSetting,{}),", ""),
+    (source) =>
+      source
+        .replace("(0,jsxKit.jsx)(CodexWindowsMenuBarSetting,{}),", "")
+        .replace(
+          "function PointerCursorFixture(){",
+          "function MovedMenuBarSetting(){return(0,jsxKit.jsx)(CodexWindowsMenuBarSetting,{})}function PointerCursorFixture(){",
+        ),
+  ]) {
+    const recoveredRoot = createRecoveredFixture();
+    const reportPath = path.join(recoveredRoot, "patch-report.json");
+    const first = runPatcher(recoveredRoot, reportPath);
+    assert.equal(first.status, 0, first.stderr || first.stdout);
+
+    const generalPath = path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js");
+    fs.writeFileSync(generalPath, mutate(fs.readFileSync(generalPath, "utf8")), "utf8");
+
+    const second = runPatcher(recoveredRoot, reportPath);
+
+    assert.notEqual(second.status, 0);
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    const patch = report.patches.find(
+      (patch) => patch.name === "add Windows menu bar visibility appearance setting",
+    );
+    assert.equal(patch?.status, "failed-required");
+    assert.match(patch?.reason ?? "", /incomplete or stale/);
+  }
+});
+
+test("uses collision-free locals when menu bar setting aliases are minified", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const generalPath = path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js");
+  fs.writeFileSync(
+    generalPath,
+    "function Jn(){let row=(0,d.jsxs)(Shell,{electron:!0,children:[(0,d.jsx)(PointerCursorFixture,{}),(0,d.jsx)(FontSmoothingFixture,{})]});return row}function PointerCursorFixture(){return(0,d.jsx)(f,{id:\x60settings.general.appearance.usePointerCursors.label\x60})}function FontSmoothingFixture(){let h=(0,e.c)(13),c=useIntl();let{platform:l}=u(),g=l===\x60macOS\x60,o=(0,a.useSettings)(s),q;h[0]===g?q=h[1]:(q={enabled:g},h[0]=g,h[1]=q);let{data:v,isLoading:b}=t(n.USE_FONT_SMOOTHING,q),y=v??!0;if(!g)return null;let label,description;label=(0,d.jsx)(f,{id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60});description=(0,d.jsx)(f,{id:\x60settings.general.appearance.fontSmoothing.description\x60,defaultMessage:\x60Use native macOS font anti-aliasing\x60});let onChange=value=>{i(o,n.USE_FONT_SMOOTHING,value)};let aria=c.formatMessage({id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60});return(0,d.jsx)(p,{label:label,description:description,control:(0,d.jsx)(m,{checked:y,disabled:b,onChange:onChange,ariaLabel:aria})})}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(generalPath, "utf8");
+  assertParsesAsFunctionBody(bundle);
+  assert.match(
+    bundle,
+    /function CodexWindowsMenuBarSetting\(\)\{let _e=\(0,e\.c\)\(13\),_t=\(0,a\.useSettings\)\(s\),n=c\(\),\{platform:_i\}=u\(\),_a=_i===\x60windows\x60,o;/,
+  );
+  assert.match(bundle, /t\(\x60hideWindowsMenuBar\x60,o\),l=_s!==!1/);
+  assert.match(bundle, /i\(_t,\x60hideWindowsMenuBar\x60,__e\)/);
+  assert.doesNotMatch(bundle, /let e=\(0,e\.c\)/);
 });
 
 test("uses collision-free locals when relocation helper names are minified", () => {

@@ -1104,14 +1104,29 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
     "codex-app-ui-overrides",
     "codex-plusplus-updater-ui-overrides",
   ]);
+  const expectedTweakMetadata = new Map([
+    [
+      "codex-app-ui-overrides",
+      { id: "app.sliepie.codex.ui-overrides", version: "0.6.0" },
+    ],
+    [
+      "codex-plusplus-updater-ui-overrides",
+      { id: "app.sliepie.codex.codex-plusplus-updater-ui", version: "0.3.0" },
+    ],
+  ]);
 
   for (const tweakName of tweakNames) {
     const tweakRoot = path.join(tweaksRoot, tweakName);
     const manifest = JSON.parse(fs.readFileSync(path.join(tweakRoot, "manifest.json"), "utf8"));
+    assert.deepEqual(
+      { id: manifest.id, version: manifest.version },
+      expectedTweakMetadata.get(tweakName),
+    );
     assert.equal(manifest.scope, "renderer");
+    assert.equal(manifest.main, "index.js");
     assert.notEqual(manifest.id.includes("keyboard"), true);
 
-    const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+    const source = fs.readFileSync(path.join(tweakRoot, manifest.main), "utf8");
     assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
     assert.doesNotThrow(() => {
       const module = { exports: {} };
@@ -1126,13 +1141,15 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
 
 test("Codex app UI override installs styles without observing renderer mutations", () => {
   const tweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
-  const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+  const manifest = JSON.parse(fs.readFileSync(path.join(tweakRoot, "manifest.json"), "utf8"));
+  const source = fs.readFileSync(path.join(tweakRoot, manifest.main), "utf8");
   assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
   const appendedStyles = [];
   const eventListeners = [];
   const windowHandlers = new Map();
   let timeoutId = 0;
   let timeoutDelay = 0;
+  let removed = false;
   const clearedTimeoutIds = [];
 
   const previousWindow = globalThis.window;
@@ -1198,8 +1215,14 @@ test("Codex app UI override installs styles without observing renderer mutations
         appendedStyles.push(style);
       },
     },
-    getElementById: () => null,
-    createElement: () => ({ id: "", textContent: "", remove() {} }),
+    getElementById: (id) => appendedStyles.find((style) => style.id === id) ?? null,
+    createElement: () => ({
+      id: "",
+      textContent: "",
+      remove() {
+        removed = true;
+      },
+    }),
     createTreeWalker: (root) => {
       treeWalkRoots.push(root);
       return { nextNode: () => null };
@@ -1220,6 +1243,7 @@ test("Codex app UI override installs styles without observing renderer mutations
     assert.equal(timeoutDelay, 0);
     assert.equal(timeoutId, 0);
     assert.equal(appendedStyles.length, 1);
+    assert.equal(appendedStyles[0].id, "codex-app-ui-overrides-style");
     const uiOverrideCss = appendedStyles[0].textContent;
     assert.equal(treeWalkRoots.length, 0);
     assert.equal(treeWalkRoots.includes(fakeElement), false);
@@ -1283,9 +1307,13 @@ test("Codex app UI override installs styles without observing renderer mutations
     assert.equal(timeoutId, 0);
     assert.deepEqual(clearedTimeoutIds, []);
 
+    module.exports.start({ log: console });
+    assert.equal(appendedStyles.length, 1);
+
     module.exports.stop();
     assert.deepEqual(eventListeners, []);
     assert.deepEqual(clearedTimeoutIds, []);
+    assert.equal(removed, true);
   } finally {
     globalThis.window = previousWindow;
     globalThis.document = previousDocument;
@@ -1312,7 +1340,7 @@ test("Codex++ updater UI override installs static styles without observing rende
         appendedStyles.push(style);
       },
     },
-    getElementById: () => appendedStyles[0] ?? null,
+    getElementById: (id) => appendedStyles.find((style) => style.id === id) ?? null,
     createElement: () => ({
       id: "",
       textContent: "",
@@ -1331,9 +1359,13 @@ test("Codex++ updater UI override installs static styles without observing rende
     module.exports.start({ log: console });
 
     assert.equal(appendedStyles.length, 1);
+    assert.equal(appendedStyles[0].id, "codex-plusplus-updater-ui-overrides-style");
     assert.match(appendedStyles[0].textContent, /button\[title="Open Codex\+\+ releases"\]/);
     assert.match(appendedStyles[0].textContent, /\[data-codexpp="tweaks-panel"\] section:has\(> \[data-codexpp-config-card\]\)/);
     assert.match(appendedStyles[0].textContent, /\[data-codexpp="tweaks-panel"\] section:has\(> \[data-codexpp-config-card\]\) \+ section/);
+
+    module.exports.start({ log: console });
+    assert.equal(appendedStyles.length, 1);
 
     module.exports.stop();
 

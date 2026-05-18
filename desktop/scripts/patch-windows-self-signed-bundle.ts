@@ -47,6 +47,11 @@ type MethodRange = {
   start: number;
   end: number;
 };
+type ClassRange = {
+  body: string;
+  start: number;
+  end: number;
+};
 
 type ReplaceWithPatchersOptions = {
   missingTargetMarkers?: string[];
@@ -190,6 +195,10 @@ function takeAvailableIdentifier(preferred: string, reserved: Set<string>): stri
   }
   reserved.add(candidate);
   return candidate;
+}
+
+function collectIdentifiers(source: string): string[] {
+  return source.match(new RegExp(identifierPattern, "g")) ?? [];
 }
 
 function exactPatch(target: string, replacement: string): SourcePatcher {
@@ -553,6 +562,10 @@ function extractAssignedExpression(source: string, identifier: string, descripti
     index += 1;
   }
 
+  if (parenDepth !== 0 || bracketDepth !== 0 || braceDepth !== 0) {
+    throw new Error("Unable to parse " + description + ".");
+  }
+
   const expression = source.slice(expressionStart, index).trim();
   if (!expression) {
     throw new Error("Unable to find " + description + ".");
@@ -561,22 +574,96 @@ function extractAssignedExpression(source: string, identifier: string, descripti
 }
 
 function isWindowsMenuBarAppearancePatchApplied(source: string): boolean {
+  const settingRanges = findFunctionRanges(source).filter(
+    (range) => range.name === "CodexWindowsMenuBarSetting",
+  );
+  const appearanceRowPattern = new RegExp(
+    "\\(0,(" +
+      identifierPattern +
+      ")\\.jsx\\)\\(CodexWindowsMenuBarSetting,\\{\\}\\),\\(0,\\1\\.jsx\\)\\(" +
+      identifierPattern +
+      ",\\{\\}\\)",
+  );
+  const appearanceHasRow = findFunctionRanges(source).some(
+    (range) => range.body.includes("electron:!0") && appearanceRowPattern.test(range.body),
+  );
+  if (settingRanges.length !== 1 || !appearanceHasRow) {
+    return false;
+  }
+
+  const body = settingRanges[0].body;
   return (
-    source.includes("function CodexWindowsMenuBarSetting()") &&
-    source.includes("CodexWindowsMenuBarSetting,{})") &&
-    source.includes("settings.general.appearance.hideWindowsMenuBar.label") &&
-    source.includes("hideWindowsMenuBar")
+    body.includes("settings.general.appearance.hideWindowsMenuBar.label") &&
+    body.includes("settings.general.appearance.hideWindowsMenuBar.description") &&
+    new RegExp("\\b" + identifierPattern + "=" + identifierPattern + "===\\x60windows\\x60").test(
+      body,
+    ) &&
+    new RegExp(identifierPattern + "\\(\\x60hideWindowsMenuBar\\x60," + identifierPattern + "\\)").test(
+      body,
+    ) &&
+    new RegExp("\\b" + identifierPattern + "=" + identifierPattern + "!==!1").test(body) &&
+    new RegExp("if\\(!" + identifierPattern + "\\)return null").test(body) &&
+    new RegExp(
+      identifierPattern +
+        "\\(" +
+        identifierPattern +
+        ",\\x60hideWindowsMenuBar\\x60," +
+        identifierPattern +
+        "\\)",
+    ).test(body)
+  );
+}
+
+function hasWindowsMenuBarAppearancePatchMarkers(source: string): boolean {
+  return (
+    source.includes("function CodexWindowsMenuBarSetting()") ||
+    source.includes("CodexWindowsMenuBarSetting,{})") ||
+    (source.includes("settings.general.appearance.hideWindowsMenuBar.label") &&
+      source.includes("settings.general.appearance.hideWindowsMenuBar.description"))
   );
 }
 
 function isWindowsMenuBarMainProcessPatchApplied(source: string): boolean {
+  const hiddenMethodPattern = new RegExp(
+    "\\bisWindowsMenuBarHidden\\((" +
+      identifierPattern +
+      ")\\)\\{return process\\.platform===\\x60win32\\x60&&this\\.options\\.getGlobalStateForHost\\(\\1\\)\\.get\\(\\x60hideWindowsMenuBar\\x60\\)!==!1\\}",
+  );
+  const setterMethodPattern = new RegExp(
+    "\\bsetWindowsMenuBarHiddenForHost\\((" +
+      identifierPattern +
+      "),(" +
+      identifierPattern +
+      ")\\)\\{if\\(process\\.platform!==\\x60win32\\x60\\)return;for\\(let (" +
+      identifierPattern +
+      ") of (" +
+      identifierPattern +
+      ")\\.BrowserWindow\\.getAllWindows\\(\\)\\)\\{if\\(\\3\\.isDestroyed\\(\\)\\|\\|this\\.windowHostIds\\.get\\(\\3\\.id\\)!==\\1\\)continue;\\2\\?\\(\\3\\.setAutoHideMenuBar\\(!0\\),\\3\\.setMenuBarVisibility\\(!1\\),\\3\\.removeMenu\\(\\)\\):\\(\\3\\.setMenu\\(\\4\\.Menu\\.getApplicationMenu\\(\\)\\),\\3\\.setAutoHideMenuBar\\(!1\\),\\3\\.setMenuBarVisibility\\(!0\\)\\)\\}\\}",
+  );
+  const configurationPattern = new RegExp(
+    identifierPattern +
+      "===\\x60hideWindowsMenuBar\\x60&&this\\.windowManager\\.setWindowsMenuBarHiddenForHost\\(this\\.hostConfig\\.id," +
+      identifierPattern +
+      "!==!1\\)",
+  );
+  const createdWindowRemoveMenuPattern = new RegExp(
+    "codexWindowsMenuBarHidden&&" + identifierPattern + "\\.removeMenu\\(\\)",
+  );
   return (
-    source.includes("isWindowsMenuBarHidden(") &&
-    source.includes("setWindowsMenuBarHiddenForHost(") &&
+    hiddenMethodPattern.test(source) &&
+    setterMethodPattern.test(source) &&
     source.includes("autoHideMenuBar:codexWindowsMenuBarHidden") &&
-    source.includes("codexWindowsMenuBarHidden&&") &&
-    source.includes("setWindowsMenuBarHiddenForHost(this.hostConfig.id,") &&
-    source.includes("hideWindowsMenuBar")
+    createdWindowRemoveMenuPattern.test(source) &&
+    configurationPattern.test(source)
+  );
+}
+
+function hasWindowsMenuBarMainProcessPatchMarkers(source: string): boolean {
+  return (
+    source.includes("isWindowsMenuBarHidden(") ||
+    source.includes("setWindowsMenuBarHiddenForHost(") ||
+    source.includes("codexWindowsMenuBarHidden") ||
+    source.includes("windowManager.setWindowsMenuBarHiddenForHost(this.hostConfig.id")
   );
 }
 
@@ -652,36 +739,242 @@ function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSett
 }
 
 function buildWindowsMenuBarSettingFunction(aliases: WindowsMenuBarSettingAliases): string {
+  const reservedIdentifiers = new Set([
+    aliases.cacheModuleName,
+    aliases.intlHookName,
+    aliases.platformHookName,
+    aliases.queryHookName,
+    aliases.saveSettingName,
+    aliases.jsxRuntimeName,
+    aliases.messageComponentName,
+    aliases.settingRowComponentName,
+    aliases.toggleComponentName,
+    ...collectIdentifiers(aliases.settingsStateInitializer),
+  ]);
+  const cacheName = takeAvailableIdentifier("e", reservedIdentifiers);
+  const settingsStateName = takeAvailableIdentifier("t", reservedIdentifiers);
+  const intlName = takeAvailableIdentifier("n", reservedIdentifiers);
+  const platformName = takeAvailableIdentifier("i", reservedIdentifiers);
+  const isWindowsName = takeAvailableIdentifier("a", reservedIdentifiers);
+  const queryOptionsName = takeAvailableIdentifier("o", reservedIdentifiers);
+  const settingValueName = takeAvailableIdentifier("s", reservedIdentifiers);
+  const loadingName = takeAvailableIdentifier("c", reservedIdentifiers);
+  const checkedName = takeAvailableIdentifier("l", reservedIdentifiers);
+  const labelName = takeAvailableIdentifier("u", reservedIdentifiers);
+  const descriptionName = takeAvailableIdentifier("d", reservedIdentifiers);
+  const onChangeName = takeAvailableIdentifier("f", reservedIdentifiers);
+  const nextValueName = takeAvailableIdentifier("e", reservedIdentifiers);
+  const ariaLabelName = takeAvailableIdentifier("p", reservedIdentifiers);
+  const rowName = takeAvailableIdentifier("m", reservedIdentifiers);
+
   return (
-    "function CodexWindowsMenuBarSetting(){let e=(0," +
+    "function CodexWindowsMenuBarSetting(){let " +
+    cacheName +
+    "=(0," +
     aliases.cacheModuleName +
-    ".c)(13),t=" +
+    ".c)(13)," +
+    settingsStateName +
+    "=" +
     aliases.settingsStateInitializer +
-    ",n=" +
+    "," +
+    intlName +
+    "=" +
     aliases.intlHookName +
-    "(),{platform:i}=" +
+    "(),{platform:" +
+    platformName +
+    "}=" +
     aliases.platformHookName +
-    "(),a=i===\x60windows\x60,o;e[0]===a?o=e[1]:(o={enabled:a},e[0]=a,e[1]=o);let{data:s,isLoading:c}=" +
+    "()," +
+    isWindowsName +
+    "=" +
+    platformName +
+    "===\x60windows\x60," +
+    queryOptionsName +
+    ";" +
+    cacheName +
+    "[0]===" +
+    isWindowsName +
+    "?" +
+    queryOptionsName +
+    "=" +
+    cacheName +
+    "[1]:(" +
+    queryOptionsName +
+    "={enabled:" +
+    isWindowsName +
+    "}," +
+    cacheName +
+    "[0]=" +
+    isWindowsName +
+    "," +
+    cacheName +
+    "[1]=" +
+    queryOptionsName +
+    ");let{data:" +
+    settingValueName +
+    ",isLoading:" +
+    loadingName +
+    "}=" +
     aliases.queryHookName +
-    "(\x60hideWindowsMenuBar\x60,o),l=s!==!1;if(!a)return null;let u,d;e[2]===Symbol.for(\x60react.memo_cache_sentinel\x60)?(u=(0," +
+    "(\x60hideWindowsMenuBar\x60," +
+    queryOptionsName +
+    ")," +
+    checkedName +
+    "=" +
+    settingValueName +
+    "!==!1;if(!" +
+    isWindowsName +
+    ")return null;let " +
+    labelName +
+    "," +
+    descriptionName +
+    ";" +
+    cacheName +
+    "[2]===Symbol.for(\x60react.memo_cache_sentinel\x60)?(" +
+    labelName +
+    "=(0," +
     aliases.jsxRuntimeName +
     ".jsx)(" +
     aliases.messageComponentName +
-    ",{id:\x60settings.general.appearance.hideWindowsMenuBar.label\x60,defaultMessage:\x60Hide menu bar\x60,description:\x60Label for Windows menu bar visibility setting\x60}),d=(0," +
+    ",{id:\x60settings.general.appearance.hideWindowsMenuBar.label\x60,defaultMessage:\x60Hide menu bar\x60,description:\x60Label for Windows menu bar visibility setting\x60})," +
+    descriptionName +
+    "=(0," +
     aliases.jsxRuntimeName +
     ".jsx)(" +
     aliases.messageComponentName +
-    ",{id:\x60settings.general.appearance.hideWindowsMenuBar.description\x60,defaultMessage:\x60Hide the Windows File, Edit, View, Window, and Help menu bar\x60,description:\x60Description for Windows menu bar visibility setting\x60}),e[2]=u,e[3]=d):(u=e[2],d=e[3]);let f;e[4]===t?f=e[5]:(f=e=>{" +
+    ",{id:\x60settings.general.appearance.hideWindowsMenuBar.description\x60,defaultMessage:\x60Hide the Windows File, Edit, View, Window, and Help menu bar\x60,description:\x60Description for Windows menu bar visibility setting\x60})," +
+    cacheName +
+    "[2]=" +
+    labelName +
+    "," +
+    cacheName +
+    "[3]=" +
+    descriptionName +
+    "):(" +
+    labelName +
+    "=" +
+    cacheName +
+    "[2]," +
+    descriptionName +
+    "=" +
+    cacheName +
+    "[3]);let " +
+    onChangeName +
+    ";" +
+    cacheName +
+    "[4]===" +
+    settingsStateName +
+    "?" +
+    onChangeName +
+    "=" +
+    cacheName +
+    "[5]:(" +
+    onChangeName +
+    "=" +
+    nextValueName +
+    "=>{" +
     aliases.saveSettingName +
-    "(t,\x60hideWindowsMenuBar\x60,e)},e[4]=t,e[5]=f);let p;e[6]===n?p=e[7]:(p=n.formatMessage({id:\x60settings.general.appearance.hideWindowsMenuBar.label\x60,defaultMessage:\x60Hide menu bar\x60,description:\x60Label for Windows menu bar visibility setting\x60}),e[6]=n,e[7]=p);let m;return e[8]!==l||e[9]!==c||e[10]!==f||e[11]!==p?(m=(0," +
+    "(" +
+    settingsStateName +
+    ",\x60hideWindowsMenuBar\x60," +
+    nextValueName +
+    ")}," +
+    cacheName +
+    "[4]=" +
+    settingsStateName +
+    "," +
+    cacheName +
+    "[5]=" +
+    onChangeName +
+    ");let " +
+    ariaLabelName +
+    ";" +
+    cacheName +
+    "[6]===" +
+    intlName +
+    "?" +
+    ariaLabelName +
+    "=" +
+    cacheName +
+    "[7]:(" +
+    ariaLabelName +
+    "=" +
+    intlName +
+    ".formatMessage({id:\x60settings.general.appearance.hideWindowsMenuBar.label\x60,defaultMessage:\x60Hide menu bar\x60,description:\x60Label for Windows menu bar visibility setting\x60})," +
+    cacheName +
+    "[6]=" +
+    intlName +
+    "," +
+    cacheName +
+    "[7]=" +
+    ariaLabelName +
+    ");let " +
+    rowName +
+    ";return " +
+    cacheName +
+    "[8]!==" +
+    checkedName +
+    "||" +
+    cacheName +
+    "[9]!==" +
+    loadingName +
+    "||" +
+    cacheName +
+    "[10]!==" +
+    onChangeName +
+    "||" +
+    cacheName +
+    "[11]!==" +
+    ariaLabelName +
+    "?(" +
+    rowName +
+    "=(0," +
     aliases.jsxRuntimeName +
     ".jsx)(" +
     aliases.settingRowComponentName +
-    ",{label:u,description:d,control:(0," +
+    ",{label:" +
+    labelName +
+    ",description:" +
+    descriptionName +
+    ",control:(0," +
     aliases.jsxRuntimeName +
     ".jsx)(" +
     aliases.toggleComponentName +
-    ",{checked:l,disabled:c,onChange:f,ariaLabel:p})}),e[8]=l,e[9]=c,e[10]=f,e[11]=p,e[12]=m):m=e[12],m}"
+    ",{checked:" +
+    checkedName +
+    ",disabled:" +
+    loadingName +
+    ",onChange:" +
+    onChangeName +
+    ",ariaLabel:" +
+    ariaLabelName +
+    "})})," +
+    cacheName +
+    "[8]=" +
+    checkedName +
+    "," +
+    cacheName +
+    "[9]=" +
+    loadingName +
+    "," +
+    cacheName +
+    "[10]=" +
+    onChangeName +
+    "," +
+    cacheName +
+    "[11]=" +
+    ariaLabelName +
+    "," +
+    cacheName +
+    "[12]=" +
+    rowName +
+    "):" +
+    rowName +
+    "=" +
+    cacheName +
+    "[12]," +
+    rowName +
+    "}"
   );
 }
 
@@ -689,6 +982,9 @@ function patchWindowsMenuBarAppearanceSetting(): SourcePatcher {
   return (source) => {
     if (isWindowsMenuBarAppearancePatchApplied(source)) {
       return { source, status: "already-applied", matcher: "semantic" };
+    }
+    if (hasWindowsMenuBarAppearancePatchMarkers(source)) {
+      throw new Error("Existing Windows menu bar appearance patch is incomplete or stale.");
     }
 
     const ranges = findFunctionRanges(source);
@@ -777,6 +1073,9 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
     if (isWindowsMenuBarMainProcessPatchApplied(source)) {
       return { source, status: "already-applied", matcher: "semantic" };
     }
+    if (hasWindowsMenuBarMainProcessPatchMarkers(source)) {
+      throw new Error("Existing Windows menu bar main-process patch is incomplete or stale.");
+    }
     if (
       !source.includes("autoHideMenuBar") ||
       !source.includes("removeMenu") ||
@@ -810,13 +1109,56 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
       throw new Error("Unable to find Electron import alias in refreshWindowBackdropForHost.");
     }
     const electronName = electronMatch[1];
+    if (
+      !isRangeInsideClass(
+        nextSource,
+        refreshWindowBackdrops[0].start,
+        refreshWindowBackdropForHost[0].end,
+      )
+    ) {
+      throw new Error("Expected refreshWindowBackdrops to be a class method.");
+    }
+    const reservedIdentifiers = new Set([electronName]);
+    const hostName = takeAvailableIdentifier("e", reservedIdentifiers);
+    const hiddenName = takeAvailableIdentifier("t", reservedIdentifiers);
+    const windowName = takeAvailableIdentifier("r", reservedIdentifiers);
     const menuBarMethods =
-      "isWindowsMenuBarHidden(e){return process.platform===\x60win32\x60&&this.options.getGlobalStateForHost(e).get(\x60hideWindowsMenuBar\x60)!==!1}" +
-      "setWindowsMenuBarHiddenForHost(e,t){if(process.platform!==\x60win32\x60)return;for(let r of " +
+      "isWindowsMenuBarHidden(" +
+      hostName +
+      "){return process.platform===\x60win32\x60&&this.options.getGlobalStateForHost(" +
+      hostName +
+      ").get(\x60hideWindowsMenuBar\x60)!==!1}" +
+      "setWindowsMenuBarHiddenForHost(" +
+      hostName +
+      "," +
+      hiddenName +
+      "){if(process.platform!==\x60win32\x60)return;for(let " +
+      windowName +
+      " of " +
       electronName +
-      ".BrowserWindow.getAllWindows()){if(r.isDestroyed()||this.windowHostIds.get(r.id)!==e)continue;t?(r.setAutoHideMenuBar(!0),r.setMenuBarVisibility(!1),r.removeMenu()):(r.setMenu(" +
+      ".BrowserWindow.getAllWindows()){if(" +
+      windowName +
+      ".isDestroyed()||this.windowHostIds.get(" +
+      windowName +
+      ".id)!==" +
+      hostName +
+      ")continue;" +
+      hiddenName +
+      "?(" +
+      windowName +
+      ".setAutoHideMenuBar(!0)," +
+      windowName +
+      ".setMenuBarVisibility(!1)," +
+      windowName +
+      ".removeMenu()):(" +
+      windowName +
+      ".setMenu(" +
       electronName +
-      ".Menu.getApplicationMenu()),r.setAutoHideMenuBar(!1),r.setMenuBarVisibility(!0))}}";
+      ".Menu.getApplicationMenu())," +
+      windowName +
+      ".setAutoHideMenuBar(!1)," +
+      windowName +
+      ".setMenuBarVisibility(!0))}}";
     nextSource =
       nextSource.slice(0, refreshWindowBackdrops[0].end) +
       menuBarMethods +
@@ -1019,6 +1361,64 @@ function findMethodRanges(source: string, methodName: string): MethodRange[] {
   }
 
   return ranges;
+}
+
+function findClassRanges(source: string): ClassRange[] {
+  const ranges: ClassRange[] = [];
+  const classPattern = /\bclass(?:\s+[A-Za-z_$][\w$]*)?(?:\s+extends\s+[^{}]+)?\{/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = classPattern.exec(source)) !== null) {
+    let depth = 1;
+    let index = classPattern.lastIndex;
+    while (index < source.length && depth > 0) {
+      const character = source[index];
+      const next = source[index + 1];
+      if (character === "'" || character === "\"") {
+        index = skipQuotedString(source, index);
+        continue;
+      }
+      if (character === "\x60") {
+        index = skipTemplateLiteral(source, index);
+        continue;
+      }
+      if (character === "/" && next === "/") {
+        index = skipLineComment(source, index);
+        continue;
+      }
+      if (character === "/" && next === "*") {
+        index = skipBlockComment(source, index);
+        continue;
+      }
+      if (character === "/" && canStartRegex(source, index)) {
+        index = skipRegexLiteral(source, index);
+        continue;
+      }
+
+      if (character === "{") {
+        depth += 1;
+      } else if (character === "}") {
+        depth -= 1;
+      }
+      index += 1;
+    }
+
+    if (depth !== 0) {
+      throw new Error("Unable to find end of class.");
+    }
+
+    ranges.push({
+      body: source.slice(classPattern.lastIndex, index - 1),
+      start: match.index,
+      end: index,
+    });
+  }
+
+  return ranges;
+}
+
+function isRangeInsideClass(source: string, start: number, end: number): boolean {
+  return findClassRanges(source).some((range) => start > range.start && end <= range.end);
 }
 
 function functionContainingAllPatch(
