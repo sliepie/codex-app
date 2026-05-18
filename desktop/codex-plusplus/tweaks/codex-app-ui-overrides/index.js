@@ -17,8 +17,10 @@ const SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS =
   "cursor:pointer!important;width:1.25rem!important;height:1.25rem!important;";
 const SIDEBAR_PIN_ICON_DECLARATIONS =
   "width:0.875rem!important;height:0.875rem!important;min-width:0.875rem!important;min-height:0.875rem!important;";
+const SIDEBAR_THREAD_PIN_ICON_DECLARATIONS =
+  "width:0.75rem!important;height:0.75rem!important;min-width:0.75rem!important;min-height:0.75rem!important;";
 const SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS =
-  SIDEBAR_PIN_ICON_DECLARATIONS;
+  SIDEBAR_THREAD_PIN_ICON_DECLARATIONS;
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -57,7 +59,7 @@ const SIDEBAR_ACTION_STYLE_RULES = [
       "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button .icon-xs",
       "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button .icon-sm",
     ],
-    SIDEBAR_PIN_ICON_DECLARATIONS,
+    SIDEBAR_THREAD_PIN_ICON_DECLARATIONS,
   ),
   cssRule(
     [
@@ -139,7 +141,7 @@ const SIDEBAR_ACTION_STYLE_RULES = [
       " .w-4 span:has(button) button .icon-2xs",
       " .w-4 span:has(button) button .icon-xs",
     ]),
-    SIDEBAR_PIN_ICON_DECLARATIONS,
+    SIDEBAR_THREAD_PIN_ICON_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors("[data-app-action-sidebar-thread-row]", [
@@ -247,11 +249,19 @@ const IMAGE_PREVIEW_STYLE_RULES = [
   ),
 ];
 
+const SETTINGS_STYLE_RULES = [
+  cssRule(
+    ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:empty:has(+.scrollbar-stable.flex-1.overflow-y-auto.p-panel)",
+    "display:none!important;",
+  ),
+];
+
 const STYLE_RULES = [
   ...BASE_STYLE_RULES,
   ...SIDEBAR_ACTION_STYLE_RULES,
   ...RIGHT_PANEL_TAB_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
+  ...SETTINGS_STYLE_RULES,
 ];
 
 function installStyle() {

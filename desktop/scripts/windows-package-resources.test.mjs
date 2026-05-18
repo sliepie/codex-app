@@ -1230,6 +1230,14 @@ test("Codex app UI override installs styles without observing renderer mutations
       appendedStyles[0].textContent,
       /\[data-app-action-sidebar-project-row\] button svg[^{}]*\{width:0\.875rem!important/,
     );
+    assert.match(
+      appendedStyles[0].textContent,
+      /\[data-app-action-sidebar-thread-row\][^{}]*\{width:0\.75rem!important/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:empty:has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
+    );
 
     assert.equal(windowHandlers.size, 0);
     assert.equal(timeoutId, 0);
