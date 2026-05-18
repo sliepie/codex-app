@@ -7,8 +7,6 @@ const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
 const HIDDEN_META_DECLARATIONS =
   "opacity:0!important;visibility:hidden!important;";
-const HIDDEN_CONTROL_DECLARATIONS =
-  "display:none!important;opacity:0!important;pointer-events:none!important;visibility:hidden!important;";
 const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
   "padding-inline-start:1.25rem!important;";
 const SIDEBAR_PIN_BUTTON_DECLARATIONS =
@@ -198,16 +196,6 @@ const SIDEBAR_ACTION_STYLE_RULES = [
   cssRule(
     `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10):is(:hover,:focus-within) [data-thread-title-trigger]`,
     SIDEBAR_CHATS_THREAD_TITLE_NO_OFFSET_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10`,
-      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10 button`,
-      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10 button svg`,
-      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10 button .icon-xs`,
-      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10 button .icon-sm`,
-    ],
-    HIDDEN_CONTROL_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors("[data-app-action-sidebar-thread-row]", [

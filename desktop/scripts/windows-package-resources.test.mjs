@@ -1260,10 +1260,6 @@ test("Codex app UI override installs styles without observing renderer mutations
       /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]>.absolute\.top-0\.left-1\.z-10 button svg[^{}]*\{width:0\.75rem!important;height:0\.75rem!important;min-width:0\.75rem!important;min-height:0\.75rem!important;\}/,
     );
     assert.match(
-      uiOverrideCss,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]>.absolute\.top-0\.left-1\.z-10[^{}]*\{display:none!important;opacity:0!important;pointer-events:none!important;visibility:hidden!important;\}/,
-    );
-    assert.match(
       appendedStyles[0].textContent,
       /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
     );
