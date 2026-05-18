@@ -23,6 +23,8 @@ const SIDEBAR_CHATS_PIN_ICON_DECLARATIONS =
   "width:0.75rem!important;height:0.75rem!important;min-width:0.75rem!important;min-height:0.75rem!important;";
 const SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS =
   SIDEBAR_PIN_ICON_DECLARATIONS;
+const SIDEBAR_CHATS_THREAD_TITLE_NUDGE_DECLARATIONS =
+  "position:relative!important;left:-2px!important;";
 const SIDEBAR_CHATS_THREAD_ROW_SELECTOR =
   '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]';
 function cssRule(selectors, declarations) {
@@ -86,8 +88,8 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     SIDEBAR_CHATS_PIN_ICON_DECLARATIONS,
   ),
   cssRule(
-    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}:has(>.absolute.top-0.left-1.z-10) [data-thread-title-trigger]`,
-    SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
+    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}:not(:hover):not(:focus-within) [data-thread-title-trigger]`,
+    SIDEBAR_CHATS_THREAD_TITLE_NUDGE_DECLARATIONS,
   ),
   cssRule(
     "[data-app-action-sidebar-project-row] button",
