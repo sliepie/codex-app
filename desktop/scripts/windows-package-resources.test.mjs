@@ -1220,6 +1220,7 @@ test("Codex app UI override installs styles without observing renderer mutations
     assert.equal(timeoutDelay, 0);
     assert.equal(timeoutId, 0);
     assert.equal(appendedStyles.length, 1);
+    const uiOverrideCss = appendedStyles[0].textContent;
     assert.equal(treeWalkRoots.length, 0);
     assert.equal(treeWalkRoots.includes(fakeElement), false);
     assert.match(
@@ -1243,8 +1244,12 @@ test("Codex app UI override installs styles without observing renderer mutations
       /\[data-app-action-sidebar-thread-row\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within\) \[data-thread-title-trigger\]\{padding-inline-start:1\.25rem!important;\}/,
     );
     assert.match(
+      uiOverrideCss,
+      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within\) \[data-thread-title-trigger\]\{padding-inline-start:0!important;left:-2px!important;\}/,
+    );
+    assert.match(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\] \[data-thread-title-trigger\]\{position:relative!important;left:0!important;transition:padding-inline-start 120ms ease,left 120ms ease!important;\}/,
+      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\] \[data-thread-title-trigger\]\{position:relative!important;left:-2px!important;transition:padding-inline-start 180ms ease,left 180ms ease!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
@@ -1255,12 +1260,26 @@ test("Codex app UI override installs styles without observing renderer mutations
       /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]>.absolute\.top-0\.left-1\.z-10 button svg[^{}]*\{width:0\.75rem!important;height:0\.75rem!important;min-width:0\.75rem!important;min-height:0\.75rem!important;\}/,
     );
     assert.match(
+      uiOverrideCss,
+      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]>.absolute\.top-0\.left-1\.z-10[^{}]*\{display:none!important;opacity:0!important;pointer-events:none!important;visibility:hidden!important;\}/,
+    );
+    assert.match(
       appendedStyles[0].textContent,
       /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
       /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\)\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\{padding-top:0\.5rem!important;\}/,
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1{padding-left:calc(var(--padding-row-x) + 1.25rem)!important;padding-right:var(--padding-row-x)!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href="https://openai.com/chatgpt/pricing"],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]{display:none!important;}`,
+      ),
     );
 
     assert.equal(windowHandlers.size, 0);
