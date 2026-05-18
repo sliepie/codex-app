@@ -686,8 +686,8 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
       return { source, status: "already-applied", matcher: "semantic" };
     }
     if (
-      !source.includes("autoHideMenuBar") &&
-      !source.includes("removeMenu") &&
+      !source.includes("autoHideMenuBar") ||
+      !source.includes("removeMenu") ||
       !source.includes("\"set-configuration\"")
     ) {
       return undefined;
@@ -762,13 +762,15 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
         ",platform:process.platform})",
     );
 
-    const autoHideTarget = "...process.platform===\x60win32\x60?{autoHideMenuBar:!0}:{}";
-    if (countOccurrences(nextSource, autoHideTarget) !== 1) {
-      throw new Error("Expected exactly one Windows auto-hide menu bar target.");
+    const autoHideTarget =
+      /(\.\.\.\s*process\.platform\s*===\s*\x60win32\x60\s*\?\s*\{\s*autoHideMenuBar\s*:)\s*(?:!0|true)\s*(\}\s*:\s*\{\s*\})/g;
+    const autoHideMatches = Array.from(nextSource.matchAll(autoHideTarget));
+    if (autoHideMatches.length !== 1) {
+      throw new Error("Expected exactly one Windows auto-hide menu bar target, found " + autoHideMatches.length + ".");
     }
     nextSource = nextSource.replace(
       autoHideTarget,
-      "...process.platform===\x60win32\x60?{autoHideMenuBar:codexWindowsMenuBarHidden}:{}",
+      "$1codexWindowsMenuBarHidden$2",
     );
 
     const removeMenuTarget =

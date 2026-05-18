@@ -62,7 +62,7 @@ function createRecoveredFixture() {
 
   fs.appendFileSync(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "class WindowManagerFixture{refreshWindowBackdrops(){let e=new Set(this.windowHostIds.values());for(let t of e)this.refreshWindowBackdropForHost(t)}refreshWindowBackdropForHost(e){let t=this.isOpaqueWindowsEnabled(e);for(let r of n.BrowserWindow.getAllWindows()){}}async createWindow(r={}){let{appearance:l=\x60primary\x60,hostId:f=t.m}=r,_=l===\x60primary\x60?t.m:f,v=this.isOpaqueWindowsEnabled(_),y=Oq({appearance:l,opaqueWindowsEnabled:v,platform:process.platform}),M=new n.BrowserWindow({...process.platform===\x60win32\x60?{autoHideMenuBar:!0}:{}});let ee=this.installWindowsTitleBarOverlaySync(M,l);process.platform===\x60win32\x60&&M.removeMenu()}}const handlers={\"set-configuration\":async({key:configKey,value:configValue})=>(this.globalState.set(configKey,configValue),configKey===e.Nr.APPEARANCE_THEME&&QE(configValue),(configKey===e.Nr.APPEARANCE_THEME||configKey===e.Nr.APPEARANCE_LIGHT_CHROME_THEME||configKey===e.Nr.APPEARANCE_DARK_CHROME_THEME)&&this.windowManager.refreshWindowBackdropForHost(this.hostConfig.id),{success:!0})};",
+    "class WindowManagerFixture{refreshWindowBackdrops(){let e=new Set(this.windowHostIds.values());for(let t of e)this.refreshWindowBackdropForHost(t)}refreshWindowBackdropForHost(e){let t=this.isOpaqueWindowsEnabled(e);for(let r of n.BrowserWindow.getAllWindows()){}}async createWindow(r={}){let{appearance:l=\x60primary\x60,hostId:f=t.m}=r,_=l===\x60primary\x60?t.m:f,v=this.isOpaqueWindowsEnabled(_),y=Oq({appearance:l,opaqueWindowsEnabled:v,platform:process.platform}),M=new n.BrowserWindow({...process.platform===\x60win32\x60?{autoHideMenuBar:true}:{}});let ee=this.installWindowsTitleBarOverlaySync(M,l);process.platform===\x60win32\x60&&M.removeMenu()}}const handlers={\"set-configuration\":async({key:configKey,value:configValue})=>(this.globalState.set(configKey,configValue),configKey===e.Nr.APPEARANCE_THEME&&QE(configValue),(configKey===e.Nr.APPEARANCE_THEME||configKey===e.Nr.APPEARANCE_LIGHT_CHROME_THEME||configKey===e.Nr.APPEARANCE_DARK_CHROME_THEME)&&this.windowManager.refreshWindowBackdropForHost(this.hostConfig.id),{success:!0})};",
     "utf8",
   );
 
@@ -282,6 +282,25 @@ test("does not let one main-bundle gate marker fail the other gate patch", () =>
   assert.equal(report.patches.at(-2).status, "already-applied");
   assert.equal(report.patches.at(-1).name, "enable workspace dependencies app-server feature check");
   assert.equal(report.patches.at(-1).status, "applied");
+});
+
+test("assumes menu bar patch enabled when only partial main-process markers remain", () => {
+  const recoveredRoot = createRecoveredFixture();
+  fs.writeFileSync(
+    path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
+    "const leftover={autoHideMenuBar:!0};function zx(config){return!0}async function qp(client){return!0}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "add Windows menu bar visibility main-process behavior",
+  );
+  assert.equal(patch?.status, "assumed-enabled");
 });
 
 test("keeps workspace dependency feature-map already-applied evidence contextual", () => {
