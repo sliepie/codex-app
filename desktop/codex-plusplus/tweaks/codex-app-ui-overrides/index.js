@@ -8,7 +8,7 @@ const VISIBLE_ICON_DECLARATIONS =
 const HIDDEN_META_DECLARATIONS =
   "opacity:0!important;visibility:hidden!important;";
 const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
-  "padding-inline-start:1.375rem!important;";
+  "padding-inline-start:1.3125rem!important;";
 const SIDEBAR_PIN_BUTTON_DECLARATIONS =
   "cursor:pointer!important;";
 const SIDEBAR_PROJECT_PIN_BUTTON_DECLARATIONS =
