@@ -22,7 +22,7 @@ const SIDEBAR_CHAT_PIN_ICON_DECLARATIONS =
 const SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS =
   SIDEBAR_PIN_ICON_DECLARATIONS;
 const SIDEBAR_CHATS_THREAD_ROW_SELECTOR =
-  ".px-row-x:has(.group\\/chats-section-header) [data-app-action-sidebar-thread-row]";
+  '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row]';
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
