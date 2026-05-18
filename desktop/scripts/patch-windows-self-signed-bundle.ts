@@ -593,13 +593,35 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
     );
 
     const opaqueTarget =
-      "v=this.isOpaqueWindowsEnabled(_),y=wq({appearance:l,opaqueWindowsEnabled:v,platform:process.platform})";
-    if (countOccurrences(nextSource, opaqueTarget) !== 1) {
-      throw new Error("Expected exactly one main window opacity target.");
+      /([A-Za-z_$][\w$]*)=this\.isOpaqueWindowsEnabled\(([A-Za-z_$][\w$]*)\),([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(\{appearance:([A-Za-z_$][\w$]*),opaqueWindowsEnabled:\1,platform:process\.platform\}\)/g;
+    const opaqueMatches = Array.from(nextSource.matchAll(opaqueTarget));
+    if (opaqueMatches.length !== 1) {
+      throw new Error("Expected exactly one main window opacity target, found " + opaqueMatches.length + ".");
     }
     nextSource = nextSource.replace(
       opaqueTarget,
-      "v=this.isOpaqueWindowsEnabled(_),codexWindowsMenuBarHidden=this.isWindowsMenuBarHidden(_),y=wq({appearance:l,opaqueWindowsEnabled:v,platform:process.platform})",
+      (
+        _match,
+        opaqueName,
+        hostName,
+        optionsName,
+        windowOptionsFactoryName,
+        appearanceName,
+      ) =>
+        opaqueName +
+        "=this.isOpaqueWindowsEnabled(" +
+        hostName +
+        "),codexWindowsMenuBarHidden=this.isWindowsMenuBarHidden(" +
+        hostName +
+        ")," +
+        optionsName +
+        "=" +
+        windowOptionsFactoryName +
+        "({appearance:" +
+        appearanceName +
+        ",opaqueWindowsEnabled:" +
+        opaqueName +
+        ",platform:process.platform})",
     );
 
     const autoHideTarget = "...process.platform===\x60win32\x60?{autoHideMenuBar:!0}:{}";
