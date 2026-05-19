@@ -1446,7 +1446,7 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]>.absolute.top-0.left-1.z-10,[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]>.absolute.top-0.left-1.z-10 button{display:none!important;}`,
+        String.raw`[data-app-action-sidebar-section-heading=\"Chats\"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind=\"local\"]>.absolute.top-0.left-1.z-10{display:none!important;}`,
       ),
     );
     assert.match(
@@ -1468,7 +1468,7 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1{padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
+        String.raw`.flex.flex-col.text-sm>.grid.items-center.gap-y-1\.5.py-1{padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
       ),
     );
     assert.ok(

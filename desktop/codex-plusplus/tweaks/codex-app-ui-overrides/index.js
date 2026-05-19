@@ -7,7 +7,7 @@ const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
 const HIDDEN_META_DECLARATIONS =
   "opacity:0!important;visibility:hidden!important;";
-const REMOVED_CONTROL_DECLARATIONS = "display:none!important;";
+const DISPLAY_NONE_DECLARATIONS = "display:none!important;";
 const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
   "padding-inline-start:1.25rem!important;";
 const SIDEBAR_PIN_BUTTON_DECLARATIONS =
@@ -154,18 +154,6 @@ const SIDEBAR_ACTION_STYLE_RULES = [
   ),
   cssRule(
     interactiveSelectors("[data-app-action-sidebar-thread-row]", [
-      " .w-4 span:has(button) button",
-    ]),
-    SIDEBAR_PIN_BUTTON_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
-      " .absolute.top-0.left-1.z-10 button",
-    ]),
-    SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
       " .absolute.top-0.left-1.z-10 button svg",
       " .absolute.top-0.left-1.z-10 button .icon-xs",
       " .absolute.top-0.left-1.z-10 button .icon-sm",
@@ -179,22 +167,6 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     VISIBLE_ICON_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
-      " .w-4 span:has(button) button svg",
-      " .w-4 span:has(button) button .icon-2xs",
-      " .w-4 span:has(button) button .icon-xs",
-    ]),
-    SIDEBAR_PIN_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
-      " .absolute.top-0.left-1.z-10 button svg",
-      " .absolute.top-0.left-1.z-10 button .icon-xs",
-      " .absolute.top-0.left-1.z-10 button .icon-sm",
-    ]),
-    SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS,
-  ),
-  cssRule(
     interactiveSelectors(
       "[data-app-action-sidebar-thread-row]:has(.absolute.top-0.left-1.z-10)",
       [" [data-thread-title-trigger]"],
@@ -202,11 +174,8 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
   ),
   cssRule(
-    [
-      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10`,
-      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10 button`,
-    ],
-    REMOVED_CONTROL_DECLARATIONS,
+    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10`,
+    DISPLAY_NONE_DECLARATIONS,
   ),
   cssRule(
     `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR} [data-thread-title-trigger]`,
@@ -320,7 +289,7 @@ const SETTINGS_STYLE_RULES = [
 
 const USAGE_MENU_STYLE_RULES = [
   cssRule(
-    `${USAGE_MENU_CONTENT_SELECTOR}>.grid.items-center.gap-y-1\\.5.py-1`,
+    ".flex.flex-col.text-sm>.grid.items-center.gap-y-1\\.5.py-1",
     USAGE_MENU_RATE_ROWS_DECLARATIONS,
   ),
   cssRule(
