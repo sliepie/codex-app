@@ -407,6 +407,13 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
       path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
       "utf8",
     ),
+    /n=useIntl\(\),/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js"),
+      "utf8",
+    ),
     /useSetting\(\x60hideWindowsMenuBar\x60,o\)/,
   );
   assert.match(
@@ -815,7 +822,7 @@ test("uses collision-free locals when menu bar setting aliases are minified", ()
   const generalPath = path.join(recoveredRoot, "webview", "assets", "general-settings-fixture.js");
   fs.writeFileSync(
     generalPath,
-    "function Jn(){let row=(0,d.jsxs)(Shell,{electron:!0,children:[(0,d.jsx)(PointerCursorFixture,{}),(0,d.jsx)(FontSmoothingFixture,{})]});return row}function PointerCursorFixture(){return(0,d.jsx)(f,{id:\x60settings.general.appearance.usePointerCursors.label\x60})}function FontSmoothingFixture(){let h=(0,e.c)(13),c=useIntl();let{platform:l}=u(),g=l===\x60macOS\x60,o=(0,a.useSettings)(s),q;h[0]===g?q=h[1]:(q={enabled:g},h[0]=g,h[1]=q);let{data:v,isLoading:b}=t(n.USE_FONT_SMOOTHING,q),y=v??!0;if(!g)return null;let label,description;label=(0,d.jsx)(f,{id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60});description=(0,d.jsx)(f,{id:\x60settings.general.appearance.fontSmoothing.description\x60,defaultMessage:\x60Use native macOS font anti-aliasing\x60});let onChange=value=>{i(o,n.USE_FONT_SMOOTHING,value)};let aria=c.formatMessage({id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60});return(0,d.jsx)(p,{label:label,description:description,control:(0,d.jsx)(m,{checked:y,disabled:b,onChange:onChange,ariaLabel:aria})})}",
+    "function Jn(){let row=(0,d.jsxs)(Shell,{electron:!0,children:[(0,d.jsx)(PointerCursorFixture,{}),(0,d.jsx)(FontSmoothingFixture,{})]});return row}function PointerCursorFixture(){return(0,d.jsx)(f,{id:\x60settings.general.appearance.usePointerCursors.label\x60})}function FontSmoothingFixture(){let h=(0,e.c)(13),n=N();let{platform:l}=u(),g=l===\x60macOS\x60,o=(0,a.useSettings)(s),q;h[0]===g?q=h[1]:(q={enabled:g},h[0]=g,h[1]=q);let{data:v,isLoading:b}=t(r.USE_FONT_SMOOTHING,q),y=v??!0;if(!g)return null;let label,description;label=(0,d.jsx)(f,{id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60});description=(0,d.jsx)(f,{id:\x60settings.general.appearance.fontSmoothing.description\x60,defaultMessage:\x60Use native macOS font anti-aliasing\x60});let onChange=value=>{i(o,r.USE_FONT_SMOOTHING,value)};let aria=n.formatMessage({id:\x60settings.general.appearance.fontSmoothing.label\x60,defaultMessage:\x60Font Smoothing\x60});return(0,d.jsx)(p,{label:label,description:description,control:(0,d.jsx)(m,{checked:y,disabled:b,onChange:onChange,ariaLabel:aria})})}",
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -827,8 +834,9 @@ test("uses collision-free locals when menu bar setting aliases are minified", ()
   assertParsesAsFunctionBody(bundle);
   assert.match(
     bundle,
-    /function CodexWindowsMenuBarSetting\(\)\{let _e=\(0,e\.c\)\(13\),_t=\(0,a\.useSettings\)\(s\),n=c\(\),\{platform:_i\}=u\(\),_a=_i===\x60windows\x60,o;/,
+    /function CodexWindowsMenuBarSetting\(\)\{let _e=\(0,e\.c\)\(13\),_t=\(0,a\.useSettings\)\(s\),n=N\(\),\{platform:_i\}=u\(\),_a=_i===\x60windows\x60,o;/,
   );
+  assert.doesNotMatch(bundle, /n=n\(\)/);
   assert.match(bundle, /t\(\x60hideWindowsMenuBar\x60,o\),l=_s!==!1/);
   assert.match(bundle, /i\(_t,\x60hideWindowsMenuBar\x60,__e\)/);
   assert.doesNotMatch(bundle, /let e=\(0,e\.c\)/);

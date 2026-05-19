@@ -478,7 +478,7 @@ function patchWindowsArm64PrimaryRuntimeManifestUrl(): SourcePatcher {
 
 type WindowsMenuBarSettingAliases = {
   cacheModuleName: string;
-  intlHookName: string;
+  intlInitializer: string;
   jsxRuntimeName: string;
   messageComponentName: string;
   platformHookName: string;
@@ -698,6 +698,11 @@ function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSett
     ),
     "font smoothing intl alias",
   );
+  const intlInitializer = extractAssignedExpression(
+    source,
+    intlMatch[1],
+    "font smoothing intl initializer",
+  );
   const platformValueMatch = requireRegexMatch(
     source.match(/([A-Za-z_$][\w$]*)===\x60macOS\x60/),
     "font smoothing platform value alias",
@@ -727,7 +732,7 @@ function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSett
   return {
     cacheModuleName: cacheMatch[1],
     settingsStateInitializer,
-    intlHookName: intlMatch[1],
+    intlInitializer,
     platformHookName: platformHookMatch[1],
     queryHookName: queryMatch[1],
     saveSettingName: saveMatch[1],
@@ -741,7 +746,6 @@ function extractWindowsMenuBarSettingAliases(source: string): WindowsMenuBarSett
 function buildWindowsMenuBarSettingFunction(aliases: WindowsMenuBarSettingAliases): string {
   const reservedIdentifiers = new Set([
     aliases.cacheModuleName,
-    aliases.intlHookName,
     aliases.platformHookName,
     aliases.queryHookName,
     aliases.saveSettingName,
@@ -749,6 +753,7 @@ function buildWindowsMenuBarSettingFunction(aliases: WindowsMenuBarSettingAliase
     aliases.messageComponentName,
     aliases.settingRowComponentName,
     aliases.toggleComponentName,
+    ...collectIdentifiers(aliases.intlInitializer),
     ...collectIdentifiers(aliases.settingsStateInitializer),
   ]);
   const cacheName = takeAvailableIdentifier("e", reservedIdentifiers);
@@ -779,8 +784,8 @@ function buildWindowsMenuBarSettingFunction(aliases: WindowsMenuBarSettingAliase
     "," +
     intlName +
     "=" +
-    aliases.intlHookName +
-    "(),{platform:" +
+    aliases.intlInitializer +
+    ",{platform:" +
     platformName +
     "}=" +
     aliases.platformHookName +
