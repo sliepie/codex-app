@@ -19,7 +19,7 @@ const indexFeatureTargets =
 const sidebarPixelTargets =
   "function Sidebar(){let A=C.formatMessage({id:`sidebarElectron.recentChats`,defaultMessage:`Chats`}),rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,className:`-translate-x-px`,itemClassName:`after:block after:h-px after:content-[''] last:after:hidden`,itemWrapper:ke?Tg:void 0,emptyState:(0,$.jsx)(Y,{id:`sidebarElectron.noRecentChats`,defaultMessage:`No chats`,description:`Empty state for projectless chats in the sidebar`}),emptyStateClassName:`text-token-description-foreground p-2 text-base opacity-50`,rowOptions:{hideRemoteHostEnvIcon:!1,showPinActionOnHover:!0,getSectionContextMenuItems:Kt}}),ar=bt?(0,$.jsx)(`div`,{className:`px-row-x`,...ne.sidebarSection({collapsed:At.chats,heading:`Chats`}),children:(0,$.jsx)(Zd,{title:rr})}):null;return[rr,ir,ar]}function Row(){return(0,$.jsx)(L_,{conversationId:N,isAutomationRun:i,hasPendingChildApproval:c,isActive:u,forceLoadingIndicator:t&&l,className:s?`opacity-50`:void 0,rowContentClassName:Dc(t&&(D?`ml-10`:`ml-5`),g&&`pr-3 group-focus-within:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)] group-hover:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)]`),envIconLocation:`end`,dataAttributes:ne.sidebarThreadRow({kind:`local`,title:H})})}function vy(){let C=(0,$.jsx)(`div`,{className:`min-w-0 flex-1`,children:(0,$.jsx)(cn,{triggerButton:(0,$.jsx)(Qd,{icon:b,label:x,onClick:yy,trailing:S,iconClassName:`icon-sm`})})});return C}let settingsLabel={id:`codex.profileFooter.signedInFallback`};";
 const alreadyPatchedMenuBarMainProcessTargets =
-  "class AlreadyPatchedMenuBar{isWindowsMenuBarHidden(e){return process.platform===`win32`&&this.options.getGlobalStateForHost(e).get(`hideWindowsMenuBar`)!==!1}setWindowsMenuBarHiddenForHost(e,t){if(process.platform!==`win32`)return;for(let r of n.BrowserWindow.getAllWindows()){if(r.isDestroyed()||this.windowHostIds.get(r.id)!==e)continue;t?(r.setAutoHideMenuBar(!0),r.setMenuBarVisibility(!1),r.removeMenu()):(r.setMenu(n.Menu.getApplicationMenu()),r.setAutoHideMenuBar(!1),r.setMenuBarVisibility(!0))}}createWindow(){let codexWindowsMenuBarHidden=this.isWindowsMenuBarHidden(e),M=new BrowserWindow({autoHideMenuBar:codexWindowsMenuBarHidden});codexWindowsMenuBarHidden&&M.removeMenu()}}const alreadyPatchedHandlers={\"set-configuration\":async({key,value})=>(key===`hideWindowsMenuBar`&&this.windowManager.setWindowsMenuBarHiddenForHost(this.hostConfig.id,value!==!1),{success:!0})};";
+  "class AlreadyPatchedMenuBar{isWindowsMenuBarHidden(e){return process.platform===`win32`&&this.options.getGlobalStateForHost(e).get(`hideWindowsMenuBar`)!==!1}setWindowsMenuBarHiddenForHost(e,t){if(process.platform!==`win32`)return;for(let r of n.BrowserWindow.getAllWindows()){if(r.isDestroyed()||this.windowHostIds.get(r.id)!==e)continue;t?(r.setAutoHideMenuBar(!0),r.setMenuBarVisibility(!1),r.removeMenu()):(r.setMenu(n.Menu.getApplicationMenu()),r.setAutoHideMenuBar(!1),r.setMenuBarVisibility(!0))}}refreshWindowsMenuBars(){if(process.platform!==`win32`)return;for(let i of new Set(this.windowHostIds.values()))this.setWindowsMenuBarHiddenForHost(i,this.isWindowsMenuBarHidden(i))}createWindow(){let codexWindowsMenuBarHidden=this.isWindowsMenuBarHidden(e),M=new BrowserWindow({autoHideMenuBar:codexWindowsMenuBarHidden});codexWindowsMenuBarHidden&&M.removeMenu()}}function AlreadyPatchedApplicationMenu({windowManager:g}){let Qe=n.Menu.buildFromTemplate([]);n.Menu.setApplicationMenu(Qe),process.platform===`win32`&&g.refreshWindowsMenuBars(),_z(g)}function _z(g){}const alreadyPatchedHandlers={\"set-configuration\":async({key,value})=>(key===`hideWindowsMenuBar`&&this.windowManager.setWindowsMenuBarHiddenForHost(this.hostConfig.id,value!==!1),{success:!0})};";
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -64,7 +64,7 @@ function createRecoveredFixture() {
 
   fs.appendFileSync(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "class WindowManagerFixture{refreshWindowBackdrops(){let e=new Set(this.windowHostIds.values());for(let t of e)this.refreshWindowBackdropForHost(t)}refreshWindowBackdropForHost(e){let t=this.isOpaqueWindowsEnabled(e);for(let r of n.BrowserWindow.getAllWindows()){}}async createWindow(r={}){let{appearance:l=\x60primary\x60,hostId:f=t.m}=r,_=l===\x60primary\x60?t.m:f,v=this.isOpaqueWindowsEnabled(_),y=Oq({appearance:l,opaqueWindowsEnabled:v,platform:process.platform}),M=new n.BrowserWindow({...process.platform===\x60win32\x60?{autoHideMenuBar:true}:{}});let ee=this.installWindowsTitleBarOverlaySync(M,l);process.platform===\x60win32\x60&&M.removeMenu()}}const handlers={\"set-configuration\":async({key:configKey,value:configValue})=>(this.globalState.set(configKey,configValue),configKey===e.Nr.APPEARANCE_THEME&&QE(configValue),(configKey===e.Nr.APPEARANCE_THEME||configKey===e.Nr.APPEARANCE_LIGHT_CHROME_THEME||configKey===e.Nr.APPEARANCE_DARK_CHROME_THEME)&&this.windowManager.refreshWindowBackdropForHost(this.hostConfig.id),{success:!0})};",
+    "class WindowManagerFixture{refreshWindowBackdrops(){let e=new Set(this.windowHostIds.values());for(let t of e)this.refreshWindowBackdropForHost(t)}refreshWindowBackdropForHost(e){let t=this.isOpaqueWindowsEnabled(e);for(let r of n.BrowserWindow.getAllWindows()){}}async createWindow(r={}){let{appearance:l=\x60primary\x60,hostId:f=t.m}=r,_=l===\x60primary\x60?t.m:f,v=this.isOpaqueWindowsEnabled(_),y=Oq({appearance:l,opaqueWindowsEnabled:v,platform:process.platform}),M=new n.BrowserWindow({...process.platform===\x60win32\x60?{autoHideMenuBar:true}:{}});let ee=this.installWindowsTitleBarOverlaySync(M,l);process.platform===\x60win32\x60&&M.removeMenu()}}function ApplicationMenuFixture({windowManager:g}){let Qe=n.Menu.buildFromTemplate([]);n.Menu.setApplicationMenu(Qe),_z(g)}function _z(g){}const handlers={\"set-configuration\":async({key:configKey,value:configValue})=>(this.globalState.set(configKey,configValue),configKey===e.Nr.APPEARANCE_THEME&&QE(configValue),(configKey===e.Nr.APPEARANCE_THEME||configKey===e.Nr.APPEARANCE_LIGHT_CHROME_THEME||configKey===e.Nr.APPEARANCE_DARK_CHROME_THEME)&&this.windowManager.refreshWindowBackdropForHost(this.hostConfig.id),{success:!0})};",
     "utf8",
   );
 
@@ -493,6 +493,10 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /refreshWindowsMenuBars\(\)\{if\(process\.platform!==\x60win32\x60\)return;for\(let i of new Set\(this\.windowHostIds\.values\(\)\)\)this\.setWindowsMenuBarHiddenForHost\(i,this\.isWindowsMenuBarHidden\(i\)\)\}/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /codexWindowsMenuBarHidden/,
   );
   assert.match(
@@ -522,6 +526,10 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /configKey===\x60hideWindowsMenuBar\x60&&this\.windowManager\.setWindowsMenuBarHiddenForHost\(this\.hostConfig\.id,configValue!==!1\)/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /n\.Menu\.setApplicationMenu\(Qe\),process\.platform===\x60win32\x60&&g\.refreshWindowsMenuBars\(\),_z\(g\)/,
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
@@ -724,6 +732,7 @@ test("rejects stale already-applied menu bar main-process behavior", () => {
         "codexWindowsMenuBarHidden&&M.removeMenu()",
         "process.platform===`win32`&&M.removeMenu()",
       ),
+    (source) => source.replace("process.platform===`win32`&&g.refreshWindowsMenuBars(),", ""),
   ]) {
     const recoveredRoot = createRecoveredFixture();
     const mainPath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");

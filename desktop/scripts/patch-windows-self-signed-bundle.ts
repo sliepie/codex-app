@@ -640,11 +640,23 @@ function isWindowsMenuBarMainProcessPatchApplied(source: string): boolean {
       identifierPattern +
       ")\\.BrowserWindow\\.getAllWindows\\(\\)\\)\\{if\\(\\3\\.isDestroyed\\(\\)\\|\\|this\\.windowHostIds\\.get\\(\\3\\.id\\)!==\\1\\)continue;\\2\\?\\(\\3\\.setAutoHideMenuBar\\(!0\\),\\3\\.setMenuBarVisibility\\(!1\\),\\3\\.removeMenu\\(\\)\\):\\(\\3\\.setMenu\\(\\4\\.Menu\\.getApplicationMenu\\(\\)\\),\\3\\.setAutoHideMenuBar\\(!1\\),\\3\\.setMenuBarVisibility\\(!0\\)\\)\\}\\}",
   );
+  const refreshMethodPattern = new RegExp(
+    "\\brefreshWindowsMenuBars\\(\\)\\{if\\(process\\.platform!==\\x60win32\\x60\\)return;for\\(let (" +
+      identifierPattern +
+      ") of new Set\\(this\\.windowHostIds\\.values\\(\\)\\)\\)this\\.setWindowsMenuBarHiddenForHost\\(\\1,this\\.isWindowsMenuBarHidden\\(\\1\\)\\)\\}",
+  );
   const configurationPattern = new RegExp(
     identifierPattern +
       "===\\x60hideWindowsMenuBar\\x60&&this\\.windowManager\\.setWindowsMenuBarHiddenForHost\\(this\\.hostConfig\\.id," +
       identifierPattern +
       "!==!1\\)",
+  );
+  const menuReapplyPattern = new RegExp(
+    "\\.Menu\\.setApplicationMenu\\(" +
+      identifierPattern +
+      "\\),process\\.platform===\\x60win32\\x60&&" +
+      identifierPattern +
+      "\\.refreshWindowsMenuBars\\(\\)",
   );
   const createdWindowRemoveMenuPattern = new RegExp(
     "codexWindowsMenuBarHidden&&" + identifierPattern + "\\.removeMenu\\(\\)",
@@ -652,9 +664,11 @@ function isWindowsMenuBarMainProcessPatchApplied(source: string): boolean {
   return (
     hiddenMethodPattern.test(source) &&
     setterMethodPattern.test(source) &&
+    refreshMethodPattern.test(source) &&
     source.includes("autoHideMenuBar:codexWindowsMenuBarHidden") &&
     createdWindowRemoveMenuPattern.test(source) &&
-    configurationPattern.test(source)
+    configurationPattern.test(source) &&
+    menuReapplyPattern.test(source)
   );
 }
 
@@ -662,7 +676,9 @@ function hasWindowsMenuBarMainProcessPatchMarkers(source: string): boolean {
   return (
     source.includes("isWindowsMenuBarHidden(") ||
     source.includes("setWindowsMenuBarHiddenForHost(") ||
+    source.includes("refreshWindowsMenuBars(") ||
     source.includes("codexWindowsMenuBarHidden") ||
+    source.includes(".refreshWindowsMenuBars()") ||
     source.includes("windowManager.setWindowsMenuBarHiddenForHost(this.hostConfig.id")
   );
 }
@@ -1127,6 +1143,7 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
     const hostName = takeAvailableIdentifier("e", reservedIdentifiers);
     const hiddenName = takeAvailableIdentifier("t", reservedIdentifiers);
     const windowName = takeAvailableIdentifier("r", reservedIdentifiers);
+    const reapplyHostName = takeAvailableIdentifier("i", reservedIdentifiers);
     const menuBarMethods =
       "isWindowsMenuBarHidden(" +
       hostName +
@@ -1163,7 +1180,14 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
       windowName +
       ".setAutoHideMenuBar(!1)," +
       windowName +
-      ".setMenuBarVisibility(!0))}}";
+      ".setMenuBarVisibility(!0))}}" +
+      "refreshWindowsMenuBars(){if(process.platform!==\x60win32\x60)return;for(let " +
+      reapplyHostName +
+      " of new Set(this.windowHostIds.values()))this.setWindowsMenuBarHiddenForHost(" +
+      reapplyHostName +
+      ",this.isWindowsMenuBarHidden(" +
+      reapplyHostName +
+      "))}";
     nextSource =
       nextSource.slice(0, refreshWindowBackdrops[0].end) +
       menuBarMethods +
@@ -1238,6 +1262,64 @@ function patchWindowsMenuBarMainProcessBehavior(): SourcePatcher {
         valueName +
         "!==!1),",
     );
+
+    const windowManagerArgPattern = new RegExp(
+      "\\bwindowManager(?::(" + identifierPattern + "))?\\b",
+    );
+    const applicationMenuRanges = findFunctionRanges(nextSource).filter(
+      (range) =>
+        range.body.includes(electronName + ".Menu.setApplicationMenu(") &&
+        windowManagerArgPattern.test(range.args),
+    );
+    if (applicationMenuRanges.length !== 1) {
+      throw new Error(
+        "Expected exactly one application menu refresh target, found " +
+          applicationMenuRanges.length +
+          ".",
+      );
+    }
+    const applicationMenuRange = applicationMenuRanges[0];
+    const windowManagerMatch = requireRegexMatch(
+      applicationMenuRange.args.match(windowManagerArgPattern),
+      "application menu window manager alias",
+    );
+    const windowManagerName = windowManagerMatch[1] ?? "windowManager";
+    const applicationMenuTarget = new RegExp(
+      escapeRegExp(electronName) +
+        "\\.Menu\\.setApplicationMenu\\((" +
+        identifierPattern +
+        ")\\)",
+      "g",
+    );
+    const applicationMenuMatches = Array.from(
+      applicationMenuRange.body.matchAll(applicationMenuTarget),
+    );
+    if (applicationMenuMatches.length !== 1) {
+      throw new Error(
+        "Expected exactly one application menu set target, found " +
+          applicationMenuMatches.length +
+          ".",
+      );
+    }
+    const applicationMenuBody = applicationMenuRange.body.replace(
+      applicationMenuTarget,
+      (match) =>
+        match +
+        ",process.platform===\x60win32\x60&&" +
+        windowManagerName +
+        ".refreshWindowsMenuBars()",
+    );
+    nextSource =
+      nextSource.slice(0, applicationMenuRange.start) +
+      applicationMenuRange.asyncPrefix +
+      "function " +
+      applicationMenuRange.name +
+      "(" +
+      applicationMenuRange.args +
+      "){" +
+      applicationMenuBody +
+      "}" +
+      nextSource.slice(applicationMenuRange.end);
 
     return { source: nextSource, status: "applied", matcher: "semantic" };
   };
