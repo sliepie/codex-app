@@ -5,10 +5,9 @@ const VISIBLE_CONTROL_DECLARATIONS =
 const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
 const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
-const HIDDEN_CONTROL_DECLARATIONS =
-  "opacity:0!important;pointer-events:none!important;visibility:hidden!important;";
 const HIDDEN_META_DECLARATIONS =
   "opacity:0!important;visibility:hidden!important;";
+const REMOVED_CONTROL_DECLARATIONS = "display:none!important;";
 const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
   "padding-inline-start:1.25rem!important;";
 const SIDEBAR_PIN_BUTTON_DECLARATIONS =
@@ -17,16 +16,12 @@ const SIDEBAR_PROJECT_PIN_BUTTON_DECLARATIONS =
   "cursor:pointer!important;width:1.25rem!important;height:1.25rem!important;min-width:1.25rem!important;flex:0 0 1.25rem!important;";
 const SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS =
   "cursor:pointer!important;width:1.25rem!important;height:1.25rem!important;";
-const SIDEBAR_CHATS_ABSOLUTE_PIN_BUTTON_DECLARATIONS =
-  "cursor:pointer!important;width:1rem!important;height:1rem!important;min-width:1rem!important;flex:0 0 1rem!important;";
 const SIDEBAR_PIN_ICON_DECLARATIONS =
   "width:0.875rem!important;height:0.875rem!important;min-width:0.875rem!important;min-height:0.875rem!important;";
-const SIDEBAR_CHATS_PIN_ICON_DECLARATIONS =
-  "width:0.75rem!important;height:0.75rem!important;min-width:0.75rem!important;min-height:0.75rem!important;";
 const SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS =
   SIDEBAR_PIN_ICON_DECLARATIONS;
 const SIDEBAR_CHATS_THREAD_TITLE_DECLARATIONS =
-  "padding-inline-start:0!important;position:relative!important;left:-2px!important;";
+  "padding-inline-start:0!important;";
 const SIDEBAR_CHATS_THREAD_ROW_SELECTOR =
   '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]';
 const USAGE_MENU_CONTENT_SELECTOR =
@@ -99,10 +94,6 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS,
   ),
   cssRule(
-    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10 button`,
-    SIDEBAR_CHATS_ABSOLUTE_PIN_BUTTON_DECLARATIONS,
-  ),
-  cssRule(
     [
       "[data-app-action-sidebar-thread-row] .w-4 span:has(button) button svg",
       "[data-app-action-sidebar-thread-row] .w-4 span:has(button) button .icon-2xs",
@@ -120,14 +111,6 @@ const SIDEBAR_ACTION_STYLE_RULES = [
       "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button .icon-sm",
     ],
     SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10 button svg`,
-      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10 button .icon-xs`,
-      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10 button .icon-sm`,
-    ],
-    SIDEBAR_CHATS_PIN_ICON_DECLARATIONS,
   ),
   cssRule(
     "[data-app-action-sidebar-project-row] button",
@@ -219,11 +202,11 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(SIDEBAR_CHATS_THREAD_ROW_SELECTOR, [
-      " .absolute.top-0.left-1.z-10",
-      " .absolute.top-0.left-1.z-10 button",
-    ]),
-    HIDDEN_CONTROL_DECLARATIONS,
+    [
+      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10`,
+      `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10 button`,
+    ],
+    REMOVED_CONTROL_DECLARATIONS,
   ),
   cssRule(
     `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR} [data-thread-title-trigger]`,

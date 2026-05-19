@@ -1107,7 +1107,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   const expectedTweakMetadata = new Map([
     [
       "codex-app-ui-overrides",
-      { id: "app.sliepie.codex.ui-overrides", version: "0.8.0" },
+      { id: "app.sliepie.codex.ui-overrides", version: "0.8.1" },
     ],
     [
       "codex-plusplus-updater-ui-overrides",
@@ -1436,10 +1436,6 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
       appendedStyles[0].textContent,
       /\[data-app-action-sidebar-project-row\] button svg[^{}]*\{width:0\.875rem!important/,
     );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]>.absolute\.top-0\.left-1\.z-10 button\{cursor:pointer!important;width:1rem!important;height:1rem!important;min-width:1rem!important;flex:0 0 1rem!important;\}/,
-    );
     assert.doesNotMatch(
       appendedStyles[0].textContent,
       /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\] \.w-4/,
@@ -1450,21 +1446,18 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]:is(:hover,:focus-within) .absolute.top-0.left-1.z-10,[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]:is(:hover,:focus-within) .absolute.top-0.left-1.z-10 button{opacity:0!important;pointer-events:none!important;visibility:hidden!important;}`,
+        String.raw`[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]>.absolute.top-0.left-1.z-10,[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]>.absolute.top-0.left-1.z-10 button{display:none!important;}`,
       ),
     );
     assert.match(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\] \[data-thread-title-trigger\]\{padding-inline-start:0!important;position:relative!important;left:-2px!important;\}/,
+      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\] \[data-thread-title-trigger\]\{padding-inline-start:0!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within\) \[data-thread-title-trigger\]\{padding-inline-start:0!important;position:relative!important;left:-2px!important;\}/,
+      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within\) \[data-thread-title-trigger\]\{padding-inline-start:0!important;\}/,
     );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]>.absolute\.top-0\.left-1\.z-10 button svg[^{}]*\{width:0\.75rem!important;height:0\.75rem!important;min-width:0\.75rem!important;min-height:0\.75rem!important;\}/,
-    );
+    assert.doesNotMatch(uiOverrideCss, /left:-2px!important/);
     assert.match(
       appendedStyles[0].textContent,
       /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
