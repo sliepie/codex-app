@@ -1107,7 +1107,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   const expectedTweakMetadata = new Map([
     [
       "codex-app-ui-overrides",
-      { id: "app.sliepie.codex.ui-overrides", version: "0.7.0" },
+      { id: "app.sliepie.codex.ui-overrides", version: "0.8.0" },
     ],
     [
       "codex-plusplus-updater-ui-overrides",
@@ -1127,7 +1127,11 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
     assert.notEqual(manifest.id.includes("keyboard"), true);
 
     const source = fs.readFileSync(path.join(tweakRoot, manifest.main), "utf8");
-    assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+    if (tweakName === "codex-app-ui-overrides") {
+      assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout/);
+    } else {
+      assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+    }
     assert.doesNotThrow(() => {
       const module = { exports: {} };
       const exports = module.exports;
@@ -1139,96 +1143,207 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   }
 });
 
-test("Codex app UI override installs styles without observing renderer mutations", () => {
+test("Codex app UI override installs styles and Appearance menu-bar toggle", () => {
   const tweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
   const manifest = JSON.parse(fs.readFileSync(path.join(tweakRoot, "manifest.json"), "utf8"));
   const source = fs.readFileSync(path.join(tweakRoot, manifest.main), "utf8");
-  assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+  assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout/);
   const appendedStyles = [];
-  const eventListeners = [];
-  const windowHandlers = new Map();
-  let timeoutId = 0;
-  let timeoutDelay = 0;
-  let removed = false;
-  const clearedTimeoutIds = [];
+  let styleRemoved = false;
+  let observerCallback = null;
+  let observerDisconnected = false;
+  const storageValues = new Map();
 
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
   const previousNodeFilter = globalThis.NodeFilter;
+  const previousMutationObserver = globalThis.MutationObserver;
 
-  const fakeElement = {
-    className: "",
-    parentElement: null,
-    style: {},
-    getBoundingClientRect: () => ({ width: 0, height: 0, left: 0, bottom: 0 }),
-    querySelector: () => null,
-    querySelectorAll: () => [],
+  class FakeElement {
+    constructor(tagName = "div") {
+      this.tagName = tagName.toUpperCase();
+      this.className = "";
+      this.children = [];
+      this.parentElement = null;
+      this.style = {};
+      this.id = "";
+      this.type = "";
+      this._textContent = "";
+      this.attributes = new Map();
+      this.listeners = new Map();
+    }
+
+    get textContent() {
+      return `${this._textContent}${this.children.map((child) => child.textContent).join("")}`;
+    }
+
+    set textContent(value) {
+      this._textContent = String(value);
+      this.children = [];
+    }
+
+    appendChild(child) {
+      child.parentElement = this;
+      this.children.push(child);
+      return child;
+    }
+
+    append(...children) {
+      for (const child of children) {
+        this.appendChild(child);
+      }
+    }
+
+    insertBefore(child, before) {
+      child.parentElement = this;
+      const index = this.children.indexOf(before);
+      if (index === -1) {
+        this.children.push(child);
+      } else {
+        this.children.splice(index, 0, child);
+      }
+      return child;
+    }
+
+    contains(child) {
+      return this === child || this.children.some((candidate) => candidate.contains(child));
+    }
+
+    remove() {
+      if (this.id === "codex-app-ui-overrides-style") {
+        styleRemoved = true;
+      }
+      if (!this.parentElement) {
+        return;
+      }
+      this.parentElement.children = this.parentElement.children.filter((child) => child !== this);
+      this.parentElement = null;
+    }
+
+    setAttribute(name, value) {
+      this.attributes.set(name, String(value));
+    }
+
+    getAttribute(name) {
+      return this.attributes.get(name) ?? null;
+    }
+
+    removeAttribute(name) {
+      this.attributes.delete(name);
+    }
+
+    addEventListener(type, handler) {
+      const handlers = this.listeners.get(type) ?? [];
+      handlers.push(handler);
+      this.listeners.set(type, handlers);
+    }
+
+    click() {
+      for (const handler of this.listeners.get("click") ?? []) {
+        handler({ defaultPrevented: false });
+      }
+    }
+
+    querySelector(selector) {
+      return this.querySelectorAll(selector)[0] ?? null;
+    }
+
+    querySelectorAll(selector) {
+      const descendants = [];
+      const visit = (element) => {
+        for (const child of element.children) {
+          descendants.push(child);
+          visit(child);
+        }
+      };
+      visit(this);
+
+      if (selector === 'button[role="switch"]') {
+        return descendants.filter(
+          (element) =>
+            element.tagName === "BUTTON" && element.getAttribute("role") === "switch",
+        );
+      }
+      if (selector === "[data-codex-app-ui-menu-bar-toggle-track]") {
+        return descendants.filter((element) =>
+          element.attributes.has("data-codex-app-ui-menu-bar-toggle-track"),
+        );
+      }
+      if (selector === "[data-codex-app-ui-menu-bar-toggle-thumb]") {
+        return descendants.filter((element) =>
+          element.attributes.has("data-codex-app-ui-menu-bar-toggle-thumb"),
+        );
+      }
+
+      return [];
+    }
+  }
+
+  const documentElement = new FakeElement("html");
+  const head = new FakeElement("head");
+  head.appendChild = (style) => {
+    FakeElement.prototype.appendChild.call(head, style);
+    appendedStyles.push(style);
+    return style;
   };
-  const sidebarRoot = {
-    className: "",
-    parentElement: null,
-    style: {},
-    getBoundingClientRect: () => ({ width: 200, height: 800, left: 0, bottom: 800 }),
-    querySelector: () => null,
-    querySelectorAll: () => [],
+  const settingsSurface = new FakeElement("div");
+  settingsSurface.className =
+    "border-token-border flex flex-col divide-y-[0.5px] divide-token-border rounded-lg border";
+  const themeRow = new FakeElement("div");
+  themeRow.textContent = "Theme";
+  const pointerRow = new FakeElement("div");
+  pointerRow.textContent = "Use pointer cursors";
+  const reduceMotionRow = new FakeElement("div");
+  reduceMotionRow.textContent = "Reduce motion";
+  settingsSurface.append(themeRow, pointerRow, reduceMotionRow);
+  documentElement.appendChild(settingsSurface);
+
+  const findById = (root, id) => {
+    if (root.id === id) {
+      return root;
+    }
+    for (const child of root.children) {
+      const found = findById(child, id);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
   };
-  const sidebarAnchor = {
-    className: "",
-    parentElement: sidebarRoot,
-    style: {},
-    getBoundingClientRect: () => ({ width: 200, height: 40, left: 0, bottom: 80 }),
-    querySelector: () => null,
-    querySelectorAll: () => [],
-  };
-  const treeWalkRoots = [];
 
   globalThis.NodeFilter = { SHOW_TEXT: 4 };
+  globalThis.MutationObserver = class {
+    constructor(callback) {
+      observerCallback = callback;
+    }
+
+    observe(target, options) {
+      assert.equal(target, documentElement);
+      assert.deepEqual(options, { childList: true, subtree: true });
+    }
+
+    disconnect() {
+      observerDisconnected = true;
+    }
+  };
   globalThis.window = {
     innerHeight: 1000,
-    requestAnimationFrame(callback) {
-      callback();
-      return 0;
-    },
-    cancelAnimationFrame() {},
-    setTimeout(_callback, delay) {
-      timeoutId += 1;
-      timeoutDelay = delay;
-      return timeoutId;
-    },
-    clearTimeout(id) {
-      clearedTimeoutIds.push(id);
-    },
-    addEventListener(type, handler) {
-      eventListeners.push(type);
-      windowHandlers.set(type, handler);
-    },
-    removeEventListener(type) {
-      eventListeners.push(`remove:${type}`);
-      windowHandlers.delete(type);
+    localStorage: {
+      getItem: () => null,
+      setItem: () => {},
     },
   };
   globalThis.document = {
-    body: fakeElement,
-    documentElement: fakeElement,
-    head: {
-      appendChild(style) {
-        appendedStyles.push(style);
-      },
-    },
-    getElementById: (id) => appendedStyles.find((style) => style.id === id) ?? null,
-    createElement: () => ({
-      id: "",
-      textContent: "",
-      remove() {
-        removed = true;
-      },
-    }),
-    createTreeWalker: (root) => {
-      treeWalkRoots.push(root);
-      return { nextNode: () => null };
-    },
+    body: documentElement,
+    documentElement,
+    head,
+    getElementById: (id) =>
+      findById(head, id) ?? findById(documentElement, id) ?? null,
+    createElement: (tagName) => new FakeElement(tagName),
     querySelectorAll: (selector) =>
-      selector === ".group\\/chats-section-header" ? [sidebarAnchor] : [],
+      selector === ".main-surface .flex.flex-col.rounded-lg.border"
+        ? [settingsSurface]
+        : [],
   };
 
   try {
@@ -1237,23 +1352,31 @@ test("Codex app UI override installs styles without observing renderer mutations
     const fn = new Function("module", "exports", "console", source);
     fn(module, exports, console);
 
-    module.exports.start({ log: console });
+    const storage = {
+      get: (key, defaultValue) =>
+        storageValues.has(key) ? storageValues.get(key) : defaultValue,
+      set: (key, value) => {
+        storageValues.set(key, value);
+      },
+    };
 
-    assert.deepEqual(eventListeners, []);
-    assert.equal(timeoutDelay, 0);
-    assert.equal(timeoutId, 0);
+    module.exports.start({ log: console, storage });
+
+    assert.equal(
+      documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
+      "true",
+    );
+    assert.equal(typeof observerCallback, "function");
     assert.equal(appendedStyles.length, 1);
     assert.equal(appendedStyles[0].id, "codex-app-ui-overrides-style");
     const uiOverrideCss = appendedStyles[0].textContent;
-    assert.equal(treeWalkRoots.length, 0);
-    assert.equal(treeWalkRoots.includes(fakeElement), false);
     assert.match(
       appendedStyles[0].textContent,
       /top:calc\(0\.75rem \+ 26px\)!important/,
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.group\/windows-top-bar>.flex.items-center.gap-0\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded]){display:none!important;}`,
+        String.raw`:root[data-codex-app-ui-hide-windows-menu-bar="true"] .group\/windows-top-bar>.flex.items-center.gap-0\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded]){display:none!important;}`,
       ),
     );
     assert.equal(
@@ -1265,6 +1388,49 @@ test("Codex app UI override installs styles without observing renderer mutations
     assert.equal(
       uiOverrideCss.includes(String.raw`.group\/windows-top-bar button[aria-label]`),
       false,
+    );
+    const settingRow = document.getElementById(
+      "codex-app-ui-hide-windows-menu-bar-setting",
+    );
+    assert.ok(settingRow);
+    assert.deepEqual(
+      settingsSurface.children.map((child) => child.id || child.textContent),
+      [
+        "Theme",
+        "Use pointer cursors",
+        "codex-app-ui-hide-windows-menu-bar-setting",
+        "Reduce motion",
+      ],
+    );
+    const toggle = settingRow.querySelector('button[role="switch"]');
+    assert.ok(toggle);
+    assert.equal(toggle.getAttribute("aria-label"), "Hide menu bar");
+    assert.equal(toggle.getAttribute("aria-checked"), "true");
+    assert.equal(
+      settingRow
+        .querySelector("[data-codex-app-ui-menu-bar-toggle-track]")
+        .getAttribute("data-state"),
+      "checked",
+    );
+    toggle.click();
+    assert.equal(storageValues.get("hideWindowsMenuBar"), false);
+    assert.equal(
+      documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
+      "false",
+    );
+    assert.equal(toggle.getAttribute("aria-checked"), "false");
+    assert.equal(
+      settingRow
+        .querySelector("[data-codex-app-ui-menu-bar-toggle-track]")
+        .getAttribute("data-state"),
+      "unchecked",
+    );
+    observerCallback();
+    assert.equal(
+      settingsSurface.children.filter(
+        (child) => child.id === "codex-app-ui-hide-windows-menu-bar-setting",
+      ).length,
+      1,
     );
     assert.match(
       appendedStyles[0].textContent,
@@ -1318,21 +1484,25 @@ test("Codex app UI override installs styles without observing renderer mutations
       ),
     );
 
-    assert.equal(windowHandlers.size, 0);
-    assert.equal(timeoutId, 0);
-    assert.deepEqual(clearedTimeoutIds, []);
-
-    module.exports.start({ log: console });
+    module.exports.start({ log: console, storage });
     assert.equal(appendedStyles.length, 1);
 
     module.exports.stop();
-    assert.deepEqual(eventListeners, []);
-    assert.deepEqual(clearedTimeoutIds, []);
-    assert.equal(removed, true);
+    assert.equal(observerDisconnected, true);
+    assert.equal(
+      documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
+      null,
+    );
+    assert.equal(
+      document.getElementById("codex-app-ui-hide-windows-menu-bar-setting"),
+      null,
+    );
+    assert.equal(styleRemoved, true);
   } finally {
     globalThis.window = previousWindow;
     globalThis.document = previousDocument;
     globalThis.NodeFilter = previousNodeFilter;
+    globalThis.MutationObserver = previousMutationObserver;
   }
 });
 
