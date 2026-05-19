@@ -1107,7 +1107,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   const expectedTweakMetadata = new Map([
     [
       "codex-app-ui-overrides",
-      { id: "app.sliepie.codex.ui-overrides", version: "0.8.1" },
+      { id: "app.sliepie.codex.ui-overrides", version: "0.9.0" },
     ],
     [
       "codex-plusplus-updater-ui-overrides",
