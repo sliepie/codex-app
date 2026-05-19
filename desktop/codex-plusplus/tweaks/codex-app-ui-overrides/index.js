@@ -34,6 +34,9 @@ const USAGE_MENU_CONTENT_SELECTOR =
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
   "padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;";
 const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
+const WINDOWS_MENU_ROW_SELECTOR =
+  '.group\\/windows-top-bar>.flex.items-center.gap-0\\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded])';
+const WINDOWS_MENU_ROW_DECLARATIONS = "display:none!important;";
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -45,6 +48,7 @@ function interactiveSelectors(container, targets) {
 
 const BASE_STYLE_RULES = [
   cssRule(".group\\/windows-top-bar", "margin-inline-start:0.5rem;"),
+  cssRule(WINDOWS_MENU_ROW_SELECTOR, WINDOWS_MENU_ROW_DECLARATIONS),
   cssRule(
     '[style*="view-transition-name: sidebar-trigger"]',
     "transform:translateX(2px);",

@@ -1107,7 +1107,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   const expectedTweakMetadata = new Map([
     [
       "codex-app-ui-overrides",
-      { id: "app.sliepie.codex.ui-overrides", version: "0.6.0" },
+      { id: "app.sliepie.codex.ui-overrides", version: "0.7.0" },
     ],
     [
       "codex-plusplus-updater-ui-overrides",
@@ -1250,6 +1250,21 @@ test("Codex app UI override installs styles without observing renderer mutations
     assert.match(
       appendedStyles[0].textContent,
       /top:calc\(0\.75rem \+ 26px\)!important/,
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/windows-top-bar>.flex.items-center.gap-0\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded]){display:none!important;}`,
+      ),
+    );
+    assert.equal(
+      uiOverrideCss.includes(
+        String.raw`.group\/windows-top-bar{display:none!important;}`,
+      ),
+      false,
+    );
+    assert.equal(
+      uiOverrideCss.includes(String.raw`.group\/windows-top-bar button[aria-label]`),
+      false,
     );
     assert.match(
       appendedStyles[0].textContent,
