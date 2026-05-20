@@ -7,7 +7,6 @@ const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
 const HIDDEN_META_DECLARATIONS =
   "opacity:0!important;visibility:hidden!important;";
-const DISPLAY_NONE_DECLARATIONS = "display:none!important;";
 const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
   "padding-inline-start:1.25rem!important;";
 const SIDEBAR_PIN_BUTTON_DECLARATIONS =
@@ -20,10 +19,12 @@ const SIDEBAR_PIN_ICON_DECLARATIONS =
   "width:0.875rem!important;height:0.875rem!important;min-width:0.875rem!important;min-height:0.875rem!important;";
 const SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS =
   SIDEBAR_PIN_ICON_DECLARATIONS;
-const SIDEBAR_CHATS_THREAD_TITLE_DECLARATIONS =
-  "padding-inline-start:0!important;";
-const SIDEBAR_CHATS_THREAD_ROW_SELECTOR =
-  '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]';
+const SIDEBAR_CHATS_SECTION_SELECTOR =
+  '[data-app-action-sidebar-section-heading="Chats"]';
+const SIDEBAR_CHATS_SECTION_DECLARATIONS =
+  "position:relative!important;left:-2px!important;";
+const SIDEBAR_CHATS_HEADER_DECLARATIONS =
+  "position:relative!important;left:1px!important;";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -174,16 +175,12 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
   ),
   cssRule(
-    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10`,
-    DISPLAY_NONE_DECLARATIONS,
+    SIDEBAR_CHATS_SECTION_SELECTOR,
+    SIDEBAR_CHATS_SECTION_DECLARATIONS,
   ),
   cssRule(
-    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR} [data-thread-title-trigger]`,
-    SIDEBAR_CHATS_THREAD_TITLE_DECLARATIONS,
-  ),
-  cssRule(
-    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10):is(:hover,:focus-within) [data-thread-title-trigger]`,
-    SIDEBAR_CHATS_THREAD_TITLE_DECLARATIONS,
+    ".group\\/chats-section-header",
+    SIDEBAR_CHATS_HEADER_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors("[data-app-action-sidebar-thread-row]", [
@@ -220,10 +217,6 @@ const SIDEBAR_ACTION_STYLE_RULES = [
         ">.opacity-0",
         " .opacity-0:has(button)",
       ]),
-      ...interactiveSelectors(".group\\/chats-section-header", [
-        ">.opacity-0",
-        " .opacity-0:has(button)",
-      ]),
       ...interactiveSelectors(".group\\/custom-section-header", [
         ">.opacity-0",
         " .opacity-0:has(button)",
@@ -234,11 +227,6 @@ const SIDEBAR_ACTION_STYLE_RULES = [
   cssRule(
     [
       ...interactiveSelectors(".group\\/projects-section-header", [
-        " button svg",
-        " button .icon-xs",
-        " button .icon-sm",
-      ]),
-      ...interactiveSelectors(".group\\/chats-section-header", [
         " button svg",
         " button .icon-xs",
         " button .icon-sm",

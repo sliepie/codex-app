@@ -1107,7 +1107,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   const expectedTweakMetadata = new Map([
     [
       "codex-app-ui-overrides",
-      { id: "app.sliepie.codex.ui-overrides", version: "0.9.0" },
+      { id: "app.sliepie.codex.ui-overrides", version: "0.10.0" },
     ],
     [
       "codex-plusplus-updater-ui-overrides",
@@ -1438,7 +1438,7 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.doesNotMatch(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\] \.w-4/,
+      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]/,
     );
     assert.match(
       appendedStyles[0].textContent,
@@ -1446,18 +1446,22 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]>.absolute.top-0.left-1.z-10{display:none!important;}`,
+        String.raw`[data-app-action-sidebar-section-heading="Chats"]{position:relative!important;left:-2px!important;}`,
       ),
     );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\] \[data-thread-title-trigger\]\{padding-inline-start:0!important;\}/,
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/chats-section-header{position:relative!important;left:1px!important;}`,
+      ),
     );
-    assert.match(
+    assert.doesNotMatch(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within\) \[data-thread-title-trigger\]\{padding-inline-start:0!important;\}/,
+      /\[data-app-action-sidebar-section-heading="Chats"\][^{}]*\[data-thread-title-trigger\]/,
     );
-    assert.doesNotMatch(uiOverrideCss, /left:-2px!important/);
+    assert.doesNotMatch(
+      appendedStyles[0].textContent,
+      /\.group\\\/chats-section-header:is\(:hover,:focus-within\)/,
+    );
     assert.match(
       appendedStyles[0].textContent,
       /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
