@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { appendFileSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { codexAppcastUrlForFeed, type CodexAppcastFeed } from "./codex-appcast-feeds.ts";
 
 function scriptDirectory(): string {
   return typeof __dirname === "string" ? __dirname : path.dirname(path.resolve(process.argv[1] ?? "."));
@@ -15,12 +16,6 @@ function resolveDesktopRoot(): string {
 
 const desktopRoot = resolveDesktopRoot();
 
-const defaultProdAppcastUrl = "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
-const defaultBetaAppcastUrl = "https://persistent.oaistatic.com/codex-app-beta/appcast.xml";
-const prodAppcastUrl =
-  process.env.CODEX_APPCAST_URL ??
-  defaultProdAppcastUrl;
-const betaAppcastUrl = betaAppcastUrlFromProdUrl(prodAppcastUrl);
 const codexCliRepository = process.env.CODEX_CLI_REPOSITORY ?? "openai/codex";
 const codexPlusPlusRepository = process.env.CODEX_PLUS_PLUS_REPOSITORY ?? "b-nnett/codex-plusplus";
 const githubApiUrl = process.env.GITHUB_API_URL ?? "https://api.github.com";
@@ -58,12 +53,9 @@ type ReleaseInputs = {
   codexPlusPlusTag: string;
 };
 
-type AppcastFeedName = "prod" | "beta";
-
 type AppcastRelease = {
   buildNumber: string;
-  feedName: AppcastFeedName;
-  feedUrl: string;
+  feedName: CodexAppcastFeed;
   version: string;
 };
 
@@ -79,23 +71,6 @@ function fail(message: string): never {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function betaAppcastUrlFromProdUrl(prodUrl: string): string {
-  try {
-    const betaUrl = new URL(prodUrl);
-    if (betaUrl.pathname.includes("/codex-app-prod/")) {
-      // The beta appcast is the official sibling of the prod appcast.
-      betaUrl.pathname = betaUrl.pathname.replace("/codex-app-prod/", "/codex-app-beta/");
-      return betaUrl.toString();
-    }
-
-    const defaultBetaUrl = new URL(defaultBetaAppcastUrl);
-    betaUrl.pathname = defaultBetaUrl.pathname;
-    return betaUrl.toString();
-  } catch {
-    return defaultBetaAppcastUrl;
-  }
 }
 
 function firstMatch(text: string, pattern: RegExp, message: string): string {
@@ -280,7 +255,8 @@ async function fetchLatestReleaseTag(repository: string, label: string): Promise
   return tagName;
 }
 
-async function fetchAppcastRelease(feedName: AppcastFeedName, feedUrl: string): Promise<AppcastRelease> {
+async function fetchAppcastRelease(feedName: CodexAppcastFeed): Promise<AppcastRelease> {
+  const feedUrl = codexAppcastUrlForFeed(feedName);
   const response = await fetch(feedUrl);
   if (!response.ok) {
     fail(`Failed to fetch ${feedName} Codex appcast: ${response.status} ${response.statusText}`);
@@ -311,7 +287,7 @@ async function fetchAppcastRelease(feedName: AppcastFeedName, feedUrl: string): 
     buildNumberPattern,
   );
 
-  return { buildNumber, feedName, feedUrl, version };
+  return { buildNumber, feedName, version };
 }
 
 function chooseLatestAppcastRelease(prod: AppcastRelease, beta: AppcastRelease): AppcastRelease {
@@ -360,12 +336,12 @@ async function fetchGitTagCommitSha(repository: string, tagName: string, label: 
 }
 
 async function main(): Promise<void> {
-  const prodAppcastRelease = await fetchAppcastRelease("prod", prodAppcastUrl);
+  const prodAppcastRelease = await fetchAppcastRelease("prod");
   let selectedAppcastRelease = prodAppcastRelease;
   try {
     selectedAppcastRelease = chooseLatestAppcastRelease(
       prodAppcastRelease,
-      await fetchAppcastRelease("beta", betaAppcastUrl),
+      await fetchAppcastRelease("beta"),
     );
   } catch (error) {
     console.warn(`Beta appcast unavailable; using prod appcast. ${errorMessage(error)}`);
@@ -414,7 +390,6 @@ async function main(): Promise<void> {
   githubOutput("codex_app_version", appVersion);
   githubOutput("codex_app_build", buildNumber);
   githubOutput("codex_appcast_feed", selectedAppcastRelease.feedName);
-  githubOutput("codex_appcast_url", selectedAppcastRelease.feedUrl);
   githubOutput("codex_cli_tag", cliTag);
   githubOutput("codex_plus_plus_tag", codexPlusPlusTag);
   githubOutput("codex_plus_plus_sha", codexPlusPlusSha);
@@ -431,7 +406,6 @@ async function main(): Promise<void> {
         codexAppVersion: appVersion,
         codexAppBuild: buildNumber,
         codexAppcastFeed: selectedAppcastRelease.feedName,
-        codexAppcastUrl: selectedAppcastRelease.feedUrl,
         codexCliTag: cliTag,
         codexPlusPlusTag,
         codexPlusPlusSha,

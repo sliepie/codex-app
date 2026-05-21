@@ -7,11 +7,16 @@ import {
   prepareBetterSqlite3ElectronRebuild,
   prepareElectronHeadersForNativeRebuild,
 } from "./patch-better-sqlite3-electron";
+import {
+  codexAppcastUrlForFeed,
+  parseCodexAppcastFeed,
+  type CodexAppcastFeed,
+} from "./codex-appcast-feeds";
 
 type Options = {
   version?: string;
   buildNumber?: string;
-  appcastUrl: string;
+  appcastFeed: CodexAppcastFeed;
   cacheRoot: string;
   codexPlusPlusRepo: string;
   codexPlusPlusSha?: string;
@@ -148,9 +153,9 @@ function parseOptions(argv: string[]): Options {
     buildNumber:
       readOption(argv, "--build-number", "-BuildNumber") ??
       process.env.CODEX_APP_BUILD,
-    appcastUrl:
-      readOption(argv, "--appcast-url", "-AppcastUrl") ??
-      "https://persistent.oaistatic.com/codex-app-prod/appcast.xml",
+    appcastFeed: parseCodexAppcastFeed(
+      readOption(argv, "--appcast-feed", "-AppcastFeed") ?? process.env.CODEX_APPCAST_FEED,
+    ),
     cacheRoot,
     codexPlusPlusRepo:
       readOption(argv, "--codex-plusplus-repo", "-CodexPlusPlusRepo") ??
@@ -2355,16 +2360,12 @@ function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
 
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
-  if (!options.appcastUrl.trim()) {
-    throw new Error("Missing Codex appcast URL.");
-  }
-
   fs.mkdirSync(options.cacheRoot, { recursive: true });
 
-  const appcastResponse = await fetch(options.appcastUrl);
+  const appcastResponse = await fetch(codexAppcastUrlForFeed(options.appcastFeed));
   if (!appcastResponse.ok) {
     throw new Error(
-      `Failed to fetch Codex appcast: ${appcastResponse.status} ${appcastResponse.statusText}`,
+      `Failed to fetch ${options.appcastFeed} Codex appcast: ${appcastResponse.status} ${appcastResponse.statusText}`,
     );
   }
 

@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import http from "node:http";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -16,6 +16,8 @@ const nativeModuleCacheInputPaths = [
 ];
 const scriptPath = fileURLToPath(new URL("../.cache/scripts/resolve-codex-releases.js", import.meta.url));
 const typescriptScriptPath = fileURLToPath(new URL("resolve-codex-releases.ts", import.meta.url));
+const officialProdAppcastUrl = "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
+const officialBetaAppcastUrl = "https://persistent.oaistatic.com/codex-app-beta/appcast.xml";
 
 const appcast = `<?xml version="1.0" encoding="utf-8"?>
 <rss>
@@ -57,7 +59,6 @@ function releaseInputsBody({
 function startServer(
   releases,
   {
-    appcastPath = "/codex-app-prod/appcast.xml",
     appcastSource = appcast,
     betaAppcastSource = appcast,
     betaAppcastStatus = 200,
@@ -69,7 +70,7 @@ function startServer(
 ) {
   const server = http.createServer((request, response) => {
     const requestPath = request.url?.split("?")[0];
-    if (requestPath === appcastPath.split("?")[0]) {
+    if (requestPath === "/codex-app-prod/appcast.xml") {
       response.writeHead(200, { "Content-Type": "application/xml" });
       response.end(appcastSource);
       return;
@@ -140,7 +141,6 @@ async function hashCacheInputs(paths) {
 
 async function runResolver({
   releases,
-  appcastPath,
   appcastSource,
   betaAppcastSource,
   betaAppcastStatus,
@@ -152,7 +152,6 @@ async function runResolver({
   scriptArgs = [scriptPath],
 }) {
   const server = await startServer(releases, {
-    appcastPath,
     appcastSource,
     betaAppcastSource,
     betaAppcastStatus,
@@ -163,6 +162,19 @@ async function runResolver({
   });
   const directory = await mkdtemp(path.join(tmpdir(), "codex-release-resolver-"));
   const outputPath = path.join(directory, "github-output.txt");
+  const fetchShimPath = path.join(directory, "mock-appcast-fetch.mjs");
+  await writeFile(
+    fetchShimPath,
+    `const originalFetch = globalThis.fetch;\n` +
+      `const origin = process.env.CODEX_APPCAST_TEST_ORIGIN;\n` +
+      `globalThis.fetch = (input, init) => {\n` +
+      `  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;\n` +
+      `  if (url === ${JSON.stringify(officialProdAppcastUrl)}) return originalFetch(origin + "/codex-app-prod/appcast.xml", init);\n` +
+      `  if (url === ${JSON.stringify(officialBetaAppcastUrl)}) return originalFetch(origin + "/codex-app-beta/appcast.xml", init);\n` +
+      `  return originalFetch(input, init);\n` +
+      `};\n`,
+    "utf8",
+  );
 
   try {
     await new Promise((resolve, reject) => {
@@ -172,13 +184,14 @@ async function runResolver({
         {
           env: {
             ...process.env,
-            CODEX_APPCAST_URL: `${server.origin}${appcastPath ?? "/codex-app-prod/appcast.xml"}`,
+            CODEX_APPCAST_TEST_ORIGIN: server.origin,
             CODEX_PLUS_PLUS_REPOSITORY: codexPlusPlusRepo,
             GH_TOKEN: "test-token",
             GITHUB_API_URL: server.origin,
             GITHUB_OUTPUT: outputPath,
             GITHUB_REPOSITORY: "sliepie/codex-app",
             GITHUB_SHA: sha,
+            NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import ${pathToFileURL(fetchShimPath).href}`.trim(),
           },
         },
         (error, stdout, stderr) => {
@@ -221,7 +234,7 @@ test("starts new Codex app releases at repo revision zero", async () => {
   assert.equal(output.release_tag, "codex-app-26.429.61741.0");
   assert.equal(output.current_commit_release_tag, "");
   assert.equal(output.codex_appcast_feed, "prod");
-  assert.match(output.codex_appcast_url, /\/codex-app-prod\/appcast\.xml$/);
+  assert.equal(output.codex_appcast_url, undefined);
   assert.equal(
     output.hydration_cache_key,
     "windows-arm64-hydrated-v5-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
@@ -242,7 +255,7 @@ test("selects the beta appcast when it has a higher Sparkle build", async () => 
   assert.equal(output.codex_app_version, "26.513.40821");
   assert.equal(output.codex_app_build, "2903");
   assert.equal(output.codex_appcast_feed, "beta");
-  assert.match(output.codex_appcast_url, /\/codex-app-beta\/appcast\.xml$/);
+  assert.equal(output.codex_appcast_url, undefined);
   assert.equal(
     output.hydration_cache_key,
     "windows-arm64-hydrated-v5-app-26.513.40821-build-2903-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
@@ -260,21 +273,7 @@ test("keeps prod when prod and beta have the same Sparkle build", async () => {
   assert.equal(output.codex_app_version, "26.513.31313");
   assert.equal(output.codex_app_build, "2903");
   assert.equal(output.codex_appcast_feed, "prod");
-  assert.match(output.codex_appcast_url, /\/codex-app-prod\/appcast\.xml$/);
-});
-
-test("keeps derived beta appcast URLs on a custom appcast origin", async () => {
-  const output = await runResolver({
-    releases: [],
-    appcastPath: "/mirror/appcast.xml?token=secret",
-    appcastSource: appcastFor("26.513.31313", "2867"),
-    betaAppcastSource: appcastFor("26.513.40821", "2903"),
-  });
-
-  assert.equal(output.codex_app_version, "26.513.40821");
-  assert.equal(output.codex_app_build, "2903");
-  assert.equal(output.codex_appcast_feed, "beta");
-  assert.match(output.codex_appcast_url, /^http:\/\/127\.0\.0\.1:\d+\/codex-app-beta\/appcast\.xml\?token=secret$/);
+  assert.equal(output.codex_appcast_url, undefined);
 });
 
 test("uses prod when the beta appcast is unavailable", async () => {
@@ -288,7 +287,7 @@ test("uses prod when the beta appcast is unavailable", async () => {
   assert.equal(output.codex_app_version, "26.513.31313");
   assert.equal(output.codex_app_build, "2867");
   assert.equal(output.codex_appcast_feed, "prod");
-  assert.match(output.codex_appcast_url, /\/codex-app-prod\/appcast\.xml$/);
+  assert.equal(output.codex_appcast_url, undefined);
 });
 
 test("runs release resolver directly from TypeScript before dependency install", async () => {
