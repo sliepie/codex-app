@@ -202,23 +202,56 @@ function findReleaseItem(appcast: string, version?: string, buildNumber?: string
   return item;
 }
 
-function findAppAsar(root: string): string | undefined {
-  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-    const entryPath = path.join(root, entry.name);
-    if (entry.isDirectory()) {
-      const match = findAppAsar(entryPath);
-      if (match) {
-        return match;
-      }
-      continue;
+function appBundleNameForResourcePath(filePath: string): string {
+  const normalized = filePath.replaceAll(path.sep, "/");
+  const marker = "/Contents/Resources/";
+  const markerIndex = normalized.lastIndexOf(marker);
+  if (markerIndex < 0) {
+    return "";
+  }
+
+  const beforeResources = normalized.slice(0, markerIndex);
+  const bundleName = beforeResources.slice(beforeResources.lastIndexOf("/") + 1);
+  return bundleName.endsWith(".app") ? bundleName : "";
+}
+
+function appResourceFileSortKey(filePath: string): string {
+  const normalized = filePath.replaceAll(path.sep, "/");
+  const appBundleName = appBundleNameForResourcePath(filePath);
+  const rank = appBundleName === "Codex.app" ? 0 : appBundleName.startsWith("Codex") ? 1 : 2;
+  return `${rank}/${normalized}`;
+}
+
+function findAppResourceFile(root: string, fileName: string): string | undefined {
+  const matches: string[] = [];
+
+  function walk(currentPath: string): void {
+    if (!fs.existsSync(currentPath)) {
+      return;
     }
 
-    const normalized = entryPath.replaceAll(path.sep, "/");
-    if (normalized.endsWith("Codex.app/Contents/Resources/app.asar")) {
-      return entryPath;
+    for (const entry of fs.readdirSync(currentPath, { withFileTypes: true })) {
+      const entryPath = path.join(currentPath, entry.name);
+      if (entry.isDirectory()) {
+        walk(entryPath);
+        continue;
+      }
+
+      const normalized = entryPath.replaceAll(path.sep, "/");
+      if (entry.name === fileName && normalized.endsWith(`/Contents/Resources/${fileName}`)) {
+        matches.push(entryPath);
+      }
     }
   }
-  return undefined;
+
+  walk(root);
+  return matches.sort((left, right) => appResourceFileSortKey(left).localeCompare(
+    appResourceFileSortKey(right),
+  ))[0];
+}
+
+export function findAppAsar(root: string): string | undefined {
+  return findAppResourceFile(root, "app.asar");
 }
 
 function readJsonFile<T>(filePath: string): T {
@@ -2374,7 +2407,7 @@ async function main(): Promise<void> {
 
   const appAsar = findAppAsar(extractRoot);
   if (!appAsar) {
-    throw new Error("Could not find Codex.app Contents/Resources/app.asar in the downloaded ZIP.");
+    throw new Error("Could not find Contents/Resources/app.asar in the downloaded ZIP.");
   }
   const appResourcesRoot = path.dirname(appAsar);
   const nodeVersion = readBundledNodeVersion(appResourcesRoot);

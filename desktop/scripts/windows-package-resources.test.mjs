@@ -13,6 +13,7 @@ const repoRoot = path.dirname(desktopRoot);
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
+  findAppAsar,
   hasArm64RuntimePayload,
   patchCodexWindowServicesSource,
   patchMarkdownOperationDirectiveCrashSource,
@@ -1867,6 +1868,40 @@ test("Codex app hydration keys extracted app cache by version and build", () => 
     verifierSource,
     /function appExtractDirCandidates\(version: string, buildNumber\?: string, extractDir\?: string\)/,
   );
+});
+
+test("Codex app cache consumers allow beta app bundle names", () => {
+  const extractRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-beta-app-"));
+  const betaAppAsar = path.join(
+    extractRoot,
+    "Codex Beta.app",
+    "Contents",
+    "Resources",
+    "app.asar",
+  );
+  writeFixture(betaAppAsar, "asar");
+
+  assert.equal(findAppAsar(extractRoot), betaAppAsar);
+
+  const appHydratorSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+  const cliHydratorSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
+    "utf8",
+  );
+  const verifierSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "verify-browser-client-runtime.ts"),
+    "utf8",
+  );
+
+  assert.match(appHydratorSource, /findAppResourceFile\(root, "app\.asar"\)/);
+  assert.match(cliHydratorSource, /findAppResourceFile\(root, "node"\)/);
+  assert.match(verifierSource, /findAppResourceFile\(root, "node"\)/);
+  assert.doesNotMatch(appHydratorSource, /Codex\.app\/Contents\/Resources\/app\.asar/);
+  assert.doesNotMatch(cliHydratorSource, /"Codex\.app", "Contents", "Resources", "node"/);
+  assert.doesNotMatch(verifierSource, /"Codex\.app", "Contents", "Resources", "node"/);
 });
 
 test("operational scripts resolve desktop root from script location", () => {

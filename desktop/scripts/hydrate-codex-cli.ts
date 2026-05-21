@@ -259,6 +259,54 @@ function appExtractDirCandidates(version: string, buildNumber?: string, extractD
   return buildNumber ? [buildKeyedExtractDir, legacyExtractDir] : [legacyExtractDir];
 }
 
+function appBundleNameForResourcePath(filePath: string): string {
+  const normalized = filePath.replaceAll(path.sep, "/");
+  const marker = "/Contents/Resources/";
+  const markerIndex = normalized.lastIndexOf(marker);
+  if (markerIndex < 0) {
+    return "";
+  }
+
+  const beforeResources = normalized.slice(0, markerIndex);
+  const bundleName = beforeResources.slice(beforeResources.lastIndexOf("/") + 1);
+  return bundleName.endsWith(".app") ? bundleName : "";
+}
+
+function appResourceFileSortKey(filePath: string): string {
+  const normalized = filePath.replaceAll(path.sep, "/");
+  const appBundleName = appBundleNameForResourcePath(filePath);
+  const rank = appBundleName === "Codex.app" ? 0 : appBundleName.startsWith("Codex") ? 1 : 2;
+  return `${rank}/${normalized}`;
+}
+
+function findAppResourceFile(root: string, fileName: string): string | undefined {
+  const matches: string[] = [];
+
+  function walk(currentPath: string): void {
+    if (!fs.existsSync(currentPath)) {
+      return;
+    }
+
+    for (const entry of fs.readdirSync(currentPath, { withFileTypes: true })) {
+      const entryPath = path.join(currentPath, entry.name);
+      if (entry.isDirectory()) {
+        walk(entryPath);
+        continue;
+      }
+
+      const normalized = entryPath.replaceAll(path.sep, "/");
+      if (entry.name === fileName && normalized.endsWith(`/Contents/Resources/${fileName}`)) {
+        matches.push(entryPath);
+      }
+    }
+  }
+
+  walk(root);
+  return matches.sort((left, right) => appResourceFileSortKey(left).localeCompare(
+    appResourceFileSortKey(right),
+  ))[0];
+}
+
 function readCodexAppReleaseInfo(): { buildNumber?: string; extractDir?: string; version: string } {
   const releaseInfoPath = path.join(codexAppCacheRoot, "latest-release.json");
   const releaseInfo = JSON.parse(fs.readFileSync(releaseInfoPath, "utf8")) as {
@@ -282,12 +330,12 @@ function readCodexAppReleaseInfo(): { buildNumber?: string; extractDir?: string;
 
 function findMacNodePath(): string {
   const { buildNumber, extractDir, version } = readCodexAppReleaseInfo();
-  const candidates = appExtractDirCandidates(version, buildNumber, extractDir).map((candidate) =>
-    path.join(codexAppCacheRoot, candidate, "Codex.app", "Contents", "Resources", "node"),
+  const searchRoots = appExtractDirCandidates(version, buildNumber, extractDir).map((candidate) =>
+    path.join(codexAppCacheRoot, candidate),
   );
-  const nodePath = candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
-  if (!fs.existsSync(nodePath)) {
-    throw new Error(`Missing bundled macOS Node executable: ${nodePath}`);
+  const nodePath = searchRoots.map((root) => findAppResourceFile(root, "node")).find(Boolean);
+  if (!nodePath) {
+    throw new Error(`Missing bundled macOS Node executable under: ${searchRoots.join(", ")}`);
   }
 
   return nodePath;
