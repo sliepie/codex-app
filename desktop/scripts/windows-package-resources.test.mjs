@@ -1107,7 +1107,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   const expectedTweakMetadata = new Map([
     [
       "codex-app-ui-overrides",
-      { id: "app.sliepie.codex.ui-overrides", version: "0.10.0" },
+      { id: "app.sliepie.codex.ui-overrides", version: "0.10.1" },
     ],
     [
       "codex-plusplus-updater-ui-overrides",
@@ -1442,7 +1442,11 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.match(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-thread-row\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within\) \[data-thread-title-trigger\]\{padding-inline-start:1\.25rem!important;\}/,
+      /\[data-app-action-sidebar-thread-row\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within,\[aria-current="page"\],[^{}]+\) \[data-thread-title-trigger\]\{padding-inline-start:1\.25rem!important;\}/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /\[data-app-action-sidebar-thread-row\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within,\[aria-current="page"\],[^{}]+\) \.w-4:not\(:has\(button\)\)[^{}]*\{opacity:0!important;visibility:hidden!important;\}/,
     );
     assert.ok(
       uiOverrideCss.includes(

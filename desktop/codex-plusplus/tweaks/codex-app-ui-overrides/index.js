@@ -60,6 +60,20 @@ const SWITCH_TRACK_BASE_CLASS =
   "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-200 ease-out h-5 w-8";
 const SWITCH_THUMB_BASE_CLASS =
   "rounded-full border border-[color:var(--gray-0)] bg-[color:var(--gray-0)] shadow-sm transition-transform duration-200 ease-out data-[state=unchecked]:translate-x-0 h-4 w-4 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px]";
+const SIDEBAR_ROW_ACTIVE_STATES = [
+  ":hover",
+  ":focus-within",
+  '[aria-current="page"]',
+  '[data-active="true"]',
+  '[data-selected="true"]',
+  '[aria-selected="true"]',
+  ".active",
+  ':has([aria-current="page"])',
+  ':has([data-active="true"])',
+  ':has([data-selected="true"])',
+  ':has([aria-selected="true"])',
+  ":has(.active)",
+].join(",");
 
 let windowsMenuBarSettingsObserver = null;
 let windowsMenuBarStorage = null;
@@ -71,6 +85,10 @@ function cssRule(selectors, declarations) {
 
 function interactiveSelectors(container, targets) {
   return targets.map((target) => `${container}:is(:hover,:focus-within)${target}`);
+}
+
+function sidebarRowStateSelectors(container, targets) {
+  return targets.map((target) => `${container}:is(${SIDEBAR_ROW_ACTIVE_STATES})${target}`);
 }
 
 const BASE_STYLE_RULES = [
@@ -126,7 +144,7 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     SIDEBAR_PIN_ICON_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors("[data-app-action-sidebar-project-row]", [
+    sidebarRowStateSelectors("[data-app-action-sidebar-project-row]", [
       ">.opacity-0",
       " .opacity-0:has(button)",
       " button.opacity-0",
@@ -135,15 +153,7 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     VISIBLE_CONTROL_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors("[data-app-action-sidebar-project-row]", [
-      " button svg",
-      " button .icon-xs",
-      " button .icon-sm",
-    ]),
-    VISIBLE_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
+    sidebarRowStateSelectors("[data-app-action-sidebar-thread-row]", [
       " .absolute.top-0.left-1.z-10",
       " .absolute.top-0.left-1.z-10 button",
       " .w-4 span:has(button)",
@@ -154,25 +164,23 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     VISIBLE_CONTROL_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
-      " .absolute.top-0.left-1.z-10 button svg",
-      " .absolute.top-0.left-1.z-10 button .icon-xs",
-      " .absolute.top-0.left-1.z-10 button .icon-sm",
-      " .w-4 span:has(button) button svg",
-      " .w-4 span:has(button) button .icon-2xs",
-      " .w-4 span:has(button) button .icon-xs",
-      ">.absolute.right-0.top-0.z-10 button svg",
-      ">.absolute.right-0.top-0.z-10 button .icon-xs",
-      ">.absolute.right-0.top-0.z-10 button .icon-sm",
-    ]),
-    VISIBLE_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(
+    sidebarRowStateSelectors(
       "[data-app-action-sidebar-thread-row]:has(.absolute.top-0.left-1.z-10)",
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    sidebarRowStateSelectors(
+      "[data-app-action-sidebar-thread-row]:has(.absolute.top-0.left-1.z-10)",
+      [
+        " .w-4:not(:has(button))",
+        " .w-4>:not(:has(button))",
+        " .w-4 span:not(:has(button))",
+        " .w-4 svg:not(button svg)",
+      ],
+    ),
+    HIDDEN_META_DECLARATIONS,
   ),
   cssRule(
     SIDEBAR_CHATS_SECTION_SELECTOR,
@@ -183,13 +191,13 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     SIDEBAR_CHATS_HEADER_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
+    sidebarRowStateSelectors("[data-app-action-sidebar-thread-row]", [
       " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
     ]),
     HIDDEN_META_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
+    sidebarRowStateSelectors("[data-app-action-sidebar-thread-row]", [
       " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
     ]),
     HIDDEN_META_DECLARATIONS,
