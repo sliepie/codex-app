@@ -1828,7 +1828,7 @@ function patchRecoveredMarkdownOperationDirectives(recoveredRoot: string): void 
   for (const relativePath of findRecoveredWebviewJavaScriptAssets(recoveredRoot)) {
     const filePath = path.join(recoveredRoot, relativePath);
     const source = fs.readFileSync(filePath, "utf8");
-    if (!source.includes("codexDirective") || !isMarkdownOperationDirectivePatchTarget(source)) continue;
+    if (!source.includes("codexDirective") || !source.includes("function Ur(")) continue;
 
     matchedDirectiveBundle = true;
     const patch = patchMarkdownOperationDirectiveCrashSource(source);
@@ -1976,56 +1976,11 @@ const markdownDirectiveFilterReplacement =
   ")}";
 const markdownDirectiveInputOriginal = "E=n,ne=T?ar(Hr(E)):E";
 const markdownDirectiveInputReplacement = "E=Hr(n),ne=T?ar(E):E";
-const markdownDirectiveStreamingFilterOriginal =
-  "function ri(e){return e.includes(" +
-  markdownTemplateTick +
-  "::" +
-  markdownTemplateTick +
-  ")?e.split(" +
-  markdownTemplateTick +
-  "\n" +
-  markdownTemplateTick +
-  ").filter(e=>!ii(e)).join(" +
-  markdownTemplateTick +
-  "\n" +
-  markdownTemplateTick +
-  "):e}";
-const markdownDirectiveStreamingFilterReplacement =
-  "function ri(e){let t=!1;return e.includes(" +
-  markdownTemplateTick +
-  "::" +
-  markdownTemplateTick +
-  ")?e.split(" +
-  markdownTemplateTick +
-  "\n" +
-  markdownTemplateTick +
-  ").filter(e=>{let n=e.trimStart(),r=t;return n.startsWith(\"```\")&&(t=!t),r||!ii(e)}).join(" +
-  markdownTemplateTick +
-  "\n" +
-  markdownTemplateTick +
-  "):e}";
-const markdownDirectivePreparserOriginal = "function mr(e,t){return e}";
-const markdownDirectivePreparserReplacement = "function mr(e,t){return ri(e)}";
-
-function isMarkdownOperationDirectivePatchTarget(source: string): boolean {
-  return (
-    source.includes("function Ur(") ||
-    source.includes(markdownDirectiveStreamingFilterOriginal) ||
-    source.includes(markdownDirectiveStreamingFilterReplacement) ||
-    source.includes(markdownDirectivePreparserOriginal) ||
-    source.includes(markdownDirectivePreparserReplacement)
-  );
-}
 
 export function patchMarkdownOperationDirectiveCrashSource(
   source: string,
 ): MarkdownOperationDirectivePatch | null {
-  if (!source.includes("codexDirective")) return null;
-
-  const patchedPreparser = patchMarkdownOperationDirectivePreparserSource(source);
-  if (patchedPreparser) return patchedPreparser;
-
-  if (!source.includes("function Ur(")) return null;
+  if (!source.includes("codexDirective") || !source.includes("function Ur(")) return null;
 
   const alreadyPatched =
     source.includes(markdownDirectiveFilterReplacement) &&
@@ -2058,43 +2013,6 @@ export function patchMarkdownOperationDirectiveCrashSource(
   return {
     source: patched,
     changed: patched !== source,
-    strategy: "operation-directive-filter",
-  };
-}
-
-function patchMarkdownOperationDirectivePreparserSource(
-  source: string,
-): MarkdownOperationDirectivePatch | null {
-  const alreadyPatched =
-    source.includes(markdownDirectiveStreamingFilterReplacement) &&
-    source.includes(markdownDirectivePreparserReplacement);
-  if (alreadyPatched) {
-    return { source, changed: false, strategy: "already-patched" };
-  }
-
-  const hasStreamingFilter =
-    source.includes(markdownDirectiveStreamingFilterReplacement) ||
-    source.includes(markdownDirectiveStreamingFilterOriginal);
-  const hasPreparser =
-    source.includes(markdownDirectivePreparserReplacement) ||
-    source.includes(markdownDirectivePreparserOriginal);
-  if (!hasStreamingFilter || !hasPreparser) return null;
-
-  let patched = source;
-  if (!patched.includes(markdownDirectiveStreamingFilterReplacement)) {
-    patched = patched.replace(
-      markdownDirectiveStreamingFilterOriginal,
-      markdownDirectiveStreamingFilterReplacement,
-    );
-  }
-  if (!patched.includes(markdownDirectivePreparserReplacement)) {
-    patched = patched.replace(markdownDirectivePreparserOriginal, markdownDirectivePreparserReplacement);
-  }
-
-  if (patched === source) return null;
-  return {
-    source: patched,
-    changed: true,
     strategy: "operation-directive-filter",
   };
 }
@@ -2528,7 +2446,6 @@ async function main(): Promise<void> {
     { stdio: "inherit" },
   );
   patchWindowsSelfSignedBundle(recoveredRoot);
-  patchRecoveredMarkdownOperationDirectives(recoveredRoot);
   patchRecoveredCodexWindowServices(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
