@@ -116,17 +116,6 @@ const SIDEBAR_ACTION_STYLE_RULES = [
   ),
   cssRule(
     [
-      `${SIDEBAR_THREAD_ROW_SELECTOR} .w-4 span:has(button) button svg`,
-      `${SIDEBAR_THREAD_ROW_SELECTOR} .w-4 span:has(button) button .icon-2xs`,
-      `${SIDEBAR_THREAD_ROW_SELECTOR} .w-4 span:has(button) button .icon-xs`,
-      `${SIDEBAR_THREAD_ROW_SELECTOR}>.absolute.right-0.top-0.z-10 button svg`,
-      `${SIDEBAR_THREAD_ROW_SELECTOR}>.absolute.right-0.top-0.z-10 button .icon-xs`,
-      `${SIDEBAR_THREAD_ROW_SELECTOR}>.absolute.right-0.top-0.z-10 button .icon-sm`,
-    ],
-    SIDEBAR_PIN_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    [
       `${SIDEBAR_THREAD_ROW_SELECTOR} .absolute.top-0.left-1.z-10 button svg`,
       `${SIDEBAR_THREAD_ROW_SELECTOR} .absolute.top-0.left-1.z-10 button .icon-xs`,
       `${SIDEBAR_THREAD_ROW_SELECTOR} .absolute.top-0.left-1.z-10 button .icon-sm`,
