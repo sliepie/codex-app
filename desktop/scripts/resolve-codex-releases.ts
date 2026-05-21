@@ -85,11 +85,14 @@ function betaAppcastUrlFromProdUrl(prodUrl: string): string {
       betaUrl.pathname = betaUrl.pathname.replace("/codex-app-prod/", "/codex-app-beta/");
       return betaUrl.toString();
     }
+
+    const defaultBetaUrl = new URL(defaultBetaAppcastUrl);
+    betaUrl.pathname = defaultBetaUrl.pathname;
+    betaUrl.search = defaultBetaUrl.search;
+    return betaUrl.toString();
   } catch {
     return defaultBetaAppcastUrl;
   }
-
-  return defaultBetaAppcastUrl;
 }
 
 function firstMatch(text: string, pattern: RegExp, message: string): string {

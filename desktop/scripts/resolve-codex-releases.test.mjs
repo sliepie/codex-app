@@ -57,6 +57,7 @@ function releaseInputsBody({
 function startServer(
   releases,
   {
+    appcastPath = "/codex-app-prod/appcast.xml",
     appcastSource = appcast,
     betaAppcastSource = appcast,
     codexCliTag = "rust-v0.129.0",
@@ -66,7 +67,7 @@ function startServer(
   } = {},
 ) {
   const server = http.createServer((request, response) => {
-    if (request.url === "/codex-app-prod/appcast.xml") {
+    if (request.url === appcastPath) {
       response.writeHead(200, { "Content-Type": "application/xml" });
       response.end(appcastSource);
       return;
@@ -137,6 +138,7 @@ async function hashCacheInputs(paths) {
 
 async function runResolver({
   releases,
+  appcastPath,
   appcastSource,
   betaAppcastSource,
   codexCliTag,
@@ -147,6 +149,7 @@ async function runResolver({
   scriptArgs = [scriptPath],
 }) {
   const server = await startServer(releases, {
+    appcastPath,
     appcastSource,
     betaAppcastSource,
     codexCliTag,
@@ -165,7 +168,7 @@ async function runResolver({
         {
           env: {
             ...process.env,
-            CODEX_APPCAST_URL: `${server.origin}/codex-app-prod/appcast.xml`,
+            CODEX_APPCAST_URL: `${server.origin}${appcastPath ?? "/codex-app-prod/appcast.xml"}`,
             CODEX_PLUS_PLUS_REPOSITORY: codexPlusPlusRepo,
             GH_TOKEN: "test-token",
             GITHUB_API_URL: server.origin,
@@ -251,6 +254,20 @@ test("keeps prod when prod and beta have the same Sparkle build", async () => {
   assert.equal(output.codex_app_build, "2903");
   assert.equal(output.codex_appcast_feed, "prod");
   assert.match(output.codex_appcast_url, /\/codex-app-prod\/appcast\.xml$/);
+});
+
+test("keeps derived beta appcast URLs on a custom appcast origin", async () => {
+  const output = await runResolver({
+    releases: [],
+    appcastPath: "/mirror/appcast.xml",
+    appcastSource: appcastFor("26.513.31313", "2867"),
+    betaAppcastSource: appcastFor("26.513.40821", "2903"),
+  });
+
+  assert.equal(output.codex_app_version, "26.513.40821");
+  assert.equal(output.codex_app_build, "2903");
+  assert.equal(output.codex_appcast_feed, "beta");
+  assert.match(output.codex_appcast_url, /^http:\/\/127\.0\.0\.1:\d+\/codex-app-beta\/appcast\.xml$/);
 });
 
 test("runs release resolver directly from TypeScript before dependency install", async () => {
