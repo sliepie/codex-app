@@ -15,9 +15,12 @@ function resolveDesktopRoot(): string {
 
 const desktopRoot = resolveDesktopRoot();
 
-const appcastUrl =
+const defaultProdAppcastUrl = "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
+const defaultBetaAppcastUrl = "https://persistent.oaistatic.com/codex-app-beta/appcast.xml";
+const prodAppcastUrl =
   process.env.CODEX_APPCAST_URL ??
-  "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
+  defaultProdAppcastUrl;
+const betaAppcastUrl = betaAppcastUrlFromProdUrl(prodAppcastUrl);
 const codexCliRepository = process.env.CODEX_CLI_REPOSITORY ?? "openai/codex";
 const codexPlusPlusRepository = process.env.CODEX_PLUS_PLUS_REPOSITORY ?? "b-nnett/codex-plusplus";
 const githubApiUrl = process.env.GITHUB_API_URL ?? "https://api.github.com";
@@ -55,6 +58,15 @@ type ReleaseInputs = {
   codexPlusPlusTag: string;
 };
 
+type AppcastFeedName = "prod" | "beta";
+
+type AppcastRelease = {
+  buildNumber: string;
+  feedName: AppcastFeedName;
+  feedUrl: string;
+  version: string;
+};
+
 type ResolveRepoReleaseRevisionOptions = ReleaseInputs & {
   appVersion: string;
   currentSha?: string;
@@ -63,6 +75,21 @@ type ResolveRepoReleaseRevisionOptions = ReleaseInputs & {
 
 function fail(message: string): never {
   throw new Error(message);
+}
+
+function betaAppcastUrlFromProdUrl(prodUrl: string): string {
+  try {
+    const betaUrl = new URL(prodUrl);
+    if (betaUrl.pathname.includes("/codex-app-prod/")) {
+      // The beta appcast is the official sibling of the prod appcast.
+      betaUrl.pathname = betaUrl.pathname.replace("/codex-app-prod/", "/codex-app-beta/");
+      return betaUrl.toString();
+    }
+  } catch {
+    return defaultBetaAppcastUrl;
+  }
+
+  return defaultBetaAppcastUrl;
 }
 
 function firstMatch(text: string, pattern: RegExp, message: string): string {
@@ -79,6 +106,15 @@ function assertMatches(label: string, value: string, pattern: RegExp): string {
   }
 
   return value;
+}
+
+function parsePositiveInteger(label: string, value: string): number {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    fail(`${label} has an unexpected numeric value: ${JSON.stringify(value)}`);
+  }
+
+  return parsed;
 }
 
 function githubOutput(name: string, value: number | string): void {
@@ -238,6 +274,50 @@ async function fetchLatestReleaseTag(repository: string, label: string): Promise
   return tagName;
 }
 
+async function fetchAppcastRelease(feedName: AppcastFeedName, feedUrl: string): Promise<AppcastRelease> {
+  const response = await fetch(feedUrl);
+  if (!response.ok) {
+    fail(`Failed to fetch ${feedName} Codex appcast: ${response.status} ${response.statusText}`);
+  }
+
+  const appcast = await response.text();
+  const item = firstMatch(
+    appcast,
+    /(<item\b[\s\S]*?<\/item>)/i,
+    `No Codex app release was found in the ${feedName} appcast.`,
+  );
+  const version = assertMatches(
+    `${feedName} Codex app version`,
+    firstMatch(
+      item,
+      /<sparkle:shortVersionString>([^<]+)<\/sparkle:shortVersionString>/i,
+      `The selected ${feedName} Codex app release does not have a version.`,
+    ),
+    appVersionPattern,
+  );
+  const buildNumber = assertMatches(
+    `${feedName} Codex app build number`,
+    firstMatch(
+      item,
+      /<sparkle:version>([^<]+)<\/sparkle:version>/i,
+      `The selected ${feedName} Codex app release does not have a build number.`,
+    ),
+    buildNumberPattern,
+  );
+
+  return { buildNumber, feedName, feedUrl, version };
+}
+
+function chooseLatestAppcastRelease(prod: AppcastRelease, beta: AppcastRelease): AppcastRelease {
+  const prodBuild = parsePositiveInteger("prod Codex app build number", prod.buildNumber);
+  const betaBuild = parsePositiveInteger("beta Codex app build number", beta.buildNumber);
+  if (betaBuild > prodBuild) {
+    return beta;
+  }
+
+  return prod;
+}
+
 async function fetchGitTagCommitSha(repository: string, tagName: string, label: string): Promise<string> {
   const response = await fetch(repositoryApiUrl(repository, `/git/ref/tags/${encodeURIComponent(tagName)}`), {
     headers: githubHeaders(),
@@ -274,35 +354,12 @@ async function fetchGitTagCommitSha(repository: string, tagName: string, label: 
 }
 
 async function main(): Promise<void> {
-  const response = await fetch(appcastUrl);
-  if (!response.ok) {
-    fail(`Failed to fetch Codex appcast: ${response.status} ${response.statusText}`);
-  }
-
-  const appcast = await response.text();
-  const item = firstMatch(
-    appcast,
-    /(<item\b[\s\S]*?<\/item>)/i,
-    "No Codex app release was found in the appcast.",
+  const selectedAppcastRelease = chooseLatestAppcastRelease(
+    await fetchAppcastRelease("prod", prodAppcastUrl),
+    await fetchAppcastRelease("beta", betaAppcastUrl),
   );
-  const appVersion = assertMatches(
-    "Codex app version",
-    firstMatch(
-      item,
-      /<sparkle:shortVersionString>([^<]+)<\/sparkle:shortVersionString>/i,
-      "The selected Codex app release does not have a version.",
-    ),
-    appVersionPattern,
-  );
-  const buildNumber = assertMatches(
-    "Codex app build number",
-    firstMatch(
-      item,
-      /<sparkle:version>([^<]+)<\/sparkle:version>/i,
-      "The selected Codex app release does not have a build number.",
-    ),
-    buildNumberPattern,
-  );
+  const appVersion = selectedAppcastRelease.version;
+  const buildNumber = selectedAppcastRelease.buildNumber;
   const cliTag = assertMatches(
     "Codex CLI tag",
     await fetchLatestReleaseTag(codexCliRepository, "Codex CLI"),
@@ -344,6 +401,8 @@ async function main(): Promise<void> {
 
   githubOutput("codex_app_version", appVersion);
   githubOutput("codex_app_build", buildNumber);
+  githubOutput("codex_appcast_feed", selectedAppcastRelease.feedName);
+  githubOutput("codex_appcast_url", selectedAppcastRelease.feedUrl);
   githubOutput("codex_cli_tag", cliTag);
   githubOutput("codex_plus_plus_tag", codexPlusPlusTag);
   githubOutput("codex_plus_plus_sha", codexPlusPlusSha);
@@ -359,6 +418,8 @@ async function main(): Promise<void> {
       {
         codexAppVersion: appVersion,
         codexAppBuild: buildNumber,
+        codexAppcastFeed: selectedAppcastRelease.feedName,
+        codexAppcastUrl: selectedAppcastRelease.feedUrl,
         codexCliTag: cliTag,
         codexPlusPlusTag,
         codexPlusPlusSha,

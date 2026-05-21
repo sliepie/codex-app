@@ -27,6 +27,18 @@ const appcast = `<?xml version="1.0" encoding="utf-8"?>
   </channel>
 </rss>`;
 
+function appcastFor(version, buildNumber) {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<rss>
+  <channel>
+    <item>
+      <sparkle:shortVersionString>${version}</sparkle:shortVersionString>
+      <sparkle:version>${buildNumber}</sparkle:version>
+    </item>
+  </channel>
+</rss>`;
+}
+
 function releaseInputsBody({
   appBuildNumber = "2429",
   appVersion = "26.429.61741",
@@ -46,6 +58,7 @@ function startServer(
   releases,
   {
     appcastSource = appcast,
+    betaAppcastSource = appcast,
     codexCliTag = "rust-v0.129.0",
     codexPlusPlusRepo = "b-nnett/codex-plusplus",
     codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
@@ -53,9 +66,15 @@ function startServer(
   } = {},
 ) {
   const server = http.createServer((request, response) => {
-    if (request.url === "/appcast.xml") {
+    if (request.url === "/codex-app-prod/appcast.xml") {
       response.writeHead(200, { "Content-Type": "application/xml" });
       response.end(appcastSource);
+      return;
+    }
+
+    if (request.url === "/codex-app-beta/appcast.xml") {
+      response.writeHead(200, { "Content-Type": "application/xml" });
+      response.end(betaAppcastSource);
       return;
     }
 
@@ -119,6 +138,7 @@ async function hashCacheInputs(paths) {
 async function runResolver({
   releases,
   appcastSource,
+  betaAppcastSource,
   codexCliTag,
   codexPlusPlusRepo = "b-nnett/codex-plusplus",
   codexPlusPlusSha,
@@ -128,6 +148,7 @@ async function runResolver({
 }) {
   const server = await startServer(releases, {
     appcastSource,
+    betaAppcastSource,
     codexCliTag,
     codexPlusPlusRepo,
     codexPlusPlusSha,
@@ -144,7 +165,7 @@ async function runResolver({
         {
           env: {
             ...process.env,
-            CODEX_APPCAST_URL: `${server.origin}/appcast.xml`,
+            CODEX_APPCAST_URL: `${server.origin}/codex-app-prod/appcast.xml`,
             CODEX_PLUS_PLUS_REPOSITORY: codexPlusPlusRepo,
             GH_TOKEN: "test-token",
             GITHUB_API_URL: server.origin,
@@ -189,6 +210,8 @@ test("starts new Codex app releases at repo revision zero", async () => {
   assert.equal(output.repo_release_revision, "0");
   assert.equal(output.release_tag, "codex-app-26.429.61741.0");
   assert.equal(output.current_commit_release_tag, "");
+  assert.equal(output.codex_appcast_feed, "prod");
+  assert.match(output.codex_appcast_url, /\/codex-app-prod\/appcast\.xml$/);
   assert.equal(
     output.hydration_cache_key,
     "windows-arm64-hydrated-v5-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
@@ -197,6 +220,37 @@ test("starts new Codex app releases at repo revision zero", async () => {
     output.native_modules_cache_key,
     expectedNativeModulesCacheKey,
   );
+});
+
+test("selects the beta appcast when it has a higher Sparkle build", async () => {
+  const output = await runResolver({
+    releases: [],
+    appcastSource: appcastFor("26.513.31313", "2867"),
+    betaAppcastSource: appcastFor("26.513.40821", "2903"),
+  });
+
+  assert.equal(output.codex_app_version, "26.513.40821");
+  assert.equal(output.codex_app_build, "2903");
+  assert.equal(output.codex_appcast_feed, "beta");
+  assert.match(output.codex_appcast_url, /\/codex-app-beta\/appcast\.xml$/);
+  assert.equal(
+    output.hydration_cache_key,
+    "windows-arm64-hydrated-v5-app-26.513.40821-build-2903-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+  );
+  assert.doesNotMatch(output.hydration_cache_key, /beta|prod/);
+});
+
+test("keeps prod when prod and beta have the same Sparkle build", async () => {
+  const output = await runResolver({
+    releases: [],
+    appcastSource: appcastFor("26.513.31313", "2903"),
+    betaAppcastSource: appcastFor("26.513.40821", "2903"),
+  });
+
+  assert.equal(output.codex_app_version, "26.513.31313");
+  assert.equal(output.codex_app_build, "2903");
+  assert.equal(output.codex_appcast_feed, "prod");
+  assert.match(output.codex_appcast_url, /\/codex-app-prod\/appcast\.xml$/);
 });
 
 test("runs release resolver directly from TypeScript before dependency install", async () => {
