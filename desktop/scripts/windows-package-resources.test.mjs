@@ -1509,11 +1509,15 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.match(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-thread-row\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within,\[aria-current="page"\],[^{}]+\) \[data-thread-title-trigger\]\{padding-inline-start:1\.25rem!important;\}/,
+      /\[data-app-action-sidebar-thread-row\]:not\(\[data-app-action-sidebar-section-heading="Chats"\]~\[data-app-action-sidebar-thread-row\]\):has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within,\[aria-current="page"\],[^{}]+\) \[data-thread-title-trigger\]\{padding-inline-start:1\.25rem!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-thread-row\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within,\[aria-current="page"\],[^{}]+\) \.w-4:not\(:has\(button\)\)[^{}]*\{opacity:0!important;visibility:hidden!important;\}/,
+      /\[data-app-action-sidebar-thread-row\]:not\(\[data-app-action-sidebar-section-heading="Chats"\]~\[data-app-action-sidebar-thread-row\]\):has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within,\[aria-current="page"\],[^{}]+\) \.w-4:not\(:has\(button\)\)[^{}]*\{opacity:0!important;visibility:hidden!important;\}/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /\[data-app-action-sidebar-thread-row\]:not\(\[data-app-action-sidebar-section-heading="Chats"\]~\[data-app-action-sidebar-thread-row\]\):is\(:hover,:focus-within,\[aria-current="page"\],[^{}]+\) \.absolute\.top-0\.left-1\.z-10[^{}]*\{opacity:1!important;pointer-events:auto!important;visibility:visible!important;\}/,
     );
     assert.ok(
       uiOverrideCss.includes(
@@ -1527,7 +1531,11 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.doesNotMatch(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\][^{}]*\[data-thread-title-trigger\]/,
+      /(^|\n)\[data-app-action-sidebar-section-heading="Chats"\][^{}]*\[data-thread-title-trigger\]/,
+    );
+    assert.doesNotMatch(
+      appendedStyles[0].textContent,
+      /(^|\n)\[data-app-action-sidebar-section-heading="Chats"\][^{}]*(\.absolute\.top-0\.left-1\.z-10|\.w-4)/,
     );
     assert.doesNotMatch(
       appendedStyles[0].textContent,
