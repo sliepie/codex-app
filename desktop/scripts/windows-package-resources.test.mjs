@@ -1672,8 +1672,11 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   );
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
+  assert.match(workflowSource, /CODEX_APPCAST_FEED: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_appcast_feed \}\}/);
+  assert.match(workflowSource, /CODEX_APPCAST_URL: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_appcast_url \}\}/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_tag \}\}/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_sha \}\}/);
+  assert.match(workflowSource, /Upstream Codex appcast: \$env:CODEX_APPCAST_FEED \(\$env:CODEX_APPCAST_URL\)/);
   assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
   assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
@@ -1693,6 +1696,9 @@ test("release workflow tracks Codex++ in package inputs and release metadata", (
 
   assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
+  assert.match(workflowSource, /CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}/);
+  assert.match(workflowSource, /CODEX_APPCAST_URL: \$\{\{ steps\.upstream\.outputs\.codex_appcast_url \}\}/);
+  assert.match(workflowSource, /Codex appcast: \$env:CODEX_APPCAST_FEED \(\$env:CODEX_APPCAST_URL\)/);
   assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
   assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);
@@ -1733,8 +1739,8 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.match(releaseWorkflowSource, /name: Build Windows updater[\s\S]*run: npm run build:windows-oai-update-checker -- -Architecture arm64/);
   assert.match(prWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
   assert.match(releaseWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
-  assert.match(prWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run hydrate:app:compiled && npm run hydrate:cli:compiled/);
-  assert.match(releaseWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run hydrate:app:compiled && npm run hydrate:cli:compiled/);
+  assert.match(prWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*CODEX_APPCAST_URL: \$\{\{ steps\.upstream\.outputs\.codex_appcast_url \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run hydrate:app:compiled -- --appcast-url "\$env:CODEX_APPCAST_URL" && npm run hydrate:cli:compiled/);
+  assert.match(releaseWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*CODEX_APPCAST_URL: \$\{\{ steps\.upstream\.outputs\.codex_appcast_url \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run hydrate:app:compiled -- --appcast-url "\$env:CODEX_APPCAST_URL" && npm run hydrate:cli:compiled/);
   assert.match(prWorkflowSource, /name: Verify Windows ARM64 inputs[\s\S]*run: npm run verify:browser-client-runtime:compiled/);
   assert.match(releaseWorkflowSource, /name: Verify Windows ARM64 inputs[\s\S]*run: npm run verify:browser-client-runtime:compiled/);
   assert.ok(
