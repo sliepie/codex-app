@@ -51,15 +51,15 @@ function writeMachOFixture(filePath) {
   fs.writeFileSync(filePath, Buffer.from([0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0x00, 0x00, 0x01]));
 }
 
-function createAppResourcesFixture() {
+function createAppResourcesFixture({ marketplaceName = "openai-bundled" } = {}) {
   const appResourcesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-app-resources-"));
-  const bundledRoot = path.join(appResourcesRoot, "plugins", "openai-bundled");
+  const bundledRoot = path.join(appResourcesRoot, "plugins", marketplaceName);
 
   writeFixture(
     path.join(bundledRoot, ".agents", "plugins", "marketplace.json"),
     `${JSON.stringify(
       {
-        name: "openai-bundled",
+        name: marketplaceName,
         interface: {
           displayName: "OpenAI Bundled",
         },
@@ -223,6 +223,38 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex")),
     false,
   );
+});
+
+test("preserves beta bundled plugin marketplace resources", () => {
+  const appResourcesRoot = createAppResourcesFixture({ marketplaceName: "openai-bundled-beta" });
+  const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
+
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+
+  const marketplace = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        destinationPluginsRoot,
+        "openai-bundled-beta/.agents/plugins/marketplace.json",
+      ),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(
+    marketplace.plugins.map((plugin) => plugin.name),
+    ["browser"],
+  );
+  assert.equal(marketplace.name, "openai-bundled-beta");
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        destinationPluginsRoot,
+        "openai-bundled-beta/plugins/browser/scripts/browser-client.mjs",
+      ),
+    ),
+    true,
+  );
+  assert.equal(fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled")), false);
 });
 
 test("syncs Codex++ runtime assets from a GitHub release source tree", () => {

@@ -69,6 +69,12 @@ type PluginJson = {
   name?: string;
 };
 
+type BundledMarketplaceSource = {
+  name: string;
+  path: string;
+  root: string;
+};
+
 export type CodexPlusPlusRelease = {
   tag_name?: string;
   html_url?: string;
@@ -108,7 +114,7 @@ const electronNativeModuleCacheInputPaths = [
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
 const defaultCodexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
-const openAiBundledMarketplaceName = "openai-bundled";
+const openAiBundledMarketplaceNames = ["openai-bundled", "openai-bundled-beta"] as const;
 const excludedBundledPluginNames = new Set(["computer-use", "chrome", "latex"]);
 const nodeAbi = require("node-abi") as {
   getAbi(target: string, runtime: "electron" | "node"): string;
@@ -297,25 +303,32 @@ function packagedPluginSourcePath(pluginName: string): string {
   return `./plugins/${pluginName}`;
 }
 
+function findBundledMarketplaceSource(appResourcesRoot: string): BundledMarketplaceSource {
+  const candidates = openAiBundledMarketplaceNames.map((name) => {
+    const root = path.join(appResourcesRoot, "plugins", name);
+    return {
+      name,
+      path: path.join(root, ".agents", "plugins", "marketplace.json"),
+      root,
+    };
+  });
+
+  const source = candidates.find((candidate) => fs.existsSync(candidate.path));
+  if (!source) {
+    throw new Error(
+      `Missing bundled plugin marketplace. Checked: ${candidates.map((candidate) => candidate.path).join(", ")}`,
+    );
+  }
+  return source;
+}
+
 export function syncBundledPluginResources(
   appResourcesRoot: string,
   destinationPluginsRoot = bundledPluginsRoot,
 ): void {
-  const sourceMarketplaceRoot = path.join(
-    appResourcesRoot,
-    "plugins",
-    openAiBundledMarketplaceName,
-  );
-  const sourceMarketplacePath = path.join(
-    sourceMarketplaceRoot,
-    ".agents",
-    "plugins",
-    "marketplace.json",
-  );
-
-  if (!fs.existsSync(sourceMarketplacePath)) {
-    throw new Error(`Missing bundled plugin marketplace: ${sourceMarketplacePath}`);
-  }
+  const source = findBundledMarketplaceSource(appResourcesRoot);
+  const sourceMarketplaceRoot = source.root;
+  const sourceMarketplacePath = source.path;
 
   const sourceMarketplace = readJsonFile<MarketplaceJson>(sourceMarketplacePath);
   if (!Array.isArray(sourceMarketplace.plugins)) {
@@ -326,10 +339,11 @@ export function syncBundledPluginResources(
     (plugin) => !excludedBundledPluginNames.has(plugin.name ?? ""),
   );
 
-  const destinationMarketplaceRoot = path.join(
-    destinationPluginsRoot,
-    openAiBundledMarketplaceName,
-  );
+  for (const marketplaceName of openAiBundledMarketplaceNames) {
+    fs.rmSync(path.join(destinationPluginsRoot, marketplaceName), { recursive: true, force: true });
+  }
+
+  const destinationMarketplaceRoot = path.join(destinationPluginsRoot, source.name);
   const destinationMarketplacePath = path.join(
     destinationMarketplaceRoot,
     ".agents",
@@ -338,7 +352,6 @@ export function syncBundledPluginResources(
   );
   const destinationPlugins: MarketplacePlugin[] = [];
 
-  fs.rmSync(destinationMarketplaceRoot, { recursive: true, force: true });
   for (const plugin of selectedPlugins) {
     const pluginName = requireBundledPluginName(plugin, sourceMarketplacePath);
     if (plugin.source?.source !== "local" || !plugin.source.path) {
@@ -386,7 +399,7 @@ export function syncBundledPluginResources(
   );
 
   const syncedPluginNames = destinationPlugins.map((plugin) => plugin.name).join(", ") || "none";
-  console.log(`Synced bundled plugin resources for Windows: ${syncedPluginNames}`);
+  console.log(`Synced ${source.name} bundled plugin resources for Windows: ${syncedPluginNames}`);
 }
 
 async function downloadFile(
