@@ -7,11 +7,16 @@ import {
   prepareBetterSqlite3ElectronRebuild,
   prepareElectronHeadersForNativeRebuild,
 } from "./patch-better-sqlite3-electron";
+import {
+  codexAppcastUrlForFeed,
+  parseCodexAppcastFeed,
+  type CodexAppcastFeed,
+} from "./codex-appcast-feeds";
 
 type Options = {
   version?: string;
   buildNumber?: string;
-  appcastUrl: string;
+  appcastFeed: CodexAppcastFeed;
   cacheRoot: string;
   codexPlusPlusRepo: string;
   codexPlusPlusSha?: string;
@@ -69,6 +74,12 @@ type PluginJson = {
   name?: string;
 };
 
+type BundledMarketplaceSource = {
+  name: string;
+  path: string;
+  root: string;
+};
+
 export type CodexPlusPlusRelease = {
   tag_name?: string;
   html_url?: string;
@@ -108,7 +119,7 @@ const electronNativeModuleCacheInputPaths = [
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
 const defaultCodexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
-const openAiBundledMarketplaceName = "openai-bundled";
+const openAiBundledMarketplaceNames = ["openai-bundled", "openai-bundled-beta"] as const;
 const excludedBundledPluginNames = new Set(["computer-use", "chrome", "latex"]);
 const nodeAbi = require("node-abi") as {
   getAbi(target: string, runtime: "electron" | "node"): string;
@@ -142,9 +153,9 @@ function parseOptions(argv: string[]): Options {
     buildNumber:
       readOption(argv, "--build-number", "-BuildNumber") ??
       process.env.CODEX_APP_BUILD,
-    appcastUrl:
-      readOption(argv, "--appcast-url", "-AppcastUrl") ??
-      "https://persistent.oaistatic.com/codex-app-prod/appcast.xml",
+    appcastFeed: parseCodexAppcastFeed(
+      readOption(argv, "--appcast-feed", "-AppcastFeed") ?? process.env.CODEX_APPCAST_FEED,
+    ),
     cacheRoot,
     codexPlusPlusRepo:
       readOption(argv, "--codex-plusplus-repo", "-CodexPlusPlusRepo") ??
@@ -202,23 +213,56 @@ function findReleaseItem(appcast: string, version?: string, buildNumber?: string
   return item;
 }
 
-function findAppAsar(root: string): string | undefined {
-  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-    const entryPath = path.join(root, entry.name);
-    if (entry.isDirectory()) {
-      const match = findAppAsar(entryPath);
-      if (match) {
-        return match;
-      }
-      continue;
+function appBundleNameForResourcePath(filePath: string): string {
+  const normalized = filePath.replaceAll(path.sep, "/");
+  const marker = "/Contents/Resources/";
+  const markerIndex = normalized.lastIndexOf(marker);
+  if (markerIndex < 0) {
+    return "";
+  }
+
+  const beforeResources = normalized.slice(0, markerIndex);
+  const bundleName = beforeResources.slice(beforeResources.lastIndexOf("/") + 1);
+  return bundleName.endsWith(".app") ? bundleName : "";
+}
+
+function appResourceFileSortKey(filePath: string): string {
+  const normalized = filePath.replaceAll(path.sep, "/");
+  const appBundleName = appBundleNameForResourcePath(filePath);
+  const rank = appBundleName === "Codex.app" ? 0 : appBundleName.startsWith("Codex") ? 1 : 2;
+  return `${rank}/${normalized}`;
+}
+
+function findAppResourceFile(root: string, fileName: string): string | undefined {
+  const matches: string[] = [];
+
+  function walk(currentPath: string): void {
+    if (!fs.existsSync(currentPath)) {
+      return;
     }
 
-    const normalized = entryPath.replaceAll(path.sep, "/");
-    if (normalized.endsWith("Codex.app/Contents/Resources/app.asar")) {
-      return entryPath;
+    for (const entry of fs.readdirSync(currentPath, { withFileTypes: true })) {
+      const entryPath = path.join(currentPath, entry.name);
+      if (entry.isDirectory()) {
+        walk(entryPath);
+        continue;
+      }
+
+      const normalized = entryPath.replaceAll(path.sep, "/");
+      if (entry.name === fileName && normalized.endsWith(`/Contents/Resources/${fileName}`)) {
+        matches.push(entryPath);
+      }
     }
   }
-  return undefined;
+
+  walk(root);
+  return matches.sort((left, right) => appResourceFileSortKey(left).localeCompare(
+    appResourceFileSortKey(right),
+  ))[0];
+}
+
+export function findAppAsar(root: string): string | undefined {
+  return findAppResourceFile(root, "app.asar");
 }
 
 function readJsonFile<T>(filePath: string): T {
@@ -264,25 +308,32 @@ function packagedPluginSourcePath(pluginName: string): string {
   return `./plugins/${pluginName}`;
 }
 
+function findBundledMarketplaceSource(appResourcesRoot: string): BundledMarketplaceSource {
+  const candidates = openAiBundledMarketplaceNames.map((name) => {
+    const root = path.join(appResourcesRoot, "plugins", name);
+    return {
+      name,
+      path: path.join(root, ".agents", "plugins", "marketplace.json"),
+      root,
+    };
+  });
+
+  const source = candidates.find((candidate) => fs.existsSync(candidate.path));
+  if (!source) {
+    throw new Error(
+      `Missing bundled plugin marketplace. Checked: ${candidates.map((candidate) => candidate.path).join(", ")}`,
+    );
+  }
+  return source;
+}
+
 export function syncBundledPluginResources(
   appResourcesRoot: string,
   destinationPluginsRoot = bundledPluginsRoot,
 ): void {
-  const sourceMarketplaceRoot = path.join(
-    appResourcesRoot,
-    "plugins",
-    openAiBundledMarketplaceName,
-  );
-  const sourceMarketplacePath = path.join(
-    sourceMarketplaceRoot,
-    ".agents",
-    "plugins",
-    "marketplace.json",
-  );
-
-  if (!fs.existsSync(sourceMarketplacePath)) {
-    throw new Error(`Missing bundled plugin marketplace: ${sourceMarketplacePath}`);
-  }
+  const source = findBundledMarketplaceSource(appResourcesRoot);
+  const sourceMarketplaceRoot = source.root;
+  const sourceMarketplacePath = source.path;
 
   const sourceMarketplace = readJsonFile<MarketplaceJson>(sourceMarketplacePath);
   if (!Array.isArray(sourceMarketplace.plugins)) {
@@ -293,10 +344,11 @@ export function syncBundledPluginResources(
     (plugin) => !excludedBundledPluginNames.has(plugin.name ?? ""),
   );
 
-  const destinationMarketplaceRoot = path.join(
-    destinationPluginsRoot,
-    openAiBundledMarketplaceName,
-  );
+  for (const marketplaceName of openAiBundledMarketplaceNames) {
+    fs.rmSync(path.join(destinationPluginsRoot, marketplaceName), { recursive: true, force: true });
+  }
+
+  const destinationMarketplaceRoot = path.join(destinationPluginsRoot, source.name);
   const destinationMarketplacePath = path.join(
     destinationMarketplaceRoot,
     ".agents",
@@ -305,7 +357,6 @@ export function syncBundledPluginResources(
   );
   const destinationPlugins: MarketplacePlugin[] = [];
 
-  fs.rmSync(destinationMarketplaceRoot, { recursive: true, force: true });
   for (const plugin of selectedPlugins) {
     const pluginName = requireBundledPluginName(plugin, sourceMarketplacePath);
     if (plugin.source?.source !== "local" || !plugin.source.path) {
@@ -353,7 +404,7 @@ export function syncBundledPluginResources(
   );
 
   const syncedPluginNames = destinationPlugins.map((plugin) => plugin.name).join(", ") || "none";
-  console.log(`Synced bundled plugin resources for Windows: ${syncedPluginNames}`);
+  console.log(`Synced ${source.name} bundled plugin resources for Windows: ${syncedPluginNames}`);
 }
 
 async function downloadFile(
@@ -2309,16 +2360,12 @@ function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
 
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
-  if (!options.appcastUrl.trim()) {
-    throw new Error("Missing Codex appcast URL.");
-  }
-
   fs.mkdirSync(options.cacheRoot, { recursive: true });
 
-  const appcastResponse = await fetch(options.appcastUrl);
+  const appcastResponse = await fetch(codexAppcastUrlForFeed(options.appcastFeed));
   if (!appcastResponse.ok) {
     throw new Error(
-      `Failed to fetch Codex appcast: ${appcastResponse.status} ${appcastResponse.statusText}`,
+      `Failed to fetch ${options.appcastFeed} Codex appcast: ${appcastResponse.status} ${appcastResponse.statusText}`,
     );
   }
 
@@ -2374,7 +2421,7 @@ async function main(): Promise<void> {
 
   const appAsar = findAppAsar(extractRoot);
   if (!appAsar) {
-    throw new Error("Could not find Codex.app Contents/Resources/app.asar in the downloaded ZIP.");
+    throw new Error("Could not find Contents/Resources/app.asar in the downloaded ZIP.");
   }
   const appResourcesRoot = path.dirname(appAsar);
   const nodeVersion = readBundledNodeVersion(appResourcesRoot);

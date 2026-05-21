@@ -8,11 +8,14 @@
     "outDir": ".cache/scripts",
     "strict": true,
     "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "skipLibCheck": true
   },
   "include": [
     "scripts/decode-self-signed-pfx.ts",
     "scripts/build-primary-runtime-win-arm64.ts",
+    "scripts/codex-appcast-feeds.ts",
     "scripts/hydrate-codex-app.ts",
     "scripts/hydrate-codex-cli.ts",
     "scripts/patch-better-sqlite3-electron.ts",

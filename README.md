@@ -1,20 +1,21 @@
 # Codex App Windows ARM64 releases
 
 This repo tracks official Codex desktop app releases and publishes Windows
-ARM64 builds from them. It follows the upstream desktop release feed, hydrates
-the matching app payload, adds the Windows ARM64 runtime resources, and builds
-release artifacts for direct ZIP use and self-signed MSIX/App Installer
-installation.
+ARM64 builds from them. It follows the latest release from the official upstream
+desktop release feeds, hydrates the matching app payload, adds the Windows
+ARM64 runtime resources, and builds release artifacts for direct ZIP use and
+self-signed MSIX/App Installer installation.
 
 The repo does not commit the extracted Codex app payload, Windows Store package
 resources, Electron output, or Codex CLI helper binaries. Those are release
 inputs or build outputs, so they are hydrated during the build instead of being
 tracked in git.
 
-The appcast is the official Electron update feed for the Codex desktop app. It
-is small metadata that points at the current upstream desktop ZIP; this repo
-uses it to find and hydrate the app payload during a build instead of committing
-that payload to git.
+The appcasts are the official Electron update feeds for the Codex desktop app.
+They are small metadata feeds that point at upstream desktop ZIPs; this repo
+selects the item with the highest Sparkle build number across official feeds,
+using the production feed for equal-build ties, and hydrates that app payload
+during a build instead of committing it to git.
 
 ## Install the self-signed Windows ARM64 build
 
@@ -112,10 +113,10 @@ used by the Electron packaging workspace before `npm ci` runs.
 The Windows package also builds a small Rust native updater replacement. Install
 Rust through `rustup` with the MSVC toolchain before running the package command.
 
-The build hydrates `desktop/recovered/app-asar-extracted/` from the official
-appcast, downloads the Windows ARM64 Codex CLI resources, and hydrates the
-bundled Codex++ runtime from the latest `b-nnett/codex-plusplus` GitHub Release
-before packaging. The ZIP output is written under
+The build hydrates `desktop/recovered/app-asar-extracted/` from the selected
+official appcast item, downloads the Windows ARM64 Codex CLI resources, and
+hydrates the bundled Codex++ runtime from the latest `b-nnett/codex-plusplus`
+GitHub Release before packaging. The ZIP output is written under
 `desktop/out/make/zip/win32/arm64/`.
 
 Keep the packaging workspace dependencies aligned with the hydrated macOS app.

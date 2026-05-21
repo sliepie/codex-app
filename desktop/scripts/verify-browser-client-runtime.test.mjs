@@ -24,7 +24,7 @@ function writePeFixture(filePath, versionText, machine = 0xaa64) {
   fs.writeFileSync(filePath, bytes);
 }
 
-function createDesktopFixture() {
+function createDesktopFixture({ appBundleName = "Codex.app", marketplaceName = "openai-bundled" } = {}) {
   const desktopRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-browser-runtime-"));
   const appVersion = "26.506.21252";
   const appBuildNumber = "61741";
@@ -33,7 +33,7 @@ function createDesktopFixture() {
     desktopRoot,
     "resources",
     "plugins",
-    "openai-bundled",
+    marketplaceName,
     "plugins",
     "browser",
   );
@@ -54,7 +54,7 @@ function createDesktopFixture() {
       ".cache",
       "codex-app",
       appExtractDir,
-      "Codex.app",
+      appBundleName,
       "Contents",
       "Resources",
       "node",
@@ -93,6 +93,38 @@ test("accepts legacy app extract cache metadata without extractDir", async () =>
 
 test("accepts browser client native payload metadata matching the bundled Node ABI", async () => {
   const { classicLevelRoot, desktopRoot } = createDesktopFixture();
+  writeFixture(
+    path.join(classicLevelRoot, "build", "Release", ".codex-runtime-meta.json"),
+    `${JSON.stringify(
+      {
+        abi: "137",
+        arch: "arm64",
+        platform: "win32",
+        runtime: "node",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  writePeFixture(
+    path.join(classicLevelRoot, "build", "Release", "classic-level.node"),
+    "native payload",
+  );
+
+  const result = await verifyBrowserClientRuntime({ desktopRoot });
+
+  assert.equal(result.nodeVersion, "v24.14.0");
+  assert.equal(result.abi, "137");
+  assert.equal(result.browserPluginPresent, true);
+  assert.equal(result.classicLevelVersion, "3.0.0");
+});
+
+test("accepts beta app bundle and bundled plugin resource names", async () => {
+  const { classicLevelRoot, desktopRoot } = createDesktopFixture({
+    appBundleName: "Codex (Beta).app",
+    marketplaceName: "openai-bundled-beta",
+  });
   writeFixture(
     path.join(classicLevelRoot, "build", "Release", ".codex-runtime-meta.json"),
     `${JSON.stringify(
