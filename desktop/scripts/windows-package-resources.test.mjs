@@ -1706,10 +1706,10 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
   assert.match(workflowSource, /CODEX_APPCAST_FEED: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_appcast_feed \}\}/);
-  assert.match(workflowSource, /CODEX_APPCAST_URL: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_appcast_url \}\}/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_tag \}\}/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_sha \}\}/);
-  assert.match(workflowSource, /Upstream Codex appcast: \$env:CODEX_APPCAST_FEED \(\$env:CODEX_APPCAST_URL\)/);
+  assert.match(workflowSource, /Upstream Codex appcast: \$env:CODEX_APPCAST_FEED/);
+  assert.doesNotMatch(workflowSource, /Upstream Codex appcast: \$env:CODEX_APPCAST_FEED \(\$env:CODEX_APPCAST_URL\)/);
   assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
   assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
@@ -1731,7 +1731,8 @@ test("release workflow tracks Codex++ in package inputs and release metadata", (
   assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
   assert.match(workflowSource, /CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}/);
   assert.match(workflowSource, /CODEX_APPCAST_URL: \$\{\{ steps\.upstream\.outputs\.codex_appcast_url \}\}/);
-  assert.match(workflowSource, /Codex appcast: \$env:CODEX_APPCAST_FEED \(\$env:CODEX_APPCAST_URL\)/);
+  assert.match(workflowSource, /Codex appcast: \$env:CODEX_APPCAST_FEED/);
+  assert.doesNotMatch(workflowSource, /Codex appcast: \$env:CODEX_APPCAST_FEED \(\$env:CODEX_APPCAST_URL\)/);
   assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
   assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);

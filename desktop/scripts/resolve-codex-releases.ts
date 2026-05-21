@@ -77,6 +77,10 @@ function fail(message: string): never {
   throw new Error(message);
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function betaAppcastUrlFromProdUrl(prodUrl: string): string {
   try {
     const betaUrl = new URL(prodUrl);
@@ -88,7 +92,6 @@ function betaAppcastUrlFromProdUrl(prodUrl: string): string {
 
     const defaultBetaUrl = new URL(defaultBetaAppcastUrl);
     betaUrl.pathname = defaultBetaUrl.pathname;
-    betaUrl.search = defaultBetaUrl.search;
     return betaUrl.toString();
   } catch {
     return defaultBetaAppcastUrl;
@@ -357,10 +360,16 @@ async function fetchGitTagCommitSha(repository: string, tagName: string, label: 
 }
 
 async function main(): Promise<void> {
-  const selectedAppcastRelease = chooseLatestAppcastRelease(
-    await fetchAppcastRelease("prod", prodAppcastUrl),
-    await fetchAppcastRelease("beta", betaAppcastUrl),
-  );
+  const prodAppcastRelease = await fetchAppcastRelease("prod", prodAppcastUrl);
+  let selectedAppcastRelease = prodAppcastRelease;
+  try {
+    selectedAppcastRelease = chooseLatestAppcastRelease(
+      prodAppcastRelease,
+      await fetchAppcastRelease("beta", betaAppcastUrl),
+    );
+  } catch (error) {
+    console.warn(`Beta appcast unavailable; using prod appcast. ${errorMessage(error)}`);
+  }
   const appVersion = selectedAppcastRelease.version;
   const buildNumber = selectedAppcastRelease.buildNumber;
   const cliTag = assertMatches(

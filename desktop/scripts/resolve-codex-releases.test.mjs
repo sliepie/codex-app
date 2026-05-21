@@ -60,6 +60,7 @@ function startServer(
     appcastPath = "/codex-app-prod/appcast.xml",
     appcastSource = appcast,
     betaAppcastSource = appcast,
+    betaAppcastStatus = 200,
     codexCliTag = "rust-v0.129.0",
     codexPlusPlusRepo = "b-nnett/codex-plusplus",
     codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
@@ -67,14 +68,15 @@ function startServer(
   } = {},
 ) {
   const server = http.createServer((request, response) => {
-    if (request.url === appcastPath) {
+    const requestPath = request.url?.split("?")[0];
+    if (requestPath === appcastPath.split("?")[0]) {
       response.writeHead(200, { "Content-Type": "application/xml" });
       response.end(appcastSource);
       return;
     }
 
-    if (request.url === "/codex-app-beta/appcast.xml") {
-      response.writeHead(200, { "Content-Type": "application/xml" });
+    if (requestPath === "/codex-app-beta/appcast.xml") {
+      response.writeHead(betaAppcastStatus, { "Content-Type": "application/xml" });
       response.end(betaAppcastSource);
       return;
     }
@@ -141,6 +143,7 @@ async function runResolver({
   appcastPath,
   appcastSource,
   betaAppcastSource,
+  betaAppcastStatus,
   codexCliTag,
   codexPlusPlusRepo = "b-nnett/codex-plusplus",
   codexPlusPlusSha,
@@ -152,6 +155,7 @@ async function runResolver({
     appcastPath,
     appcastSource,
     betaAppcastSource,
+    betaAppcastStatus,
     codexCliTag,
     codexPlusPlusRepo,
     codexPlusPlusSha,
@@ -193,7 +197,10 @@ async function runResolver({
       output
         .trim()
         .split("\n")
-        .map((line) => line.split("=")),
+        .map((line) => {
+          const separatorIndex = line.indexOf("=");
+          return [line.slice(0, separatorIndex), line.slice(separatorIndex + 1)];
+        }),
     );
   } finally {
     await server.close();
@@ -259,7 +266,7 @@ test("keeps prod when prod and beta have the same Sparkle build", async () => {
 test("keeps derived beta appcast URLs on a custom appcast origin", async () => {
   const output = await runResolver({
     releases: [],
-    appcastPath: "/mirror/appcast.xml",
+    appcastPath: "/mirror/appcast.xml?token=secret",
     appcastSource: appcastFor("26.513.31313", "2867"),
     betaAppcastSource: appcastFor("26.513.40821", "2903"),
   });
@@ -267,7 +274,21 @@ test("keeps derived beta appcast URLs on a custom appcast origin", async () => {
   assert.equal(output.codex_app_version, "26.513.40821");
   assert.equal(output.codex_app_build, "2903");
   assert.equal(output.codex_appcast_feed, "beta");
-  assert.match(output.codex_appcast_url, /^http:\/\/127\.0\.0\.1:\d+\/codex-app-beta\/appcast\.xml$/);
+  assert.match(output.codex_appcast_url, /^http:\/\/127\.0\.0\.1:\d+\/codex-app-beta\/appcast\.xml\?token=secret$/);
+});
+
+test("uses prod when the beta appcast is unavailable", async () => {
+  const output = await runResolver({
+    releases: [],
+    appcastSource: appcastFor("26.513.31313", "2867"),
+    betaAppcastSource: "unavailable",
+    betaAppcastStatus: 404,
+  });
+
+  assert.equal(output.codex_app_version, "26.513.31313");
+  assert.equal(output.codex_app_build, "2867");
+  assert.equal(output.codex_appcast_feed, "prod");
+  assert.match(output.codex_appcast_url, /\/codex-app-prod\/appcast\.xml$/);
 });
 
 test("runs release resolver directly from TypeScript before dependency install", async () => {
