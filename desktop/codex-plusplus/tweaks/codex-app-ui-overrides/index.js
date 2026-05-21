@@ -27,6 +27,12 @@ const SIDEBAR_CHATS_SECTION_DECLARATIONS =
   "position:relative!important;left:-2px!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:1px!important;";
+const SIDEBAR_SECTION_HEADER_SELECTORS = [
+  ".group\\/projects-section-header",
+  ".group\\/chats-section-header",
+  ".group\\/custom-section-header",
+  '[data-app-action-sidebar-section-heading="Pinned"]',
+];
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -211,31 +217,22 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     VISIBLE_ICON_DECLARATIONS,
   ),
   cssRule(
-    [
-      ...interactiveSelectors(".group\\/projects-section-header", [
+    SIDEBAR_SECTION_HEADER_SELECTORS.flatMap((selector) =>
+      interactiveSelectors(selector, [
         ">.opacity-0",
         " .opacity-0:has(button)",
       ]),
-      ...interactiveSelectors(".group\\/custom-section-header", [
-        ">.opacity-0",
-        " .opacity-0:has(button)",
-      ]),
-    ],
+    ),
     VISIBLE_CONTROL_DECLARATIONS,
   ),
   cssRule(
-    [
-      ...interactiveSelectors(".group\\/projects-section-header", [
+    SIDEBAR_SECTION_HEADER_SELECTORS.flatMap((selector) =>
+      interactiveSelectors(selector, [
         " button svg",
         " button .icon-xs",
         " button .icon-sm",
       ]),
-      ...interactiveSelectors(".group\\/custom-section-header", [
-        " button svg",
-        " button .icon-xs",
-        " button .icon-sm",
-      ]),
-    ],
+    ),
     VISIBLE_ICON_DECLARATIONS,
   ),
 ];
