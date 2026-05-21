@@ -184,7 +184,7 @@ const SIDEBAR_ACTION_STYLE_RULES = [
     SIDEBAR_CHATS_SECTION_DECLARATIONS,
   ),
   cssRule(
-    ".group\\/chats-section-header",
+    ".group\\/chats-section-header>.flex.min-w-0.flex-1",
     SIDEBAR_CHATS_HEADER_DECLARATIONS,
   ),
   cssRule(
