@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 const scriptsRoot = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.dirname(scriptsRoot);
 const repoRoot = path.dirname(desktopRoot);
+const uiOverridesManifestRelativePath =
+  "desktop/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json";
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -33,6 +35,44 @@ const {
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, source, "utf8");
+}
+
+function parseThreePartVersion(version) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  assert.ok(match, `Expected three-part version, got ${version}`);
+  return match.slice(1).map((part) => Number.parseInt(part, 10));
+}
+
+function readGitFile(ref, relativePath) {
+  return execFileSync("git", ["show", `${ref}:${relativePath}`], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
+function readMainBranchFile(relativePath) {
+  try {
+    return readGitFile("origin/main", relativePath);
+  } catch {
+    execFileSync("git", ["fetch", "--depth=1", "origin", "main:refs/remotes/origin/main"], {
+      cwd: repoRoot,
+      stdio: "ignore",
+    });
+    return readGitFile("origin/main", relativePath);
+  }
+}
+
+function expectedBundledTweakPrVersion(mainVersion) {
+  const [major, minor, patch] = parseThreePartVersion(mainVersion);
+  assert.equal(major, 0);
+  assert.equal(patch, 0);
+  return `0.${minor + 1}.0`;
+}
+
+function expectedLocalModifiedTweakVersion(mainVersion) {
+  const [major, minor, patch] = parseThreePartVersion(mainVersion);
+  return `${major}.${minor}.${patch + 1}`;
 }
 
 function writePeFixture(filePath, machine) {
@@ -1095,6 +1135,9 @@ test("Codex++ loader disables updater when config JSON is malformed", (t) => {
 
 test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
   const tweaksRoot = path.join(desktopRoot, "codex-plusplus", "tweaks");
+  const mainUiOverridesManifest = JSON.parse(
+    readMainBranchFile(uiOverridesManifestRelativePath),
+  );
   const tweakNames = fs
     .readdirSync(tweaksRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -1107,7 +1150,10 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   const expectedTweakMetadata = new Map([
     [
       "codex-app-ui-overrides",
-      { id: "app.sliepie.codex.ui-overrides", version: "0.10.1" },
+      {
+        id: "app.sliepie.codex.ui-overrides",
+        version: expectedBundledTweakPrVersion(mainUiOverridesManifest.version),
+      },
     ],
     [
       "codex-plusplus-updater-ui-overrides",
@@ -1141,6 +1187,27 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
       assert.equal(typeof module.exports.stop, "function");
     });
   }
+});
+
+test("Codex++ UI override versions follow main branch bump policy", () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, uiOverridesManifestRelativePath), "utf8"),
+  );
+  const mainManifest = JSON.parse(readMainBranchFile(uiOverridesManifestRelativePath));
+  const [mainMajor, mainMinor, mainPatch] = parseThreePartVersion(mainManifest.version);
+
+  assert.equal(
+    manifest.version,
+    expectedBundledTweakPrVersion(mainManifest.version),
+  );
+  assert.equal(
+    expectedLocalModifiedTweakVersion(mainManifest.version),
+    `${mainMajor}.${mainMinor}.${mainPatch + 1}`,
+  );
+  assert.notEqual(
+    expectedLocalModifiedTweakVersion(mainManifest.version),
+    manifest.version,
+  );
 });
 
 test("Codex app UI override installs styles and Appearance menu-bar toggle", () => {
