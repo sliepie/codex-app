@@ -11,8 +11,9 @@ import { fileURLToPath } from "node:url";
 const scriptsRoot = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.dirname(scriptsRoot);
 const repoRoot = path.dirname(desktopRoot);
-const uiOverridesManifestRelativePath =
-  "desktop/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json";
+const uiOverridesTweakRelativeRoot =
+  "desktop/codex-plusplus/tweaks/codex-app-ui-overrides";
+const uiOverridesManifestRelativePath = `${uiOverridesTweakRelativeRoot}/manifest.json`;
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -93,6 +94,21 @@ function expectedBundledTweakPrVersion(mainVersion) {
 function expectedLocalModifiedTweakVersion(mainVersion) {
   const [major, minor, patch] = parseThreePartVersion(mainVersion);
   return `${major}.${minor}.${patch + 1}`;
+}
+
+function tweakSourceMatchesMainBranch(relativeRoot, mainFile) {
+  const sourceRelativePath = `${relativeRoot}/${mainFile}`;
+  const localSource = fs.readFileSync(path.join(repoRoot, sourceRelativePath), "utf8");
+  return (
+    localSource.replace(/\r\n/g, "\n") ===
+    readMainBranchFile(sourceRelativePath).replace(/\r\n/g, "\n")
+  );
+}
+
+function expectedBundledTweakVersion(relativeRoot, mainManifest) {
+  return tweakSourceMatchesMainBranch(relativeRoot, mainManifest.main)
+    ? mainManifest.version
+    : expectedBundledTweakPrVersion(mainManifest.version);
 }
 
 function writePeFixture(filePath, machine) {
@@ -408,17 +424,29 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
   const packageNodeReplPath = path.join(packageRoot, "resources", "node_repl.exe");
   const packageExtensionHostPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "chrome", "extension-host", "windows", "arm64", "extension-host.exe");
   const packageTectonicPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "latex", "bin", "tectonic.exe");
+  const tectonicMetadataPath = path.join(fixtureRoot, ".cache", "codex-cli", "latest-release.json");
   copyFixture(nodeReplPath, packageNodeReplPath);
   copyFixture(extensionHostPath, packageExtensionHostPath);
   writePeFixture(packageTectonicPath, 0x8664);
+  const tectonicRepo = "tectonic-typesetting/tectonic";
+  const tectonicTag = "tectonic@0.16.9";
+  const tectonicAssetName = "tectonic-0.16.9-x86_64-pc-windows-msvc.zip";
+  const tectonicMetadata = {
+    tagName: "codex-cli-release",
+    htmlUrl: "https://github.com/openai/codex/releases/tag/codex-cli-release",
+    assets: [{
+      assetName: tectonicAssetName,
+      downloadUrl: "https://github.com/" + tectonicRepo + "/releases/download/" +
+        tectonicTag + "/" + tectonicAssetName,
+      outputName: "plugins/*/latex*/bin/tectonic.exe",
+      releaseHtmlUrl: "https://github.com/" + tectonicRepo + "/releases/tag/" + tectonicTag,
+      releaseTagName: tectonicTag,
+      sha256: sha256File(packageTectonicPath),
+    }],
+  };
   writeFixture(
-    path.join(fixtureRoot, ".cache", "codex-cli", "latest-release.json"),
-    JSON.stringify({
-      assets: [{
-        outputName: "plugins/*/latex*/bin/tectonic.exe",
-        sha256: sha256File(packageTectonicPath),
-      }],
-    }),
+    tectonicMetadataPath,
+    JSON.stringify(tectonicMetadata),
   );
   writePeFixture(path.join(packageRoot, "resources", "codex.exe"), 0xaa64);
 
@@ -427,7 +455,21 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
     ["chrome-extension-host", "node-repl", "tectonic"],
   );
 
+  writeFixture(
+    tectonicMetadataPath,
+    JSON.stringify({
+      ...tectonicMetadata,
+      assets: [{ ...tectonicMetadata.assets[0], releaseTagName: "tectonic@0.0.0" }],
+    }),
+  );
+  assert.throws(
+    () => verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }),
+    /Tectonic hydrated metadata asset releaseTagName is "tectonic@0\.0\.0"/,
+  );
+  writeFixture(tectonicMetadataPath, JSON.stringify(tectonicMetadata));
+
   writePeFixture(packageNodeReplPath, 0x8664);
+  fs.appendFileSync(packageNodeReplPath, Buffer.from([1]));
   assert.throws(
     () => verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }),
     /node_repl package SHA-256 does not match provenance metadata/,
@@ -1365,7 +1407,10 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
       "codex-app-ui-overrides",
       {
         id: "app.sliepie.codex.ui-overrides",
-        version: expectedBundledTweakPrVersion(mainUiOverridesManifest.version),
+        version: expectedBundledTweakVersion(
+          uiOverridesTweakRelativeRoot,
+          mainUiOverridesManifest,
+        ),
       },
     ],
     [
@@ -1408,10 +1453,16 @@ test("Codex++ UI override versions follow main branch bump policy", () => {
   );
   const mainManifest = JSON.parse(readMainBranchFile(uiOverridesManifestRelativePath));
   const [mainMajor, mainMinor, mainPatch] = parseThreePartVersion(mainManifest.version);
+  const sourceChangedFromMain = !tweakSourceMatchesMainBranch(
+    uiOverridesTweakRelativeRoot,
+    mainManifest.main,
+  );
 
   assert.equal(
     manifest.version,
-    expectedBundledTweakPrVersion(mainManifest.version),
+    sourceChangedFromMain
+      ? expectedBundledTweakPrVersion(mainManifest.version)
+      : mainManifest.version,
   );
   assert.equal(
     expectedLocalModifiedTweakVersion(mainManifest.version),
@@ -2138,6 +2189,9 @@ test("verifies hydrated upstream artifact integrity metadata", () => {
   assert.match(appHydratorSource, /Downloaded Codex app ZIP size mismatch/);
   assert.match(githubAssetSource, /parseAssetDigest/);
   assert.match(githubAssetSource, /ensureCachedReleaseAsset/);
+  assert.match(githubAssetSource, /completeMarkerPath/);
+  assert.match(githubAssetSource, /temporaryExtractRoot/);
+  assert.match(githubAssetSource, /fs\.renameSync\(temporaryExtractRoot, extractRoot\)/);
   assert.match(cliHydratorSource, /ensureCachedReleaseAsset/);
   assert.match(cliHydratorSource, /ensureExtractedZip/);
 });
@@ -2343,6 +2397,10 @@ test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () 
   assert.match(source, /hydrateTectonicExe/);
   assert.match(source, /readPeMachine\(tectonicPath\)/);
   assert.match(source, /installTectonicWindowsPayload\(resourcesRoot, tectonicPath\)/);
+  assert.match(source, /executableSha256: sha256\(tectonicPath\)/);
+  assert.match(source, /releaseHtmlUrl: tectonicAsset\.releaseHtmlUrl/);
+  assert.match(source, /releaseTagName: tectonicAsset\.releaseTagName/);
+  assert.match(source, /sha256: tectonicAsset\.executableSha256/);
 });
 
 test("ignores generated signing-secret base64 exports", () => {

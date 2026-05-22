@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  type AcquiredReleaseAsset,
   type ReleaseAsset,
   downloadFile,
   ensureCachedReleaseAsset,
@@ -9,6 +8,7 @@ import {
   fetchGitHubRelease,
   fetchText,
   findReleaseAsset,
+  sha256,
   verifySha256,
 } from "./github-release-assets";
 import { installTectonicWindowsPayload } from "./bundled-plugin-windows-payloads";
@@ -296,7 +296,18 @@ async function hydrateRipgrepExe(options: Options, resourcesRoot: string): Promi
   return asset;
 }
 
-async function hydrateTectonicExe(options: Options, resourcesRoot: string): Promise<AcquiredReleaseAsset> {
+type HydratedTectonicExe = {
+  asset: ReleaseAsset;
+  executableSha256: string;
+  releaseHtmlUrl: string;
+  releaseTagName: string;
+  size: number;
+};
+
+async function hydrateTectonicExe(
+  options: Options,
+  resourcesRoot: string,
+): Promise<HydratedTectonicExe> {
   const release = await fetchGitHubRelease(options.tectonicRepo, "tectonic@" + options.tectonicVersion);
   const assetName = "tectonic-" + options.tectonicVersion + "-x86_64-pc-windows-msvc.zip";
   const asset = findReleaseAsset(release, assetName, "Tectonic");
@@ -323,7 +334,13 @@ async function hydrateTectonicExe(options: Options, resourcesRoot: string): Prom
   }
   installTectonicWindowsPayload(resourcesRoot, tectonicPath);
 
-  return acquiredAsset;
+  return {
+    asset,
+    executableSha256: sha256(tectonicPath),
+    releaseHtmlUrl: release.url,
+    releaseTagName: release.tagName,
+    size: acquiredAsset.size,
+  };
 }
 
 async function main(): Promise<void> {
@@ -388,7 +405,9 @@ async function main(): Promise<void> {
     assetName: tectonicAsset.asset.name,
     outputName: "plugins/*/latex*/bin/tectonic.exe",
     downloadUrl: tectonicAsset.asset.downloadUrl,
-    sha256: tectonicAsset.sha256,
+    releaseHtmlUrl: tectonicAsset.releaseHtmlUrl,
+    releaseTagName: tectonicAsset.releaseTagName,
+    sha256: tectonicAsset.executableSha256,
     size: tectonicAsset.size,
   });
 

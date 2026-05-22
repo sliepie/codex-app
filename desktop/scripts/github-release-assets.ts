@@ -234,11 +234,27 @@ export async function ensureExtractedZip({
   extractRoot: string;
   force: boolean;
 }): Promise<void> {
+  const completeMarkerPath = extractRoot + ".complete";
   if (force) {
     fs.rmSync(extractRoot, { recursive: true, force: true });
+    fs.rmSync(completeMarkerPath, { force: true });
   }
-  if (!fs.existsSync(extractRoot)) {
-    fs.mkdirSync(extractRoot, { recursive: true });
-    await extract(archivePath, { dir: extractRoot });
+  if (fs.existsSync(extractRoot) && fs.existsSync(completeMarkerPath)) {
+    return;
+  }
+
+  fs.rmSync(extractRoot, { recursive: true, force: true });
+  fs.rmSync(completeMarkerPath, { force: true });
+  const temporaryExtractRoot = extractRoot + ".tmp-" + process.pid + "-" + Date.now();
+  fs.rmSync(temporaryExtractRoot, { recursive: true, force: true });
+  try {
+    fs.mkdirSync(temporaryExtractRoot, { recursive: true });
+    await extract(archivePath, { dir: temporaryExtractRoot });
+    fs.renameSync(temporaryExtractRoot, extractRoot);
+    fs.writeFileSync(completeMarkerPath, "");
+  } catch (error) {
+    fs.rmSync(temporaryExtractRoot, { recursive: true, force: true });
+    fs.rmSync(completeMarkerPath, { force: true });
+    throw error;
   }
 }

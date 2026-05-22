@@ -10,6 +10,9 @@ export const peMachine = {
 
 export type WindowsArm64ResourceBinaryException = {
   expectedArchitecture?: string;
+  expectedGithubAssetName?: string;
+  expectedGithubReleaseTag?: string;
+  expectedGithubRepository?: string;
   expectedMachine: number;
   expectedPackageFamilyName?: string;
   expectedPackageName?: string;
@@ -39,8 +42,14 @@ type StoreBinaryMetadata = {
 };
 
 type HydratedResourceBinaryMetadata = {
+  htmlUrl?: string;
+  tagName?: string;
   assets?: Array<{
+    assetName?: string;
+    downloadUrl?: string;
     outputName?: string;
+    releaseHtmlUrl?: string;
+    releaseTagName?: string;
     sha256?: string;
   }>;
 };
@@ -108,6 +117,46 @@ function readStoreBinaryMetadata(
   return JSON.parse(fs.readFileSync(metadataPath, "utf8")) as StoreBinaryMetadata;
 }
 
+function requireExpectedMetadataValue(
+  label: string,
+  field: string,
+  actual: string | undefined,
+  expected: string | undefined,
+): void {
+  if (expected !== undefined && actual !== expected) {
+    throw new Error(
+      label + " " + field + " is " + JSON.stringify(actual) +
+        ", expected " + JSON.stringify(expected) + ".",
+    );
+  }
+}
+
+function decodedGithubPath(value: string | undefined, label: string): string {
+  if (!value) {
+    throw new Error(label + " is missing.");
+  }
+
+  const url = new URL(value);
+  if (url.hostname.toLowerCase() !== "github.com") {
+    throw new Error(label + " must be a github.com URL.");
+  }
+
+  return url.pathname
+    .split("/")
+    .map((part) => decodeURIComponent(part))
+    .join("/");
+}
+
+function requireGithubPath(value: string | undefined, expectedPath: string, label: string): void {
+  const actualPath = decodedGithubPath(value, label);
+  if (actualPath !== expectedPath) {
+    throw new Error(
+      label + " path is " + JSON.stringify(actualPath) +
+        ", expected " + JSON.stringify(expectedPath) + ".",
+    );
+  }
+}
+
 function expectedGithubReleaseSha256(
   desktopRoot: string,
   exception: WindowsArm64ResourceBinaryException,
@@ -123,7 +172,39 @@ function expectedGithubReleaseSha256(
 
   const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8")) as HydratedResourceBinaryMetadata;
   const asset = metadata.assets?.find((candidate) => candidate.outputName === exception.hydratedOutputName);
-  return requireSha256Digest(asset?.sha256, exception.label + " hydrated metadata");
+  if (!asset) {
+    throw new Error(exception.label + " hydrated metadata is missing " + exception.hydratedOutputName + ".");
+  }
+  if (
+    !exception.expectedGithubRepository ||
+    !exception.expectedGithubReleaseTag ||
+    !exception.expectedGithubAssetName
+  ) {
+    throw new Error("GitHub-release exception is missing expected source fields: " + exception.id);
+  }
+
+  requireExpectedMetadataValue(
+    exception.label + " hydrated metadata asset",
+    "releaseTagName",
+    asset.releaseTagName,
+    exception.expectedGithubReleaseTag,
+  );
+  requireExpectedMetadataValue(
+    exception.label + " hydrated metadata asset",
+    "assetName",
+    asset.assetName,
+    exception.expectedGithubAssetName,
+  );
+
+  const releasePath = "/" + exception.expectedGithubRepository +
+    "/releases/tag/" + exception.expectedGithubReleaseTag;
+  const downloadPath = "/" + exception.expectedGithubRepository +
+    "/releases/download/" + exception.expectedGithubReleaseTag +
+    "/" + exception.expectedGithubAssetName;
+  requireGithubPath(asset.releaseHtmlUrl, releasePath, exception.label + " hydrated metadata releaseHtmlUrl");
+  requireGithubPath(asset.downloadUrl, downloadPath, exception.label + " hydrated metadata downloadUrl");
+
+  return requireSha256Digest(asset.sha256, exception.label + " hydrated metadata");
 }
 
 export function expectedResourceBinaryExceptionSha256(
@@ -177,6 +258,9 @@ export const windowsArm64ResourceBinaryExceptions: WindowsArm64ResourceBinaryExc
     vendoredRelativePath: "resources/extension-host.exe",
   },
   {
+    expectedGithubAssetName: "tectonic-0.16.9-x86_64-pc-windows-msvc.zip",
+    expectedGithubReleaseTag: "tectonic@0.16.9",
+    expectedGithubRepository: "tectonic-typesetting/tectonic",
     expectedMachine: peMachine.x64,
     hydratedMetadataRelativePath: ".cache/codex-cli/latest-release.json",
     hydratedOutputName: "plugins/*/latex*/bin/tectonic.exe",
