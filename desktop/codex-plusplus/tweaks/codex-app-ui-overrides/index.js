@@ -5,25 +5,8 @@ const VISIBLE_CONTROL_DECLARATIONS =
 const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
 const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
-const HIDDEN_META_DECLARATIONS =
-  "opacity:0!important;visibility:hidden!important;";
-const DISPLAY_NONE_DECLARATIONS = "display:none!important;";
-const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
-  "padding-inline-start:1.25rem!important;";
-const SIDEBAR_PIN_BUTTON_DECLARATIONS =
-  "cursor:pointer!important;";
-const SIDEBAR_PROJECT_PIN_BUTTON_DECLARATIONS =
-  "cursor:pointer!important;width:1.25rem!important;height:1.25rem!important;min-width:1.25rem!important;flex:0 0 1.25rem!important;";
-const SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS =
-  "cursor:pointer!important;width:1.25rem!important;height:1.25rem!important;";
-const SIDEBAR_PIN_ICON_DECLARATIONS =
-  "width:0.875rem!important;height:0.875rem!important;min-width:0.875rem!important;min-height:0.875rem!important;";
-const SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS =
-  SIDEBAR_PIN_ICON_DECLARATIONS;
-const SIDEBAR_CHATS_THREAD_TITLE_DECLARATIONS =
-  "padding-inline-start:0!important;";
-const SIDEBAR_CHATS_THREAD_ROW_SELECTOR =
-  '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]';
+const SIDEBAR_CHATS_HEADER_DECLARATIONS =
+  "position:relative!important;left:-1px!important;";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -81,175 +64,17 @@ const BASE_STYLE_RULES = [
   ),
 ];
 
-const SIDEBAR_ACTION_STYLE_RULES = [
+const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
   cssRule(
-    [
-      "[data-app-action-sidebar-thread-row] .w-4 span:has(button) button",
-      "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button",
-    ],
-    SIDEBAR_PIN_BUTTON_DECLARATIONS,
-  ),
-  cssRule(
-    "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button",
-    SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS,
+    ".group\\/chats-section-header",
+    SIDEBAR_CHATS_HEADER_DECLARATIONS,
   ),
   cssRule(
     [
-      "[data-app-action-sidebar-thread-row] .w-4 span:has(button) button svg",
-      "[data-app-action-sidebar-thread-row] .w-4 span:has(button) button .icon-2xs",
-      "[data-app-action-sidebar-thread-row] .w-4 span:has(button) button .icon-xs",
-      "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button svg",
-      "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button .icon-xs",
-      "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button .icon-sm",
+      '[data-app-action-sidebar-section-heading="Pinned"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]',
+      '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]',
     ],
-    SIDEBAR_PIN_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button svg",
-      "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button .icon-xs",
-      "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button .icon-sm",
-    ],
-    SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    "[data-app-action-sidebar-project-row] button",
-    SIDEBAR_PROJECT_PIN_BUTTON_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      "[data-app-action-sidebar-project-row] button svg",
-      "[data-app-action-sidebar-project-row] button .icon-xs",
-      "[data-app-action-sidebar-project-row] button .icon-sm",
-    ],
-    SIDEBAR_PIN_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors("[data-app-action-sidebar-project-row]", [
-      ">.opacity-0",
-      " .opacity-0:has(button)",
-      " button.opacity-0",
-      " button .opacity-0",
-    ]),
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors("[data-app-action-sidebar-project-row]", [
-      " button svg",
-      " button .icon-xs",
-      " button .icon-sm",
-    ]),
-    VISIBLE_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
-      " .absolute.top-0.left-1.z-10",
-      " .absolute.top-0.left-1.z-10 button",
-      " .w-4 span:has(button)",
-      " .w-4 span:has(button) button",
-      ">.absolute.right-0.top-0.z-10",
-      ">.absolute.right-0.top-0.z-10 button",
-    ]),
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
-      " .absolute.top-0.left-1.z-10 button svg",
-      " .absolute.top-0.left-1.z-10 button .icon-xs",
-      " .absolute.top-0.left-1.z-10 button .icon-sm",
-      " .w-4 span:has(button) button svg",
-      " .w-4 span:has(button) button .icon-2xs",
-      " .w-4 span:has(button) button .icon-xs",
-      ">.absolute.right-0.top-0.z-10 button svg",
-      ">.absolute.right-0.top-0.z-10 button .icon-xs",
-      ">.absolute.right-0.top-0.z-10 button .icon-sm",
-    ]),
-    VISIBLE_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(
-      "[data-app-action-sidebar-thread-row]:has(.absolute.top-0.left-1.z-10)",
-      [" [data-thread-title-trigger]"],
-    ),
-    SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
-  ),
-  cssRule(
-    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}>.absolute.top-0.left-1.z-10`,
-    DISPLAY_NONE_DECLARATIONS,
-  ),
-  cssRule(
-    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR} [data-thread-title-trigger]`,
-    SIDEBAR_CHATS_THREAD_TITLE_DECLARATIONS,
-  ),
-  cssRule(
-    `${SIDEBAR_CHATS_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10):is(:hover,:focus-within) [data-thread-title-trigger]`,
-    SIDEBAR_CHATS_THREAD_TITLE_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
-      " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
-    ]),
-    HIDDEN_META_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors("[data-app-action-sidebar-thread-row]", [
-      " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
-    ]),
-    HIDDEN_META_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(".group\\/folder-row", [
-      ">.opacity-0",
-      " .opacity-0:has(button)",
-      " button.opacity-0",
-      " button .opacity-0",
-    ]),
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(".group\\/folder-row", [
-      " button svg",
-      " button .icon-xs",
-      " button .icon-sm",
-    ]),
-    VISIBLE_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      ...interactiveSelectors(".group\\/projects-section-header", [
-        ">.opacity-0",
-        " .opacity-0:has(button)",
-      ]),
-      ...interactiveSelectors(".group\\/chats-section-header", [
-        ">.opacity-0",
-        " .opacity-0:has(button)",
-      ]),
-      ...interactiveSelectors(".group\\/custom-section-header", [
-        ">.opacity-0",
-        " .opacity-0:has(button)",
-      ]),
-    ],
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      ...interactiveSelectors(".group\\/projects-section-header", [
-        " button svg",
-        " button .icon-xs",
-        " button .icon-sm",
-      ]),
-      ...interactiveSelectors(".group\\/chats-section-header", [
-        " button svg",
-        " button .icon-xs",
-        " button .icon-sm",
-      ]),
-      ...interactiveSelectors(".group\\/custom-section-header", [
-        " button svg",
-        " button .icon-xs",
-        " button .icon-sm",
-      ]),
-    ],
-    VISIBLE_ICON_DECLARATIONS,
+    "position:relative!important;left:-2px!important;",
   ),
 ];
 
@@ -303,7 +128,7 @@ const USAGE_MENU_STYLE_RULES = [
 
 const STYLE_RULES = [
   ...BASE_STYLE_RULES,
-  ...SIDEBAR_ACTION_STYLE_RULES,
+  ...SIDEBAR_PIXEL_NUDGE_STYLE_RULES,
   ...RIGHT_PANEL_TAB_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,

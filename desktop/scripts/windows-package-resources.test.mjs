@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 const scriptsRoot = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.dirname(scriptsRoot);
 const repoRoot = path.dirname(desktopRoot);
+const uiOverridesManifestRelativePath =
+  "desktop/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json";
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -34,6 +36,44 @@ const {
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, source, "utf8");
+}
+
+function parseThreePartVersion(version) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  assert.ok(match, `Expected three-part version, got ${version}`);
+  return match.slice(1).map((part) => Number.parseInt(part, 10));
+}
+
+function readGitFile(ref, relativePath) {
+  return execFileSync("git", ["show", `${ref}:${relativePath}`], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
+function readMainBranchFile(relativePath) {
+  try {
+    return readGitFile("origin/main", relativePath);
+  } catch {
+    execFileSync("git", ["fetch", "--depth=1", "origin", "main:refs/remotes/origin/main"], {
+      cwd: repoRoot,
+      stdio: "ignore",
+    });
+    return readGitFile("origin/main", relativePath);
+  }
+}
+
+function expectedBundledTweakPrVersion(mainVersion) {
+  const [major, minor, patch] = parseThreePartVersion(mainVersion);
+  assert.equal(major, 0);
+  assert.equal(patch, 0);
+  return `0.${minor + 1}.0`;
+}
+
+function expectedLocalModifiedTweakVersion(mainVersion) {
+  const [major, minor, patch] = parseThreePartVersion(mainVersion);
+  return `${major}.${minor}.${patch + 1}`;
 }
 
 function writePeFixture(filePath, machine) {
@@ -1128,6 +1168,9 @@ test("Codex++ loader disables updater when config JSON is malformed", (t) => {
 
 test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
   const tweaksRoot = path.join(desktopRoot, "codex-plusplus", "tweaks");
+  const mainUiOverridesManifest = JSON.parse(
+    readMainBranchFile(uiOverridesManifestRelativePath),
+  );
   const tweakNames = fs
     .readdirSync(tweaksRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -1140,7 +1183,10 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   const expectedTweakMetadata = new Map([
     [
       "codex-app-ui-overrides",
-      { id: "app.sliepie.codex.ui-overrides", version: "0.9.0" },
+      {
+        id: "app.sliepie.codex.ui-overrides",
+        version: expectedBundledTweakPrVersion(mainUiOverridesManifest.version),
+      },
     ],
     [
       "codex-plusplus-updater-ui-overrides",
@@ -1174,6 +1220,27 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
       assert.equal(typeof module.exports.stop, "function");
     });
   }
+});
+
+test("Codex++ UI override versions follow main branch bump policy", () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, uiOverridesManifestRelativePath), "utf8"),
+  );
+  const mainManifest = JSON.parse(readMainBranchFile(uiOverridesManifestRelativePath));
+  const [mainMajor, mainMinor, mainPatch] = parseThreePartVersion(mainManifest.version);
+
+  assert.equal(
+    manifest.version,
+    expectedBundledTweakPrVersion(mainManifest.version),
+  );
+  assert.equal(
+    expectedLocalModifiedTweakVersion(mainManifest.version),
+    `${mainMajor}.${mainMinor}.${mainPatch + 1}`,
+  );
+  assert.notEqual(
+    expectedLocalModifiedTweakVersion(mainManifest.version),
+    manifest.version,
+  );
 });
 
 test("Codex app UI override installs styles and Appearance menu-bar toggle", () => {
@@ -1465,32 +1532,11 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
       ).length,
       1,
     );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-project-row\] button svg[^{}]*\{width:0\.875rem!important/,
-    );
-    assert.doesNotMatch(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\] \.w-4/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-thread-row\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within\) \[data-thread-title-trigger\]\{padding-inline-start:1\.25rem!important;\}/,
-    );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-kind="local"]>.absolute.top-0.left-1.z-10{display:none!important;}`,
+        String.raw`.group\/chats-section-header{position:relative!important;left:-1px!important;}`,
       ),
     );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\] \[data-thread-title-trigger\]\{padding-inline-start:0!important;\}/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\[data-app-action-sidebar-thread-kind="local"\]:has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within\) \[data-thread-title-trigger\]\{padding-inline-start:0!important;\}/,
-    );
-    assert.doesNotMatch(uiOverrideCss, /left:-2px!important/);
     assert.match(
       appendedStyles[0].textContent,
       /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
