@@ -1,6 +1,6 @@
 # Codex App Executable Inventory
 
-Date: 2026-05-18
+Date: 2026-05-22
 
 ## Source Artifacts
 
@@ -10,7 +10,7 @@ Date: 2026-05-18
 | Windows ARM64 output | `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64-v26.429.30905.zip` |
 | Windows package directory | `desktop/out/Codex-win32-arm64` |
 | macOS extracted app | `desktop/.cache/codex-app/extract-26.429.30905/Codex.app` |
-| Vendored Node REPL fallback | `desktop/resources/node_repl.exe` from `OpenAI.Codex_26.513.4821.0_x64__2p2nqsd0c76g0` |
+| Vendored Node REPL fallback | `desktop/resources/node_repl.exe` from `OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0` |
 
 ## Version Match
 
@@ -21,7 +21,7 @@ Date: 2026-05-18
 | Electron | refresh manifest = `41.2.0` | `desktop/package.json` dependency = `41.2.0` | Match |
 | Codex CLI | release payload = `rust-v0.128.0` | `resources/codex.exe --version` = `codex-cli 0.128.0` | Match |
 | CLI helper binaries | release payload = `rust-v0.128.0` | Windows helper `FileVersion` = `0.128.0` | Match |
-| Node REPL fallback | Store package `OpenAI.Codex_26.513.4821.0_x64__2p2nqsd0c76g0` | `resources/node_repl.exe` SHA-256 = `d6c79ebf83312a449d36c8fc8efaf1eb009fbf4876f6c9125863b21f9ad8b82b` | Explicit x64 exception |
+| Node REPL fallback | Store package `OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0` | `resources/node_repl.exe` SHA-256 = `e08f2ccc6411d5ae1928af9ab0f70678649d178b0e15b8a5d080f1c3c83000f1` | Explicit x64 exception |
 
 ## Architecture Summary
 
@@ -88,7 +88,7 @@ The produced Windows package contains no `.node` files in `resources/app.asar` a
 | `resources/codex-command-runner.exe` | `ARM64` | `0.128.0` |
 | `resources/codex-windows-sandbox-setup.exe` | `ARM64` | `0.128.0` |
 | `resources/codex.exe` | `ARM64` | `0.128.0`; CLI reports `codex-cli 0.128.0` |
-| `resources/node_repl.exe` | `x64` | Vendored from `OpenAI.Codex_26.513.4821.0_x64__2p2nqsd0c76g0`; SHA-256 `d6c79ebf83312a449d36c8fc8efaf1eb009fbf4876f6c9125863b21f9ad8b82b` |
+| `resources/node_repl.exe` | `x64` | Vendored from `OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0`; SHA-256 `e08f2ccc6411d5ae1928af9ab0f70678649d178b0e15b8a5d080f1c3c83000f1` |
 | `vk_swiftshader.dll` | `ARM64` | `5.0.0` |
 | `vulkan-1.dll` | `ARM64` | Vulkan Loader |
 
