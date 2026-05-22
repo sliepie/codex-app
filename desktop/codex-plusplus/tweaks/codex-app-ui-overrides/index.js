@@ -7,8 +7,6 @@ const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
 const SIDEBAR_CHATS_SECTION_SELECTOR =
   '[data-app-action-sidebar-section-heading="Chats"]';
-const SIDEBAR_CHATS_SECTION_DECLARATIONS =
-  "position:relative!important;left:-2px!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:1px!important;";
 const USAGE_MENU_CONTENT_SELECTOR =
@@ -71,7 +69,7 @@ const BASE_STYLE_RULES = [
 const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
   cssRule(
     SIDEBAR_CHATS_SECTION_SELECTOR,
-    SIDEBAR_CHATS_SECTION_DECLARATIONS,
+    "position:relative!important;left:-2px!important;",
   ),
   cssRule(
     ".group\\/chats-section-header",
