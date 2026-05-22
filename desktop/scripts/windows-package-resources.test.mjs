@@ -1499,25 +1499,13 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
       ).length,
       1,
     );
-    assert.match(
+    assert.doesNotMatch(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-project-row\] button svg[^{}]*\{width:0\.875rem!important/,
+      /\[data-app-action-sidebar-(project-row|thread-row)\]/,
     );
     assert.doesNotMatch(
       appendedStyles[0].textContent,
-      /(^|\n)\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-thread-row\]:not\(\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\):has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within,\[aria-current="page"\],[^{}]+\) \[data-thread-title-trigger\]\{padding-inline-start:1\.25rem!important;\}/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-thread-row\]:not\(\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\):has\(\.absolute\.top-0\.left-1\.z-10\):is\(:hover,:focus-within,\[aria-current="page"\],[^{}]+\) \.w-4:not\(:has\(button\)\)[^{}]*\{opacity:0!important;visibility:hidden!important;\}/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-thread-row\]:not\(\[data-app-action-sidebar-section-heading="Chats"\] \[data-app-action-sidebar-thread-row\]\):is\(:hover,:focus-within,\[aria-current="page"\],[^{}]+\) \.absolute\.top-0\.left-1\.z-10[^{}]*\{opacity:1!important;pointer-events:auto!important;visibility:visible!important;\}/,
+      /(projects|chats|custom)-section-header:is\(:hover,:focus-within\)|\[data-app-action-sidebar-section-heading="Pinned"\]:is\(:hover,:focus-within\)/,
     );
     assert.ok(
       uiOverrideCss.includes(
@@ -1528,22 +1516,6 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
       uiOverrideCss.includes(
         String.raw`.group\/chats-section-header>.flex.min-w-0.flex-1{position:relative!important;left:1px!important;}`,
       ),
-    );
-    assert.doesNotMatch(
-      appendedStyles[0].textContent,
-      /(^|\n)\[data-app-action-sidebar-section-heading="Chats"\][^{}]*\[data-thread-title-trigger\]/,
-    );
-    assert.doesNotMatch(
-      appendedStyles[0].textContent,
-      /(^|\n)\[data-app-action-sidebar-section-heading="Chats"\][^{}]*(\.absolute\.top-0\.left-1\.z-10|\.w-4)/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\.group\\\/chats-section-header:is\(:hover,:focus-within\)>\.opacity-0/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-section-heading="Pinned"\]:is\(:hover,:focus-within\)>\.opacity-0/,
     );
     assert.match(
       appendedStyles[0].textContent,

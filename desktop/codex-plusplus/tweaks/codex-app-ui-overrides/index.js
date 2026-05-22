@@ -5,34 +5,12 @@ const VISIBLE_CONTROL_DECLARATIONS =
 const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
 const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
-const HIDDEN_META_DECLARATIONS =
-  "opacity:0!important;visibility:hidden!important;";
-const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
-  "padding-inline-start:1.25rem!important;";
-const SIDEBAR_PIN_BUTTON_DECLARATIONS =
-  "cursor:pointer!important;";
-const SIDEBAR_PROJECT_PIN_BUTTON_DECLARATIONS =
-  "cursor:pointer!important;width:1.25rem!important;height:1.25rem!important;min-width:1.25rem!important;flex:0 0 1.25rem!important;";
-const SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS =
-  "cursor:pointer!important;width:1.25rem!important;height:1.25rem!important;";
-const SIDEBAR_PIN_ICON_DECLARATIONS =
-  "width:0.875rem!important;height:0.875rem!important;min-width:0.875rem!important;min-height:0.875rem!important;";
-const SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS =
-  SIDEBAR_PIN_ICON_DECLARATIONS;
 const SIDEBAR_CHATS_SECTION_SELECTOR =
   '[data-app-action-sidebar-section-heading="Chats"]';
-const SIDEBAR_THREAD_ROW_SELECTOR =
-  `[data-app-action-sidebar-thread-row]:not(${SIDEBAR_CHATS_SECTION_SELECTOR} [data-app-action-sidebar-thread-row])`;
 const SIDEBAR_CHATS_SECTION_DECLARATIONS =
   "position:relative!important;left:-2px!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:1px!important;";
-const SIDEBAR_SECTION_HEADER_SELECTORS = [
-  ".group\\/projects-section-header",
-  ".group\\/chats-section-header",
-  ".group\\/custom-section-header",
-  '[data-app-action-sidebar-section-heading="Pinned"]',
-];
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -68,20 +46,6 @@ const SWITCH_TRACK_BASE_CLASS =
   "relative inline-flex shrink-0 items-center rounded-full transition-colors duration-200 ease-out h-5 w-8";
 const SWITCH_THUMB_BASE_CLASS =
   "rounded-full border border-[color:var(--gray-0)] bg-[color:var(--gray-0)] shadow-sm transition-transform duration-200 ease-out data-[state=unchecked]:translate-x-0 h-4 w-4 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px]";
-const SIDEBAR_ROW_ACTIVE_STATES = [
-  ":hover",
-  ":focus-within",
-  '[aria-current="page"]',
-  '[data-active="true"]',
-  '[data-selected="true"]',
-  '[aria-selected="true"]',
-  ".active",
-  ':has([aria-current="page"])',
-  ':has([data-active="true"])',
-  ':has([data-selected="true"])',
-  ':has([aria-selected="true"])',
-  ":has(.active)",
-].join(",");
 
 let windowsMenuBarSettingsObserver = null;
 let windowsMenuBarStorage = null;
@@ -95,10 +59,6 @@ function interactiveSelectors(container, targets) {
   return targets.map((target) => `${container}:is(:hover,:focus-within)${target}`);
 }
 
-function sidebarRowStateSelectors(container, targets) {
-  return targets.map((target) => `${container}:is(${SIDEBAR_ROW_ACTIVE_STATES})${target}`);
-}
-
 const BASE_STYLE_RULES = [
   cssRule(".group\\/windows-top-bar", "margin-inline-start:0.5rem;"),
   cssRule(WINDOWS_MENU_ROW_HIDDEN_SELECTOR, WINDOWS_MENU_ROW_DECLARATIONS),
@@ -108,77 +68,7 @@ const BASE_STYLE_RULES = [
   ),
 ];
 
-const SIDEBAR_ACTION_STYLE_RULES = [
-  cssRule(
-    [
-      `${SIDEBAR_THREAD_ROW_SELECTOR} .w-4 span:has(button) button`,
-      `${SIDEBAR_THREAD_ROW_SELECTOR}>.absolute.right-0.top-0.z-10 button`,
-    ],
-    SIDEBAR_PIN_BUTTON_DECLARATIONS,
-  ),
-  cssRule(
-    `${SIDEBAR_THREAD_ROW_SELECTOR} .absolute.top-0.left-1.z-10 button`,
-    SIDEBAR_ABSOLUTE_PIN_BUTTON_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      `${SIDEBAR_THREAD_ROW_SELECTOR} .absolute.top-0.left-1.z-10 button svg`,
-      `${SIDEBAR_THREAD_ROW_SELECTOR} .absolute.top-0.left-1.z-10 button .icon-xs`,
-      `${SIDEBAR_THREAD_ROW_SELECTOR} .absolute.top-0.left-1.z-10 button .icon-sm`,
-    ],
-    SIDEBAR_ABSOLUTE_PIN_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    "[data-app-action-sidebar-project-row] button",
-    SIDEBAR_PROJECT_PIN_BUTTON_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      "[data-app-action-sidebar-project-row] button svg",
-      "[data-app-action-sidebar-project-row] button .icon-xs",
-      "[data-app-action-sidebar-project-row] button .icon-sm",
-    ],
-    SIDEBAR_PIN_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    sidebarRowStateSelectors("[data-app-action-sidebar-project-row]", [
-      ">.opacity-0",
-      " .opacity-0:has(button)",
-      " button.opacity-0",
-      " button .opacity-0",
-    ]),
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    sidebarRowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
-      " .absolute.top-0.left-1.z-10",
-      " .absolute.top-0.left-1.z-10 button",
-      " .w-4 span:has(button)",
-      " .w-4 span:has(button) button",
-      ">.absolute.right-0.top-0.z-10",
-      ">.absolute.right-0.top-0.z-10 button",
-    ]),
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    sidebarRowStateSelectors(
-      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10)`,
-      [" [data-thread-title-trigger]"],
-    ),
-    SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
-  ),
-  cssRule(
-    sidebarRowStateSelectors(
-      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10)`,
-      [
-        " .w-4:not(:has(button))",
-        " .w-4>:not(:has(button))",
-        " .w-4 span:not(:has(button))",
-        " .w-4 svg:not(button svg)",
-      ],
-    ),
-    HIDDEN_META_DECLARATIONS,
-  ),
+const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
   cssRule(
     SIDEBAR_CHATS_SECTION_SELECTOR,
     SIDEBAR_CHATS_SECTION_DECLARATIONS,
@@ -186,54 +76,6 @@ const SIDEBAR_ACTION_STYLE_RULES = [
   cssRule(
     ".group\\/chats-section-header>.flex.min-w-0.flex-1",
     SIDEBAR_CHATS_HEADER_DECLARATIONS,
-  ),
-  cssRule(
-    sidebarRowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
-      " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
-    ]),
-    HIDDEN_META_DECLARATIONS,
-  ),
-  cssRule(
-    sidebarRowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
-      " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
-    ]),
-    HIDDEN_META_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(".group\\/folder-row", [
-      ">.opacity-0",
-      " .opacity-0:has(button)",
-      " button.opacity-0",
-      " button .opacity-0",
-    ]),
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(".group\\/folder-row", [
-      " button svg",
-      " button .icon-xs",
-      " button .icon-sm",
-    ]),
-    VISIBLE_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    SIDEBAR_SECTION_HEADER_SELECTORS.flatMap((selector) =>
-      interactiveSelectors(selector, [
-        ">.opacity-0",
-        " .opacity-0:has(button)",
-      ]),
-    ),
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    SIDEBAR_SECTION_HEADER_SELECTORS.flatMap((selector) =>
-      interactiveSelectors(selector, [
-        " button svg",
-        " button .icon-xs",
-        " button .icon-sm",
-      ]),
-    ),
-    VISIBLE_ICON_DECLARATIONS,
   ),
 ];
 
@@ -287,7 +129,7 @@ const USAGE_MENU_STYLE_RULES = [
 
 const STYLE_RULES = [
   ...BASE_STYLE_RULES,
-  ...SIDEBAR_ACTION_STYLE_RULES,
+  ...SIDEBAR_PIXEL_NUDGE_STYLE_RULES,
   ...RIGHT_PANEL_TAB_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,
