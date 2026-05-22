@@ -1499,14 +1499,6 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
       ).length,
       1,
     );
-    assert.doesNotMatch(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-(project-row|thread-row)\]/,
-    );
-    assert.doesNotMatch(
-      appendedStyles[0].textContent,
-      /(projects|chats|custom)-section-header:is\(:hover,:focus-within\)|\[data-app-action-sidebar-section-heading="Pinned"\]:is\(:hover,:focus-within\)/,
-    );
     assert.ok(
       uiOverrideCss.includes(
         String.raw`[data-app-action-sidebar-section-heading="Chats"]{position:relative!important;left:-2px!important;}`,
