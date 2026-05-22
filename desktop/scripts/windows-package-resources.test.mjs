@@ -202,10 +202,8 @@ function createAppResourcesFixture({ marketplaceName = "openai-bundled" } = {}) 
 function createWindowsPluginPayloadFixture() {
   const payloadRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-windows-plugin-payloads-"));
   const extensionHostPath = path.join(payloadRoot, "extension-host.exe");
-  const windowsTectonicPath = path.join(payloadRoot, "tectonic.exe");
   writePeFixture(extensionHostPath, 0x8664);
-  writePeFixture(windowsTectonicPath, 0x8664);
-  return { extensionHostPath, windowsTectonicPath };
+  return { extensionHostPath };
 }
 
 function createMarkdownDirectiveFixture() {
@@ -290,7 +288,7 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
   );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex/bin/tectonic.exe")),
-    true,
+    false,
   );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex/bin/tectonic")),
@@ -2229,14 +2227,15 @@ test("Store binary updater only accepts the official Store package family", () =
   );
 });
 
-test("Tectonic downloader uses the public x64 Windows release asset", () => {
+test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () => {
   const source = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "download-tectonic-windows-x64.ts"),
+    path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
     "utf8",
   );
 
   assert.match(source, /tectonic-typesetting\/tectonic/);
   assert.match(source, /x86_64-pc-windows-msvc\.zip/);
+  assert.match(source, /hydrateTectonicExe/);
   assert.match(source, /getPeMachine\(tectonicPath\) !== 0x8664/);
 });
 

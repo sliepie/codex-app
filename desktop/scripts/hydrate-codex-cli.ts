@@ -40,6 +40,8 @@ type Options = {
   codexRepo: string;
   codexTag?: string;
   ripgrepRepo: string;
+  tectonicRepo: string;
+  tectonicVersion: string;
   nodeDistBaseUrl: string;
   cacheRoot: string;
   force: boolean;
@@ -93,6 +95,10 @@ function parseOptions(argv: string[]): Options {
     codexTag: readOption(argv, "--codex-tag", "-CodexTag") ?? process.env.CODEX_CLI_TAG,
     ripgrepRepo:
       readOption(argv, "--ripgrep-repo", "-RipgrepRepo") ?? "BurntSushi/ripgrep",
+    tectonicRepo:
+      readOption(argv, "--tectonic-repo", "-TectonicRepo") ?? "tectonic-typesetting/tectonic",
+    tectonicVersion:
+      readOption(argv, "--tectonic-version", "-TectonicVersion") ?? "0.16.9",
     nodeDistBaseUrl:
       readOption(argv, "--node-dist-base-url", "-NodeDistBaseUrl") ??
       "https://nodejs.org/dist",
@@ -220,6 +226,14 @@ async function fetchGitHubRelease(repository: string, tagName?: string): Promise
   }
 
   return normalizeReleaseInfo((await response.json()) as GithubRelease, repository);
+}
+
+function findReleaseAsset(release: ReleaseInfo, assetName: string, label: string): ReleaseAsset {
+  const asset = release.assets.find((asset) => asset.name === assetName);
+  if (!asset) {
+    throw new Error(`Missing ${label} release asset: ${assetName}`);
+  }
+  return asset;
 }
 
 function findSingleFile(root: string, fileName: string): string {
@@ -403,10 +417,7 @@ async function hydrateRipgrepExe(options: Options, resourcesRoot: string): Promi
   const release = await fetchGitHubRelease(options.ripgrepRepo);
   const version = release.tagName.replace(/^v/, "");
   const assetName = `ripgrep-${version}-aarch64-pc-windows-msvc.zip`;
-  const asset = release.assets.find((asset) => asset.name === assetName);
-  if (!asset) {
-    throw new Error(`Missing ripgrep release asset: ${assetName}`);
-  }
+  const asset = findReleaseAsset(release, assetName, "ripgrep");
 
   const archivePath = path.join(options.cacheRoot, assetName);
   const extractRoot = path.join(options.cacheRoot, `ripgrep-${version}-aarch64-pc-windows-msvc`);
@@ -440,6 +451,75 @@ async function hydrateRipgrepExe(options: Options, resourcesRoot: string): Promi
   return asset;
 }
 
+function getPeMachine(filePath: string): number {
+  const bytes = fs.readFileSync(filePath);
+  if (bytes.length < 0x40 || bytes[0] !== 0x4d || bytes[1] !== 0x5a) {
+    throw new Error("Expected a PE executable: " + filePath);
+  }
+
+  const peOffset = bytes.readInt32LE(0x3c);
+  if (peOffset < 0 || peOffset + 6 > bytes.length) {
+    throw new Error("Invalid PE header offset in " + filePath + ".");
+  }
+
+  return bytes.readUInt16LE(peOffset + 4);
+}
+
+function findLatexPluginRoots(resourcesRoot: string): string[] {
+  const roots: string[] = [];
+  for (const marketplaceName of ["openai-bundled", "openai-bundled-beta"]) {
+    for (const pluginName of ["latex", "latex-tectonic"]) {
+      const pluginRoot = path.join(resourcesRoot, "plugins", marketplaceName, "plugins", pluginName);
+      if (fs.existsSync(pluginRoot)) {
+        roots.push(pluginRoot);
+      }
+    }
+  }
+
+  if (roots.length === 0) {
+    throw new Error("Missing bundled LaTeX plugin resources. Run hydrate:app before hydrate:cli.");
+  }
+
+  return roots;
+}
+
+async function hydrateTectonicExe(options: Options, resourcesRoot: string): Promise<ReleaseAsset> {
+  const release = await fetchGitHubRelease(options.tectonicRepo, "tectonic@" + options.tectonicVersion);
+  const assetName = "tectonic-" + options.tectonicVersion + "-x86_64-pc-windows-msvc.zip";
+  const asset = findReleaseAsset(release, assetName, "Tectonic");
+
+  const archivePath = path.join(options.cacheRoot, assetName);
+  const extractRoot = path.join(options.cacheRoot, "tectonic-" + options.tectonicVersion + "-x86_64-pc-windows-msvc");
+
+  if (options.force) {
+    fs.rmSync(archivePath, { force: true });
+    fs.rmSync(extractRoot, { recursive: true, force: true });
+  }
+  if (!fs.existsSync(archivePath)) {
+    await downloadFile(asset.downloadUrl, archivePath);
+  }
+  verifyAssetDigest(asset, archivePath);
+
+  if (!fs.existsSync(extractRoot)) {
+    fs.mkdirSync(extractRoot, { recursive: true });
+    await extract(archivePath, { dir: extractRoot });
+  }
+
+  const tectonicPath = findSingleFile(extractRoot, "tectonic.exe");
+  if (getPeMachine(tectonicPath) !== 0x8664) {
+    throw new Error("Expected x64 tectonic.exe from " + assetName + ".");
+  }
+
+  for (const pluginRoot of findLatexPluginRoots(resourcesRoot)) {
+    const binRoot = path.join(pluginRoot, "bin");
+    fs.mkdirSync(binRoot, { recursive: true });
+    fs.copyFileSync(tectonicPath, path.join(binRoot, "tectonic.exe"));
+    fs.rmSync(path.join(binRoot, "tectonic"), { force: true });
+  }
+
+  return asset;
+}
+
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   if (!options.codexRepo.trim()) {
@@ -451,16 +531,12 @@ async function main(): Promise<void> {
   fs.mkdirSync(resourcesRoot, { recursive: true });
 
   const release = await fetchGitHubRelease(options.codexRepo, options.codexTag);
-  const assetsByName = new Map(release.assets.map((asset) => [asset.name, asset]));
   const releaseCacheRoot = path.join(options.cacheRoot, release.tagName);
   fs.mkdirSync(releaseCacheRoot, { recursive: true });
 
   const hydratedAssets = [];
   for (const requiredAsset of requiredAssets) {
-    const asset = assetsByName.get(requiredAsset.assetName);
-    if (!asset) {
-      throw new Error(`Missing Codex release asset: ${requiredAsset.assetName}`);
-    }
+    const asset = findReleaseAsset(release, requiredAsset.assetName, "Codex");
 
     const downloadPath = path.join(releaseCacheRoot, requiredAsset.assetName);
     const outputPath = path.join(resourcesRoot, requiredAsset.outputName);
@@ -496,6 +572,14 @@ async function main(): Promise<void> {
     outputName: "rg.exe",
     downloadUrl: ripgrepAsset.downloadUrl,
     size: ripgrepAsset.size,
+  });
+
+  const tectonicAsset = await hydrateTectonicExe(options, resourcesRoot);
+  hydratedAssets.push({
+    assetName: tectonicAsset.name,
+    outputName: "plugins/*/latex*/bin/tectonic.exe",
+    downloadUrl: tectonicAsset.downloadUrl,
+    size: tectonicAsset.size,
   });
 
   fs.writeFileSync(

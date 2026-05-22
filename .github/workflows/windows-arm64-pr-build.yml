@@ -99,10 +99,6 @@ jobs:
         working-directory: desktop
         run: npm run build:windows-oai-update-checker -- -Architecture arm64
 
-      - name: Download Windows x64 Tectonic
-        working-directory: desktop
-        run: npm run download:tectonic:win:x64:compiled
-
       - name: Hydrate Windows ARM64 inputs
         working-directory: desktop
         env:

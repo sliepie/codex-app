@@ -22,7 +22,7 @@ Hydration may install or upgrade the official Microsoft Store Codex app (`9PLM9X
 
 Commit `node_repl.exe` to this repo at `desktop/resources/node_repl.exe` and `extension-host.exe` at `desktop/resources/extension-host.exe`. The updater should also write provenance metadata with the source package identity and SHA-256 digest for each file.
 
-Validation must keep the package ARM64 by default and treat `resources/node_repl.exe`, `resources/extension-host.exe`, and the workflow-downloaded public Tectonic `tectonic.exe` payload as explicit x64 PE exceptions. The inventory should record each exception with provenance and a SHA-256 digest when the binary is committed.
+Validation must keep the package ARM64 by default and treat `resources/node_repl.exe`, `resources/extension-host.exe`, and the GitHub-release hydrated public Tectonic `tectonic.exe` payload as explicit x64 PE exceptions. The inventory should record each exception with provenance and a SHA-256 digest when the binary is committed.
 
 ## Consequences
 

@@ -82,7 +82,6 @@ type BundledMarketplaceSource = {
 
 type BundledPluginWindowsPayloadOptions = {
   extensionHostPath?: string;
-  windowsTectonicPath?: string;
 };
 
 export type CodexPlusPlusRelease = {
@@ -127,13 +126,6 @@ const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
 const openAiBundledMarketplaceNames = ["openai-bundled", "openai-bundled-beta"] as const;
 const excludedBundledPluginNames = new Set(["computer-use"]);
 const defaultExtensionHostPath = path.join(desktopRoot, "resources", "extension-host.exe");
-const defaultWindowsTectonicPath = path.join(
-  desktopRoot,
-  ".cache",
-  "tectonic",
-  "windows-x64",
-  "tectonic.exe",
-);
 const nodeAbi = require("node-abi") as {
   getAbi(target: string, runtime: "electron" | "node"): string;
 };
@@ -347,20 +339,8 @@ function syncChromeWindowsPayload(
   fs.copyFileSync(extensionHostPath, destinationPath);
 }
 
-function syncLatexWindowsPayload(
-  destinationPluginRoot: string,
-  options: BundledPluginWindowsPayloadOptions,
-): void {
-  const windowsTectonicPath = options.windowsTectonicPath ?? defaultWindowsTectonicPath;
-  requireWindowsPayload(
-    windowsTectonicPath,
-    "Windows x64 tectonic.exe",
-    "npm run download:tectonic:win:x64",
-  );
-
+function pruneLatexMacPayload(destinationPluginRoot: string): void {
   const binRoot = path.join(destinationPluginRoot, "bin");
-  fs.mkdirSync(binRoot, { recursive: true });
-  fs.copyFileSync(windowsTectonicPath, path.join(binRoot, "tectonic.exe"));
   fs.rmSync(path.join(binRoot, "tectonic"), { force: true });
 }
 
@@ -372,8 +352,8 @@ function syncBundledPluginWindowsPayloads(
   if (pluginName === "chrome") {
     syncChromeWindowsPayload(destinationPluginRoot, options);
   }
-  if (pluginName === "latex") {
-    syncLatexWindowsPayload(destinationPluginRoot, options);
+  if (pluginName === "latex" || pluginName === "latex-tectonic") {
+    pruneLatexMacPayload(destinationPluginRoot);
   }
 }
 
