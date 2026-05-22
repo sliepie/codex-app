@@ -57,23 +57,6 @@ async function fetchRelease(repository: string, tag: string): Promise<GitHubRele
   return result.status === 404 ? undefined : result.value;
 }
 
-async function createRelease(repository: string, tag: string, title: string, target: string): Promise<GitHubRelease> {
-  const result = await githubRequest<GitHubRelease>(`https://api.github.com/repos/${repository}/releases`, {
-    method: "POST",
-    body: JSON.stringify({
-      tag_name: tag,
-      target_commitish: target,
-      name: title,
-      body: "Windows ARM64 primary runtime feed for Codex workspace dependencies.",
-      make_latest: "false",
-    }),
-  });
-  if (result.value == null) {
-    throw new Error(`GitHub did not return a release for ${tag}.`);
-  }
-  return result.value;
-}
-
 async function markReleaseNotLatest(repository: string, releaseId: number): Promise<void> {
   await githubRequest<GitHubRelease>(`https://api.github.com/repos/${repository}/releases/${releaseId}`, {
     method: "PATCH",
@@ -105,8 +88,6 @@ async function uploadAsset(repository: string, releaseId: number, filePath: stri
 async function main(): Promise<void> {
   const repository = requiredEnv("GITHUB_REPOSITORY");
   const releaseTag = optionalEnv("RELEASE_TAG", "codex-primary-runtime-win32-arm64");
-  const releaseTitle = optionalEnv("RELEASE_TITLE", "codex-primary-runtime win32-arm64");
-  const targetSha = requiredEnv("GITHUB_SHA");
   const assetRoot = path.resolve(optionalEnv("PRIMARY_RUNTIME_ASSET_ROOT", path.join("out", "primary-runtime", "win32-arm64")));
   const files = (await fs.promises.readdir(assetRoot, { withFileTypes: true }))
     .filter((entry) => entry.isFile())
@@ -120,7 +101,7 @@ async function main(): Promise<void> {
 
   let release = await fetchRelease(repository, releaseTag);
   if (release == null) {
-    release = await createRelease(repository, releaseTag, releaseTitle, targetSha);
+    throw new Error(`GitHub release ${releaseTag} must already exist; this script does not create git tags.`);
   } else {
     await markReleaseNotLatest(repository, release.id);
   }
