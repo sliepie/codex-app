@@ -2446,7 +2446,6 @@ async function main(): Promise<void> {
     { stdio: "inherit" },
   );
   patchWindowsSelfSignedBundle(recoveredRoot);
-  patchRecoveredMarkdownOperationDirectives(recoveredRoot);
   patchRecoveredCodexWindowServices(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
