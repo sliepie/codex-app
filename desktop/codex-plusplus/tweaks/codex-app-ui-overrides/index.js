@@ -69,6 +69,13 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
     ".group\\/chats-section-header",
     SIDEBAR_CHATS_HEADER_DECLARATIONS,
   ),
+  cssRule(
+    [
+      '[data-app-action-sidebar-section-heading="Pinned"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]',
+      '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]',
+    ],
+    "position:relative!important;left:-2px!important;",
+  ),
 ];
 
 const RIGHT_PANEL_TAB_STYLE_RULES = [
