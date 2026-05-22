@@ -3,13 +3,17 @@ param(
     [string] $ProductId = "9PLM9XGG6VKS",
     [string] $PackageName = "OpenAI.Codex",
     [string] $PackageFamilyName = "OpenAI.Codex_2p2nqsd0c76g0",
-    [string] $OutputPath
+    [string] $OutputPath,
+    [string] $ExtensionHostOutputPath
 )
 
 $ErrorActionPreference = "Stop"
 
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     $OutputPath = Join-Path $PSScriptRoot "..\resources\node_repl.exe"
+}
+if ([string]::IsNullOrWhiteSpace($ExtensionHostOutputPath)) {
+    $ExtensionHostOutputPath = Join-Path $PSScriptRoot "..\resources\extension-host.exe"
 }
 
 function Invoke-Winget {
@@ -88,6 +92,56 @@ function Resolve-NodeReplPath {
     throw "Could not find node_repl.exe under installed package: $($Package.InstallLocation)"
 }
 
+function Resolve-ExtensionHostPath {
+    param($Package)
+
+    $candidate = Join-Path $Package.InstallLocation "app\resources\plugins\openai-bundled\plugins\chrome\extension-host\windows\x64\extension-host.exe"
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+        return $candidate
+    }
+
+    throw "Could not find Chrome extension-host.exe under installed package: $($Package.InstallLocation)"
+}
+
+function Update-StoreBinary {
+    param(
+        [string] $Label,
+        [string] $SourcePath,
+        [string] $DestinationPath,
+        [string] $SourceRelativePath,
+        $Package
+    )
+
+    $machine = Get-PeMachine -Path $SourcePath
+    if ($machine -ne 0x8664) {
+        throw "Expected x64 $Label, found $(Format-PeMachine -Machine $machine)."
+    }
+
+    $outputDirectory = Split-Path -Parent $DestinationPath
+    New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+    Copy-Item -LiteralPath $SourcePath -Destination $DestinationPath -Force
+
+    $hash = Get-Sha256 -Path $DestinationPath
+    $metadata = [ordered]@{
+        productId = $ProductId
+        packageName = $Package.Name
+        packageFullName = $Package.PackageFullName
+        packageFamilyName = $Package.PackageFamilyName
+        packageVersion = [string] $Package.Version
+        sourceRelativePath = $SourceRelativePath
+        architecture = "x64"
+        sha256 = $hash
+    }
+
+    $metadataPath = [System.IO.Path]::ChangeExtension($DestinationPath, ".json")
+    $metadataJson = (($metadata | ConvertTo-Json) -replace '(?m)^    "', '  "' -replace '":\s+', '": ') + [Environment]::NewLine
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($metadataPath, $metadataJson, $utf8NoBom)
+
+    Write-Output "Updated $DestinationPath from $($Package.PackageFullName)."
+    Write-Output "SHA-256: $($metadata.sha256)"
+}
+
 $existingPackage = Get-CodexAppPackage
 $installedByScript = $null -eq $existingPackage
 
@@ -129,35 +183,9 @@ try {
         throw "Official Codex Store package family $PackageFamilyName was not found after winget completed."
     }
 
-    $sourcePath = Resolve-NodeReplPath -Package $package
-    $machine = Get-PeMachine -Path $sourcePath
-    if ($machine -ne 0x8664) {
-        throw "Expected x64 node_repl.exe, found $(Format-PeMachine -Machine $machine)."
-    }
+    Update-StoreBinary -Label "node_repl.exe" -SourcePath (Resolve-NodeReplPath -Package $package) -DestinationPath $OutputPath -SourceRelativePath "app/resources/node_repl.exe" -Package $package
 
-    $outputDirectory = Split-Path -Parent $OutputPath
-    New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
-    Copy-Item -LiteralPath $sourcePath -Destination $OutputPath -Force
-
-    $hash = Get-Sha256 -Path $OutputPath
-    $metadata = [ordered]@{
-        productId = $ProductId
-        packageName = $package.Name
-        packageFullName = $package.PackageFullName
-        packageFamilyName = $package.PackageFamilyName
-        packageVersion = [string] $package.Version
-        sourceRelativePath = "app/resources/node_repl.exe"
-        architecture = "x64"
-        sha256 = $hash
-    }
-
-    $metadataPath = [System.IO.Path]::ChangeExtension($OutputPath, ".json")
-    $metadataJson = (($metadata | ConvertTo-Json) -replace '(?m)^    "', '  "' -replace '":\s+', '": ') + [Environment]::NewLine
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($metadataPath, $metadataJson, $utf8NoBom)
-
-    Write-Output "Updated $OutputPath from $($package.PackageFullName)."
-    Write-Output "SHA-256: $($metadata.sha256)"
+    Update-StoreBinary -Label "extension-host.exe" -SourcePath (Resolve-ExtensionHostPath -Package $package) -DestinationPath $ExtensionHostOutputPath -SourceRelativePath "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/x64/extension-host.exe" -Package $package
 }
 finally {
     if ($installedByScript) {

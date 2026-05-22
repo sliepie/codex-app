@@ -80,6 +80,11 @@ type BundledMarketplaceSource = {
   root: string;
 };
 
+type BundledPluginWindowsPayloadOptions = {
+  extensionHostPath?: string;
+  windowsTectonicPath?: string;
+};
+
 export type CodexPlusPlusRelease = {
   tag_name?: string;
   html_url?: string;
@@ -120,7 +125,15 @@ const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
 const defaultCodexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
 const openAiBundledMarketplaceNames = ["openai-bundled", "openai-bundled-beta"] as const;
-const excludedBundledPluginNames = new Set(["computer-use", "chrome", "latex"]);
+const excludedBundledPluginNames = new Set(["computer-use"]);
+const defaultExtensionHostPath = path.join(desktopRoot, "resources", "extension-host.exe");
+const defaultWindowsTectonicPath = path.join(
+  desktopRoot,
+  ".cache",
+  "tectonic",
+  "windows-x64",
+  "tectonic.exe",
+);
 const nodeAbi = require("node-abi") as {
   getAbi(target: string, runtime: "electron" | "node"): string;
 };
@@ -308,6 +321,62 @@ function packagedPluginSourcePath(pluginName: string): string {
   return `./plugins/${pluginName}`;
 }
 
+function requireWindowsPayload(payloadPath: string, label: string, command: string): void {
+  if (!fs.existsSync(payloadPath)) {
+    throw new Error(`Missing ${label}: ${payloadPath}. Run ${command}.`);
+  }
+}
+
+function syncChromeWindowsPayload(
+  destinationPluginRoot: string,
+  options: BundledPluginWindowsPayloadOptions,
+): void {
+  const extensionHostPath = options.extensionHostPath ?? defaultExtensionHostPath;
+  requireWindowsPayload(extensionHostPath, "Chrome extension-host.exe", "npm run update:node-repl");
+
+  const extensionHostRoot = path.join(destinationPluginRoot, "extension-host");
+  fs.rmSync(extensionHostRoot, { recursive: true, force: true });
+  const destinationPath = path.join(
+    destinationPluginRoot,
+    "extension-host",
+    "windows",
+    targetRuntimeArch,
+    "extension-host.exe",
+  );
+  fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
+  fs.copyFileSync(extensionHostPath, destinationPath);
+}
+
+function syncLatexWindowsPayload(
+  destinationPluginRoot: string,
+  options: BundledPluginWindowsPayloadOptions,
+): void {
+  const windowsTectonicPath = options.windowsTectonicPath ?? defaultWindowsTectonicPath;
+  requireWindowsPayload(
+    windowsTectonicPath,
+    "Windows x64 tectonic.exe",
+    "npm run download:tectonic:win:x64",
+  );
+
+  const binRoot = path.join(destinationPluginRoot, "bin");
+  fs.mkdirSync(binRoot, { recursive: true });
+  fs.copyFileSync(windowsTectonicPath, path.join(binRoot, "tectonic.exe"));
+  fs.rmSync(path.join(binRoot, "tectonic"), { force: true });
+}
+
+function syncBundledPluginWindowsPayloads(
+  pluginName: string,
+  destinationPluginRoot: string,
+  options: BundledPluginWindowsPayloadOptions,
+): void {
+  if (pluginName === "chrome") {
+    syncChromeWindowsPayload(destinationPluginRoot, options);
+  }
+  if (pluginName === "latex") {
+    syncLatexWindowsPayload(destinationPluginRoot, options);
+  }
+}
+
 function findBundledMarketplaceSource(appResourcesRoot: string): BundledMarketplaceSource {
   const candidates = openAiBundledMarketplaceNames.map((name) => {
     const root = path.join(appResourcesRoot, "plugins", name);
@@ -330,6 +399,7 @@ function findBundledMarketplaceSource(appResourcesRoot: string): BundledMarketpl
 export function syncBundledPluginResources(
   appResourcesRoot: string,
   destinationPluginsRoot = bundledPluginsRoot,
+  options: BundledPluginWindowsPayloadOptions = {},
 ): void {
   const source = findBundledMarketplaceSource(appResourcesRoot);
   const sourceMarketplaceRoot = source.root;
@@ -382,6 +452,7 @@ export function syncBundledPluginResources(
 
     const destinationPluginRoot = path.join(destinationMarketplaceRoot, "plugins", pluginName);
     fs.cpSync(sourcePluginRoot, destinationPluginRoot, { recursive: true, force: true });
+    syncBundledPluginWindowsPayloads(pluginName, destinationPluginRoot, options);
     destinationPlugins.push({
       ...plugin,
       source: {

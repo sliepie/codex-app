@@ -8,6 +8,8 @@ codex/
 desktop/recovered/
 desktop/resources/*
 !desktop/resources/
+!desktop/resources/extension-host.exe
+!desktop/resources/extension-host.json
 !desktop/resources/node_repl.exe
 !desktop/resources/node_repl.json
 desktop/.cache/

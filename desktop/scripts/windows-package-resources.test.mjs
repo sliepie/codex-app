@@ -191,8 +191,21 @@ function createAppResourcesFixture({ marketplaceName = "openai-bundled" } = {}) 
     path.join(bundledRoot, "plugins", "latex", ".codex-plugin", "plugin.json"),
     `${JSON.stringify({ name: "latex" }, null, 2)}\n`,
   );
+  writeFixture(
+    path.join(bundledRoot, "plugins", "latex", "bin", "tectonic"),
+    "macOS tectonic placeholder\n",
+  );
 
   return appResourcesRoot;
+}
+
+function createWindowsPluginPayloadFixture() {
+  const payloadRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-windows-plugin-payloads-"));
+  const extensionHostPath = path.join(payloadRoot, "extension-host.exe");
+  const windowsTectonicPath = path.join(payloadRoot, "tectonic.exe");
+  writePeFixture(extensionHostPath, 0x8664);
+  writePeFixture(windowsTectonicPath, 0x8664);
+  return { extensionHostPath, windowsTectonicPath };
 }
 
 function createMarkdownDirectiveFixture() {
@@ -224,8 +237,9 @@ function evaluateMarkdownDirectiveFixture(source, operationNames = ["git-create-
 test("generates Windows bundled plugin resources except macOS-only plugins", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
+  const windowsPayloads = createWindowsPluginPayloadFixture();
 
-  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, windowsPayloads);
 
   const marketplace = JSON.parse(
     fs.readFileSync(
@@ -238,9 +252,11 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
   );
   assert.deepEqual(
     marketplace.plugins.map((plugin) => plugin.name),
-    ["browser"],
+    ["browser", "chrome", "latex"],
   );
   assert.equal(marketplace.plugins[0].source.path, "./plugins/browser");
+  assert.equal(marketplace.plugins[1].source.path, "./plugins/chrome");
+  assert.equal(marketplace.plugins[2].source.path, "./plugins/latex");
 
   assert.equal(
     fs.existsSync(
@@ -257,10 +273,27 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
   );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/chrome")),
-    false,
+    true,
   );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex")),
+    true,
+  );
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        destinationPluginsRoot,
+        "openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe",
+      ),
+    ),
+    true,
+  );
+  assert.equal(
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex/bin/tectonic.exe")),
+    true,
+  );
+  assert.equal(
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex/bin/tectonic")),
     false,
   );
 });
@@ -268,8 +301,9 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
 test("preserves beta bundled plugin marketplace resources", () => {
   const appResourcesRoot = createAppResourcesFixture({ marketplaceName: "openai-bundled-beta" });
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
+  const windowsPayloads = createWindowsPluginPayloadFixture();
 
-  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, windowsPayloads);
 
   const marketplace = JSON.parse(
     fs.readFileSync(
@@ -282,7 +316,7 @@ test("preserves beta bundled plugin marketplace resources", () => {
   );
   assert.deepEqual(
     marketplace.plugins.map((plugin) => plugin.name),
-    ["browser"],
+    ["browser", "chrome", "latex"],
   );
   assert.equal(marketplace.name, "openai-bundled-beta");
   assert.equal(
@@ -510,7 +544,7 @@ test("discovers native modules copied inside every non-excluded bundled plugin r
     "native payload\n",
   );
 
-  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, createWindowsPluginPayloadFixture());
 
   const targets = collectNativeNodeModuleTargets(
     fs.mkdtempSync(path.join(os.tmpdir(), "codex-recovered-")),
@@ -779,7 +813,7 @@ test("allows the upstream bundle to omit the browser plugin", () => {
   marketplace.plugins = marketplace.plugins.filter((plugin) => plugin.name !== "browser");
   fs.writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`, "utf8");
 
-  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, createWindowsPluginPayloadFixture());
 
   const destinationMarketplace = JSON.parse(
     fs.readFileSync(
@@ -793,7 +827,10 @@ test("allows the upstream bundle to omit the browser plugin", () => {
       "utf8",
     ),
   );
-  assert.deepEqual(destinationMarketplace.plugins, []);
+  assert.deepEqual(
+    destinationMarketplace.plugins.map((plugin) => plugin.name),
+    ["chrome", "latex"],
+  );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled", "plugins", "browser")),
     false,
@@ -2176,7 +2213,7 @@ test("hardcodes packaged Windows updater metadata to the self-signed identity", 
   );
 });
 
-test("node REPL updater only accepts the official Store package family", () => {
+test("Store binary updater only accepts the official Store package family", () => {
   const source = fs.readFileSync(
     path.join(desktopRoot, "scripts", "update-node-repl.ps1"),
     "utf8",
@@ -2185,6 +2222,22 @@ test("node REPL updater only accepts the official Store package family", () => {
   assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
   assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
   assert.match(source, /Where-Object \{ \$_\.PackageFamilyName -eq \$PackageFamilyName \}/);
+  assert.match(source, /app\\resources\\node_repl\.exe/);
+  assert.match(
+    source,
+    /app\\resources\\plugins\\openai-bundled\\plugins\\chrome\\extension-host\\windows\\x64\\extension-host\.exe/,
+  );
+});
+
+test("Tectonic downloader uses the public x64 Windows release asset", () => {
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "download-tectonic-windows-x64.ps1"),
+    "utf8",
+  );
+
+  assert.match(source, /tectonic-typesetting\/tectonic/);
+  assert.match(source, /tectonic-\$Version-x86_64-pc-windows-msvc\.zip/);
+  assert.match(source, /\$machine -ne 0x8664/);
 });
 
 test("ignores generated signing-secret base64 exports", () => {
