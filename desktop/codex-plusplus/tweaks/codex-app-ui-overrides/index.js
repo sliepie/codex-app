@@ -6,7 +6,7 @@ const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONT
 const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
-  "position:relative!important;left:1px!important;";
+  "position:relative!important;left:-1px!important;";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
