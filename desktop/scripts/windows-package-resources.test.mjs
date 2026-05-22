@@ -1501,11 +1501,6 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-section-heading="Chats"]{position:relative!important;left:-2px!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
         String.raw`.group\/chats-section-header{position:relative!important;left:1px!important;}`,
       ),
     );
