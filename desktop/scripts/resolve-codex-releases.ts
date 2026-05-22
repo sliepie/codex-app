@@ -2,6 +2,12 @@ import crypto from "node:crypto";
 import { appendFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { codexAppcastUrlForFeed, type CodexAppcastFeed } from "./codex-appcast-feeds.ts";
+import {
+  windowsArm64HydratedCacheInputPaths,
+  windowsArm64HydratedCacheKeyVersion,
+  windowsArm64NativeModuleCacheInputPaths,
+  windowsArm64NativeModulesCacheKeyVersion,
+} from "./windows-arm64-package-plan.ts";
 
 function scriptDirectory(): string {
   return typeof __dirname === "string" ? __dirname : path.dirname(path.resolve(process.argv[1] ?? "."));
@@ -379,13 +385,10 @@ async function main(): Promise<void> {
   });
   const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
   const releaseTag = `codex-app-${releaseVersion}`;
-  const hydrationCacheKey = `windows-arm64-hydrated-v5-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}`;
-  const nativeModulesCacheInputHash = hashCacheInputs([
-    "package-lock.json",
-    "scripts/hydrate-codex-app.ts",
-    "scripts/patch-better-sqlite3-electron.ts",
-  ]);
-  const nativeModulesCacheKey = `windows-arm64-native-modules-v1-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-${nativeModulesCacheInputHash}`;
+  const hydrationCacheInputHash = hashCacheInputs([...windowsArm64HydratedCacheInputPaths]);
+  const hydrationCacheKey = `windows-arm64-hydrated-${windowsArm64HydratedCacheKeyVersion}-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-${hydrationCacheInputHash}`;
+  const nativeModulesCacheInputHash = hashCacheInputs([...windowsArm64NativeModuleCacheInputPaths]);
+  const nativeModulesCacheKey = `windows-arm64-native-modules-${windowsArm64NativeModulesCacheKeyVersion}-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-${nativeModulesCacheInputHash}`;
 
   githubOutput("codex_app_version", appVersion);
   githubOutput("codex_app_build", buildNumber);

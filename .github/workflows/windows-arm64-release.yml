@@ -81,7 +81,7 @@ jobs:
       - name: Run targeted desktop tests
         if: steps.upstream.outputs.current_commit_release_tag == ''
         working-directory: desktop
-        run: npm run test:resolve-codex-releases:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled
+        run: npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled
 
       - name: Restore hydrated release cache
         if: steps.upstream.outputs.current_commit_release_tag == ''
@@ -113,12 +113,7 @@ jobs:
             desktop/resources/native/windows-updater.node
           key: windows-oai-updater-${{ runner.os }}-${{ env.PACKAGE_ARCHITECTURE }}-${{ hashFiles('desktop/scripts/build-windows-oai-update-checker.ps1', 'desktop/native/windows-oai-update-checker/Cargo.lock', 'desktop/native/windows-oai-update-checker/Cargo.toml', 'desktop/native/windows-oai-update-checker/src/**') }}
 
-      - name: Build Windows updater
-        if: steps.upstream.outputs.current_commit_release_tag == ''
-        working-directory: desktop
-        run: npm run build:windows-oai-update-checker -- -Architecture arm64
-
-      - name: Hydrate Windows ARM64 inputs
+      - name: Make Windows ARM64 ZIP
         if: steps.upstream.outputs.current_commit_release_tag == ''
         working-directory: desktop
         env:
@@ -129,17 +124,7 @@ jobs:
           CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
           CODEX_PLUS_PLUS_SHA: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
           GH_TOKEN: ${{ github.token }}
-        run: npm run hydrate:app:compiled -- --appcast-feed "$env:CODEX_APPCAST_FEED" && npm run hydrate:cli:compiled
-
-      - name: Verify Windows ARM64 inputs
-        if: steps.upstream.outputs.current_commit_release_tag == ''
-        working-directory: desktop
-        run: npm run verify:browser-client-runtime:compiled
-
-      - name: Make Windows ARM64 ZIP
-        if: steps.upstream.outputs.current_commit_release_tag == ''
-        working-directory: desktop
-        run: npm run make:win:arm64:compiled
+        run: npm run plan:win:arm64:compiled -- make
 
       - name: Upload Windows ARM64 artifact
         if: steps.upstream.outputs.current_commit_release_tag == ''

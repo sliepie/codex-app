@@ -22,14 +22,15 @@ Hydration may install or upgrade the official Microsoft Store Codex app (`9PLM9X
 
 Commit `node_repl.exe` to this repo at `desktop/resources/node_repl.exe` and `extension-host.exe` at `desktop/resources/extension-host.exe`. The updater should also write provenance metadata with the source package identity and SHA-256 digest for each file.
 
-Validation must keep the package ARM64 by default and treat `resources/node_repl.exe`, `resources/extension-host.exe`, and the GitHub-release hydrated public Tectonic `tectonic.exe` payload as explicit x64 PE exceptions. The inventory should record each exception with provenance and a SHA-256 digest when the binary is committed.
+Validation must keep the package ARM64 by default and treat every x64 payload as an explicit resource-binary exception in `desktop/scripts/resource-binary-exceptions.ts`. The current exceptions are `resources/node_repl.exe`, the Chrome plugin `extension-host.exe` copied to the ARM64 lookup path, and the GitHub-release hydrated public Tectonic `tectonic.exe` payload. `npm run verify:windows-arm64-resource-binaries` must reject unlisted non-ARM64 PE files. The inventory should record each exception with provenance and a SHA-256 digest when the binary is committed or downloaded from a pinned public release.
 
 ## Consequences
 
 - The Windows ARM64 package becomes intentionally mixed-architecture while this fallback is in use.
 - Node REPL tool support can work before an ARM64-native `node_repl` exists.
 - The bundled Chrome plugin can use the official Windows native messaging host while the app package remains ARM64.
+- The bundled LaTeX plugin can use the public Windows x64 Tectonic release while no Windows ARM64 Tectonic release exists.
 - Git history includes a closed-source vendored executable.
 - The hydration path may temporarily mutate the local machine by installing or upgrading the Store Codex app.
 - Existing user installs are not removed by cleanup; only installs created by the hydrator are uninstalled.
-- Future work should remove these exceptions when ARM64-native `node_repl.exe` and `extension-host.exe` binaries become available.
+- Future work should remove these exceptions when ARM64-native `node_repl.exe`, `extension-host.exe`, and `tectonic.exe` binaries become available.

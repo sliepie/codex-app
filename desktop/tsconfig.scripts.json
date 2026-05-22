@@ -15,7 +15,9 @@
   "include": [
     "scripts/decode-self-signed-pfx.ts",
     "scripts/build-primary-runtime-win-arm64.ts",
+    "scripts/bundled-plugin-windows-payloads.ts",
     "scripts/codex-appcast-feeds.ts",
+    "scripts/github-release-assets.ts",
     "scripts/hydrate-codex-app.ts",
     "scripts/hydrate-codex-cli.ts",
     "scripts/patch-better-sqlite3-electron.ts",
@@ -24,8 +26,11 @@
     "scripts/refresh-recovered-from-dmg.ts",
     "scripts/resolve-codex-releases.ts",
     "scripts/resolve-primary-runtime-source.ts",
+    "scripts/resource-binary-exceptions.ts",
     "scripts/publish-primary-runtime-release.ts",
     "scripts/verify-browser-client-runtime.ts",
+    "scripts/verify-windows-arm64-resource-binaries.ts",
+    "scripts/windows-arm64-package-plan.ts",
     "scripts/write-self-signed-appinstaller.ts"
   ]
 }

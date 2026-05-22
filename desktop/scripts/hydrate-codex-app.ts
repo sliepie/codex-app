@@ -12,6 +12,13 @@ import {
   parseCodexAppcastFeed,
   type CodexAppcastFeed,
 } from "./codex-appcast-feeds";
+import {
+  type BundledPluginWindowsPayloadOptions,
+  excludedBundledPluginNames,
+  openAiBundledMarketplaceNames,
+  syncBundledPluginWindowsPayloads,
+} from "./bundled-plugin-windows-payloads";
+import { windowsArm64NativeModuleCacheInputPaths } from "./windows-arm64-package-plan";
 
 type Options = {
   version?: string;
@@ -80,10 +87,6 @@ type BundledMarketplaceSource = {
   root: string;
 };
 
-type BundledPluginWindowsPayloadOptions = {
-  extensionHostPath?: string;
-};
-
 export type CodexPlusPlusRelease = {
   tag_name?: string;
   html_url?: string;
@@ -115,17 +118,10 @@ function resolveDesktopRoot(): string {
 
 const desktopRoot = resolveDesktopRoot();
 const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-node-modules");
-const electronNativeModuleCacheInputPaths = [
-  "package-lock.json",
-  "scripts/hydrate-codex-app.ts",
-  "scripts/patch-better-sqlite3-electron.ts",
-] as const;
+const electronNativeModuleCacheInputPaths = windowsArm64NativeModuleCacheInputPaths;
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
 const defaultCodexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
-const openAiBundledMarketplaceNames = ["openai-bundled", "openai-bundled-beta"] as const;
-const excludedBundledPluginNames = new Set(["computer-use"]);
-const defaultExtensionHostPath = path.join(desktopRoot, "resources", "extension-host.exe");
 const nodeAbi = require("node-abi") as {
   getAbi(target: string, runtime: "electron" | "node"): string;
 };
@@ -311,50 +307,6 @@ function requireBundledPluginName(plugin: MarketplacePlugin, marketplacePath: st
 
 function packagedPluginSourcePath(pluginName: string): string {
   return `./plugins/${pluginName}`;
-}
-
-function requireWindowsPayload(payloadPath: string, label: string, command: string): void {
-  if (!fs.existsSync(payloadPath)) {
-    throw new Error(`Missing ${label}: ${payloadPath}. Run ${command}.`);
-  }
-}
-
-function syncChromeWindowsPayload(
-  destinationPluginRoot: string,
-  options: BundledPluginWindowsPayloadOptions,
-): void {
-  const extensionHostPath = options.extensionHostPath ?? defaultExtensionHostPath;
-  requireWindowsPayload(extensionHostPath, "Chrome extension-host.exe", "npm run update:node-repl");
-
-  const extensionHostRoot = path.join(destinationPluginRoot, "extension-host");
-  fs.rmSync(extensionHostRoot, { recursive: true, force: true });
-  const destinationPath = path.join(
-    destinationPluginRoot,
-    "extension-host",
-    "windows",
-    targetRuntimeArch,
-    "extension-host.exe",
-  );
-  fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
-  fs.copyFileSync(extensionHostPath, destinationPath);
-}
-
-function pruneLatexMacPayload(destinationPluginRoot: string): void {
-  const binRoot = path.join(destinationPluginRoot, "bin");
-  fs.rmSync(path.join(binRoot, "tectonic"), { force: true });
-}
-
-function syncBundledPluginWindowsPayloads(
-  pluginName: string,
-  destinationPluginRoot: string,
-  options: BundledPluginWindowsPayloadOptions,
-): void {
-  if (pluginName === "chrome") {
-    syncChromeWindowsPayload(destinationPluginRoot, options);
-  }
-  if (pluginName === "latex" || pluginName === "latex-tectonic") {
-    pruneLatexMacPayload(destinationPluginRoot);
-  }
 }
 
 function findBundledMarketplaceSource(appResourcesRoot: string): BundledMarketplaceSource {

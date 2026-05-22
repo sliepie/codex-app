@@ -13,6 +13,7 @@ Date: 2026-05-22
 | Vendored Node REPL fallback | `desktop/resources/node_repl.exe` from `OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0` |
 | Vendored Chrome extension host fallback | `desktop/resources/extension-host.exe` from `OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0` |
 | GitHub-release hydrated Tectonic fallback | `tectonic-0.16.9-x86_64-pc-windows-msvc.zip` from `tectonic-typesetting/tectonic` |
+| Resource binary exception policy | `desktop/scripts/resource-binary-exceptions.ts` enforced by `npm run verify:windows-arm64-resource-binaries` |
 
 ## Version Match
 
@@ -36,6 +37,8 @@ Date: 2026-05-22
 | Rebuilt native module cache | 1 PE file | `better_sqlite3.node` is `ARM64`; `.forge-meta` is `arm64--145` |
 
 The produced Windows package contains no `.node` files in `resources/app.asar` and no `resources/app.asar.unpacked` directory. The local native cache is rebuilt for ARM64, but no native module is emitted as a separate file in the produced package.
+
+The Windows ARM64 package is ARM64 by default. Any x64 PE payload must match the named exception policy in `desktop/scripts/resource-binary-exceptions.ts`; unlisted non-ARM64 `.dll`, `.exe`, or `.node` files fail `npm run verify:windows-arm64-resource-binaries`.
 
 ## macOS Executables
 
@@ -106,6 +109,7 @@ These checks were run from `desktop`:
 npm run hydrate:app
 npm run hydrate:cli
 npm run make:win:arm64:ci
+npm run verify:windows-arm64-resource-binaries
 npx asar list .\out\Codex-win32-arm64\resources\app.asar
 ```
 

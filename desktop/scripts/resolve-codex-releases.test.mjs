@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -9,11 +10,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
-const nativeModuleCacheInputPaths = [
-  "package-lock.json",
-  "scripts/hydrate-codex-app.ts",
-  "scripts/patch-better-sqlite3-electron.ts",
-];
+const require = createRequire(import.meta.url);
+const {
+  windowsArm64HydratedCacheInputPaths,
+  windowsArm64HydratedCacheKeyVersion,
+  windowsArm64NativeModuleCacheInputPaths,
+  windowsArm64NativeModulesCacheKeyVersion,
+} = require("../.cache/scripts/windows-arm64-package-plan.js");
 const scriptPath = fileURLToPath(new URL("../.cache/scripts/resolve-codex-releases.js", import.meta.url));
 const typescriptScriptPath = fileURLToPath(new URL("resolve-codex-releases.ts", import.meta.url));
 const officialProdAppcastUrl = "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
@@ -139,6 +142,32 @@ async function hashCacheInputs(paths) {
   return hash.digest("hex");
 }
 
+async function expectedHydrationCacheKey({
+  appBuildNumber = "2429",
+  appVersion = "26.429.61741",
+  codexCliTag = "rust-v0.129.0",
+  codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+  codexPlusPlusTag = "v0.1.7",
+} = {}) {
+  return (
+    `windows-arm64-hydrated-${windowsArm64HydratedCacheKeyVersion}-app-${appVersion}-build-${appBuildNumber}-cli-${codexCliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-` +
+    await hashCacheInputs([...windowsArm64HydratedCacheInputPaths])
+  );
+}
+
+async function expectedNativeModulesCacheKey({
+  appBuildNumber = "2429",
+  appVersion = "26.429.61741",
+  codexCliTag = "rust-v0.129.0",
+  codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+  codexPlusPlusTag = "v0.1.7",
+} = {}) {
+  return (
+    `windows-arm64-native-modules-${windowsArm64NativeModulesCacheKeyVersion}-app-${appVersion}-build-${appBuildNumber}-cli-${codexCliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-` +
+    await hashCacheInputs([...windowsArm64NativeModuleCacheInputPaths])
+  );
+}
+
 async function runResolver({
   releases,
   appcastSource,
@@ -223,8 +252,6 @@ async function runResolver({
 
 test("starts new Codex app releases at repo revision zero", async () => {
   const output = await runResolver({ releases: [] });
-  const expectedNativeModulesCacheKey =
-    `windows-arm64-native-modules-v1-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413-inputs-${await hashCacheInputs(nativeModuleCacheInputPaths)}`;
 
   assert.equal(output.release_version, "26.429.61741.0");
   assert.equal(output.codex_cli_tag, "rust-v0.129.0");
@@ -237,11 +264,11 @@ test("starts new Codex app releases at repo revision zero", async () => {
   assert.equal(output.codex_appcast_url, undefined);
   assert.equal(
     output.hydration_cache_key,
-    "windows-arm64-hydrated-v5-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+    await expectedHydrationCacheKey(),
   );
   assert.equal(
     output.native_modules_cache_key,
-    expectedNativeModulesCacheKey,
+    await expectedNativeModulesCacheKey(),
   );
 });
 
@@ -258,7 +285,7 @@ test("selects the beta appcast when it has a higher Sparkle build", async () => 
   assert.equal(output.codex_appcast_url, undefined);
   assert.equal(
     output.hydration_cache_key,
-    "windows-arm64-hydrated-v5-app-26.513.40821-build-2903-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+    await expectedHydrationCacheKey({ appBuildNumber: "2903", appVersion: "26.513.40821" }),
   );
   assert.doesNotMatch(output.hydration_cache_key, /beta|prod/);
 });
