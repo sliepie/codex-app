@@ -19,6 +19,22 @@ const indexFeatureTargets =
 const sidebarPixelTargets =
   "function Sidebar(){let A=C.formatMessage({id:`sidebarElectron.recentChats`,defaultMessage:`Chats`}),rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,className:`-translate-x-px`,itemClassName:`after:block after:h-px after:content-[''] last:after:hidden`,itemWrapper:ke?Tg:void 0,emptyState:(0,$.jsx)(Y,{id:`sidebarElectron.noRecentChats`,defaultMessage:`No chats`,description:`Empty state for projectless chats in the sidebar`}),emptyStateClassName:`text-token-description-foreground p-2 text-base opacity-50`,rowOptions:{hideRemoteHostEnvIcon:!1,showPinActionOnHover:!0,getSectionContextMenuItems:Kt}}),ar=bt?(0,$.jsx)(`div`,{className:`px-row-x`,...ne.sidebarSection({collapsed:At.chats,heading:`Chats`}),children:(0,$.jsx)(Zd,{title:rr})}):null;return[rr,ir,ar]}function Row(){return(0,$.jsx)(L_,{conversationId:N,isAutomationRun:i,hasPendingChildApproval:c,isActive:u,forceLoadingIndicator:t&&l,className:s?`opacity-50`:void 0,rowContentClassName:Dc(t&&(D?`ml-10`:`ml-5`),g&&`pr-3 group-focus-within:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)] group-hover:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)]`),envIconLocation:`end`,dataAttributes:ne.sidebarThreadRow({kind:`local`,title:H})})}function vy(){let C=(0,$.jsx)(`div`,{className:`min-w-0 flex-1`,children:(0,$.jsx)(cn,{triggerButton:(0,$.jsx)(Qd,{icon:b,label:x,onClick:yy,trailing:S,iconClassName:`icon-sm`})})});return C}let settingsLabel={id:`codex.profileFooter.signedInFallback`};";
 
+const enabledDesktopFeatureGateIds = [
+  "533078438",
+  "3789238711",
+  "2798711298",
+  "2327881676",
+  "1488233300",
+  "1244621283",
+  "1372061905",
+  "4100906017",
+  "1848317837",
+  "2423536643",
+];
+const enabledDesktopFeatureGateTargets = enabledDesktopFeatureGateIds
+  .map((id, index) => `selectedGate${index}=FeatureGate(\`${id}\`)`)
+  .join(",");
+
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, source, "utf8");
@@ -33,7 +49,7 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    `let commandGate=FeatureGate(\`1981165915\`);function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${indexFeatureTargets}${sidebarPixelTargets}`,
+    `let commandGate=FeatureGate(\`1981165915\`),${enabledDesktopFeatureGateTargets};function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${indexFeatureTargets}${sidebarPixelTargets}`,
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
@@ -90,6 +106,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
     report.patches.map((patch) => patch.file),
     [
       "webview/assets/settings-page-fixture.js",
+      "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
       "webview/assets/agent-settings-fixture.js",
@@ -170,7 +187,7 @@ test("patches app main bundle when upstream moves index targets there", () => {
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   assert.equal(
     report.patches.filter((patch) => patch.file === "webview/assets/app-main-fixture.js").length,
-    2,
+    3,
   );
 });
 
@@ -317,6 +334,14 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
     /workspace_dependencies:!0/,
   );
+  const patchedIndexSource = fs.readFileSync(
+    path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
+    "utf8",
+  );
+  for (const [index, id] of enabledDesktopFeatureGateIds.entries()) {
+    assert.match(patchedIndexSource, new RegExp("selectedGate" + index + "=true"), id);
+    assert.doesNotMatch(patchedIndexSource, new RegExp("FeatureGate\\(\\`" + id + "\\`\\)"), id);
+  }
   assert.match(
     fs.readFileSync(
       path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
@@ -359,7 +384,7 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 9);
+  assert.equal(report.patches.length, 10);
   assert.ok(
     report.patches.every((patch) =>
       patch.name === "restore Windows title bar overlay controls height"
@@ -472,7 +497,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 9);
+  assert.equal(report.patches.length, 10);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),
