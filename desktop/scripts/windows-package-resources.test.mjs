@@ -530,6 +530,19 @@ test("discovers source-only native packages that declare binding.gyp", () => {
   ]);
 });
 
+test("installs native module packages without running package install scripts", () => {
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /"install",\s*"--no-save",\s*"--package-lock=false",\s*"--no-audit",\s*"--fund=false",\s*"--ignore-scripts",/s,
+  );
+  assert.doesNotMatch(source, /target\.runtime === "electron" \? \["--ignore-scripts"\]/);
+});
+
 test("prunes unused node-pty fallback and debug payloads", () => {
   const nodeModulesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-native-modules-"));
   const nodePtyRoot = path.join(nodeModulesRoot, "node-pty");
