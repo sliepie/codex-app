@@ -2231,13 +2231,13 @@ test("Store binary updater only accepts the official Store package family", () =
 
 test("Tectonic downloader uses the public x64 Windows release asset", () => {
   const source = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "download-tectonic-windows-x64.ps1"),
+    path.join(desktopRoot, "scripts", "download-tectonic-windows-x64.ts"),
     "utf8",
   );
 
   assert.match(source, /tectonic-typesetting\/tectonic/);
-  assert.match(source, /tectonic-\$Version-x86_64-pc-windows-msvc\.zip/);
-  assert.match(source, /\$machine -ne 0x8664/);
+  assert.match(source, /x86_64-pc-windows-msvc\.zip/);
+  assert.match(source, /getPeMachine\(tectonicPath\) !== 0x8664/);
 });
 
 test("ignores generated signing-secret base64 exports", () => {

@@ -16,6 +16,7 @@
     "scripts/decode-self-signed-pfx.ts",
     "scripts/build-primary-runtime-win-arm64.ts",
     "scripts/codex-appcast-feeds.ts",
+    "scripts/download-tectonic-windows-x64.ts",
     "scripts/hydrate-codex-app.ts",
     "scripts/hydrate-codex-cli.ts",
     "scripts/patch-better-sqlite3-electron.ts",
