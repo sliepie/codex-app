@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  type AcquiredReleaseAsset,
   type ReleaseAsset,
   downloadFile,
   ensureCachedReleaseAsset,
@@ -259,10 +260,7 @@ async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<
   }
   verifySha256(archivePath, expectedSha, archiveName);
 
-  if (!fs.existsSync(extractRoot)) {
-    fs.mkdirSync(extractRoot, { recursive: true });
-    await extract(archivePath, { dir: extractRoot });
-  }
+  await ensureExtractedZip({ archivePath, extractRoot, force: options.force });
 
   fs.copyFileSync(findSingleFile(extractRoot, "node.exe"), outputPath);
   return {
@@ -298,7 +296,7 @@ async function hydrateRipgrepExe(options: Options, resourcesRoot: string): Promi
   return asset;
 }
 
-async function hydrateTectonicExe(options: Options, resourcesRoot: string): Promise<ReleaseAsset> {
+async function hydrateTectonicExe(options: Options, resourcesRoot: string): Promise<AcquiredReleaseAsset> {
   const release = await fetchGitHubRelease(options.tectonicRepo, "tectonic@" + options.tectonicVersion);
   const assetName = "tectonic-" + options.tectonicVersion + "-x86_64-pc-windows-msvc.zip";
   const asset = findReleaseAsset(release, assetName, "Tectonic");
@@ -306,7 +304,7 @@ async function hydrateTectonicExe(options: Options, resourcesRoot: string): Prom
   const archivePath = path.join(options.cacheRoot, assetName);
   const extractRoot = path.join(options.cacheRoot, "tectonic-" + options.tectonicVersion + "-x86_64-pc-windows-msvc");
 
-  await ensureCachedReleaseAsset({
+  const acquiredAsset = await ensureCachedReleaseAsset({
     asset,
     cachePath: archivePath,
     checksum: { kind: "digest" },
@@ -325,7 +323,7 @@ async function hydrateTectonicExe(options: Options, resourcesRoot: string): Prom
   }
   installTectonicWindowsPayload(resourcesRoot, tectonicPath);
 
-  return asset;
+  return acquiredAsset;
 }
 
 async function main(): Promise<void> {
@@ -387,9 +385,10 @@ async function main(): Promise<void> {
 
   const tectonicAsset = await hydrateTectonicExe(options, resourcesRoot);
   hydratedAssets.push({
-    assetName: tectonicAsset.name,
+    assetName: tectonicAsset.asset.name,
     outputName: "plugins/*/latex*/bin/tectonic.exe",
-    downloadUrl: tectonicAsset.downloadUrl,
+    downloadUrl: tectonicAsset.asset.downloadUrl,
+    sha256: tectonicAsset.sha256,
     size: tectonicAsset.size,
   });
 

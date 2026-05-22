@@ -105,6 +105,11 @@ function writePeFixture(filePath, machine) {
   fs.writeFileSync(filePath, bytes);
 }
 
+function copyFixture(sourcePath, destinationPath) {
+  fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
+  fs.copyFileSync(sourcePath, destinationPath);
+}
+
 function sha256File(filePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
@@ -400,14 +405,20 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
     }),
   );
 
-  writePeFixture(path.join(packageRoot, "resources", "node_repl.exe"), 0x8664);
-  writePeFixture(
-    path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "chrome", "extension-host", "windows", "arm64", "extension-host.exe"),
-    0x8664,
-  );
-  writePeFixture(
-    path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "latex", "bin", "tectonic.exe"),
-    0x8664,
+  const packageNodeReplPath = path.join(packageRoot, "resources", "node_repl.exe");
+  const packageExtensionHostPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "chrome", "extension-host", "windows", "arm64", "extension-host.exe");
+  const packageTectonicPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "latex", "bin", "tectonic.exe");
+  copyFixture(nodeReplPath, packageNodeReplPath);
+  copyFixture(extensionHostPath, packageExtensionHostPath);
+  writePeFixture(packageTectonicPath, 0x8664);
+  writeFixture(
+    path.join(fixtureRoot, ".cache", "codex-cli", "latest-release.json"),
+    JSON.stringify({
+      assets: [{
+        outputName: "plugins/*/latex*/bin/tectonic.exe",
+        sha256: sha256File(packageTectonicPath),
+      }],
+    }),
   );
   writePeFixture(path.join(packageRoot, "resources", "codex.exe"), 0xaa64);
 
@@ -415,6 +426,13 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
     verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }).allowedExceptions,
     ["chrome-extension-host", "node-repl", "tectonic"],
   );
+
+  writePeFixture(packageNodeReplPath, 0x8664);
+  assert.throws(
+    () => verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }),
+    /node_repl package SHA-256 does not match provenance metadata/,
+  );
+  copyFixture(nodeReplPath, packageNodeReplPath);
 
   writePeFixture(path.join(packageRoot, "resources", "unlisted.exe"), 0x8664);
   assert.throws(

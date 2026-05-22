@@ -13,6 +13,7 @@ const {
   commandForWindowsArm64PlanStep,
   environmentForWindowsArm64PlanStep,
   expandWindowsArm64Plan,
+  processInvocationForWindowsArm64PlanStep,
   windowsArm64HydratedCacheInputPaths,
   windowsArm64NativeModuleCacheInputPaths,
 } = require(path.join(desktopRoot, ".cache", "scripts", "windows-arm64-package-plan.js"));
@@ -74,6 +75,22 @@ test("Windows ARM64 package plan passes appcast feed only to app hydration", () 
   );
   assert.doesNotMatch(commandForWindowsArm64PlanStep(hydrateCli, { CODEX_APPCAST_FEED: "beta" }).join(" "), /appcast-feed/);
 });
+
+test("Windows ARM64 package plan launches npm through a Windows-safe process adapter", () => {
+  const hydrateApp = expandWindowsArm64Plan("hydrate").find((step) => step.id === "hydrate-app");
+  assert.ok(hydrateApp);
+
+  assert.equal(commandForWindowsArm64PlanStep(hydrateApp)[0], "npm");
+  const invocation = processInvocationForWindowsArm64PlanStep(hydrateApp, { CODEX_APPCAST_FEED: "beta" });
+  if (process.platform === "win32") {
+    assert.match(path.basename(invocation[0]), /^cmd(?:\.exe)?$/i);
+    assert.deepEqual(invocation.slice(1, 4), ["/d", "/s", "/c"]);
+    assert.match(invocation[4], /npm run hydrate:app:compiled -- --appcast-feed beta/);
+  } else {
+    assert.deepEqual(invocation.slice(0, 3), ["npm", "run", "hydrate:app:compiled"]);
+  }
+});
+
 
 test("Windows ARM64 package scripts delegate to the package plan", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"));

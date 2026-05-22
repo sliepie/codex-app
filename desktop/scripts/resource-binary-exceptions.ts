@@ -17,6 +17,8 @@ export type WindowsArm64ResourceBinaryException = {
   expectedSourceRelativePath?: string;
   id: string;
   label: string;
+  hydratedMetadataRelativePath?: string;
+  hydratedOutputName?: string;
   metadataRelativePath?: string;
   packageRelativePath?: string;
   packageRelativePathPattern?: RegExp;
@@ -34,6 +36,13 @@ type StoreBinaryMetadata = {
   productId?: string;
   sha256?: string;
   sourceRelativePath?: string;
+};
+
+type HydratedResourceBinaryMetadata = {
+  assets?: Array<{
+    outputName?: string;
+    sha256?: string;
+  }>;
 };
 
 export function normalizeResourcePath(filePath: string): string {
@@ -69,6 +78,67 @@ export function readPeMachine(filePath: string): number {
 
 export function sha256(filePath: string): string {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+function resolveDesktopPath(desktopRoot: string, relativePath: string): string {
+  return path.join(desktopRoot, ...normalizeResourcePath(relativePath).split("/"));
+}
+
+function requireSha256Digest(value: string | undefined, label: string): string {
+  if (!value || !/^[a-fA-F0-9]{64}$/.test(value)) {
+    throw new Error(label + " has an invalid SHA-256 digest.");
+  }
+
+  return value.toLowerCase();
+}
+
+function readStoreBinaryMetadata(
+  desktopRoot: string,
+  exception: WindowsArm64ResourceBinaryException,
+): StoreBinaryMetadata {
+  if (!exception.metadataRelativePath) {
+    throw new Error("Store-vendored exception is missing metadata path: " + exception.id);
+  }
+
+  const metadataPath = resolveDesktopPath(desktopRoot, exception.metadataRelativePath);
+  if (!fs.existsSync(metadataPath)) {
+    throw new Error("Missing Vendored resource binary metadata: " + metadataPath);
+  }
+
+  return JSON.parse(fs.readFileSync(metadataPath, "utf8")) as StoreBinaryMetadata;
+}
+
+function expectedGithubReleaseSha256(
+  desktopRoot: string,
+  exception: WindowsArm64ResourceBinaryException,
+): string {
+  if (!exception.hydratedMetadataRelativePath || !exception.hydratedOutputName) {
+    throw new Error("GitHub-release exception is missing hydrated metadata paths: " + exception.id);
+  }
+
+  const metadataPath = resolveDesktopPath(desktopRoot, exception.hydratedMetadataRelativePath);
+  if (!fs.existsSync(metadataPath)) {
+    throw new Error("Missing hydrated Resource binary metadata: " + metadataPath);
+  }
+
+  const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8")) as HydratedResourceBinaryMetadata;
+  const asset = metadata.assets?.find((candidate) => candidate.outputName === exception.hydratedOutputName);
+  return requireSha256Digest(asset?.sha256, exception.label + " hydrated metadata");
+}
+
+export function expectedResourceBinaryExceptionSha256(
+  desktopRoot: string,
+  exception: WindowsArm64ResourceBinaryException,
+): string {
+  if (exception.sourceKind === "store-vendored") {
+    validateVendoredResourceBinaryProvenance(desktopRoot, exception);
+    return requireSha256Digest(
+      readStoreBinaryMetadata(desktopRoot, exception).sha256,
+      exception.label + " metadata",
+    );
+  }
+
+  return expectedGithubReleaseSha256(desktopRoot, exception);
 }
 
 export const windowsArm64ResourceBinaryExceptions: WindowsArm64ResourceBinaryException[] = [
@@ -108,6 +178,8 @@ export const windowsArm64ResourceBinaryExceptions: WindowsArm64ResourceBinaryExc
   },
   {
     expectedMachine: peMachine.x64,
+    hydratedMetadataRelativePath: ".cache/codex-cli/latest-release.json",
+    hydratedOutputName: "plugins/*/latex*/bin/tectonic.exe",
     id: "tectonic",
     label: "Tectonic",
     packageRelativePathPattern: /^resources\/plugins\/openai-bundled(?:-beta)?\/plugins\/latex(?:-tectonic)?\/bin\/tectonic\.exe$/,
@@ -157,13 +229,9 @@ export function validateVendoredResourceBinaryProvenance(
     throw new Error("Store-vendored exception is missing vendored paths: " + exception.id);
   }
 
-  const binaryPath = path.join(desktopRoot, ...normalizeResourcePath(exception.vendoredRelativePath).split("/"));
-  const metadataPath = path.join(desktopRoot, ...normalizeResourcePath(exception.metadataRelativePath).split("/"));
+  const binaryPath = resolveDesktopPath(desktopRoot, exception.vendoredRelativePath);
   if (!fs.existsSync(binaryPath)) {
     throw new Error("Missing Vendored resource binary: " + binaryPath);
-  }
-  if (!fs.existsSync(metadataPath)) {
-    throw new Error("Missing Vendored resource binary metadata: " + metadataPath);
   }
 
   const machine = readPeMachine(binaryPath);
@@ -174,7 +242,7 @@ export function validateVendoredResourceBinaryProvenance(
     );
   }
 
-  const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8")) as StoreBinaryMetadata;
+  const metadata = readStoreBinaryMetadata(desktopRoot, exception);
   const checks: Array<[string, string | undefined, string | undefined]> = [
     ["productId", metadata.productId, exception.expectedProductId],
     ["packageName", metadata.packageName, exception.expectedPackageName],
@@ -191,12 +259,28 @@ export function validateVendoredResourceBinaryProvenance(
     }
   }
 
-  const expectedSha = metadata.sha256;
-  if (!expectedSha || !/^[a-f0-9]{64}$/.test(expectedSha)) {
-    throw new Error(exception.label + " metadata has an invalid SHA-256 digest.");
-  }
-  if (sha256(binaryPath) !== expectedSha) {
+  const expectedSha = requireSha256Digest(metadata.sha256, exception.label + " metadata");
+  if (sha256(binaryPath).toLowerCase() !== expectedSha) {
     throw new Error(exception.label + " metadata SHA-256 does not match the vendored binary.");
+  }
+}
+
+export function validatePackagedResourceBinaryException(
+  desktopRoot: string,
+  packageFilePath: string,
+  exception: WindowsArm64ResourceBinaryException,
+): void {
+  const machine = readPeMachine(packageFilePath);
+  if (machine !== exception.expectedMachine) {
+    throw new Error(
+      exception.label + " has machine " + formatPeMachine(machine) + ", expected " +
+        formatPeMachine(exception.expectedMachine) + ".",
+    );
+  }
+
+  const expectedSha = expectedResourceBinaryExceptionSha256(desktopRoot, exception);
+  if (sha256(packageFilePath).toLowerCase() !== expectedSha) {
+    throw new Error(exception.label + " package SHA-256 does not match provenance metadata.");
   }
 }
 

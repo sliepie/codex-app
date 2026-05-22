@@ -116,7 +116,15 @@ export function expandWindowsArm64Plan(target: WindowsArm64PlanTarget): WindowsA
 }
 
 function npmCommand(): string {
-  return process.platform === "win32" ? "npm.cmd" : "npm";
+  return "npm";
+}
+
+function quoteWindowsShellArg(value: string): string {
+  if (/^[A-Za-z0-9_./:=+-]+$/.test(value)) {
+    return value;
+  }
+
+  return '"' + value.replaceAll('"', '\\"') + '"';
 }
 
 export function commandForWindowsArm64PlanStep(step: WindowsArm64PlanStep, env = process.env): string[] {
@@ -143,6 +151,24 @@ export function commandForWindowsArm64PlanStep(step: WindowsArm64PlanStep, env =
   }
 }
 
+export function processInvocationForWindowsArm64PlanStep(
+  step: WindowsArm64PlanStep,
+  env = process.env,
+): string[] {
+  const logicalCommand = commandForWindowsArm64PlanStep(step, env);
+  if (process.platform !== "win32") {
+    return logicalCommand;
+  }
+
+  return [
+    process.env.ComSpec ?? "cmd.exe",
+    "/d",
+    "/s",
+    "/c",
+    logicalCommand.map(quoteWindowsShellArg).join(" "),
+  ];
+}
+
 export function environmentForWindowsArm64PlanStep(
   step: WindowsArm64PlanStep,
   env: NodeJS.ProcessEnv = process.env,
@@ -164,7 +190,7 @@ function parseTarget(argv: string[]): WindowsArm64PlanTarget {
 }
 
 function runStep(step: WindowsArm64PlanStep): void {
-  const [command, ...args] = commandForWindowsArm64PlanStep(step);
+  const [command, ...args] = processInvocationForWindowsArm64PlanStep(step);
   const inActions = process.env.GITHUB_ACTIONS === "true";
   if (inActions) {
     console.log("::group::" + step.label);

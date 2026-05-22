@@ -5,6 +5,7 @@ import {
   matchWindowsArm64ResourceBinaryException,
   peMachine,
   readPeMachine,
+  validatePackagedResourceBinaryException,
   validateVendoredResourceBinaryProvenanceForDesktop,
   windowsArm64ResourceBinaryExceptions,
 } from "./resource-binary-exceptions";
@@ -93,6 +94,7 @@ export function verifyWindowsArm64ResourceBinaries(options: Options): ResourceBi
           formatPeMachine(machine) + ".",
       );
     }
+    validatePackagedResourceBinaryException(options.desktopRoot, filePath, exception);
     matchedExceptionIds.add(exception.id);
   }
 
