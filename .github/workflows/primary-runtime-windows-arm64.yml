@@ -134,5 +134,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RELEASE_TAG: codex-primary-runtime-win32-arm64
-          RELEASE_TITLE: codex-primary-runtime win32-arm64
         run: npm run publish:primary-runtime:win:arm64:compiled

@@ -186,22 +186,13 @@ jobs:
           "@
 
           gh release view $tag --repo "$repo" *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh api --method PATCH "repos/$repo/git/refs/tags/$tag" -f "sha=$targetSha" -F force=true
-            if ($LASTEXITCODE -ne 0) {
-              throw "Failed to move alpha release tag $tag to $targetSha."
-            }
-
-            gh release edit $tag --repo "$repo" --target "$targetSha" --title "$env:ALPHA_RELEASE_TITLE" --notes "$notes" --prerelease --latest=false
-            if ($LASTEXITCODE -ne 0) {
-              throw "Failed to update alpha release $tag."
-            }
+          if ($LASTEXITCODE -ne 0) {
+            throw "Alpha release $tag must already exist; this workflow does not create or move git tags."
           }
-          else {
-            gh release create $tag --repo "$repo" --target "$targetSha" --title "$env:ALPHA_RELEASE_TITLE" --notes "$notes" --prerelease --latest=false
-            if ($LASTEXITCODE -ne 0) {
-              throw "Failed to create alpha release $tag."
-            }
+
+          gh release edit $tag --repo "$repo" --title "$env:ALPHA_RELEASE_TITLE" --notes "$notes" --prerelease --latest=false
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to update alpha release $tag."
           }
 
           gh release upload $tag $zip.FullName --repo "$repo" --clobber
