@@ -25,6 +25,19 @@ const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
 const windowsTitleBarOverlayDefaultHeightPattern = new RegExp(
   String.raw`\b(${identifierPattern})=36,${identifierPattern}=\x60#1f1f1f\x60,${identifierPattern}=\x60#ffffff\x60;function\s+${identifierPattern}\(\)\{return\{color:${identifierPattern},symbolColor:${identifierPattern}\.nativeTheme\.shouldUseDarkColors\?${identifierPattern}:${identifierPattern},height:\1\}\}`,
 );
+const enabledDesktopFeatureGateIds = [
+  "533078438",
+  "3789238711",
+  "2798711298",
+  "2327881676",
+  "1488233300",
+  "1244621283",
+  "1372061905",
+  "4100906017",
+  "1848317837",
+  "2423536643",
+] as const;
+
 type SourcePatchResult = {
   source: string;
   status: PatchStatus;
@@ -560,6 +573,49 @@ function functionContainingAllPatch(
   };
 }
 
+function forceFeatureGateCalls(gateIds: readonly string[]): SourcePatcher {
+  const alternation = gateIds.map(escapeRegExp).join("|");
+  const markerPattern = new RegExp("`(" + alternation + ")`", "g");
+  const callPattern = new RegExp(
+    String.raw`\b${identifierPattern}\(` + "`(" + alternation + ")`" + String.raw`\)`,
+    "g",
+  );
+
+  return (source) => {
+    const markerMatches = Array.from(source.matchAll(markerPattern));
+    if (markerMatches.length === 0) {
+      return undefined;
+    }
+
+    const callMatches = Array.from(source.matchAll(callPattern));
+    if (callMatches.length === 0) {
+      throw new Error(
+        `Feature gate marker(s) were found without patchable gate call(s): ${[
+          ...new Set(markerMatches.map((match) => match[1])),
+        ].join(", ")}`,
+      );
+    }
+
+    callPattern.lastIndex = 0;
+    const nextSource = source.replace(callPattern, "true");
+    markerPattern.lastIndex = 0;
+    const remainingGateIds = [
+      ...new Set(Array.from(nextSource.matchAll(markerPattern)).map((match) => match[1])),
+    ];
+    if (remainingGateIds.length > 0) {
+      throw new Error(
+        `Feature gate marker(s) remain after patch: ${remainingGateIds.join(", ")}`,
+      );
+    }
+
+    return {
+      source: nextSource,
+      status: nextSource === source ? "already-applied" : "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
 function replaceWithPatchers(
   recoveredRoot: string,
   filePath: string,
@@ -690,6 +746,13 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
         ),
       ],
       { missingTargetMarkers: [".groupName===`Test`"] },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "enable selected desktop feature gates",
+      [forceFeatureGateCalls(enabledDesktopFeatureGateIds)],
+      { missingTargetMarkers: enabledDesktopFeatureGateIds.map((id) => `\`${id}\``) },
     ),
   ];
 }
