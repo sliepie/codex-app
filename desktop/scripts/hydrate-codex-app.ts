@@ -1674,7 +1674,7 @@ function syncNativeNodeModulesTarget(
           "--package-lock=false",
           "--no-audit",
           "--fund=false",
-          "--ignore-scripts",
+          ...(target.runtime === "electron" ? ["--ignore-scripts"] : []),
           ...modulesRequiringInstall.map(
             (nativeModule) => `${nativeModule.name}@${nativeModule.version}`,
           ),
