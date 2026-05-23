@@ -212,16 +212,25 @@ function releaseApiUrl(repository: string): URL {
   return url;
 }
 
-function githubHeaders(): HeadersInit {
+function githubHeaders({ includeToken = true }: { includeToken?: boolean } = {}): HeadersInit {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
   };
   const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
-  if (token) {
+  if (includeToken && token) {
     headers.Authorization = `Bearer ${token}`;
   }
 
   return headers;
+}
+
+async function fetchPublicGithubUrl(url: URL): Promise<Response> {
+  const response = await fetch(url, { headers: githubHeaders() });
+  if (response.status !== 401 || !(process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN)) {
+    return response;
+  }
+
+  return fetch(url, { headers: githubHeaders({ includeToken: false }) });
 }
 
 async function fetchExistingReleases(): Promise<GithubRelease[]> {
@@ -239,9 +248,7 @@ async function fetchExistingReleases(): Promise<GithubRelease[]> {
 }
 
 async function fetchLatestReleaseTag(repository: string, label: string): Promise<string> {
-  const response = await fetch(repositoryApiUrl(repository, "/releases/latest"), {
-    headers: githubHeaders(),
-  });
+  const response = await fetchPublicGithubUrl(repositoryApiUrl(repository, "/releases/latest"));
   if (!response.ok) {
     fail(`Failed to fetch ${label} release: ${response.status} ${response.statusText}`);
   }
@@ -301,9 +308,9 @@ function chooseLatestAppcastRelease(prod: AppcastRelease, beta: AppcastRelease):
 }
 
 async function fetchGitTagCommitSha(repository: string, tagName: string, label: string): Promise<string> {
-  const response = await fetch(repositoryApiUrl(repository, `/git/ref/tags/${encodeURIComponent(tagName)}`), {
-    headers: githubHeaders(),
-  });
+  const response = await fetchPublicGithubUrl(
+    repositoryApiUrl(repository, `/git/ref/tags/${encodeURIComponent(tagName)}`),
+  );
   if (!response.ok) {
     fail(`Failed to resolve ${label} tag ${tagName}: ${response.status} ${response.statusText}`);
   }
@@ -319,9 +326,9 @@ async function fetchGitTagCommitSha(repository: string, tagName: string, label: 
     return sha;
   }
 
-  const tagResponse = await fetch(object.url ?? repositoryApiUrl(repository, `/git/tags/${sha}`), {
-    headers: githubHeaders(),
-  });
+  const tagResponse = await fetchPublicGithubUrl(
+    new URL(object.url ?? repositoryApiUrl(repository, `/git/tags/${sha}`)),
+  );
   if (!tagResponse.ok) {
     fail(`Failed to dereference ${label} tag ${tagName}: ${tagResponse.status} ${tagResponse.statusText}`);
   }

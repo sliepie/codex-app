@@ -66,6 +66,7 @@ function startServer(
     codexPlusPlusRepo = "b-nnett/codex-plusplus",
     codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
     codexPlusPlusTag = "v0.1.7",
+    rejectAuthorizedCodexPlusPlusRequests = false,
   } = {},
 ) {
   const server = http.createServer((request, response) => {
@@ -91,6 +92,16 @@ function startServer(
     if (request.url === "/repos/openai/codex/releases/latest") {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ tag_name: codexCliTag }));
+      return;
+    }
+
+    if (
+      rejectAuthorizedCodexPlusPlusRequests &&
+      request.url?.startsWith(`/repos/${codexPlusPlusRepo}/`) &&
+      request.headers.authorization
+    ) {
+      response.writeHead(401, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ message: "Bad credentials" }));
       return;
     }
 
@@ -148,6 +159,7 @@ async function runResolver({
   codexPlusPlusRepo = "b-nnett/codex-plusplus",
   codexPlusPlusSha,
   codexPlusPlusTag,
+  rejectAuthorizedCodexPlusPlusRequests,
   sha = "abcdef1234567890",
   scriptArgs = [scriptPath],
 }) {
@@ -159,6 +171,7 @@ async function runResolver({
     codexPlusPlusRepo,
     codexPlusPlusSha,
     codexPlusPlusTag,
+    rejectAuthorizedCodexPlusPlusRequests,
   });
   const directory = await mkdtemp(path.join(tmpdir(), "codex-release-resolver-"));
   const outputPath = path.join(directory, "github-output.txt");
@@ -319,6 +332,16 @@ test("resolves Codex++ releases from the configured repository", async () => {
     output.hydration_cache_key,
     /codex-plusplus-v0\.2\.0-1111111111111111111111111111111111111111/,
   );
+});
+
+test("retries public upstream Codex++ lookups without a repo-scoped token after 401", async () => {
+  const output = await runResolver({
+    releases: [],
+    rejectAuthorizedCodexPlusPlusRequests: true,
+  });
+
+  assert.equal(output.codex_plus_plus_tag, "v0.1.7");
+  assert.equal(output.codex_plus_plus_sha, "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413");
 });
 
 test("increments the repo revision when the same Codex app version has a prior numeric release", async () => {
