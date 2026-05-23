@@ -10,8 +10,9 @@ import { fileURLToPath } from "node:url";
 const scriptsRoot = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.dirname(scriptsRoot);
 const repoRoot = path.dirname(desktopRoot);
-const uiOverridesManifestRelativePath =
-  "desktop/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json";
+const uiOverridesTweakRelativeRoot =
+  "desktop/codex-plusplus/tweaks/codex-app-ui-overrides";
+const uiOverridesManifestRelativePath = `${uiOverridesTweakRelativeRoot}/manifest.json`;
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -74,6 +75,21 @@ function expectedBundledTweakPrVersion(mainVersion) {
 function expectedLocalModifiedTweakVersion(mainVersion) {
   const [major, minor, patch] = parseThreePartVersion(mainVersion);
   return `${major}.${minor}.${patch + 1}`;
+}
+
+function tweakSourceMatchesMainBranch(relativeRoot, mainFile) {
+  const sourceRelativePath = `${relativeRoot}/${mainFile}`;
+  const localSource = fs.readFileSync(path.join(repoRoot, sourceRelativePath), "utf8");
+  return (
+    localSource.replace(/\r\n/g, "\n") ===
+    readMainBranchFile(sourceRelativePath).replace(/\r\n/g, "\n")
+  );
+}
+
+function expectedBundledTweakVersion(relativeRoot, mainManifest) {
+  return tweakSourceMatchesMainBranch(relativeRoot, mainManifest.main)
+    ? mainManifest.version
+    : expectedBundledTweakPrVersion(mainManifest.version);
 }
 
 function writePeFixture(filePath, machine) {
@@ -1185,7 +1201,10 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
       "codex-app-ui-overrides",
       {
         id: "app.sliepie.codex.ui-overrides",
-        version: expectedBundledTweakPrVersion(mainUiOverridesManifest.version),
+        version: expectedBundledTweakVersion(
+          uiOverridesTweakRelativeRoot,
+          mainUiOverridesManifest,
+        ),
       },
     ],
     [
@@ -1228,10 +1247,16 @@ test("Codex++ UI override versions follow main branch bump policy", () => {
   );
   const mainManifest = JSON.parse(readMainBranchFile(uiOverridesManifestRelativePath));
   const [mainMajor, mainMinor, mainPatch] = parseThreePartVersion(mainManifest.version);
+  const sourceChangedFromMain = !tweakSourceMatchesMainBranch(
+    uiOverridesTweakRelativeRoot,
+    mainManifest.main,
+  );
 
   assert.equal(
     manifest.version,
-    expectedBundledTweakPrVersion(mainManifest.version),
+    sourceChangedFromMain
+      ? expectedBundledTweakPrVersion(mainManifest.version)
+      : mainManifest.version,
   );
   assert.equal(
     expectedLocalModifiedTweakVersion(mainManifest.version),
