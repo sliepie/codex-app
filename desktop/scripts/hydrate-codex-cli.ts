@@ -1,35 +1,22 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import extract from "extract-zip";
-
-type ReleaseAsset = {
-  digest?: string | null;
-  downloadUrl: string;
-  name: string;
-  size: number;
-};
-
-type ReleaseInfo = {
-  tagName: string;
-  name: string;
-  url: string;
-  assets: ReleaseAsset[];
-};
-
-type GithubReleaseAsset = {
-  browser_download_url?: string | null;
-  digest?: string | null;
-  name?: string | null;
-  size?: number | null;
-};
-
-type GithubRelease = {
-  assets?: GithubReleaseAsset[] | null;
-  html_url?: string | null;
-  name?: string | null;
-  tag_name?: string | null;
-};
+import {
+  type ReleaseAsset,
+  downloadFile,
+  ensureCachedReleaseAsset,
+  ensureExtractedZip,
+  fetchGitHubRelease,
+  fetchText,
+  findReleaseAsset,
+  sha256,
+  verifySha256,
+} from "./github-release-assets";
+import { installTectonicWindowsPayload } from "./bundled-plugin-windows-payloads";
+import {
+  formatPeMachine,
+  readPeMachine,
+  resourceBinaryExceptionById,
+} from "./resource-binary-exceptions";
 
 type RequiredAsset = {
   assetName: string;
@@ -101,125 +88,6 @@ function parseOptions(argv: string[]): Options {
       path.join(desktopRoot, ".cache", "codex-cli"),
     force: hasFlag(argv, "--force", "-Force"),
   };
-}
-
-function githubHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    Accept: "application/vnd.github+json",
-    "User-Agent": "sliepie-codex-app-windows-build",
-  };
-  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  return headers;
-}
-
-function headersForUrl(url: string): Record<string, string> | undefined {
-  const hostname = new URL(url).hostname.toLowerCase();
-  return hostname === "api.github.com" || hostname === "github.com"
-    ? githubHeaders()
-    : undefined;
-}
-
-async function downloadFile(url: string, outputPath: string): Promise<void> {
-  const response = await fetch(url, { headers: headersForUrl(url) });
-  if (!response.ok || !response.body) {
-    throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
-  }
-
-  fs.writeFileSync(outputPath, Buffer.from(await response.arrayBuffer()));
-}
-
-function sha256(filePath: string): string {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
-}
-
-function verifySha256(filePath: string, expectedSha: string, label: string): void {
-  if (sha256(filePath).toLowerCase() !== expectedSha.toLowerCase()) {
-    throw new Error(`Checksum mismatch for ${label}`);
-  }
-}
-
-function parseSha256(text: string, label: string): string {
-  const match = text.match(/\b[a-fA-F0-9]{64}\b/);
-  if (!match?.[0]) {
-    throw new Error(`Missing SHA-256 checksum for ${label}`);
-  }
-
-  return match[0];
-}
-
-function parseAssetDigest(digest: string | null | undefined, label: string): string {
-  const match = digest?.match(/^sha256:([a-fA-F0-9]{64})$/);
-  if (!match?.[1]) {
-    throw new Error(`Missing SHA-256 digest for ${label}`);
-  }
-
-  return match[1];
-}
-
-function verifyAssetDigest(asset: ReleaseAsset, filePath: string): void {
-  verifySha256(filePath, parseAssetDigest(asset.digest, asset.name), asset.name);
-}
-
-async function fetchText(url: string): Promise<string> {
-  const response = await fetch(url, { headers: headersForUrl(url) });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
-  }
-
-  return response.text();
-}
-
-function repositoryApiUrl(repository: string, releasePath: string): URL {
-  const parts = repository.split("/");
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    throw new Error(`Invalid GitHub repository value: ${repository}`);
-  }
-
-  return new URL(
-    `https://api.github.com/repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}${releasePath}`,
-  );
-}
-
-function normalizeReleaseInfo(release: GithubRelease, repository: string): ReleaseInfo {
-  if (!release.tag_name) {
-    throw new Error(`GitHub release for ${repository} did not include a tag name.`);
-  }
-
-  return {
-    tagName: release.tag_name,
-    name: release.name ?? "",
-    url: release.html_url ?? `https://github.com/${repository}/releases/tag/${release.tag_name}`,
-    assets: (release.assets ?? []).map((asset) => {
-      if (!asset.name || !asset.browser_download_url) {
-        throw new Error(`GitHub release ${release.tag_name} has an asset without a name or download URL.`);
-      }
-
-      return {
-        digest: asset.digest,
-        downloadUrl: asset.browser_download_url,
-        name: asset.name,
-        size: asset.size ?? 0,
-      };
-    }),
-  };
-}
-
-async function fetchGitHubRelease(repository: string, tagName?: string): Promise<ReleaseInfo> {
-  const releasePath = tagName
-    ? `/releases/tags/${encodeURIComponent(tagName)}`
-    : "/releases/latest";
-  const response = await fetch(repositoryApiUrl(repository, releasePath), {
-    headers: githubHeaders(),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch GitHub release for ${repository}: ${response.status} ${response.statusText}`);
-  }
-
-  return normalizeReleaseInfo((await response.json()) as GithubRelease, repository);
 }
 
 function findSingleFile(root: string, fileName: string): string {
@@ -386,10 +254,7 @@ async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<
   }
   verifySha256(archivePath, expectedSha, archiveName);
 
-  if (!fs.existsSync(extractRoot)) {
-    fs.mkdirSync(extractRoot, { recursive: true });
-    await extract(archivePath, { dir: extractRoot });
-  }
+  await ensureExtractedZip({ archivePath, extractRoot, force: options.force });
 
   fs.copyFileSync(findSingleFile(extractRoot, "node.exe"), outputPath);
   return {
@@ -403,41 +268,85 @@ async function hydrateRipgrepExe(options: Options, resourcesRoot: string): Promi
   const release = await fetchGitHubRelease(options.ripgrepRepo);
   const version = release.tagName.replace(/^v/, "");
   const assetName = `ripgrep-${version}-aarch64-pc-windows-msvc.zip`;
-  const asset = release.assets.find((asset) => asset.name === assetName);
-  if (!asset) {
-    throw new Error(`Missing ripgrep release asset: ${assetName}`);
-  }
+  const asset = findReleaseAsset(release, assetName, "ripgrep");
 
   const archivePath = path.join(options.cacheRoot, assetName);
   const extractRoot = path.join(options.cacheRoot, `ripgrep-${version}-aarch64-pc-windows-msvc`);
   const outputPath = path.join(resourcesRoot, "rg.exe");
 
-  if (options.force) {
-    fs.rmSync(archivePath, { force: true });
-    fs.rmSync(extractRoot, { recursive: true, force: true });
-  }
-  if (!fs.existsSync(archivePath)) {
-    await downloadFile(asset.downloadUrl, archivePath);
-  }
-
-  const checksumAsset = release.assets.find((asset) => asset.name === `${assetName}.sha256`);
-  if (checksumAsset) {
-    verifySha256(
-      archivePath,
-      parseSha256(await fetchText(checksumAsset.downloadUrl), assetName),
-      assetName,
-    );
-  } else {
-    verifyAssetDigest(asset, archivePath);
-  }
-
-  if (!fs.existsSync(extractRoot)) {
-    fs.mkdirSync(extractRoot, { recursive: true });
-    await extract(archivePath, { dir: extractRoot });
-  }
+  await ensureCachedReleaseAsset({
+    asset,
+    cachePath: archivePath,
+    checksum: {
+      kind: "sidecar-or-digest",
+      release,
+      sidecarAssetName: assetName + ".sha256",
+    },
+    force: options.force,
+  });
+  await ensureExtractedZip({ archivePath, extractRoot, force: options.force });
 
   fs.copyFileSync(findSingleFile(extractRoot, "rg.exe"), outputPath);
   return asset;
+}
+
+type HydratedTectonicExe = {
+  asset: ReleaseAsset;
+  executableSha256: string;
+  releaseAssetSha256: string;
+  releaseHtmlUrl: string;
+  releaseTagName: string;
+  size: number;
+};
+
+function requireExceptionValue(value: string | undefined, label: string): string {
+  if (!value) {
+    throw new Error("Missing " + label + " in the Tectonic resource binary exception.");
+  }
+
+  return value;
+}
+
+async function hydrateTectonicExe(
+  options: Options,
+  resourcesRoot: string,
+): Promise<HydratedTectonicExe> {
+  const exception = resourceBinaryExceptionById("tectonic");
+  const repository = requireExceptionValue(exception.expectedGithubRepository, "repository");
+  const releaseTag = requireExceptionValue(exception.expectedGithubReleaseTag, "release tag");
+  const assetName = requireExceptionValue(exception.expectedGithubAssetName, "asset name");
+  const release = await fetchGitHubRelease(repository, releaseTag);
+  const asset = findReleaseAsset(release, assetName, "Tectonic");
+
+  const archivePath = path.join(options.cacheRoot, assetName);
+  const extractRoot = path.join(options.cacheRoot, assetName.replace(/\.zip$/i, ""));
+
+  const acquiredAsset = await ensureCachedReleaseAsset({
+    asset,
+    cachePath: archivePath,
+    checksum: { kind: "digest" },
+    force: options.force,
+  });
+  await ensureExtractedZip({ archivePath, extractRoot, force: options.force });
+
+  const tectonicPath = findSingleFile(extractRoot, "tectonic.exe");
+  const machine = readPeMachine(tectonicPath);
+  if (machine !== exception.expectedMachine) {
+    throw new Error(
+      "Expected " + formatPeMachine(exception.expectedMachine) + " tectonic.exe from " +
+        assetName + ", got " + formatPeMachine(machine) + ".",
+    );
+  }
+  installTectonicWindowsPayload(resourcesRoot, tectonicPath);
+
+  return {
+    asset,
+    executableSha256: sha256(tectonicPath),
+    releaseAssetSha256: acquiredAsset.sha256,
+    releaseHtmlUrl: release.url,
+    releaseTagName: release.tagName,
+    size: acquiredAsset.size,
+  };
 }
 
 async function main(): Promise<void> {
@@ -451,16 +360,12 @@ async function main(): Promise<void> {
   fs.mkdirSync(resourcesRoot, { recursive: true });
 
   const release = await fetchGitHubRelease(options.codexRepo, options.codexTag);
-  const assetsByName = new Map(release.assets.map((asset) => [asset.name, asset]));
   const releaseCacheRoot = path.join(options.cacheRoot, release.tagName);
   fs.mkdirSync(releaseCacheRoot, { recursive: true });
 
   const hydratedAssets = [];
   for (const requiredAsset of requiredAssets) {
-    const asset = assetsByName.get(requiredAsset.assetName);
-    if (!asset) {
-      throw new Error(`Missing Codex release asset: ${requiredAsset.assetName}`);
-    }
+    const asset = findReleaseAsset(release, requiredAsset.assetName, "Codex");
 
     const downloadPath = path.join(releaseCacheRoot, requiredAsset.assetName);
     const outputPath = path.join(resourcesRoot, requiredAsset.outputName);
@@ -468,16 +373,19 @@ async function main(): Promise<void> {
     if (options.force) {
       fs.rmSync(downloadPath, { force: true });
     }
-    if (!fs.existsSync(downloadPath)) {
-      await downloadFile(asset.downloadUrl, downloadPath);
-    }
-    verifyAssetDigest(asset, downloadPath);
+    const acquiredAsset = await ensureCachedReleaseAsset({
+      asset,
+      cachePath: downloadPath,
+      checksum: { kind: "digest" },
+      force: options.force,
+    });
 
     fs.copyFileSync(downloadPath, outputPath);
     hydratedAssets.push({
       assetName: requiredAsset.assetName,
       outputName: requiredAsset.outputName,
       downloadUrl: asset.downloadUrl,
+      sha256: acquiredAsset.sha256,
       size: asset.size,
     });
   }
@@ -496,6 +404,18 @@ async function main(): Promise<void> {
     outputName: "rg.exe",
     downloadUrl: ripgrepAsset.downloadUrl,
     size: ripgrepAsset.size,
+  });
+
+  const tectonicAsset = await hydrateTectonicExe(options, resourcesRoot);
+  hydratedAssets.push({
+    assetName: tectonicAsset.asset.name,
+    outputName: "plugins/*/latex*/bin/tectonic.exe",
+    downloadUrl: tectonicAsset.asset.downloadUrl,
+    releaseHtmlUrl: tectonicAsset.releaseHtmlUrl,
+    releaseTagName: tectonicAsset.releaseTagName,
+    releaseAssetSha256: tectonicAsset.releaseAssetSha256,
+    sha256: tectonicAsset.executableSha256,
+    size: tectonicAsset.size,
   });
 
   fs.writeFileSync(

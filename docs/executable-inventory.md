@@ -11,6 +11,9 @@ Date: 2026-05-22
 | Windows package directory | `desktop/out/Codex-win32-arm64` |
 | macOS extracted app | `desktop/.cache/codex-app/extract-26.429.30905/Codex.app` |
 | Vendored Node REPL fallback | `desktop/resources/node_repl.exe` from `OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0` |
+| Vendored Chrome extension host fallback | `desktop/resources/extension-host.exe` from `OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0` |
+| GitHub-release hydrated Tectonic fallback | `tectonic-0.16.9-x86_64-pc-windows-msvc.zip` from `tectonic-typesetting/tectonic` |
+| Resource binary exception policy | `desktop/scripts/resource-binary-exceptions.ts` enforced by `npm run verify:windows-arm64-resource-binaries` |
 
 ## Version Match
 
@@ -22,16 +25,20 @@ Date: 2026-05-22
 | Codex CLI | release payload = `rust-v0.128.0` | `resources/codex.exe --version` = `codex-cli 0.128.0` | Match |
 | CLI helper binaries | release payload = `rust-v0.128.0` | Windows helper `FileVersion` = `0.128.0` | Match |
 | Node REPL fallback | Store package `OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0` | `resources/node_repl.exe` SHA-256 = `e08f2ccc6411d5ae1928af9ab0f70678649d178b0e15b8a5d080f1c3c83000f1` | Explicit x64 exception |
+| Chrome extension host fallback | Store package `OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0` | `resources/extension-host.exe` SHA-256 = `1c8e9d31364fae8ac80caa9d75bef582bbaab42e75a562d78d7e86e691582f9e` | Explicit x64 exception |
+| Tectonic fallback | Public release `tectonic@0.16.9` | `tectonic.exe` SHA-256 = `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb`; asset digest = `sha256:131a24604785a9600989a3d91225f597df52ac06f00aeffe86fd529f99ee5cdd` | `hydrate:cli` x64 exception |
 
 ## Architecture Summary
 
 | Artifact | Executable count | Architecture result |
 | --- | ---: | --- |
 | macOS source app | 36 Mach-O files | 31 `arm64`, 5 Sparkle universal `fat(2)` files |
-| Windows ARM64 output | 13 PE files | 12 `ARM64`, 1 explicit `x64` exception (`resources/node_repl.exe`) |
+| Windows ARM64 output | Pending package rebuild | Adds explicit `x64` exceptions for `resources/node_repl.exe`, Chrome plugin `extension-host.exe` at the ARM64 lookup path, and LaTeX `tectonic.exe` |
 | Rebuilt native module cache | 1 PE file | `better_sqlite3.node` is `ARM64`; `.forge-meta` is `arm64--145` |
 
 The produced Windows package contains no `.node` files in `resources/app.asar` and no `resources/app.asar.unpacked` directory. The local native cache is rebuilt for ARM64, but no native module is emitted as a separate file in the produced package.
+
+The Windows ARM64 package is ARM64 by default. Any x64 PE payload must match the named exception policy in `desktop/scripts/resource-binary-exceptions.ts`; unlisted non-ARM64 `.dll`, `.exe`, or `.node` files fail `npm run verify:windows-arm64-resource-binaries`.
 
 ## macOS Executables
 
@@ -89,6 +96,8 @@ The produced Windows package contains no `.node` files in `resources/app.asar` a
 | `resources/codex-windows-sandbox-setup.exe` | `ARM64` | `0.128.0` |
 | `resources/codex.exe` | `ARM64` | `0.128.0`; CLI reports `codex-cli 0.128.0` |
 | `resources/node_repl.exe` | `x64` | Vendored from `OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0`; SHA-256 `e08f2ccc6411d5ae1928af9ab0f70678649d178b0e15b8a5d080f1c3c83000f1` |
+| `resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe` | `x64` | Vendored from `OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0`; copied to the ARM64 plugin lookup path because the bundled installer uses `os.arch()`; SHA-256 `1c8e9d31364fae8ac80caa9d75bef582bbaab42e75a562d78d7e86e691582f9e` |
+| `resources/plugins/openai-bundled*/plugins/latex*/bin/tectonic.exe` | `x64` | Downloaded by `hydrate:cli` from `tectonic-typesetting/tectonic` release `tectonic@0.16.9`; SHA-256 `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb` |
 | `vk_swiftshader.dll` | `ARM64` | `5.0.0` |
 | `vulkan-1.dll` | `ARM64` | Vulkan Loader |
 
@@ -100,6 +109,7 @@ These checks were run from `desktop`:
 npm run hydrate:app
 npm run hydrate:cli
 npm run make:win:arm64:ci
+npm run verify:windows-arm64-resource-binaries
 npx asar list .\out\Codex-win32-arm64\resources\app.asar
 ```
 

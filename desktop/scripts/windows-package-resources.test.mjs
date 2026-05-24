@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -10,8 +11,10 @@ import { fileURLToPath } from "node:url";
 const scriptsRoot = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.dirname(scriptsRoot);
 const repoRoot = path.dirname(desktopRoot);
-const uiOverridesManifestRelativePath =
-  "desktop/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json";
+const bundledTweakRelativeRoots = new Map([
+  ["codex-app-ui-overrides", "desktop/codex-plusplus/tweaks/codex-app-ui-overrides"],
+  ["codex-plusplus-updater-ui-overrides", "desktop/codex-plusplus/tweaks/codex-plusplus-updater-ui-overrides"],
+]);
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -24,6 +27,24 @@ const {
   syncBundledPluginResources,
 } = require(
   path.join(desktopRoot, ".cache", "scripts", "hydrate-codex-app.js"),
+);
+const {
+  installTectonicWindowsPayload,
+} = require(
+  path.join(desktopRoot, ".cache", "scripts", "bundled-plugin-windows-payloads.js"),
+);
+const {
+  matchWindowsArm64ResourceBinaryException,
+  peMachine,
+  readPeMachine,
+  windowsArm64ResourceBinaryExceptions,
+} = require(
+  path.join(desktopRoot, ".cache", "scripts", "resource-binary-exceptions.js"),
+);
+const {
+  verifyWindowsArm64ResourceBinaries,
+} = require(
+  path.join(desktopRoot, ".cache", "scripts", "verify-windows-arm64-resource-binaries.js"),
 );
 const {
   patchElectronCppgcHeapForMsvcHeader,
@@ -64,6 +85,52 @@ function readMainBranchFile(relativePath) {
   }
 }
 
+function readMainBranchJson(relativePath) {
+  return JSON.parse(readMainBranchFile(relativePath));
+}
+
+function gitFileList(ref, relativeRoot) {
+  const output = execFileSync("git", ["ls-tree", "-r", "--name-only", ref, "--", relativeRoot], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  return output.trim() ? output.trim().split(/\r?\n/) : [];
+}
+
+function readMainBranchFileList(relativeRoot) {
+  try {
+    return gitFileList("origin/main", relativeRoot);
+  } catch {
+    execFileSync("git", ["fetch", "--depth=1", "origin", "main:refs/remotes/origin/main"], {
+      cwd: repoRoot,
+      stdio: "ignore",
+    });
+    return gitFileList("origin/main", relativeRoot);
+  }
+}
+
+function normalizeText(source) {
+  return source.replace(/\r\n/g, "\n");
+}
+
+function listLocalFiles(relativeRoot) {
+  const root = path.join(repoRoot, relativeRoot);
+  const files = [];
+  function visit(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(entryPath);
+        continue;
+      }
+      files.push(path.relative(root, entryPath).replaceAll(path.sep, "/"));
+    }
+  }
+  visit(root);
+  return files.sort().map((file) => relativeRoot + "/" + file);
+}
+
 function expectedBundledTweakPrVersion(mainVersion) {
   const [major, minor, patch] = parseThreePartVersion(mainVersion);
   assert.equal(major, 0);
@@ -76,15 +143,80 @@ function expectedLocalModifiedTweakVersion(mainVersion) {
   return `${major}.${minor}.${patch + 1}`;
 }
 
+function tweakContentMatchesMainBranch(relativeRoot) {
+  const comparableFiles = (files) => files
+    .filter((file) => !file.endsWith("/manifest.json"))
+    .sort();
+  const localFiles = comparableFiles(listLocalFiles(relativeRoot));
+  const mainFiles = comparableFiles(readMainBranchFileList(relativeRoot));
+  if (JSON.stringify(localFiles) !== JSON.stringify(mainFiles)) {
+    return false;
+  }
+
+  return localFiles.every((relativePath) => (
+    normalizeText(fs.readFileSync(path.join(repoRoot, relativePath), "utf8")) ===
+    normalizeText(readMainBranchFile(relativePath))
+  ));
+}
+
+function expectedBundledTweakVersion(relativeRoot, mainManifest) {
+  return tweakContentMatchesMainBranch(relativeRoot)
+    ? mainManifest.version
+    : expectedBundledTweakPrVersion(mainManifest.version);
+}
+
+function bundledTweakRelativeRoot(tweakName) {
+  const relativeRoot = bundledTweakRelativeRoots.get(tweakName);
+  assert.ok(relativeRoot, "Unknown bundled tweak: " + tweakName);
+  return relativeRoot;
+}
+
+function expectedBundledTweakMetadata(tweakName, id) {
+  const relativeRoot = bundledTweakRelativeRoot(tweakName);
+  const mainManifest = readMainBranchJson(relativeRoot + "/manifest.json");
+  return {
+    id,
+    version: expectedBundledTweakVersion(relativeRoot, mainManifest),
+  };
+}
+
 function writePeFixture(filePath, machine) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const bytes = Buffer.alloc(0x100);
   bytes[0] = 0x4d;
   bytes[1] = 0x5a;
   bytes.writeInt32LE(0x80, 0x3c);
+  bytes[0x80] = 0x50;
+  bytes[0x81] = 0x45;
+  bytes[0x82] = 0;
+  bytes[0x83] = 0;
   bytes.writeUInt16LE(machine, 0x84);
   fs.writeFileSync(filePath, bytes);
 }
+
+function copyFixture(sourcePath, destinationPath) {
+  fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
+  fs.copyFileSync(sourcePath, destinationPath);
+}
+
+function sha256File(filePath) {
+  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+test("PE machine reader rejects invalid PE signatures", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-pe-signature-"));
+  try {
+    const filePath = path.join(root, "bad.exe");
+    writePeFixture(filePath, 0x8664);
+    const bytes = fs.readFileSync(filePath);
+    bytes[0x80] = 0;
+    fs.writeFileSync(filePath, bytes);
+
+    assert.throws(() => readPeMachine(filePath), /Invalid PE signature/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 function writeMachOFixture(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -191,8 +323,19 @@ function createAppResourcesFixture({ marketplaceName = "openai-bundled" } = {}) 
     path.join(bundledRoot, "plugins", "latex", ".codex-plugin", "plugin.json"),
     `${JSON.stringify({ name: "latex" }, null, 2)}\n`,
   );
+  writeFixture(
+    path.join(bundledRoot, "plugins", "latex", "bin", "tectonic"),
+    "macOS tectonic placeholder\n",
+  );
 
   return appResourcesRoot;
+}
+
+function createWindowsPluginPayloadFixture() {
+  const payloadRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-windows-plugin-payloads-"));
+  const extensionHostPath = path.join(payloadRoot, "extension-host.exe");
+  writePeFixture(extensionHostPath, 0x8664);
+  return { extensionHostPath };
 }
 
 function createMarkdownDirectiveFixture() {
@@ -224,8 +367,9 @@ function evaluateMarkdownDirectiveFixture(source, operationNames = ["git-create-
 test("generates Windows bundled plugin resources except macOS-only plugins", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
+  const windowsPayloads = createWindowsPluginPayloadFixture();
 
-  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, windowsPayloads);
 
   const marketplace = JSON.parse(
     fs.readFileSync(
@@ -238,9 +382,11 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
   );
   assert.deepEqual(
     marketplace.plugins.map((plugin) => plugin.name),
-    ["browser"],
+    ["browser", "chrome", "latex"],
   );
   assert.equal(marketplace.plugins[0].source.path, "./plugins/browser");
+  assert.equal(marketplace.plugins[1].source.path, "./plugins/chrome");
+  assert.equal(marketplace.plugins[2].source.path, "./plugins/latex");
 
   assert.equal(
     fs.existsSync(
@@ -257,19 +403,194 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
   );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/chrome")),
-    false,
+    true,
   );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex")),
+    true,
+  );
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        destinationPluginsRoot,
+        "openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe",
+      ),
+    ),
+    true,
+  );
+  assert.equal(
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex/bin/tectonic.exe")),
     false,
+  );
+  assert.equal(
+    fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex/bin/tectonic")),
+    false,
+  );
+});
+
+test("Windows ARM64 Resource binary policy lists the approved x64 exceptions", () => {
+  assert.deepEqual(
+    windowsArm64ResourceBinaryExceptions.map((exception) => exception.id).sort(),
+    ["chrome-extension-host", "node-repl", "tectonic"],
+  );
+  assert.equal(
+    matchWindowsArm64ResourceBinaryException("resources/node_repl.exe")?.expectedMachine,
+    peMachine.x64,
+  );
+  assert.equal(
+    matchWindowsArm64ResourceBinaryException(
+      "resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe",
+    )?.id,
+    "chrome-extension-host",
+  );
+  assert.equal(
+    matchWindowsArm64ResourceBinaryException(
+      "resources/plugins/openai-bundled-beta/plugins/latex-tectonic/bin/tectonic.exe",
+    )?.id,
+    "tectonic",
+  );
+  assert.equal(
+    matchWindowsArm64ResourceBinaryException("resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/x64/extension-host.exe"),
+    undefined,
+  );
+});
+
+test("installs Tectonic Windows payload into bundled LaTeX plugin roots", () => {
+  const resourcesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-tectonic-payload-"));
+  const tectonicPath = path.join(resourcesRoot, "source", "tectonic.exe");
+  writePeFixture(tectonicPath, 0x8664);
+  for (const pluginRoot of [
+    path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex"),
+    path.join(resourcesRoot, "plugins", "openai-bundled-beta", "plugins", "latex-tectonic"),
+  ]) {
+    writeFixture(path.join(pluginRoot, "bin", "tectonic"), "mac");
+  }
+
+  installTectonicWindowsPayload(resourcesRoot, tectonicPath);
+
+  for (const pluginRoot of [
+    path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex"),
+    path.join(resourcesRoot, "plugins", "openai-bundled-beta", "plugins", "latex-tectonic"),
+  ]) {
+    const installedPath = path.join(pluginRoot, "bin", "tectonic.exe");
+    assert.equal(fs.existsSync(installedPath), true);
+    assert.equal(readPeMachine(installedPath), 0x8664);
+    assert.equal(fs.existsSync(path.join(pluginRoot, "bin", "tectonic")), false);
+  }
+});
+
+test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-resource-policy-"));
+  const packageRoot = path.join(fixtureRoot, "out", "Codex-win32-arm64");
+  const nodeReplPath = path.join(fixtureRoot, "resources", "node_repl.exe");
+  const extensionHostPath = path.join(fixtureRoot, "resources", "extension-host.exe");
+  writePeFixture(nodeReplPath, 0x8664);
+  writePeFixture(extensionHostPath, 0x8664);
+  writeFixture(
+    path.join(fixtureRoot, "resources", "node_repl.json"),
+    JSON.stringify({
+      architecture: "x64",
+      packageFamilyName: "OpenAI.Codex_2p2nqsd0c76g0",
+      packageName: "OpenAI.Codex",
+      productId: "9PLM9XGG6VKS",
+      sha256: sha256File(nodeReplPath),
+      sourceRelativePath: "app/resources/node_repl.exe",
+    }),
+  );
+  writeFixture(
+    path.join(fixtureRoot, "resources", "extension-host.json"),
+    JSON.stringify({
+      architecture: "x64",
+      packageFamilyName: "OpenAI.Codex_2p2nqsd0c76g0",
+      packageName: "OpenAI.Codex",
+      productId: "9PLM9XGG6VKS",
+      sha256: sha256File(extensionHostPath),
+      sourceRelativePath: "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/x64/extension-host.exe",
+    }),
+  );
+
+  const packageNodeReplPath = path.join(packageRoot, "resources", "node_repl.exe");
+  const packageExtensionHostPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "chrome", "extension-host", "windows", "arm64", "extension-host.exe");
+  const packageTectonicPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "latex", "bin", "tectonic.exe");
+  const tectonicMetadataPath = path.join(fixtureRoot, ".cache", "codex-cli", "latest-release.json");
+  copyFixture(nodeReplPath, packageNodeReplPath);
+  copyFixture(extensionHostPath, packageExtensionHostPath);
+  writePeFixture(packageTectonicPath, 0x8664);
+  const tectonicRepo = "tectonic-typesetting/tectonic";
+  const tectonicTag = "tectonic@0.16.9";
+  const tectonicAssetName = "tectonic-0.16.9-x86_64-pc-windows-msvc.zip";
+  const tectonicMetadata = {
+    tagName: "codex-cli-release",
+    htmlUrl: "https://github.com/openai/codex/releases/tag/codex-cli-release",
+    assets: [{
+      assetName: tectonicAssetName,
+      downloadUrl: "https://github.com/" + tectonicRepo + "/releases/download/" +
+        tectonicTag + "/" + tectonicAssetName,
+      outputName: "plugins/*/latex*/bin/tectonic.exe",
+      releaseAssetSha256: "131a24604785a9600989a3d91225f597df52ac06f00aeffe86fd529f99ee5cdd",
+      releaseHtmlUrl: "https://github.com/" + tectonicRepo + "/releases/tag/" + tectonicTag,
+      releaseTagName: tectonicTag,
+      sha256: sha256File(packageTectonicPath),
+    }],
+  };
+  writeFixture(
+    tectonicMetadataPath,
+    JSON.stringify(tectonicMetadata),
+  );
+  writePeFixture(path.join(packageRoot, "resources", "codex.exe"), 0xaa64);
+
+  assert.deepEqual(
+    verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }).allowedExceptions,
+    ["chrome-extension-host", "node-repl", "tectonic"],
+  );
+
+  writeFixture(
+    tectonicMetadataPath,
+    JSON.stringify({
+      ...tectonicMetadata,
+      assets: [{ ...tectonicMetadata.assets[0], releaseTagName: "tectonic@0.0.0" }],
+    }),
+  );
+  assert.throws(
+    () => verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }),
+    /Tectonic hydrated metadata asset releaseTagName is "tectonic@0\.0\.0"/,
+  );
+  writeFixture(tectonicMetadataPath, JSON.stringify(tectonicMetadata));
+
+  writeFixture(
+    tectonicMetadataPath,
+    JSON.stringify({
+      ...tectonicMetadata,
+      assets: [{ ...tectonicMetadata.assets[0], releaseAssetSha256: "0".repeat(64) }],
+    }),
+  );
+  assert.throws(
+    () => verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }),
+    /Tectonic hydrated metadata releaseAssetSha256 is "0000000000000000000000000000000000000000000000000000000000000000"/,
+  );
+  writeFixture(tectonicMetadataPath, JSON.stringify(tectonicMetadata));
+
+  writePeFixture(packageNodeReplPath, 0x8664);
+  fs.appendFileSync(packageNodeReplPath, Buffer.from([1]));
+  assert.throws(
+    () => verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }),
+    /node_repl package SHA-256 does not match provenance metadata/,
+  );
+  copyFixture(nodeReplPath, packageNodeReplPath);
+
+  writePeFixture(path.join(packageRoot, "resources", "unlisted.exe"), 0x8664);
+  assert.throws(
+    () => verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }),
+    /Unexpected non-ARM64 Resource binary resources\/unlisted\.exe/,
   );
 });
 
 test("preserves beta bundled plugin marketplace resources", () => {
   const appResourcesRoot = createAppResourcesFixture({ marketplaceName: "openai-bundled-beta" });
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
+  const windowsPayloads = createWindowsPluginPayloadFixture();
 
-  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, windowsPayloads);
 
   const marketplace = JSON.parse(
     fs.readFileSync(
@@ -282,7 +603,7 @@ test("preserves beta bundled plugin marketplace resources", () => {
   );
   assert.deepEqual(
     marketplace.plugins.map((plugin) => plugin.name),
-    ["browser"],
+    ["browser", "chrome", "latex"],
   );
   assert.equal(marketplace.name, "openai-bundled-beta");
   assert.equal(
@@ -510,7 +831,7 @@ test("discovers native modules copied inside every non-excluded bundled plugin r
     "native payload\n",
   );
 
-  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, createWindowsPluginPayloadFixture());
 
   const targets = collectNativeNodeModuleTargets(
     fs.mkdtempSync(path.join(os.tmpdir(), "codex-recovered-")),
@@ -779,7 +1100,7 @@ test("allows the upstream bundle to omit the browser plugin", () => {
   marketplace.plugins = marketplace.plugins.filter((plugin) => plugin.name !== "browser");
   fs.writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`, "utf8");
 
-  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot);
+  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, createWindowsPluginPayloadFixture());
 
   const destinationMarketplace = JSON.parse(
     fs.readFileSync(
@@ -793,7 +1114,10 @@ test("allows the upstream bundle to omit the browser plugin", () => {
       "utf8",
     ),
   );
-  assert.deepEqual(destinationMarketplace.plugins, []);
+  assert.deepEqual(
+    destinationMarketplace.plugins.map((plugin) => plugin.name),
+    ["chrome", "latex"],
+  );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled", "plugins", "browser")),
     false,
@@ -1168,9 +1492,6 @@ test("Codex++ loader disables updater when config JSON is malformed", (t) => {
 
 test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
   const tweaksRoot = path.join(desktopRoot, "codex-plusplus", "tweaks");
-  const mainUiOverridesManifest = JSON.parse(
-    readMainBranchFile(uiOverridesManifestRelativePath),
-  );
   const tweakNames = fs
     .readdirSync(tweaksRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -1183,14 +1504,17 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   const expectedTweakMetadata = new Map([
     [
       "codex-app-ui-overrides",
-      {
-        id: "app.sliepie.codex.ui-overrides",
-        version: expectedBundledTweakPrVersion(mainUiOverridesManifest.version),
-      },
+      expectedBundledTweakMetadata(
+        "codex-app-ui-overrides",
+        "app.sliepie.codex.ui-overrides",
+      ),
     ],
     [
       "codex-plusplus-updater-ui-overrides",
-      { id: "app.sliepie.codex.codex-plusplus-updater-ui", version: "0.3.0" },
+      expectedBundledTweakMetadata(
+        "codex-plusplus-updater-ui-overrides",
+        "app.sliepie.codex.codex-plusplus-updater-ui",
+      ),
     ],
   ]);
 
@@ -1222,25 +1546,29 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   }
 });
 
-test("Codex++ UI override versions follow main branch bump policy", () => {
-  const manifest = JSON.parse(
-    fs.readFileSync(path.join(repoRoot, uiOverridesManifestRelativePath), "utf8"),
-  );
-  const mainManifest = JSON.parse(readMainBranchFile(uiOverridesManifestRelativePath));
-  const [mainMajor, mainMinor, mainPatch] = parseThreePartVersion(mainManifest.version);
+test("Bundled Codex++ tweak versions follow main branch bump policy", () => {
+  for (const relativeRoot of bundledTweakRelativeRoots.values()) {
+    const manifestPath = relativeRoot + "/manifest.json";
+    const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, manifestPath), "utf8"));
+    const mainManifest = readMainBranchJson(manifestPath);
+    const [mainMajor, mainMinor, mainPatch] = parseThreePartVersion(mainManifest.version);
+    const sourceChangedFromMain = !tweakContentMatchesMainBranch(relativeRoot);
 
-  assert.equal(
-    manifest.version,
-    expectedBundledTweakPrVersion(mainManifest.version),
-  );
-  assert.equal(
-    expectedLocalModifiedTweakVersion(mainManifest.version),
-    `${mainMajor}.${mainMinor}.${mainPatch + 1}`,
-  );
-  assert.notEqual(
-    expectedLocalModifiedTweakVersion(mainManifest.version),
-    manifest.version,
-  );
+    assert.equal(
+      manifest.version,
+      sourceChangedFromMain
+        ? expectedBundledTweakPrVersion(mainManifest.version)
+        : mainManifest.version,
+    );
+    assert.equal(
+      expectedLocalModifiedTweakVersion(mainManifest.version),
+      mainMajor + "." + mainMinor + "." + (mainPatch + 1),
+    );
+    assert.notEqual(
+      expectedLocalModifiedTweakVersion(mainManifest.version),
+      manifest.version,
+    );
+  }
 });
 
 test("Codex app UI override installs styles and Appearance menu-bar toggle", () => {
@@ -1643,63 +1971,14 @@ test("includes installed tslib for recovered main-process bundles", () => {
   assert.equal(config.packagerConfig.ignore("/node_modules/tslib/tslib.js"), false);
 });
 
-function expandScriptCommands(scriptName, scripts, seen = new Set()) {
-  assert.ok(scripts[scriptName], `Missing npm script ${scriptName}`);
-  assert.ok(!seen.has(scriptName), `Recursive npm script ${scriptName}`);
-
-  seen.add(scriptName);
-  return scripts[scriptName].split("&&").flatMap((rawCommand) => {
-    const command = rawCommand.trim();
-    const npmRunMatch = command.match(/^npm run ([^ ]+)(?:\s|$)/);
-    if (!npmRunMatch) {
-      return [command];
-    }
-
-    return [
-      command,
-      ...expandScriptCommands(npmRunMatch[1], scripts, new Set(seen)),
-    ];
-  });
-}
-
-function assertUpdaterBuildsBeforeForge(scriptName, scripts) {
-  const commands = expandScriptCommands(scriptName, scripts);
-  const updaterIndex = commands.findIndex((command) =>
-    command.includes("build:windows-oai-update-checker -- -Architecture arm64"),
-  );
-  const forgeIndex = commands.findIndex((command) => command.startsWith("electron-forge "));
-
-  assert.notEqual(updaterIndex, -1);
-  assert.notEqual(forgeIndex, -1);
-  assert.ok(updaterIndex < forgeIndex);
-}
-
-function assertHydrateAppRunsBeforeForge(scriptName, scripts) {
-  const commands = expandScriptCommands(scriptName, scripts);
-  const hydrateIndex = commands.findIndex((command) => command.includes("hydrate:app:compiled"));
-  const forgeIndex = commands.findIndex((command) => command.startsWith("electron-forge "));
-
-  assert.notEqual(hydrateIndex, -1);
-  assert.notEqual(forgeIndex, -1);
-  assert.ok(hydrateIndex < forgeIndex);
-}
-
-test("builds the replacement Windows updater before packaging", () => {
+test("Windows ARM64 package commands delegate ordering to the package plan", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
-  assertUpdaterBuildsBeforeForge("package:win:arm64", packageJson.scripts);
-  assertUpdaterBuildsBeforeForge("make:win:arm64", packageJson.scripts);
-  assertUpdaterBuildsBeforeForge("make:win:arm64:ci", packageJson.scripts);
-});
-
-test("hydrates the app payload before packaging", () => {
-  const packageJson = JSON.parse(
-    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
-  );
-  assertHydrateAppRunsBeforeForge("package:win:arm64", packageJson.scripts);
-  assertHydrateAppRunsBeforeForge("make:win:arm64", packageJson.scripts);
-  assertHydrateAppRunsBeforeForge("make:win:arm64:ci", packageJson.scripts);
+  assert.equal(packageJson.scripts["prepare:win:arm64"], "npm run build:scripts && npm run plan:win:arm64:compiled -- prepare");
+  assert.equal(packageJson.scripts["package:win:arm64"], "npm run build:scripts && npm run plan:win:arm64:compiled -- package");
+  assert.equal(packageJson.scripts["make:win:arm64"], "npm run build:scripts && npm run plan:win:arm64:compiled -- make");
+  assert.equal(packageJson.scripts["make:win:arm64:ci"], "npm run build:scripts && npm run plan:win:arm64:compiled -- make");
 });
 
 test("keeps the TypeScript beta script compiler floating", () => {
@@ -1727,6 +2006,17 @@ test("Windows ARM64 workflows use the documented VS2026 runner image", () => {
     assert.match(workflowSource, /runs-on: windows-2025-vs2026/);
     assert.doesNotMatch(workflowSource, /runs-on: windows-latest/);
   }
+});
+
+test("primary runtime workflow triggers when npm lockfile inputs change", () => {
+  const workflowSource = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "primary-runtime-windows-arm64.yml"),
+    "utf8",
+  );
+
+  assert.match(workflowSource, /pull_request:[\s\S]*paths:[\s\S]*- "desktop\/package-lock\.json"[\s\S]*workflow_dispatch:/);
+  assert.match(workflowSource, /push:[\s\S]*paths:[\s\S]*- "desktop\/package-lock\.json"[\s\S]*permissions:/);
+  assert.match(workflowSource, /cache-dependency-path: desktop\/package-lock\.json/);
 });
 
 test("PR builds publish the ZIP to a mutable alpha release", () => {
@@ -1793,41 +2083,39 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.doesNotMatch(prWorkflowSource, /env:\r?\n\s+GH_TOKEN: \$\{\{ github\.token \}\}\r?\n\s+PACKAGE_ARCHITECTURE:/);
   assert.match(releaseWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types \.\/scripts\/resolve-codex-releases\.ts/);
   assert.match(prWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types \.\/scripts\/resolve-codex-releases\.ts/);
-  assert.ok(releaseWorkflowSource.indexOf("name: Resolve upstream release versions") < releaseWorkflowSource.indexOf("name: Skip released commit"));
+  assert.ok(releaseWorkflowSource.indexOf("name: Resolve upstream release versions") < releaseWorkflowSource.indexOf("name: Notice existing repo release"));
   assert.doesNotMatch(
-    releaseWorkflowSource.slice(0, releaseWorkflowSource.indexOf("name: Skip released commit")),
+    releaseWorkflowSource.slice(0, releaseWorkflowSource.indexOf("name: Notice existing repo release")),
     /cache: npm/,
   );
-  assert.ok(releaseWorkflowSource.indexOf("name: Skip released commit") < releaseWorkflowSource.indexOf("name: Restore Electron cache"));
-  assert.match(releaseWorkflowSource, /name: Restore npm cache[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*cache: npm[\s\S]*cache-dependency-path: desktop\/package-lock\.json/);
+  assert.ok(releaseWorkflowSource.indexOf("name: Notice existing repo release") < releaseWorkflowSource.indexOf("name: Restore Electron cache"));
+  assert.match(releaseWorkflowSource, /name: Restore npm cache[\s\S]*cache: npm[\s\S]*cache-dependency-path: desktop\/package-lock\.json/);
   assert.ok(releaseWorkflowSource.indexOf("name: Restore npm cache") < releaseWorkflowSource.indexOf("name: Install dependencies"));
-  assert.match(releaseWorkflowSource, /name: Restore Electron cache[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''/);
-  assert.match(releaseWorkflowSource, /name: Install dependencies[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*run: npm ci/);
-  assert.match(releaseWorkflowSource, /name: Build desktop scripts[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*run: npm run build:scripts/);
+  assert.match(releaseWorkflowSource, /name: Restore Electron cache[\s\S]*uses: actions\/cache@/);
+  assert.match(releaseWorkflowSource, /name: Install dependencies[\s\S]*run: npm ci/);
+  assert.match(releaseWorkflowSource, /name: Build desktop scripts[\s\S]*run: npm run build:scripts/);
   assert.ok(prWorkflowSource.indexOf("name: Resolve upstream release versions") < prWorkflowSource.indexOf("name: Restore Electron cache"));
   assert.match(prWorkflowSource, /name: Build desktop scripts[\s\S]*run: npm run build:scripts/);
   assert.ok(prWorkflowSource.indexOf("name: Restore Electron cache") < prWorkflowSource.indexOf("name: Install dependencies"));
   assert.ok(releaseWorkflowSource.indexOf("name: Restore Electron cache") < releaseWorkflowSource.indexOf("name: Install dependencies"));
-  assert.match(prWorkflowSource, /name: Build Windows updater[\s\S]*run: npm run build:windows-oai-update-checker -- -Architecture arm64/);
-  assert.match(releaseWorkflowSource, /name: Build Windows updater[\s\S]*run: npm run build:windows-oai-update-checker -- -Architecture arm64/);
-  assert.match(prWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
-  assert.match(releaseWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
-  assert.match(prWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run hydrate:app:compiled -- --appcast-feed "\$env:CODEX_APPCAST_FEED" && npm run hydrate:cli:compiled/);
-  assert.match(releaseWorkflowSource, /name: Hydrate Windows ARM64 inputs[\s\S]*CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run hydrate:app:compiled -- --appcast-feed "\$env:CODEX_APPCAST_FEED" && npm run hydrate:cli:compiled/);
-  assert.match(prWorkflowSource, /name: Verify Windows ARM64 inputs[\s\S]*run: npm run verify:browser-client-runtime:compiled/);
-  assert.match(releaseWorkflowSource, /name: Verify Windows ARM64 inputs[\s\S]*run: npm run verify:browser-client-runtime:compiled/);
+  assert.match(prWorkflowSource, /name: Build Windows ARM64 ZIP[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
+  assert.match(releaseWorkflowSource, /name: Make Windows ARM64 ZIP[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
+  assert.match(prWorkflowSource, /name: Build Windows ARM64 ZIP[\s\S]*CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
+  assert.match(releaseWorkflowSource, /name: Make Windows ARM64 ZIP[\s\S]*CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
   assert.ok(
-    releaseWorkflowSource.indexOf("name: Skip released commit") <
+    releaseWorkflowSource.indexOf("name: Notice existing repo release") <
       releaseWorkflowSource.indexOf("name: Run targeted desktop tests"),
   );
-  assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
-  assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
+  assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
+  assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
   assert.match(prWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache\/restore@/);
   assert.match(releaseWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache@/);
   assert.equal(packageJson.scripts["build:scripts"], "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json");
   assert.equal(packageJson.scripts["verify:browser-client-runtime"], "npm run build:scripts && npm run verify:browser-client-runtime:compiled");
   assert.equal(packageJson.scripts["verify:browser-client-runtime:compiled"], "node ./.cache/scripts/verify-browser-client-runtime.js");
   assert.equal(packageJson.scripts["test:resolve-codex-releases:compiled"], "node --test scripts/resolve-codex-releases.test.mjs");
+  assert.equal(packageJson.scripts["test:hydrate-codex-cli:compiled"], "node --test scripts/hydrate-codex-cli.test.mjs");
+  assert.equal(packageJson.scripts["test:windows-arm64-package-plan:compiled"], "node --test scripts/windows-arm64-package-plan.test.mjs");
   assert.equal(packageJson.scripts["test:windows-package-resources:compiled"], "node --test scripts/windows-package-resources.test.mjs");
   assert.equal(packageJson.scripts["test:verify-browser-client-runtime:compiled"], "node --test scripts/verify-browser-client-runtime.test.mjs");
   assert.equal(packageJson.scripts["decode:self-signed-pfx"], "npm run build:scripts && node ./.cache/scripts/decode-self-signed-pfx.js");
@@ -1873,7 +2161,9 @@ test("authenticates Codex++ GitHub release lookup when a token is available", ()
   );
 
   assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
-  assert.match(scriptSource, /headers\.Authorization = `Bearer \$\{token\}`/);
+  assert.match(scriptSource, /headers\.Authorization = "Bearer " \+ token/);
+  assert.match(scriptSource, /fetchGithubUrl/);
+  assert.match(scriptSource, /withoutAuthorization/);
   assert.match(scriptSource, /headers: githubHeaders\(\)/);
   assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_REPOSITORY/);
   assert.match(scriptSource, /process\.env\.CODEX_APP_VERSION/);
@@ -1893,16 +2183,17 @@ test("authenticates Codex++ GitHub release lookup when a token is available", ()
 
 test("authenticates GitHub release asset downloads when a token is available", () => {
   const scriptSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
+    path.join(desktopRoot, "scripts", "github-release-assets.ts"),
     "utf8",
   );
 
   assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
-  assert.match(scriptSource, /headers\.Authorization = `Bearer \$\{token\}`/);
+  assert.match(scriptSource, /headers\.Authorization = "Bearer " \+ token/);
   assert.match(scriptSource, /hostname === "api\.github\.com" \|\| hostname === "github\.com"/);
-  assert.match(scriptSource, /fetch\(url, \{ headers: headersForUrl\(url\) \}\)/);
-  assert.match(scriptSource, /fetchGitHubRelease\(options\.codexRepo, options\.codexTag\)/);
-  assert.match(scriptSource, /verifyAssetDigest\(asset, downloadPath\)/);
+  assert.match(scriptSource, /fetchPublicGithubUrl/);
+  assert.match(scriptSource, /withoutAuthorization/);
+  assert.match(scriptSource, /export async function fetchGitHubRelease/);
+  assert.match(scriptSource, /ensureCachedReleaseAsset/);
   assert.doesNotMatch(scriptSource, /execFileSync\(\s*"gh"/);
 });
 
@@ -2000,12 +2291,20 @@ test("verifies hydrated upstream artifact integrity metadata", () => {
     path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
     "utf8",
   );
+  const githubAssetSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "github-release-assets.ts"),
+    "utf8",
+  );
 
   assert.match(appHydratorSource, /expectedDownloadLength/);
   assert.match(appHydratorSource, /Downloaded Codex app ZIP size mismatch/);
-  assert.match(cliHydratorSource, /parseAssetDigest/);
-  assert.match(cliHydratorSource, /verifyAssetDigest\(asset, downloadPath\)/);
-  assert.match(cliHydratorSource, /verifyAssetDigest\(asset, archivePath\)/);
+  assert.match(githubAssetSource, /parseAssetDigest/);
+  assert.match(githubAssetSource, /ensureCachedReleaseAsset/);
+  assert.match(githubAssetSource, /completeMarkerPath/);
+  assert.match(githubAssetSource, /temporaryExtractRoot/);
+  assert.match(githubAssetSource, /fs\.renameSync\(temporaryExtractRoot, extractRoot\)/);
+  assert.match(cliHydratorSource, /ensureCachedReleaseAsset/);
+  assert.match(cliHydratorSource, /ensureExtractedZip/);
 });
 
 test("repo Node toolchain matches the Electron runtime Node major", () => {
@@ -2062,16 +2361,22 @@ test("caches rebuilt native Node modules separately from hydrated app resources"
     path.join(desktopRoot, "scripts", "resolve-codex-releases.ts"),
     "utf8",
   );
+  const planSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "windows-arm64-package-plan.ts"),
+    "utf8",
+  );
   for (const cacheKeyInput of [
     "package-lock.json",
     "scripts/hydrate-codex-app.ts",
     "scripts/patch-better-sqlite3-electron.ts",
   ]) {
     assert.ok(
-      resolverSource.includes(cacheKeyInput),
+      planSource.includes(cacheKeyInput),
       `native module cache key should include ${cacheKeyInput}`,
     );
   }
+  assert.match(resolverSource, /windowsArm64NativeModuleCacheInputPaths/);
+  assert.match(resolverSource, /windowsArm64HydratedCacheInputPaths/);
   assert.match(resolverSource, /native_modules_cache_key/);
 
   const hydrateSource = fs.readFileSync(
@@ -2176,15 +2481,43 @@ test("hardcodes packaged Windows updater metadata to the self-signed identity", 
   );
 });
 
-test("node REPL updater only accepts the official Store package family", () => {
+test("Store binary updater only accepts the official Store package family", () => {
   const source = fs.readFileSync(
     path.join(desktopRoot, "scripts", "update-node-repl.ps1"),
     "utf8",
   );
 
+  const paramBlock = source.match(/param\([\s\S]*?\)/)?.[0] ?? "";
+  assert.doesNotMatch(paramBlock, /\$ProductId|\$PackageName|\$PackageFamilyName/);
   assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
   assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
   assert.match(source, /Where-Object \{ \$_\.PackageFamilyName -eq \$PackageFamilyName \}/);
+  assert.match(source, /app\\resources\\node_repl\.exe/);
+  assert.match(
+    source,
+    /app\\resources\\plugins\\openai-bundled\\plugins\\chrome\\extension-host\\windows\\x64\\extension-host\.exe/,
+  );
+});
+
+test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () => {
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
+    "utf8",
+  );
+
+  assert.match(source, /resourceBinaryExceptionById\("tectonic"\)/);
+  assert.match(source, /expectedGithubRepository/);
+  assert.match(source, /expectedGithubReleaseTag/);
+  assert.match(source, /expectedGithubAssetName/);
+  assert.doesNotMatch(source, /--tectonic-repo|--tectonic-version|-TectonicRepo|-TectonicVersion/);
+  assert.match(source, /hydrateTectonicExe/);
+  assert.match(source, /readPeMachine\(tectonicPath\)/);
+  assert.match(source, /installTectonicWindowsPayload\(resourcesRoot, tectonicPath\)/);
+  assert.match(source, /executableSha256: sha256\(tectonicPath\)/);
+  assert.match(source, /releaseHtmlUrl: tectonicAsset\.releaseHtmlUrl/);
+  assert.match(source, /releaseTagName: tectonicAsset\.releaseTagName/);
+  assert.match(source, /releaseAssetSha256: tectonicAsset\.releaseAssetSha256/);
+  assert.match(source, /sha256: tectonicAsset\.executableSha256/);
 });
 
 test("ignores generated signing-secret base64 exports", () => {

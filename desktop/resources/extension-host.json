@@ -1,0 +1,10 @@
+{
+  "productId": "9PLM9XGG6VKS",
+  "packageName": "OpenAI.Codex",
+  "packageFullName": "OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0",
+  "packageFamilyName": "OpenAI.Codex_2p2nqsd0c76g0",
+  "packageVersion": "26.519.3891.0",
+  "sourceRelativePath": "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/x64/extension-host.exe",
+  "architecture": "x64",
+  "sha256": "1c8e9d31364fae8ac80caa9d75bef582bbaab42e75a562d78d7e86e691582f9e"
+}

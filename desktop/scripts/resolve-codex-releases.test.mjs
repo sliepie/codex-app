@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -9,11 +10,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
-const nativeModuleCacheInputPaths = [
-  "package-lock.json",
-  "scripts/hydrate-codex-app.ts",
-  "scripts/patch-better-sqlite3-electron.ts",
-];
+const require = createRequire(import.meta.url);
+const {
+  windowsArm64HydratedCacheInputPaths,
+  windowsArm64HydratedCacheKeyVersion,
+  windowsArm64NativeModuleCacheInputPaths,
+  windowsArm64NativeModulesCacheKeyVersion,
+} = require("../.cache/scripts/windows-arm64-package-plan.js");
 const scriptPath = fileURLToPath(new URL("../.cache/scripts/resolve-codex-releases.js", import.meta.url));
 const typescriptScriptPath = fileURLToPath(new URL("resolve-codex-releases.ts", import.meta.url));
 const officialProdAppcastUrl = "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
@@ -63,13 +66,17 @@ function startServer(
     betaAppcastSource = appcast,
     betaAppcastStatus = 200,
     codexCliTag = "rust-v0.129.0",
+    codexPlusPlusObjectType = "commit",
     codexPlusPlusRepo = "b-nnett/codex-plusplus",
+    rejectAuthorizedCodexPlusPlusRequests = false,
+    releasePages = [releases],
     codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
     codexPlusPlusTag = "v0.1.7",
   } = {},
 ) {
   const server = http.createServer((request, response) => {
     const requestPath = request.url?.split("?")[0];
+    const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
     if (requestPath === "/codex-app-prod/appcast.xml") {
       response.writeHead(200, { "Content-Type": "application/xml" });
       response.end(appcastSource);
@@ -82,15 +89,26 @@ function startServer(
       return;
     }
 
-    if (request.url?.startsWith("/repos/sliepie/codex-app/releases")) {
+    if (requestUrl.pathname === "/repos/sliepie/codex-app/releases") {
+      const page = Number.parseInt(requestUrl.searchParams.get("page") ?? "1", 10);
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify(releases));
+      response.end(JSON.stringify(releasePages[page - 1] ?? []));
       return;
     }
 
     if (request.url === "/repos/openai/codex/releases/latest") {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ tag_name: codexCliTag }));
+      return;
+    }
+
+    if (
+      rejectAuthorizedCodexPlusPlusRequests &&
+      requestPath?.startsWith("/repos/" + codexPlusPlusRepo + "/") &&
+      request.headers.authorization
+    ) {
+      response.writeHead(401, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ message: "Bad credentials" }));
       return;
     }
 
@@ -106,7 +124,7 @@ function startServer(
         JSON.stringify({
           object: {
             sha: codexPlusPlusSha,
-            type: "commit",
+            type: codexPlusPlusObjectType,
           },
         }),
       );
@@ -139,13 +157,42 @@ async function hashCacheInputs(paths) {
   return hash.digest("hex");
 }
 
+async function expectedHydrationCacheKey({
+  appBuildNumber = "2429",
+  appVersion = "26.429.61741",
+  codexCliTag = "rust-v0.129.0",
+  codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+  codexPlusPlusTag = "v0.1.7",
+} = {}) {
+  return (
+    `windows-arm64-hydrated-${windowsArm64HydratedCacheKeyVersion}-app-${appVersion}-build-${appBuildNumber}-cli-${codexCliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-` +
+    await hashCacheInputs([...windowsArm64HydratedCacheInputPaths])
+  );
+}
+
+async function expectedNativeModulesCacheKey({
+  appBuildNumber = "2429",
+  appVersion = "26.429.61741",
+  codexCliTag = "rust-v0.129.0",
+  codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+  codexPlusPlusTag = "v0.1.7",
+} = {}) {
+  return (
+    `windows-arm64-native-modules-${windowsArm64NativeModulesCacheKeyVersion}-app-${appVersion}-build-${appBuildNumber}-cli-${codexCliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-` +
+    await hashCacheInputs([...windowsArm64NativeModuleCacheInputPaths])
+  );
+}
+
 async function runResolver({
   releases,
   appcastSource,
   betaAppcastSource,
   betaAppcastStatus,
   codexCliTag,
+  codexPlusPlusObjectType,
   codexPlusPlusRepo = "b-nnett/codex-plusplus",
+  rejectAuthorizedCodexPlusPlusRequests,
+  releasePages,
   codexPlusPlusSha,
   codexPlusPlusTag,
   sha = "abcdef1234567890",
@@ -156,7 +203,10 @@ async function runResolver({
     betaAppcastSource,
     betaAppcastStatus,
     codexCliTag,
+    codexPlusPlusObjectType,
     codexPlusPlusRepo,
+    rejectAuthorizedCodexPlusPlusRequests,
+    releasePages,
     codexPlusPlusSha,
     codexPlusPlusTag,
   });
@@ -223,8 +273,6 @@ async function runResolver({
 
 test("starts new Codex app releases at repo revision zero", async () => {
   const output = await runResolver({ releases: [] });
-  const expectedNativeModulesCacheKey =
-    `windows-arm64-native-modules-v1-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413-inputs-${await hashCacheInputs(nativeModuleCacheInputPaths)}`;
 
   assert.equal(output.release_version, "26.429.61741.0");
   assert.equal(output.codex_cli_tag, "rust-v0.129.0");
@@ -237,11 +285,11 @@ test("starts new Codex app releases at repo revision zero", async () => {
   assert.equal(output.codex_appcast_url, undefined);
   assert.equal(
     output.hydration_cache_key,
-    "windows-arm64-hydrated-v5-app-26.429.61741-build-2429-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+    await expectedHydrationCacheKey(),
   );
   assert.equal(
     output.native_modules_cache_key,
-    expectedNativeModulesCacheKey,
+    await expectedNativeModulesCacheKey(),
   );
 });
 
@@ -258,7 +306,7 @@ test("selects the beta appcast when it has a higher Sparkle build", async () => 
   assert.equal(output.codex_appcast_url, undefined);
   assert.equal(
     output.hydration_cache_key,
-    "windows-arm64-hydrated-v5-app-26.513.40821-build-2903-cli-rust-v0.129.0-codex-plusplus-v0.1.7-7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
+    await expectedHydrationCacheKey({ appBuildNumber: "2903", appVersion: "26.513.40821" }),
   );
   assert.doesNotMatch(output.hydration_cache_key, /beta|prod/);
 });
@@ -321,6 +369,26 @@ test("resolves Codex++ releases from the configured repository", async () => {
   );
 });
 
+test("retries public upstream Codex++ lookups without a repo-scoped token after 401", async () => {
+  const output = await runResolver({
+    releases: [],
+    rejectAuthorizedCodexPlusPlusRequests: true,
+  });
+
+  assert.equal(output.codex_plus_plus_tag, "v0.1.7");
+  assert.equal(output.codex_plus_plus_sha, "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413");
+});
+
+test("rejects Codex++ tags that do not resolve to commits", async () => {
+  await assert.rejects(
+    () => runResolver({
+      releases: [],
+      codexPlusPlusObjectType: "tree",
+    }),
+    /Codex\+\+ tag v0\.1\.7 points to a tree object, expected a commit or annotated tag/,
+  );
+});
+
 test("increments the repo revision when the same Codex app version has a prior numeric release", async () => {
   const output = await runResolver({
     releases: [{ tag_name: "codex-app-26.429.61741.0", target_commitish: "old-sha" }],
@@ -330,6 +398,24 @@ test("increments the repo revision when the same Codex app version has a prior n
   assert.equal(output.repo_release_revision, "1");
   assert.equal(output.release_tag, "codex-app-26.429.61741.1");
   assert.equal(output.current_commit_release_tag, "");
+});
+
+test("paginates existing repository releases before choosing a new revision", async () => {
+  const firstPage = Array.from({ length: 100 }, (_, index) => ({
+    tag_name: "codex-app-26.429.61741." + index,
+    target_commitish: "old-sha",
+  }));
+  const output = await runResolver({
+    releases: firstPage,
+    releasePages: [
+      firstPage,
+      [{ tag_name: "codex-app-26.429.61741.100", target_commitish: "old-sha" }],
+    ],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.101");
+  assert.equal(output.repo_release_revision, "101");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.101");
 });
 
 test("increments the repo revision when the same Codex app version has a prior commit-suffixed release", async () => {
@@ -369,7 +455,7 @@ test("keeps the repo revision when rerunning a commit that already has a commit-
 
   assert.equal(output.release_version, "26.429.61741.0");
   assert.equal(output.repo_release_revision, "0");
-  assert.equal(output.release_tag, "codex-app-26.429.61741.0");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.abcdef1");
   assert.equal(output.current_commit_release_tag, "codex-app-26.429.61741.abcdef1");
 });
 
