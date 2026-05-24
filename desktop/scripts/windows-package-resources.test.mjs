@@ -2014,7 +2014,8 @@ test("primary runtime workflow triggers when npm lockfile inputs change", () => 
     "utf8",
   );
 
-  assert.equal((workflowSource.match(/desktop\/package-lock\.json/g) ?? []).length, 2);
+  assert.match(workflowSource, /pull_request:[\s\S]*paths:[\s\S]*- "desktop\/package-lock\.json"[\s\S]*workflow_dispatch:/);
+  assert.match(workflowSource, /push:[\s\S]*paths:[\s\S]*- "desktop\/package-lock\.json"[\s\S]*permissions:/);
   assert.match(workflowSource, /cache-dependency-path: desktop\/package-lock\.json/);
 });
 
