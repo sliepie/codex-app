@@ -11,6 +11,7 @@ export const peMachine = {
 export type WindowsArm64ResourceBinaryException = {
   expectedArchitecture?: string;
   expectedGithubAssetName?: string;
+  expectedGithubAssetSha256?: string;
   expectedGithubReleaseTag?: string;
   expectedGithubRepository?: string;
   expectedMachine: number;
@@ -49,6 +50,7 @@ type HydratedResourceBinaryMetadata = {
     downloadUrl?: string;
     outputName?: string;
     releaseHtmlUrl?: string;
+    releaseAssetSha256?: string;
     releaseTagName?: string;
     sha256?: string;
   }>;
@@ -80,6 +82,14 @@ export function readPeMachine(filePath: string): number {
   const peOffset = bytes.readInt32LE(0x3c);
   if (peOffset < 0 || peOffset + 6 > bytes.length) {
     throw new Error("Invalid PE header offset in " + filePath + ".");
+  }
+  if (
+    bytes[peOffset] !== 0x50 ||
+    bytes[peOffset + 1] !== 0x45 ||
+    bytes[peOffset + 2] !== 0 ||
+    bytes[peOffset + 3] !== 0
+  ) {
+    throw new Error("Invalid PE signature in " + filePath + ".");
   }
 
   return bytes.readUInt16LE(peOffset + 4);
@@ -203,6 +213,23 @@ function expectedGithubReleaseSha256(
     "/" + exception.expectedGithubAssetName;
   requireGithubPath(asset.releaseHtmlUrl, releasePath, exception.label + " hydrated metadata releaseHtmlUrl");
   requireGithubPath(asset.downloadUrl, downloadPath, exception.label + " hydrated metadata downloadUrl");
+  if (exception.expectedGithubAssetSha256 !== undefined) {
+    const actualReleaseSha = requireSha256Digest(
+      asset.releaseAssetSha256,
+      exception.label + " hydrated metadata releaseAssetSha256",
+    );
+    const expectedReleaseSha = requireSha256Digest(
+      exception.expectedGithubAssetSha256,
+      exception.label + " expected GitHub release asset",
+    );
+    if (actualReleaseSha !== expectedReleaseSha) {
+      throw new Error(
+        exception.label + " hydrated metadata releaseAssetSha256 is " +
+          JSON.stringify(actualReleaseSha) + ", expected " +
+          JSON.stringify(expectedReleaseSha) + ".",
+      );
+    }
+  }
 
   return requireSha256Digest(asset.sha256, exception.label + " hydrated metadata");
 }
@@ -259,6 +286,7 @@ export const windowsArm64ResourceBinaryExceptions: WindowsArm64ResourceBinaryExc
   },
   {
     expectedGithubAssetName: "tectonic-0.16.9-x86_64-pc-windows-msvc.zip",
+    expectedGithubAssetSha256: "131a24604785a9600989a3d91225f597df52ac06f00aeffe86fd529f99ee5cdd",
     expectedGithubReleaseTag: "tectonic@0.16.9",
     expectedGithubRepository: "tectonic-typesetting/tectonic",
     expectedMachine: peMachine.x64,

@@ -38,32 +38,61 @@ export type AcquiredReleaseAsset = {
   size: number;
 };
 
+type ExtractedZipMarker = {
+  archiveSha256: string;
+  archiveSize: number;
+};
+
 export type ChecksumStrategy =
   | { kind: "digest" }
   | { kind: "sidecar-or-digest"; release: ReleaseInfo; sidecarAssetName: string };
 
-function githubHeaders(): Record<string, string> {
+function githubHeaders({
+  includeToken = true,
+}: {
+  includeToken?: boolean;
+} = {}): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
     "User-Agent": "sliepie-codex-app-windows-build",
   };
   const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
-  if (token) {
+  if (includeToken && token) {
     headers.Authorization = "Bearer " + token;
   }
 
   return headers;
 }
 
-function headersForUrl(url: string): Record<string, string> | undefined {
+function isPublicGithubUrl(url: string): boolean {
   const hostname = new URL(url).hostname.toLowerCase();
-  return hostname === "api.github.com" || hostname === "github.com"
-    ? githubHeaders()
-    : undefined;
+  return hostname === "api.github.com" || hostname === "github.com";
+}
+
+function headersForUrl(url: string): Record<string, string> | undefined {
+  return isPublicGithubUrl(url) ? githubHeaders() : undefined;
+}
+
+function withoutAuthorization(headers: Record<string, string>): Record<string, string> {
+  const retryHeaders = { ...headers };
+  delete retryHeaders.Authorization;
+  return retryHeaders;
+}
+
+async function fetchPublicGithubUrl(url: string | URL, init?: RequestInit): Promise<Response> {
+  const urlText = typeof url === "string" ? url : url.href;
+  const response = await fetch(url, init);
+  const headers = init?.headers as Record<string, string> | undefined;
+  if (response.status !== 401 || !isPublicGithubUrl(urlText) || !headers?.Authorization) {
+    return response;
+  }
+
+  return fetch(url, { ...init, headers: withoutAuthorization(headers) });
 }
 
 export async function downloadFile(url: string, outputPath: string): Promise<void> {
-  const response = await fetch(url, { headers: headersForUrl(url) });
+  const headers = headersForUrl(url);
+  const response = await fetchPublicGithubUrl(url, headers ? { headers } : undefined);
   if (!response.ok || !response.body) {
     throw new Error("Failed to download " + url + ": " + response.status + " " + response.statusText);
   }
@@ -72,7 +101,8 @@ export async function downloadFile(url: string, outputPath: string): Promise<voi
 }
 
 export async function fetchText(url: string): Promise<string> {
-  const response = await fetch(url, { headers: headersForUrl(url) });
+  const headers = headersForUrl(url);
+  const response = await fetchPublicGithubUrl(url, headers ? { headers } : undefined);
   if (!response.ok) {
     throw new Error("Failed to fetch " + url + ": " + response.status + " " + response.statusText);
   }
@@ -151,7 +181,7 @@ export async function fetchGitHubRelease(repository: string, tagName?: string): 
   const releasePath = tagName
     ? "/releases/tags/" + encodeURIComponent(tagName)
     : "/releases/latest";
-  const response = await fetch(repositoryApiUrl(repository, releasePath), {
+  const response = await fetchPublicGithubUrl(repositoryApiUrl(repository, releasePath), {
     headers: githubHeaders(),
   });
   if (!response.ok) {
@@ -225,6 +255,33 @@ export async function ensureCachedReleaseAsset({
   };
 }
 
+function extractedZipMarkerForArchive(archivePath: string): ExtractedZipMarker {
+  return {
+    archiveSha256: sha256(archivePath),
+    archiveSize: fs.statSync(archivePath).size,
+  };
+}
+
+function readExtractedZipMarker(markerPath: string): ExtractedZipMarker | undefined {
+  try {
+    const marker = JSON.parse(fs.readFileSync(markerPath, "utf8")) as Partial<ExtractedZipMarker>;
+    if (
+      typeof marker.archiveSha256 === "string" &&
+      /^[a-fA-F0-9]{64}$/.test(marker.archiveSha256) &&
+      typeof marker.archiveSize === "number"
+    ) {
+      return {
+        archiveSha256: marker.archiveSha256.toLowerCase(),
+        archiveSize: marker.archiveSize,
+      };
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
 export async function ensureExtractedZip({
   archivePath,
   extractRoot,
@@ -239,7 +296,13 @@ export async function ensureExtractedZip({
     fs.rmSync(extractRoot, { recursive: true, force: true });
     fs.rmSync(completeMarkerPath, { force: true });
   }
-  if (fs.existsSync(extractRoot) && fs.existsSync(completeMarkerPath)) {
+  const expectedMarker = extractedZipMarkerForArchive(archivePath);
+  const currentMarker = readExtractedZipMarker(completeMarkerPath);
+  if (
+    fs.existsSync(extractRoot) &&
+    currentMarker?.archiveSha256 === expectedMarker.archiveSha256 &&
+    currentMarker.archiveSize === expectedMarker.archiveSize
+  ) {
     return;
   }
 
@@ -251,7 +314,7 @@ export async function ensureExtractedZip({
     fs.mkdirSync(temporaryExtractRoot, { recursive: true });
     await extract(archivePath, { dir: temporaryExtractRoot });
     fs.renameSync(temporaryExtractRoot, extractRoot);
-    fs.writeFileSync(completeMarkerPath, "");
+    fs.writeFileSync(completeMarkerPath, JSON.stringify(expectedMarker, null, 2) + "\n");
   } catch (error) {
     fs.rmSync(temporaryExtractRoot, { recursive: true, force: true });
     fs.rmSync(completeMarkerPath, { force: true });

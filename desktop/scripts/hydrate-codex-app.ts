@@ -415,7 +415,7 @@ async function downloadFile(
   outputPath: string,
   headers?: Record<string, string>,
 ): Promise<void> {
-  const response = await fetch(url, headers ? { headers } : undefined);
+  const response = await fetchGithubUrl(url, headers ? { headers } : undefined);
   if (!response.ok || !response.body) {
     throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
   }
@@ -431,17 +431,37 @@ function appExtractCacheSegment(version: string, buildNumber?: string): string {
   return sanitizePathSegment(buildNumber ? `${version}-build-${buildNumber}` : version);
 }
 
-function githubHeaders(): Record<string, string> {
+function githubHeaders({
+  includeToken = true,
+}: {
+  includeToken?: boolean;
+} = {}): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
     "User-Agent": "sliepie-codex-app-windows-build",
   };
   const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  if (includeToken && token) {
+    headers.Authorization = "Bearer " + token;
   }
 
   return headers;
+}
+
+function withoutAuthorization(headers: Record<string, string>): Record<string, string> {
+  const retryHeaders = { ...headers };
+  delete retryHeaders.Authorization;
+  return retryHeaders;
+}
+
+async function fetchGithubUrl(url: string, init?: RequestInit): Promise<Response> {
+  const response = await fetch(url, init);
+  const headers = init?.headers as Record<string, string> | undefined;
+  if (response.status !== 401 || !headers?.Authorization) {
+    return response;
+  }
+
+  return fetch(url, { ...init, headers: withoutAuthorization(headers) });
 }
 
 function repositoryApiPath(repository: string): string {
@@ -460,7 +480,7 @@ async function fetchCodexPlusPlusRelease(
   const releasePath = tagName
     ? `releases/tags/${encodeURIComponent(tagName)}`
     : "releases/latest";
-  const response = await fetch(
+  const response = await fetchGithubUrl(
     `https://api.github.com/repos/${repositoryApiPath(repository)}/${releasePath}`,
     {
       headers: githubHeaders(),
@@ -479,7 +499,7 @@ async function fetchCodexPlusPlusTagCommitSha(
   repository: string,
   tagName: string,
 ): Promise<string> {
-  const response = await fetch(
+  const response = await fetchGithubUrl(
     `https://api.github.com/repos/${repositoryApiPath(repository)}/git/ref/tags/${encodeURIComponent(tagName)}`,
     { headers: githubHeaders() },
   );
@@ -496,11 +516,16 @@ async function fetchCodexPlusPlusTagCommitSha(
     throw new Error(`Codex++ tag ${tagName} did not include an object SHA.`);
   }
 
-  if (object?.type !== "tag") {
+  if (object?.type === "commit") {
     return sha;
   }
+  if (object?.type !== "tag") {
+    throw new Error(
+      `Codex++ tag ${tagName} points to a ${object?.type ?? "unknown"} object, expected a commit or annotated tag.`,
+    );
+  }
 
-  const tagResponse = await fetch(
+  const tagResponse = await fetchGithubUrl(
     object.url ?? `https://api.github.com/repos/${repositoryApiPath(repository)}/git/tags/${sha}`,
     { headers: githubHeaders() },
   );

@@ -212,22 +212,69 @@ function resolveRepoReleaseRevision({
   };
 }
 
-function releaseApiUrl(repository: string): URL {
+function releaseApiUrl(repository: string, page: number): URL {
   const url = repositoryApiUrl(repository, "/releases");
   url.searchParams.set("per_page", "100");
+  url.searchParams.set("page", String(page));
   return url;
 }
 
-function githubHeaders(): HeadersInit {
+function githubHeaders({
+  includeToken = true,
+}: {
+  includeToken?: boolean;
+} = {}): HeadersInit {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
   };
   const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  if (includeToken && token) {
+    headers.Authorization = "Bearer " + token;
   }
 
   return headers;
+}
+
+function withoutAuthorization(headers: HeadersInit): HeadersInit {
+  if (headers instanceof Headers) {
+    const retryHeaders = new Headers(headers);
+    retryHeaders.delete("Authorization");
+    return retryHeaders;
+  }
+  if (Array.isArray(headers)) {
+    return headers.filter(([name]) => name.toLowerCase() !== "authorization");
+  }
+
+  const retryHeaders = { ...headers };
+  delete retryHeaders.Authorization;
+  return retryHeaders;
+}
+
+function hasAuthorization(headers: HeadersInit | undefined): boolean {
+  if (!headers) {
+    return false;
+  }
+  if (headers instanceof Headers) {
+    return headers.has("Authorization");
+  }
+  if (Array.isArray(headers)) {
+    return headers.some(([name]) => name.toLowerCase() === "authorization");
+  }
+
+  return headers.Authorization !== undefined;
+}
+
+async function fetchPublicGithubUrl(url: string | URL, init?: RequestInit): Promise<Response> {
+  const response = await fetch(url, init);
+  const headers = init?.headers;
+  if (response.status !== 401 || !hasAuthorization(headers)) {
+    return response;
+  }
+
+  return fetch(url, {
+    ...init,
+    headers: withoutAuthorization(headers as HeadersInit),
+  });
 }
 
 async function fetchExistingReleases(): Promise<GithubRelease[]> {
@@ -236,16 +283,23 @@ async function fetchExistingReleases(): Promise<GithubRelease[]> {
     return [];
   }
 
-  const response = await fetch(releaseApiUrl(repository), { headers: githubHeaders() });
-  if (!response.ok) {
-    fail(`Failed to fetch GitHub releases: ${response.status} ${response.statusText}`);
-  }
+  const releases: GithubRelease[] = [];
+  for (let page = 1; ; page += 1) {
+    const response = await fetch(releaseApiUrl(repository, page), { headers: githubHeaders() });
+    if (!response.ok) {
+      fail("Failed to fetch GitHub releases: " + response.status + " " + response.statusText);
+    }
 
-  return (await response.json()) as GithubRelease[];
+    const pageReleases = (await response.json()) as GithubRelease[];
+    releases.push(...pageReleases);
+    if (pageReleases.length < 100) {
+      return releases;
+    }
+  }
 }
 
 async function fetchLatestReleaseTag(repository: string, label: string): Promise<string> {
-  const response = await fetch(repositoryApiUrl(repository, "/releases/latest"), {
+  const response = await fetchPublicGithubUrl(repositoryApiUrl(repository, "/releases/latest"), {
     headers: githubHeaders(),
   });
   if (!response.ok) {
@@ -307,7 +361,7 @@ function chooseLatestAppcastRelease(prod: AppcastRelease, beta: AppcastRelease):
 }
 
 async function fetchGitTagCommitSha(repository: string, tagName: string, label: string): Promise<string> {
-  const response = await fetch(repositoryApiUrl(repository, `/git/ref/tags/${encodeURIComponent(tagName)}`), {
+  const response = await fetchPublicGithubUrl(repositoryApiUrl(repository, `/git/ref/tags/${encodeURIComponent(tagName)}`), {
     headers: githubHeaders(),
   });
   if (!response.ok) {
@@ -321,11 +375,14 @@ async function fetchGitTagCommitSha(repository: string, tagName: string, label: 
     fail(`${label} tag ${tagName} did not include an object SHA.`);
   }
 
-  if (object?.type !== "tag") {
+  if (object?.type === "commit") {
     return sha;
   }
+  if (object?.type !== "tag") {
+    fail(label + " tag " + tagName + " points to a " + (object?.type ?? "unknown") + " object, expected a commit or annotated tag.");
+  }
 
-  const tagResponse = await fetch(object.url ?? repositoryApiUrl(repository, `/git/tags/${sha}`), {
+  const tagResponse = await fetchPublicGithubUrl(object.url ?? repositoryApiUrl(repository, `/git/tags/${sha}`), {
     headers: githubHeaders(),
   });
   if (!tagResponse.ok) {
@@ -384,7 +441,7 @@ async function main(): Promise<void> {
     codexPlusPlusTag,
   });
   const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
-  const releaseTag = `codex-app-${releaseVersion}`;
+  const releaseTag = currentCommitReleaseTag || `codex-app-${releaseVersion}`;
   const hydrationCacheInputHash = hashCacheInputs([...windowsArm64HydratedCacheInputPaths]);
   const hydrationCacheKey = `windows-arm64-hydrated-${windowsArm64HydratedCacheKeyVersion}-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-${hydrationCacheInputHash}`;
   const nativeModulesCacheInputHash = hashCacheInputs([...windowsArm64NativeModuleCacheInputPaths]);

@@ -1,13 +1,13 @@
 [CmdletBinding()]
 param(
-    [string] $ProductId = "9PLM9XGG6VKS",
-    [string] $PackageName = "OpenAI.Codex",
-    [string] $PackageFamilyName = "OpenAI.Codex_2p2nqsd0c76g0",
     [string] $OutputPath,
     [string] $ExtensionHostOutputPath
 )
 
 $ErrorActionPreference = "Stop"
+$ProductId = "9PLM9XGG6VKS"
+$PackageName = "OpenAI.Codex"
+$PackageFamilyName = "OpenAI.Codex_2p2nqsd0c76g0"
 
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     $OutputPath = Join-Path $PSScriptRoot "..\resources\node_repl.exe"
@@ -52,6 +52,9 @@ function Get-PeMachine {
     $peOffset = [System.BitConverter]::ToInt32($bytes, 0x3c)
     if ($peOffset -lt 0 -or $peOffset + 6 -gt $bytes.Length) {
         throw "Invalid PE header offset in $Path."
+    }
+    if ($bytes[$peOffset] -ne 0x50 -or $bytes[$peOffset + 1] -ne 0x45 -or $bytes[$peOffset + 2] -ne 0 -or $bytes[$peOffset + 3] -ne 0) {
+        throw "Invalid PE signature in $Path."
     }
 
     return [System.BitConverter]::ToUInt16($bytes, $peOffset + 4)

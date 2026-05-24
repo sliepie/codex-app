@@ -11,9 +11,10 @@ import { fileURLToPath } from "node:url";
 const scriptsRoot = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.dirname(scriptsRoot);
 const repoRoot = path.dirname(desktopRoot);
-const uiOverridesTweakRelativeRoot =
-  "desktop/codex-plusplus/tweaks/codex-app-ui-overrides";
-const uiOverridesManifestRelativePath = `${uiOverridesTweakRelativeRoot}/manifest.json`;
+const bundledTweakRelativeRoots = new Map([
+  ["codex-app-ui-overrides", "desktop/codex-plusplus/tweaks/codex-app-ui-overrides"],
+  ["codex-plusplus-updater-ui-overrides", "desktop/codex-plusplus/tweaks/codex-plusplus-updater-ui-overrides"],
+]);
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -84,6 +85,52 @@ function readMainBranchFile(relativePath) {
   }
 }
 
+function readMainBranchJson(relativePath) {
+  return JSON.parse(readMainBranchFile(relativePath));
+}
+
+function gitFileList(ref, relativeRoot) {
+  const output = execFileSync("git", ["ls-tree", "-r", "--name-only", ref, "--", relativeRoot], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  return output.trim() ? output.trim().split(/\r?\n/) : [];
+}
+
+function readMainBranchFileList(relativeRoot) {
+  try {
+    return gitFileList("origin/main", relativeRoot);
+  } catch {
+    execFileSync("git", ["fetch", "--depth=1", "origin", "main:refs/remotes/origin/main"], {
+      cwd: repoRoot,
+      stdio: "ignore",
+    });
+    return gitFileList("origin/main", relativeRoot);
+  }
+}
+
+function normalizeText(source) {
+  return source.replace(/\r\n/g, "\n");
+}
+
+function listLocalFiles(relativeRoot) {
+  const root = path.join(repoRoot, relativeRoot);
+  const files = [];
+  function visit(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(entryPath);
+        continue;
+      }
+      files.push(path.relative(root, entryPath).replaceAll(path.sep, "/"));
+    }
+  }
+  visit(root);
+  return files.sort().map((file) => relativeRoot + "/" + file);
+}
+
 function expectedBundledTweakPrVersion(mainVersion) {
   const [major, minor, patch] = parseThreePartVersion(mainVersion);
   assert.equal(major, 0);
@@ -96,19 +143,41 @@ function expectedLocalModifiedTweakVersion(mainVersion) {
   return `${major}.${minor}.${patch + 1}`;
 }
 
-function tweakSourceMatchesMainBranch(relativeRoot, mainFile) {
-  const sourceRelativePath = `${relativeRoot}/${mainFile}`;
-  const localSource = fs.readFileSync(path.join(repoRoot, sourceRelativePath), "utf8");
-  return (
-    localSource.replace(/\r\n/g, "\n") ===
-    readMainBranchFile(sourceRelativePath).replace(/\r\n/g, "\n")
-  );
+function tweakContentMatchesMainBranch(relativeRoot) {
+  const comparableFiles = (files) => files
+    .filter((file) => !file.endsWith("/manifest.json"))
+    .sort();
+  const localFiles = comparableFiles(listLocalFiles(relativeRoot));
+  const mainFiles = comparableFiles(readMainBranchFileList(relativeRoot));
+  if (JSON.stringify(localFiles) !== JSON.stringify(mainFiles)) {
+    return false;
+  }
+
+  return localFiles.every((relativePath) => (
+    normalizeText(fs.readFileSync(path.join(repoRoot, relativePath), "utf8")) ===
+    normalizeText(readMainBranchFile(relativePath))
+  ));
 }
 
 function expectedBundledTweakVersion(relativeRoot, mainManifest) {
-  return tweakSourceMatchesMainBranch(relativeRoot, mainManifest.main)
+  return tweakContentMatchesMainBranch(relativeRoot)
     ? mainManifest.version
     : expectedBundledTweakPrVersion(mainManifest.version);
+}
+
+function bundledTweakRelativeRoot(tweakName) {
+  const relativeRoot = bundledTweakRelativeRoots.get(tweakName);
+  assert.ok(relativeRoot, "Unknown bundled tweak: " + tweakName);
+  return relativeRoot;
+}
+
+function expectedBundledTweakMetadata(tweakName, id) {
+  const relativeRoot = bundledTweakRelativeRoot(tweakName);
+  const mainManifest = readMainBranchJson(relativeRoot + "/manifest.json");
+  return {
+    id,
+    version: expectedBundledTweakVersion(relativeRoot, mainManifest),
+  };
 }
 
 function writePeFixture(filePath, machine) {
@@ -117,6 +186,10 @@ function writePeFixture(filePath, machine) {
   bytes[0] = 0x4d;
   bytes[1] = 0x5a;
   bytes.writeInt32LE(0x80, 0x3c);
+  bytes[0x80] = 0x50;
+  bytes[0x81] = 0x45;
+  bytes[0x82] = 0;
+  bytes[0x83] = 0;
   bytes.writeUInt16LE(machine, 0x84);
   fs.writeFileSync(filePath, bytes);
 }
@@ -129,6 +202,21 @@ function copyFixture(sourcePath, destinationPath) {
 function sha256File(filePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
+
+test("PE machine reader rejects invalid PE signatures", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-pe-signature-"));
+  try {
+    const filePath = path.join(root, "bad.exe");
+    writePeFixture(filePath, 0x8664);
+    const bytes = fs.readFileSync(filePath);
+    bytes[0x80] = 0;
+    fs.writeFileSync(filePath, bytes);
+
+    assert.throws(() => readPeMachine(filePath), /Invalid PE signature/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 function writeMachOFixture(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -439,6 +527,7 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
       downloadUrl: "https://github.com/" + tectonicRepo + "/releases/download/" +
         tectonicTag + "/" + tectonicAssetName,
       outputName: "plugins/*/latex*/bin/tectonic.exe",
+      releaseAssetSha256: "131a24604785a9600989a3d91225f597df52ac06f00aeffe86fd529f99ee5cdd",
       releaseHtmlUrl: "https://github.com/" + tectonicRepo + "/releases/tag/" + tectonicTag,
       releaseTagName: tectonicTag,
       sha256: sha256File(packageTectonicPath),
@@ -465,6 +554,19 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
   assert.throws(
     () => verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }),
     /Tectonic hydrated metadata asset releaseTagName is "tectonic@0\.0\.0"/,
+  );
+  writeFixture(tectonicMetadataPath, JSON.stringify(tectonicMetadata));
+
+  writeFixture(
+    tectonicMetadataPath,
+    JSON.stringify({
+      ...tectonicMetadata,
+      assets: [{ ...tectonicMetadata.assets[0], releaseAssetSha256: "0".repeat(64) }],
+    }),
+  );
+  assert.throws(
+    () => verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }),
+    /Tectonic hydrated metadata releaseAssetSha256 is "0000000000000000000000000000000000000000000000000000000000000000"/,
   );
   writeFixture(tectonicMetadataPath, JSON.stringify(tectonicMetadata));
 
@@ -1390,9 +1492,6 @@ test("Codex++ loader disables updater when config JSON is malformed", (t) => {
 
 test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
   const tweaksRoot = path.join(desktopRoot, "codex-plusplus", "tweaks");
-  const mainUiOverridesManifest = JSON.parse(
-    readMainBranchFile(uiOverridesManifestRelativePath),
-  );
   const tweakNames = fs
     .readdirSync(tweaksRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -1405,17 +1504,17 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   const expectedTweakMetadata = new Map([
     [
       "codex-app-ui-overrides",
-      {
-        id: "app.sliepie.codex.ui-overrides",
-        version: expectedBundledTweakVersion(
-          uiOverridesTweakRelativeRoot,
-          mainUiOverridesManifest,
-        ),
-      },
+      expectedBundledTweakMetadata(
+        "codex-app-ui-overrides",
+        "app.sliepie.codex.ui-overrides",
+      ),
     ],
     [
       "codex-plusplus-updater-ui-overrides",
-      { id: "app.sliepie.codex.codex-plusplus-updater-ui", version: "0.3.0" },
+      expectedBundledTweakMetadata(
+        "codex-plusplus-updater-ui-overrides",
+        "app.sliepie.codex.codex-plusplus-updater-ui",
+      ),
     ],
   ]);
 
@@ -1447,31 +1546,29 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   }
 });
 
-test("Codex++ UI override versions follow main branch bump policy", () => {
-  const manifest = JSON.parse(
-    fs.readFileSync(path.join(repoRoot, uiOverridesManifestRelativePath), "utf8"),
-  );
-  const mainManifest = JSON.parse(readMainBranchFile(uiOverridesManifestRelativePath));
-  const [mainMajor, mainMinor, mainPatch] = parseThreePartVersion(mainManifest.version);
-  const sourceChangedFromMain = !tweakSourceMatchesMainBranch(
-    uiOverridesTweakRelativeRoot,
-    mainManifest.main,
-  );
+test("Bundled Codex++ tweak versions follow main branch bump policy", () => {
+  for (const relativeRoot of bundledTweakRelativeRoots.values()) {
+    const manifestPath = relativeRoot + "/manifest.json";
+    const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, manifestPath), "utf8"));
+    const mainManifest = readMainBranchJson(manifestPath);
+    const [mainMajor, mainMinor, mainPatch] = parseThreePartVersion(mainManifest.version);
+    const sourceChangedFromMain = !tweakContentMatchesMainBranch(relativeRoot);
 
-  assert.equal(
-    manifest.version,
-    sourceChangedFromMain
-      ? expectedBundledTweakPrVersion(mainManifest.version)
-      : mainManifest.version,
-  );
-  assert.equal(
-    expectedLocalModifiedTweakVersion(mainManifest.version),
-    `${mainMajor}.${mainMinor}.${mainPatch + 1}`,
-  );
-  assert.notEqual(
-    expectedLocalModifiedTweakVersion(mainManifest.version),
-    manifest.version,
-  );
+    assert.equal(
+      manifest.version,
+      sourceChangedFromMain
+        ? expectedBundledTweakPrVersion(mainManifest.version)
+        : mainManifest.version,
+    );
+    assert.equal(
+      expectedLocalModifiedTweakVersion(mainManifest.version),
+      mainMajor + "." + mainMinor + "." + (mainPatch + 1),
+    );
+    assert.notEqual(
+      expectedLocalModifiedTweakVersion(mainManifest.version),
+      manifest.version,
+    );
+  }
 });
 
 test("Codex app UI override installs styles and Appearance menu-bar toggle", () => {
@@ -1911,6 +2008,16 @@ test("Windows ARM64 workflows use the documented VS2026 runner image", () => {
   }
 });
 
+test("primary runtime workflow triggers when npm lockfile inputs change", () => {
+  const workflowSource = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "primary-runtime-windows-arm64.yml"),
+    "utf8",
+  );
+
+  assert.equal((workflowSource.match(/desktop\/package-lock\.json/g) ?? []).length, 2);
+  assert.match(workflowSource, /cache-dependency-path: desktop\/package-lock\.json/);
+});
+
 test("PR builds publish the ZIP to a mutable alpha release", () => {
   const workflowSource = fs.readFileSync(
     path.join(repoRoot, ".github", "workflows", "windows-arm64-pr-build.yml"),
@@ -1975,17 +2082,17 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.doesNotMatch(prWorkflowSource, /env:\r?\n\s+GH_TOKEN: \$\{\{ github\.token \}\}\r?\n\s+PACKAGE_ARCHITECTURE:/);
   assert.match(releaseWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types \.\/scripts\/resolve-codex-releases\.ts/);
   assert.match(prWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types \.\/scripts\/resolve-codex-releases\.ts/);
-  assert.ok(releaseWorkflowSource.indexOf("name: Resolve upstream release versions") < releaseWorkflowSource.indexOf("name: Skip released commit"));
+  assert.ok(releaseWorkflowSource.indexOf("name: Resolve upstream release versions") < releaseWorkflowSource.indexOf("name: Notice existing repo release"));
   assert.doesNotMatch(
-    releaseWorkflowSource.slice(0, releaseWorkflowSource.indexOf("name: Skip released commit")),
+    releaseWorkflowSource.slice(0, releaseWorkflowSource.indexOf("name: Notice existing repo release")),
     /cache: npm/,
   );
-  assert.ok(releaseWorkflowSource.indexOf("name: Skip released commit") < releaseWorkflowSource.indexOf("name: Restore Electron cache"));
-  assert.match(releaseWorkflowSource, /name: Restore npm cache[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*cache: npm[\s\S]*cache-dependency-path: desktop\/package-lock\.json/);
+  assert.ok(releaseWorkflowSource.indexOf("name: Notice existing repo release") < releaseWorkflowSource.indexOf("name: Restore Electron cache"));
+  assert.match(releaseWorkflowSource, /name: Restore npm cache[\s\S]*cache: npm[\s\S]*cache-dependency-path: desktop\/package-lock\.json/);
   assert.ok(releaseWorkflowSource.indexOf("name: Restore npm cache") < releaseWorkflowSource.indexOf("name: Install dependencies"));
-  assert.match(releaseWorkflowSource, /name: Restore Electron cache[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''/);
-  assert.match(releaseWorkflowSource, /name: Install dependencies[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*run: npm ci/);
-  assert.match(releaseWorkflowSource, /name: Build desktop scripts[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*run: npm run build:scripts/);
+  assert.match(releaseWorkflowSource, /name: Restore Electron cache[\s\S]*uses: actions\/cache@/);
+  assert.match(releaseWorkflowSource, /name: Install dependencies[\s\S]*run: npm ci/);
+  assert.match(releaseWorkflowSource, /name: Build desktop scripts[\s\S]*run: npm run build:scripts/);
   assert.ok(prWorkflowSource.indexOf("name: Resolve upstream release versions") < prWorkflowSource.indexOf("name: Restore Electron cache"));
   assert.match(prWorkflowSource, /name: Build desktop scripts[\s\S]*run: npm run build:scripts/);
   assert.ok(prWorkflowSource.indexOf("name: Restore Electron cache") < prWorkflowSource.indexOf("name: Install dependencies"));
@@ -1995,10 +2102,10 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.match(prWorkflowSource, /name: Build Windows ARM64 ZIP[\s\S]*CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
   assert.match(releaseWorkflowSource, /name: Make Windows ARM64 ZIP[\s\S]*CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
   assert.ok(
-    releaseWorkflowSource.indexOf("name: Skip released commit") <
+    releaseWorkflowSource.indexOf("name: Notice existing repo release") <
       releaseWorkflowSource.indexOf("name: Run targeted desktop tests"),
   );
-  assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*if: steps\.upstream\.outputs\.current_commit_release_tag == ''[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
+  assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
   assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
   assert.match(prWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache\/restore@/);
   assert.match(releaseWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache@/);
@@ -2053,7 +2160,9 @@ test("authenticates Codex++ GitHub release lookup when a token is available", ()
   );
 
   assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
-  assert.match(scriptSource, /headers\.Authorization = `Bearer \$\{token\}`/);
+  assert.match(scriptSource, /headers\.Authorization = "Bearer " \+ token/);
+  assert.match(scriptSource, /fetchGithubUrl/);
+  assert.match(scriptSource, /withoutAuthorization/);
   assert.match(scriptSource, /headers: githubHeaders\(\)/);
   assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_REPOSITORY/);
   assert.match(scriptSource, /process\.env\.CODEX_APP_VERSION/);
@@ -2080,7 +2189,8 @@ test("authenticates GitHub release asset downloads when a token is available", (
   assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
   assert.match(scriptSource, /headers\.Authorization = "Bearer " \+ token/);
   assert.match(scriptSource, /hostname === "api\.github\.com" \|\| hostname === "github\.com"/);
-  assert.match(scriptSource, /fetch\(url, \{ headers: headersForUrl\(url\) \}\)/);
+  assert.match(scriptSource, /fetchPublicGithubUrl/);
+  assert.match(scriptSource, /withoutAuthorization/);
   assert.match(scriptSource, /export async function fetchGitHubRelease/);
   assert.match(scriptSource, /ensureCachedReleaseAsset/);
   assert.doesNotMatch(scriptSource, /execFileSync\(\s*"gh"/);
@@ -2376,6 +2486,8 @@ test("Store binary updater only accepts the official Store package family", () =
     "utf8",
   );
 
+  const paramBlock = source.match(/param\([\s\S]*?\)/)?.[0] ?? "";
+  assert.doesNotMatch(paramBlock, /\$ProductId|\$PackageName|\$PackageFamilyName/);
   assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
   assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
   assert.match(source, /Where-Object \{ \$_\.PackageFamilyName -eq \$PackageFamilyName \}/);
@@ -2392,14 +2504,18 @@ test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () 
     "utf8",
   );
 
-  assert.match(source, /tectonic-typesetting\/tectonic/);
-  assert.match(source, /x86_64-pc-windows-msvc\.zip/);
+  assert.match(source, /resourceBinaryExceptionById\("tectonic"\)/);
+  assert.match(source, /expectedGithubRepository/);
+  assert.match(source, /expectedGithubReleaseTag/);
+  assert.match(source, /expectedGithubAssetName/);
+  assert.doesNotMatch(source, /--tectonic-repo|--tectonic-version|-TectonicRepo|-TectonicVersion/);
   assert.match(source, /hydrateTectonicExe/);
   assert.match(source, /readPeMachine\(tectonicPath\)/);
   assert.match(source, /installTectonicWindowsPayload\(resourcesRoot, tectonicPath\)/);
   assert.match(source, /executableSha256: sha256\(tectonicPath\)/);
   assert.match(source, /releaseHtmlUrl: tectonicAsset\.releaseHtmlUrl/);
   assert.match(source, /releaseTagName: tectonicAsset\.releaseTagName/);
+  assert.match(source, /releaseAssetSha256: tectonicAsset\.releaseAssetSha256/);
   assert.match(source, /sha256: tectonicAsset\.executableSha256/);
 });
 

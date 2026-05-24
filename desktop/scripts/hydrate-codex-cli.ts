@@ -27,8 +27,6 @@ type Options = {
   codexRepo: string;
   codexTag?: string;
   ripgrepRepo: string;
-  tectonicRepo: string;
-  tectonicVersion: string;
   nodeDistBaseUrl: string;
   cacheRoot: string;
   force: boolean;
@@ -82,10 +80,6 @@ function parseOptions(argv: string[]): Options {
     codexTag: readOption(argv, "--codex-tag", "-CodexTag") ?? process.env.CODEX_CLI_TAG,
     ripgrepRepo:
       readOption(argv, "--ripgrep-repo", "-RipgrepRepo") ?? "BurntSushi/ripgrep",
-    tectonicRepo:
-      readOption(argv, "--tectonic-repo", "-TectonicRepo") ?? "tectonic-typesetting/tectonic",
-    tectonicVersion:
-      readOption(argv, "--tectonic-version", "-TectonicVersion") ?? "0.16.9",
     nodeDistBaseUrl:
       readOption(argv, "--node-dist-base-url", "-NodeDistBaseUrl") ??
       "https://nodejs.org/dist",
@@ -299,21 +293,33 @@ async function hydrateRipgrepExe(options: Options, resourcesRoot: string): Promi
 type HydratedTectonicExe = {
   asset: ReleaseAsset;
   executableSha256: string;
+  releaseAssetSha256: string;
   releaseHtmlUrl: string;
   releaseTagName: string;
   size: number;
 };
 
+function requireExceptionValue(value: string | undefined, label: string): string {
+  if (!value) {
+    throw new Error("Missing " + label + " in the Tectonic resource binary exception.");
+  }
+
+  return value;
+}
+
 async function hydrateTectonicExe(
   options: Options,
   resourcesRoot: string,
 ): Promise<HydratedTectonicExe> {
-  const release = await fetchGitHubRelease(options.tectonicRepo, "tectonic@" + options.tectonicVersion);
-  const assetName = "tectonic-" + options.tectonicVersion + "-x86_64-pc-windows-msvc.zip";
+  const exception = resourceBinaryExceptionById("tectonic");
+  const repository = requireExceptionValue(exception.expectedGithubRepository, "repository");
+  const releaseTag = requireExceptionValue(exception.expectedGithubReleaseTag, "release tag");
+  const assetName = requireExceptionValue(exception.expectedGithubAssetName, "asset name");
+  const release = await fetchGitHubRelease(repository, releaseTag);
   const asset = findReleaseAsset(release, assetName, "Tectonic");
 
   const archivePath = path.join(options.cacheRoot, assetName);
-  const extractRoot = path.join(options.cacheRoot, "tectonic-" + options.tectonicVersion + "-x86_64-pc-windows-msvc");
+  const extractRoot = path.join(options.cacheRoot, assetName.replace(/\.zip$/i, ""));
 
   const acquiredAsset = await ensureCachedReleaseAsset({
     asset,
@@ -324,7 +330,6 @@ async function hydrateTectonicExe(
   await ensureExtractedZip({ archivePath, extractRoot, force: options.force });
 
   const tectonicPath = findSingleFile(extractRoot, "tectonic.exe");
-  const exception = resourceBinaryExceptionById("tectonic");
   const machine = readPeMachine(tectonicPath);
   if (machine !== exception.expectedMachine) {
     throw new Error(
@@ -337,6 +342,7 @@ async function hydrateTectonicExe(
   return {
     asset,
     executableSha256: sha256(tectonicPath),
+    releaseAssetSha256: acquiredAsset.sha256,
     releaseHtmlUrl: release.url,
     releaseTagName: release.tagName,
     size: acquiredAsset.size,
@@ -407,6 +413,7 @@ async function main(): Promise<void> {
     downloadUrl: tectonicAsset.asset.downloadUrl,
     releaseHtmlUrl: tectonicAsset.releaseHtmlUrl,
     releaseTagName: tectonicAsset.releaseTagName,
+    releaseAssetSha256: tectonicAsset.releaseAssetSha256,
     sha256: tectonicAsset.executableSha256,
     size: tectonicAsset.size,
   });
