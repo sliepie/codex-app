@@ -10,11 +10,11 @@ const HIDDEN_META_DECLARATIONS =
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
 const SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS =
-  "box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;";
+  "box-sizing:border-box!important;min-width:0!important;max-width:100%!important;";
 const SIDEBAR_THREAD_TITLE_LEFT_OFFSET_DECLARATIONS =
   "padding-inline-start:1.25rem!important;";
 const SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS =
-  "padding-inline-end:2.75rem!important;";
+  "padding-inline-end:1.25rem!important;";
 const SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS =
   "display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
@@ -230,18 +230,6 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       ],
     ),
     SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(
-      SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
-      [
-        " .w-4:not(:has(button))",
-        " .w-4>:not(:has(button))",
-        " .w-4 span:not(:has(button))",
-        " .w-4 svg:not(button svg)",
-      ],
-    ),
-    HIDDEN_META_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [

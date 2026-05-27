@@ -1915,7 +1915,7 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
         "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;",
       ),
     );
-    assert.ok(uiOverrideCss.includes("padding-inline-end:2.75rem!important;"));
+    assert.ok(uiOverrideCss.includes("padding-inline-end:1.25rem!important;"));
     assert.ok(
       uiOverrideCss.includes(
         ":has(>.absolute.right-0.top-0.z-10):is(:hover,:focus-within) [data-thread-title-trigger]",
@@ -1928,6 +1928,7 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
       uiOverrideCss.includes(" [data-thread-title-trigger]>:first-child"),
     );
     assert.ok(uiOverrideCss.includes("gap:0.25rem!important;"));
+    assert.ok(!uiOverrideCss.includes(" .w-4:not(:has(button))"));
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
