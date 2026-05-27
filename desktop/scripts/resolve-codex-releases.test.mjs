@@ -275,6 +275,7 @@ test("starts new Codex app releases at repo revision zero", async () => {
   const output = await runResolver({ releases: [] });
 
   assert.equal(output.release_version, "26.429.61741.0");
+  assert.equal(output.msix_package_version, "26.429.2429.0");
   assert.equal(output.codex_cli_tag, "rust-v0.129.0");
   assert.equal(output.codex_plus_plus_tag, "v0.1.7");
   assert.equal(output.codex_plus_plus_sha, "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413");
@@ -351,6 +352,29 @@ test("runs release resolver directly from TypeScript before dependency install",
   assert.equal(output.codex_app_version, "26.429.61741");
   assert.equal(output.codex_app_build, "2429");
   assert.equal(output.release_tag, "codex-app-26.429.61741.0");
+});
+
+test("uses Sparkle build number for MSIX package versions", async () => {
+  const output = await runResolver({
+    releases: [],
+    appcastSource: appcastFor("26.519.81530", "3178"),
+    betaAppcastSource: appcastFor("26.519.81530", "3178"),
+  });
+
+  assert.equal(output.release_version, "26.519.81530.0");
+  assert.equal(output.release_tag, "codex-app-26.519.81530.0");
+  assert.equal(output.msix_package_version, "26.519.3178.0");
+});
+
+test("rejects MSIX package version segments that exceed the schema range", async () => {
+  await assert.rejects(
+    () => runResolver({
+      releases: [],
+      appcastSource: appcastFor("26.519.81530", "65536"),
+      betaAppcastSource: appcastFor("26.519.81530", "65536"),
+    }),
+    /Codex app build number must be between 0 and 65535 for MSIX package versions/,
+  );
 });
 
 test("resolves Codex++ releases from the configured repository", async () => {
