@@ -7,6 +7,8 @@ const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
+const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
+const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -78,6 +80,48 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
   ),
 ];
 
+const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
+  cssRule(
+    interactiveSelectors(".group\\/section-toggle", [
+      " .group-hover\\/section-toggle\\:opacity-100",
+      " .group-focus-visible\\/section-toggle\\:opacity-100",
+    ]),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/projects-section-header", [
+      " .group-hover\\/projects-section-header\\:opacity-100",
+      " .group-focus-within\\/projects-section-header\\:opacity-100",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/chats-section-header", [
+      " .group-hover\\/chats-section-header\\:opacity-100",
+      " .group-focus-within\\/chats-section-header\\:opacity-100",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      " .group-hover\\/folder-row\\:opacity-100",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      " .group-hover\\/folder-row\\:opacity-0",
+    ]),
+    HIDDEN_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      " .group-hover\\/folder-row\\:hidden",
+    ]),
+    HIDDEN_DISPLAY_DECLARATIONS,
+  ),
+];
+
 const RIGHT_PANEL_TAB_STYLE_RULES = [
   cssRule(
     interactiveSelectors("[data-app-shell-tab-controller='right'] .group\\/tab", [
@@ -129,6 +173,7 @@ const USAGE_MENU_STYLE_RULES = [
 const STYLE_RULES = [
   ...BASE_STYLE_RULES,
   ...SIDEBAR_PIXEL_NUDGE_STYLE_RULES,
+  ...SIDEBAR_HOVER_CONTROL_STYLE_RULES,
   ...RIGHT_PANEL_TAB_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,

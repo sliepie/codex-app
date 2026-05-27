@@ -1865,6 +1865,31 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
         String.raw`.group\/chats-section-header{position:relative!important;left:-1px!important;}`,
       ),
     );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/section-toggle:is(:hover,:focus-within) .group-hover\/section-toggle\:opacity-100,.group\/section-toggle:is(:hover,:focus-within) .group-focus-visible\/section-toggle\:opacity-100{opacity:1!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/projects-section-header:is(:hover,:focus-within) .group-hover\/projects-section-header\:opacity-100,.group\/projects-section-header:is(:hover,:focus-within) .group-focus-within\/projects-section-header\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/chats-section-header:is(:hover,:focus-within) .group-hover\/chats-section-header\:opacity-100,.group\/chats-section-header:is(:hover,:focus-within) .group-focus-within\/chats-section-header\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:hidden{display:none!important;}`,
+      ),
+    );
     assert.match(
       appendedStyles[0].textContent,
       /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
