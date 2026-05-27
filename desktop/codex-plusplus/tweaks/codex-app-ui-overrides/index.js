@@ -18,6 +18,31 @@ const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
 const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
   '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
 const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
+const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
+const SIDEBAR_THREAD_ROW_VISIBLE_CONTROL_TARGETS = [
+  ' [class*="group-hover/"][class*=":opacity-100"]',
+  ' [class*="group-focus-within/"][class*=":opacity-100"]',
+];
+const SIDEBAR_THREAD_ROW_VISIBLE_FLEX_CONTROL_TARGETS = [
+  ' [class*="group-hover/"][class*=":flex"]',
+  ' [class*="group-focus-within/"][class*=":flex"]',
+];
+const SIDEBAR_THREAD_ROW_VISIBLE_INLINE_FLEX_CONTROL_TARGETS = [
+  ' [class*="group-hover/"][class*=":inline-flex"]',
+  ' [class*="group-focus-within/"][class*=":inline-flex"]',
+];
+const SIDEBAR_THREAD_ROW_VISIBLE_BLOCK_CONTROL_TARGETS = [
+  ' [class*="group-hover/"][class*=":block"]',
+  ' [class*="group-focus-within/"][class*=":block"]',
+];
+const SIDEBAR_THREAD_ROW_HIDDEN_CONTROL_TARGETS = [
+  ' [class*="group-hover/"][class*=":opacity-0"]',
+  ' [class*="group-focus-within/"][class*=":opacity-0"]',
+];
+const SIDEBAR_THREAD_ROW_HIDDEN_DISPLAY_TARGETS = [
+  ' [class*="group-hover/"][class*=":hidden"]',
+  ' [class*="group-focus-within/"][class*=":hidden"]',
+];
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -115,6 +140,22 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
       ...descendantSelectors(".group\\/folder-row", [
         " .group-hover\\/folder-row\\:opacity-100",
       ]),
+      ...descendantSelectors(
+        SIDEBAR_THREAD_ROW_SELECTOR,
+        SIDEBAR_THREAD_ROW_VISIBLE_CONTROL_TARGETS,
+      ),
+      ...descendantSelectors(
+        SIDEBAR_THREAD_ROW_SELECTOR,
+        SIDEBAR_THREAD_ROW_VISIBLE_FLEX_CONTROL_TARGETS,
+      ),
+      ...descendantSelectors(
+        SIDEBAR_THREAD_ROW_SELECTOR,
+        SIDEBAR_THREAD_ROW_VISIBLE_INLINE_FLEX_CONTROL_TARGETS,
+      ),
+      ...descendantSelectors(
+        SIDEBAR_THREAD_ROW_SELECTOR,
+        SIDEBAR_THREAD_ROW_VISIBLE_BLOCK_CONTROL_TARGETS,
+      ),
     ],
     SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS,
   ),
@@ -135,6 +176,22 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
       ...interactiveSelectors(".group\\/folder-row", [
         " .group-hover\\/folder-row\\:opacity-100",
       ]),
+      ...interactiveSelectors(
+        SIDEBAR_THREAD_ROW_SELECTOR,
+        SIDEBAR_THREAD_ROW_VISIBLE_CONTROL_TARGETS,
+      ),
+      ...interactiveSelectors(
+        SIDEBAR_THREAD_ROW_SELECTOR,
+        SIDEBAR_THREAD_ROW_VISIBLE_FLEX_CONTROL_TARGETS,
+      ),
+      ...interactiveSelectors(
+        SIDEBAR_THREAD_ROW_SELECTOR,
+        SIDEBAR_THREAD_ROW_VISIBLE_INLINE_FLEX_CONTROL_TARGETS,
+      ),
+      ...interactiveSelectors(
+        SIDEBAR_THREAD_ROW_SELECTOR,
+        SIDEBAR_THREAD_ROW_VISIBLE_BLOCK_CONTROL_TARGETS,
+      ),
     ],
     SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
   ),
@@ -144,6 +201,48 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   cssRule(
     SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR,
     SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_VISIBLE_CONTROL_TARGETS,
+    ),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_VISIBLE_FLEX_CONTROL_TARGETS,
+    ),
+    VISIBLE_FLEX_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_VISIBLE_INLINE_FLEX_CONTROL_TARGETS,
+    ),
+    `display:inline-flex!important;${VISIBLE_CONTROL_DECLARATIONS}`,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_VISIBLE_BLOCK_CONTROL_TARGETS,
+    ),
+    `display:block!important;${VISIBLE_CONTROL_DECLARATIONS}`,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_HIDDEN_CONTROL_TARGETS,
+    ),
+    HIDDEN_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_HIDDEN_DISPLAY_TARGETS,
+    ),
+    HIDDEN_DISPLAY_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(".group\\/section-toggle", [
