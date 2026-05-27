@@ -7,6 +7,9 @@ const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
+const SIDEBAR_CHATS_THREAD_ROW_SELECTOR =
+  '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row]';
+const SIDEBAR_THREAD_ROW_PIN_ACTION_SELECTOR = " .absolute.top-0.left-1.z-10";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -78,6 +81,22 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
   ),
 ];
 
+const SIDEBAR_THREAD_ROW_HOVER_STYLE_RULES = [
+  cssRule(
+    interactiveSelectors(SIDEBAR_CHATS_THREAD_ROW_SELECTOR, [
+      SIDEBAR_THREAD_ROW_PIN_ACTION_SELECTOR,
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(SIDEBAR_CHATS_THREAD_ROW_SELECTOR, [
+      `${SIDEBAR_THREAD_ROW_PIN_ACTION_SELECTOR} svg`,
+      `${SIDEBAR_THREAD_ROW_PIN_ACTION_SELECTOR} .icon-xs`,
+    ]),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+];
+
 const RIGHT_PANEL_TAB_STYLE_RULES = [
   cssRule(
     interactiveSelectors("[data-app-shell-tab-controller='right'] .group\\/tab", [
@@ -129,6 +148,7 @@ const USAGE_MENU_STYLE_RULES = [
 const STYLE_RULES = [
   ...BASE_STYLE_RULES,
   ...SIDEBAR_PIXEL_NUDGE_STYLE_RULES,
+  ...SIDEBAR_THREAD_ROW_HOVER_STYLE_RULES,
   ...RIGHT_PANEL_TAB_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,

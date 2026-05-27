@@ -1865,6 +1865,16 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
         String.raw`.group\/chats-section-header{position:relative!important;left:-1px!important;}`,
       ),
     );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .absolute.top-0.left-1.z-10{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .absolute.top-0.left-1.z-10 svg,[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .absolute.top-0.left-1.z-10 .icon-xs{opacity:1!important;visibility:visible!important;}`,
+      ),
+    );
     assert.match(
       appendedStyles[0].textContent,
       /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
