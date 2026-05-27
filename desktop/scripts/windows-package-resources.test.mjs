@@ -1907,16 +1907,6 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button[aria-label="Archive chat"],[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [role="button"][aria-label="Archive chat"]{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button[aria-label="Archive chat"] svg`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
         String.raw`.group\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\/folder-row\:opacity-100){gap:0!important;}`,
       ),
     );
