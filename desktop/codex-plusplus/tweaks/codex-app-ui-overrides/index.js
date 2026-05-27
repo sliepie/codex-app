@@ -43,6 +43,15 @@ const SIDEBAR_THREAD_ROW_HIDDEN_DISPLAY_TARGETS = [
   ' [class*="group-hover/"][class*=":hidden"]',
   ' [class*="group-focus-within/"][class*=":hidden"]',
 ];
+const SIDEBAR_THREAD_ROW_ARCHIVE_BUTTON_TARGETS = [
+  ' button[aria-label="Archive chat"]',
+  ' [role="button"][aria-label="Archive chat"]',
+];
+const SIDEBAR_THREAD_ROW_ARCHIVE_ICON_TARGETS =
+  SIDEBAR_THREAD_ROW_ARCHIVE_BUTTON_TARGETS.flatMap((target) => [
+    `${target} svg`,
+    `${target} .icon-xs`,
+  ]);
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -156,6 +165,10 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
         SIDEBAR_THREAD_ROW_SELECTOR,
         SIDEBAR_THREAD_ROW_VISIBLE_BLOCK_CONTROL_TARGETS,
       ),
+      ...descendantSelectors(
+        SIDEBAR_THREAD_ROW_SELECTOR,
+        SIDEBAR_THREAD_ROW_ARCHIVE_BUTTON_TARGETS,
+      ),
     ],
     SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS,
   ),
@@ -191,6 +204,10 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
       ...interactiveSelectors(
         SIDEBAR_THREAD_ROW_SELECTOR,
         SIDEBAR_THREAD_ROW_VISIBLE_BLOCK_CONTROL_TARGETS,
+      ),
+      ...interactiveSelectors(
+        SIDEBAR_THREAD_ROW_SELECTOR,
+        SIDEBAR_THREAD_ROW_ARCHIVE_BUTTON_TARGETS,
       ),
     ],
     SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
@@ -243,6 +260,20 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       SIDEBAR_THREAD_ROW_HIDDEN_DISPLAY_TARGETS,
     ),
     HIDDEN_DISPLAY_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ARCHIVE_BUTTON_TARGETS,
+    ),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ARCHIVE_ICON_TARGETS,
+    ),
+    VISIBLE_ICON_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(".group\\/section-toggle", [
