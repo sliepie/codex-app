@@ -10,7 +10,7 @@ const HIDDEN_META_DECLARATIONS =
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
 const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
-  "padding-inline-start:1.25rem!important;";
+  "padding-inline-start:1.25rem!important;padding-inline-end:2.75rem!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
 const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
@@ -42,6 +42,7 @@ const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
   ">.absolute.right-0.top-0.z-10 button .icon-xs",
   ">.absolute.right-0.top-0.z-10 button .icon-sm",
 ];
+const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS = "gap:0.25rem!important;";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -175,6 +176,13 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       SIDEBAR_THREAD_ROW_ACTION_TARGETS,
     ),
     VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
+      " .absolute.top-0.left-1.z-10",
+      ">.absolute.right-0.top-0.z-10",
+    ]),
+    SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(

@@ -1915,6 +1915,10 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
         "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;",
       ),
     );
+    assert.ok(uiOverrideCss.includes("padding-inline-end:2.75rem!important;"));
+    assert.ok(uiOverrideCss.includes("text-overflow:ellipsis!important;"));
+    assert.ok(uiOverrideCss.includes("white-space:nowrap!important;"));
+    assert.ok(uiOverrideCss.includes("gap:0.25rem!important;"));
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
