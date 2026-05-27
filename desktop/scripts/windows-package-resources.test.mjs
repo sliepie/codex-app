@@ -2282,6 +2282,19 @@ test("operational scripts resolve desktop root from script location", () => {
   }
 });
 
+test("Codex app hydrator detects direct script execution without require.main", () => {
+  const appHydratorSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+
+  assert.match(appHydratorSource, /function isDirectExecution\(\): boolean/);
+  assert.match(appHydratorSource, /require\.main === module/);
+  assert.match(appHydratorSource, /const entrypoint = process\.argv\[1\]/);
+  assert.match(appHydratorSource, /path\.resolve\(entrypoint\) === __filename/);
+  assert.match(appHydratorSource, /if \(isDirectExecution\(\)\)/);
+});
+
 test("verifies hydrated upstream artifact integrity metadata", () => {
   const appHydratorSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
