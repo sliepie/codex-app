@@ -1918,6 +1918,10 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     assert.ok(uiOverrideCss.includes("padding-inline-end:2.75rem!important;"));
     assert.ok(uiOverrideCss.includes("text-overflow:ellipsis!important;"));
     assert.ok(uiOverrideCss.includes("white-space:nowrap!important;"));
+    assert.ok(uiOverrideCss.includes("word-break:normal!important;"));
+    assert.ok(
+      uiOverrideCss.includes(" [data-thread-title-trigger]>:first-child"),
+    );
     assert.ok(uiOverrideCss.includes("gap:0.25rem!important;"));
     assert.ok(
       uiOverrideCss.includes(

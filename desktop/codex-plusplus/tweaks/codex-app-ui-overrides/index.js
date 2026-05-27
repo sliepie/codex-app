@@ -10,7 +10,9 @@ const HIDDEN_META_DECLARATIONS =
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
 const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
-  "padding-inline-start:1.25rem!important;padding-inline-end:2.75rem!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;";
+  "box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;padding-inline-start:1.25rem!important;padding-inline-end:2.75rem!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;";
+const SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS =
+  "display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
 const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
@@ -197,6 +199,18 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10)`,
+      [
+        " [data-thread-title-trigger]>:first-child",
+        " [data-thread-title-trigger] .truncate",
+        " [data-thread-title-trigger] .whitespace-pre-wrap",
+        " [data-thread-title-trigger] .break-all",
+      ],
+    ),
+    SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(
