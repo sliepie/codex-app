@@ -27,7 +27,6 @@
     "scripts/resolve-codex-releases.ts",
     "scripts/resolve-primary-runtime-source.ts",
     "scripts/resource-binary-exceptions.ts",
-    "scripts/run-hydrate-codex-app.ts",
     "scripts/publish-primary-runtime-release.ts",
     "scripts/verify-browser-client-runtime.ts",
     "scripts/verify-windows-arm64-resource-binaries.ts",
