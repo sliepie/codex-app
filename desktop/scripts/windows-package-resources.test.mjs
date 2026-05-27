@@ -1882,6 +1882,11 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.ok(
       uiOverrideCss.includes(
+        String.raw`.group\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\/folder-row\:opacity-100){gap:0!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
       ),
     );

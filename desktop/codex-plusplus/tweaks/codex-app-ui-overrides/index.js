@@ -15,6 +15,9 @@ const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
   "transform:translateX(0)!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
+const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
+  '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
+const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -138,6 +141,10 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
 ];
 
 const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
+  cssRule(
+    SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR,
+    SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS,
+  ),
   cssRule(
     interactiveSelectors(".group\\/section-toggle", [
       " .group-hover\\/section-toggle\\:opacity-100",
