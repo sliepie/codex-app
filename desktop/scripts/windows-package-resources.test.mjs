@@ -2125,6 +2125,8 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.doesNotMatch(releaseWorkflowSource, /npm run decode:self-signed-pfx/);
   assert.match(releaseWorkflowSource, /npm run prepare:self-signed-msix-payload:compiled/);
   assert.match(releaseWorkflowSource, /npm run write:self-signed-appinstaller:compiled/);
+  assert.match(releaseWorkflowSource, /PACKAGE_VERSION: \$\{\{ steps\.upstream\.outputs\.msix_package_version \}\}/);
+  assert.doesNotMatch(releaseWorkflowSource, /PACKAGE_VERSION: \$\{\{ steps\.upstream\.outputs\.release_version \}\}/);
 });
 
 test("self-signed MSIX payload rewrites shared SwiftShader ICD metadata", () => {

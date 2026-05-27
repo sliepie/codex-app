@@ -175,7 +175,7 @@ jobs:
         if: env.PUBLISH_SELF_SIGNED_MSIX == 'true'
         shell: pwsh
         env:
-          PACKAGE_VERSION: ${{ steps.upstream.outputs.release_version }}
+          PACKAGE_VERSION: ${{ steps.upstream.outputs.msix_package_version }}
           PACKAGE_NAME: ${{ vars.SELF_SIGNED_PACKAGE_NAME }}
           PACKAGE_PUBLISHER: ${{ vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
           APPINSTALLER_URI: ${{ vars.SELF_SIGNED_APPINSTALLER_URI }}
@@ -212,7 +212,7 @@ jobs:
         env:
           PACKAGE_NAME: ${{ vars.SELF_SIGNED_PACKAGE_NAME }}
           PACKAGE_PUBLISHER: ${{ vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
-          PACKAGE_VERSION: ${{ steps.upstream.outputs.release_version }}
+          PACKAGE_VERSION: ${{ steps.upstream.outputs.msix_package_version }}
           SELF_SIGNED_PFX_PASSWORD: ${{ secrets.SELF_SIGNED_PFX_PASSWORD }}
         run: |
           $password = ConvertTo-SecureString -String $env:SELF_SIGNED_PFX_PASSWORD -AsPlainText -Force
@@ -239,7 +239,7 @@ jobs:
         env:
           PACKAGE_NAME: ${{ vars.SELF_SIGNED_PACKAGE_NAME }}
           PACKAGE_PUBLISHER: ${{ vars.SELF_SIGNED_PACKAGE_PUBLISHER }}
-          PACKAGE_VERSION: ${{ steps.upstream.outputs.release_version }}
+          PACKAGE_VERSION: ${{ steps.upstream.outputs.msix_package_version }}
           APPINSTALLER_URI: ${{ vars.SELF_SIGNED_APPINSTALLER_URI }}
           PAGES_BASE_URL: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}
           PACKAGE_URI: ${{ vars.SELF_SIGNED_PAGES_BASE_URL }}/Codex-${{ env.PACKAGE_ARCHITECTURE }}-self-signed.msix

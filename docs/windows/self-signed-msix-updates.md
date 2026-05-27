@@ -49,6 +49,12 @@ manual `main` run to rebuild and publish the same version again. Manual
 workflow runs against other branches build artifacts only and do not publish
 GitHub Release or Pages assets.
 
+The GitHub Release tag keeps the full upstream app version, for example
+`codex-app-26.519.81530.0`. The MSIX/App Installer package version is a
+separate Windows-valid four-part version: `major.minor.sparkleBuild.repoRevision`.
+That avoids invalid MSIX segments when the upstream app patch segment exceeds
+Windows' 65535 segment limit.
+
 Set these repository variables:
 
 - `SELF_SIGNED_PACKAGE_NAME`: MSIX package identity name.

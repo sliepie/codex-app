@@ -29,6 +29,7 @@ const appVersionPattern = /^\d+\.\d+\.\d+$/;
 const buildNumberPattern = /^\d+$/;
 const releaseTagPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const shaPattern = /^[0-9a-f]{40}$/i;
+const maxMsixVersionSegment = 65535;
 
 type GithubRelease = {
   body?: string | null;
@@ -102,6 +103,29 @@ function parsePositiveInteger(label: string, value: string): number {
   }
 
   return parsed;
+}
+
+function parseMsixVersionSegment(label: string, value: number | string): number {
+  const parsed = typeof value === "number" ? value : parsePositiveInteger(label, value);
+  if (parsed > maxMsixVersionSegment) {
+    fail(`${label} must be between 0 and ${maxMsixVersionSegment} for MSIX package versions: ${JSON.stringify(value)}`);
+  }
+
+  return parsed;
+}
+
+function msixPackageVersionForRelease(
+  appVersion: string,
+  appBuildNumber: string,
+  repoReleaseRevision: number,
+): string {
+  const [appMajor = "", appMinor = ""] = appVersion.split(".");
+  return [
+    parseMsixVersionSegment("Codex app major version", appMajor),
+    parseMsixVersionSegment("Codex app minor version", appMinor),
+    parseMsixVersionSegment("Codex app build number", appBuildNumber),
+    parseMsixVersionSegment("repo release revision", repoReleaseRevision),
+  ].join(".");
 }
 
 function githubOutput(name: string, value: number | string): void {
@@ -441,6 +465,11 @@ async function main(): Promise<void> {
     codexPlusPlusTag,
   });
   const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
+  const msixPackageVersion = msixPackageVersionForRelease(
+    appVersion,
+    buildNumber,
+    repoReleaseRevision,
+  );
   const releaseTag = currentCommitReleaseTag || `codex-app-${releaseVersion}`;
   const hydrationCacheInputHash = hashCacheInputs([...windowsArm64HydratedCacheInputPaths]);
   const hydrationCacheKey = `windows-arm64-hydrated-${windowsArm64HydratedCacheKeyVersion}-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-${hydrationCacheInputHash}`;
@@ -455,6 +484,7 @@ async function main(): Promise<void> {
   githubOutput("codex_plus_plus_sha", codexPlusPlusSha);
   githubOutput("repo_release_revision", repoReleaseRevision);
   githubOutput("release_version", releaseVersion);
+  githubOutput("msix_package_version", msixPackageVersion);
   githubOutput("release_tag", releaseTag);
   githubOutput("current_commit_release_tag", currentCommitReleaseTag);
   githubOutput("hydration_cache_key", hydrationCacheKey);
@@ -471,6 +501,7 @@ async function main(): Promise<void> {
         codexPlusPlusSha,
         repoReleaseRevision,
         releaseVersion,
+        msixPackageVersion,
         releaseTag,
         currentCommitReleaseTag,
         nativeModulesCacheKey,
