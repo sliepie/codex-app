@@ -9,8 +9,12 @@ const HIDDEN_META_DECLARATIONS =
   "opacity:0!important;visibility:hidden!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
-const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
-  "box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;padding-inline-start:1.25rem!important;padding-inline-end:2.75rem!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;";
+const SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS =
+  "box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;";
+const SIDEBAR_THREAD_TITLE_LEFT_OFFSET_DECLARATIONS =
+  "padding-inline-start:1.25rem!important;";
+const SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS =
+  "padding-inline-end:2.75rem!important;";
 const SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS =
   "display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
@@ -25,6 +29,7 @@ const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
   '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
 const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
+const SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR = `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10,>.absolute.right-0.top-0.z-10)`;
 const SIDEBAR_THREAD_ROW_ACTION_TARGETS = [
   " .absolute.top-0.left-1.z-10",
   " .absolute.top-0.left-1.z-10 button",
@@ -195,14 +200,28 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   ),
   cssRule(
     interactiveSelectors(
-      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10)`,
+      SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
       [" [data-thread-title-trigger]"],
     ),
-    SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
+    SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(
       `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10)`,
+      [" [data-thread-title-trigger]"],
+    ),
+    SIDEBAR_THREAD_TITLE_LEFT_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(>.absolute.right-0.top-0.z-10)`,
+      [" [data-thread-title-trigger]"],
+    ),
+    SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
       [
         " [data-thread-title-trigger]>:first-child",
         " [data-thread-title-trigger] .truncate",
@@ -214,7 +233,7 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   ),
   cssRule(
     interactiveSelectors(
-      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10)`,
+      SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
       [
         " .w-4:not(:has(button))",
         " .w-4>:not(:has(button))",
