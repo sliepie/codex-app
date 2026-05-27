@@ -9,6 +9,8 @@ const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
+const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
+  ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -119,6 +121,20 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       " .group-hover\\/folder-row\\:hidden",
     ]),
     HIDDEN_DISPLAY_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      SIDEBAR_PROJECT_ROW_ICON_SELECTOR +
+        " .group-hover\\/folder-row\\:opacity-0",
+    ]),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      SIDEBAR_PROJECT_ROW_ICON_SELECTOR +
+        " .group-hover\\/folder-row\\:opacity-100",
+    ]),
+    HIDDEN_CONTROL_DECLARATIONS,
   ),
 ];
 
