@@ -1,9 +1,9 @@
 {
   "productId": "9PLM9XGG6VKS",
   "packageName": "OpenAI.Codex",
-  "packageFullName": "OpenAI.Codex_26.519.3891.0_x64__2p2nqsd0c76g0",
+  "packageFullName": "OpenAI.Codex_26.519.11010.0_x64__2p2nqsd0c76g0",
   "packageFamilyName": "OpenAI.Codex_2p2nqsd0c76g0",
-  "packageVersion": "26.519.3891.0",
+  "packageVersion": "26.519.11010.0",
   "sourceRelativePath": "app/resources/node_repl.exe",
   "architecture": "x64",
   "sha256": "e08f2ccc6411d5ae1928af9ab0f70678649d178b0e15b8a5d080f1c3c83000f1"
