@@ -1907,12 +1907,32 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`@media (prefers-reduced-motion:no-preference){.group\/section-toggle .group-hover\/section-toggle\:opacity-100`,
+        String.raw`@media (prefers-reduced-motion:no-preference){`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/section-toggle .group-hover\/section-toggle\:opacity-100`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
         "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "transition:opacity 110ms ease-out,transform 110ms ease-out!important;transform:translateX(1px)!important;",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{transition:opacity 110ms ease-out,transform 110ms ease-out!important;transform:translateX(1px)!important;}",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{transform:translateX(0)!important;}",
       ),
     );
     assert.ok(uiOverrideCss.includes("padding-inline-end:1rem!important;"));

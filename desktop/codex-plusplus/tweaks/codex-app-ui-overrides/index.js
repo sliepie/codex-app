@@ -23,6 +23,10 @@ const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;";
 const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
   "transform:translateX(0)!important;";
+const SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS =
+  "transition:opacity 110ms ease-out,transform 110ms ease-out!important;transform:translateX(1px)!important;";
+const SIDEBAR_THREAD_ROW_ACTION_ACTIVE_MOTION_DECLARATIONS =
+  "transform:translateX(0)!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
 const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
@@ -30,6 +34,11 @@ const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
 const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
 const SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR = `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10,>.absolute.right-0.top-0.z-10)`;
+const SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS = [
+  " .absolute.top-0.left-1.z-10",
+  " .w-4 span:has(button)",
+  ">.absolute.right-0.top-0.z-10",
+];
 const SIDEBAR_THREAD_ROW_ACTION_TARGETS = [
   " .absolute.top-0.left-1.z-10",
   " .absolute.top-0.left-1.z-10 button",
@@ -131,6 +140,20 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
 
 const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
   cssRule(
+    descendantSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
+    ),
+    SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
+    ),
+    SIDEBAR_THREAD_ROW_ACTION_ACTIVE_MOTION_DECLARATIONS,
+  ),
+  cssRule(
     [
       ...descendantSelectors(".group\\/section-toggle", [
         " .group-hover\\/section-toggle\\:opacity-100",
@@ -185,10 +208,10 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     VISIBLE_CONTROL_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
-      " .absolute.top-0.left-1.z-10",
-      ">.absolute.right-0.top-0.z-10",
-    ]),
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
+    ),
     SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS,
   ),
   cssRule(
