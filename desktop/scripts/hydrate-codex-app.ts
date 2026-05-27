@@ -2386,8 +2386,8 @@ function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
   );
 }
 
-async function main(): Promise<void> {
-  const options = parseOptions(process.argv.slice(2));
+export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
+  const options = parseOptions(argv);
   fs.mkdirSync(options.cacheRoot, { recursive: true });
 
   const appcastResponse = await fetch(codexAppcastUrlForFeed(options.appcastFeed));

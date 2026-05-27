@@ -2282,6 +2282,37 @@ test("operational scripts resolve desktop root from script location", () => {
   }
 });
 
+test("Codex app hydration runs through an explicit package runner", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
+  );
+  const appHydratorSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+  const runnerSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "run-hydrate-codex-app.mjs"),
+    "utf8",
+  );
+
+  assert.equal(
+    packageJson.scripts["hydrate:app"],
+    "npm run build:scripts && node ./scripts/run-hydrate-codex-app.mjs",
+  );
+  assert.equal(
+    packageJson.scripts["hydrate:app:compiled"],
+    "node ./scripts/run-hydrate-codex-app.mjs",
+  );
+  assert.match(
+    appHydratorSource,
+    /export async function main\(argv: string\[\] = process\.argv\.slice\(2\)\): Promise<void>/,
+  );
+  assert.match(runnerSource, /createRequire\(import\.meta\.url\)/);
+  assert.match(runnerSource, /require\("\.\.\/\.cache\/scripts\/hydrate-codex-app\.js"\)/);
+  assert.match(runnerSource, /await main\(process\.argv\.slice\(2\)\)/);
+  assert.doesNotMatch(appHydratorSource, /process\.argv\[1\]/);
+});
+
 test("verifies hydrated upstream artifact integrity metadata", () => {
   const appHydratorSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
@@ -2312,19 +2343,17 @@ test("repo Node toolchain matches the Electron runtime Node major", () => {
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
   const nodeVersionFile = fs.readFileSync(path.join(repoRoot, ".node-version"), "utf8").trim();
-  const electronPath = require("electron");
-  const electronNodeVersion = execFileSync(
-    electronPath,
-    ["-p", "process.versions.node"],
-    {
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        ELECTRON_RUN_AS_NODE: "1",
-      },
-    },
-  ).trim();
-  const electronNodeMajor = electronNodeVersion.split(".")[0];
+  const electronPackageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "node_modules", "electron", "package.json"), "utf8"),
+  );
+  const electronNodeTypesRange = electronPackageJson.dependencies?.["@types/node"];
+  assert.equal(typeof electronNodeTypesRange, "string");
+  const electronNodeMajorMatch = /^\^?(\d+)\./.exec(electronNodeTypesRange);
+  assert.ok(
+    electronNodeMajorMatch,
+    `Expected Electron @types/node range to start with a major version, got ${electronNodeTypesRange}`,
+  );
+  const electronNodeMajor = electronNodeMajorMatch[1];
 
   assert.equal(nodeVersionFile, electronNodeMajor);
   assert.equal(packageJson.engines.node, electronNodeMajor);
@@ -2378,6 +2407,10 @@ test("caches rebuilt native Node modules separately from hydrated app resources"
   assert.match(resolverSource, /windowsArm64NativeModuleCacheInputPaths/);
   assert.match(resolverSource, /windowsArm64HydratedCacheInputPaths/);
   assert.match(resolverSource, /native_modules_cache_key/);
+  assert.match(
+    planSource,
+    /windowsArm64HydratedCacheInputPaths[\s\S]*"scripts\/run-hydrate-codex-app\.mjs"/,
+  );
 
   const hydrateSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
