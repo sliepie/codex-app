@@ -2282,17 +2282,34 @@ test("operational scripts resolve desktop root from script location", () => {
   }
 });
 
-test("Codex app hydrator detects direct script execution without require.main", () => {
+test("Codex app hydration runs through an explicit package runner", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
+  );
   const appHydratorSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
     "utf8",
   );
+  const runnerSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "run-hydrate-codex-app.ts"),
+    "utf8",
+  );
 
-  assert.match(appHydratorSource, /function isDirectExecution\(\): boolean/);
-  assert.match(appHydratorSource, /require\.main === module/);
-  assert.match(appHydratorSource, /const entrypoint = process\.argv\[1\]/);
-  assert.match(appHydratorSource, /path\.resolve\(entrypoint\) === __filename/);
-  assert.match(appHydratorSource, /if \(isDirectExecution\(\)\)/);
+  assert.equal(
+    packageJson.scripts["hydrate:app"],
+    "npm run build:scripts && node ./.cache/scripts/run-hydrate-codex-app.js",
+  );
+  assert.equal(
+    packageJson.scripts["hydrate:app:compiled"],
+    "node ./.cache/scripts/run-hydrate-codex-app.js",
+  );
+  assert.match(
+    appHydratorSource,
+    /export async function main\(argv: string\[\] = process\.argv\.slice\(2\)\): Promise<void>/,
+  );
+  assert.match(runnerSource, /import \{ main \} from "\.\/hydrate-codex-app"/);
+  assert.match(runnerSource, /main\(process\.argv\.slice\(2\)\)/);
+  assert.doesNotMatch(appHydratorSource, /process\.argv\[1\]/);
 });
 
 test("verifies hydrated upstream artifact integrity metadata", () => {
@@ -2389,6 +2406,10 @@ test("caches rebuilt native Node modules separately from hydrated app resources"
   assert.match(resolverSource, /windowsArm64NativeModuleCacheInputPaths/);
   assert.match(resolverSource, /windowsArm64HydratedCacheInputPaths/);
   assert.match(resolverSource, /native_modules_cache_key/);
+  assert.match(
+    planSource,
+    /windowsArm64HydratedCacheInputPaths[\s\S]*"scripts\/run-hydrate-codex-app\.ts"/,
+  );
 
   const hydrateSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),

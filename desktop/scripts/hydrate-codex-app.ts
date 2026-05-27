@@ -116,15 +116,6 @@ function resolveDesktopRoot(): string {
     : path.resolve(__dirname, "..");
 }
 
-function isDirectExecution(): boolean {
-  if (require.main === module) {
-    return true;
-  }
-
-  const entrypoint = process.argv[1];
-  return Boolean(entrypoint) && path.resolve(entrypoint) === __filename;
-}
-
 const desktopRoot = resolveDesktopRoot();
 const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-node-modules");
 const electronNativeModuleCacheInputPaths = windowsArm64NativeModuleCacheInputPaths;
@@ -2395,8 +2386,8 @@ function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
   );
 }
 
-async function main(): Promise<void> {
-  const options = parseOptions(process.argv.slice(2));
+export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
+  const options = parseOptions(argv);
   fs.mkdirSync(options.cacheRoot, { recursive: true });
 
   const appcastResponse = await fetch(codexAppcastUrlForFeed(options.appcastFeed));
@@ -2504,7 +2495,7 @@ async function main(): Promise<void> {
   console.log(`Hydrated Codex app ${selectedVersion} from ${downloadUrl}`);
 }
 
-if (isDirectExecution()) {
+if (require.main === module) {
   main().catch((error: unknown) => {
     console.error(error);
     process.exitCode = 1;
