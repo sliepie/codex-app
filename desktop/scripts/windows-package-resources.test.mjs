@@ -1900,6 +1900,21 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
         String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-100{opacity:0!important;}`,
       ),
     );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`@media (prefers-reduced-motion:no-preference){.group\/section-toggle .group-hover\/section-toggle\:opacity-100`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
+      ),
+    );
     assert.match(
       appendedStyles[0].textContent,
       /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,

@@ -9,6 +9,10 @@ const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
+const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
+  "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;";
+const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
+  "transform:translateX(0)!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
 const USAGE_MENU_CONTENT_SELECTOR =
@@ -55,6 +59,14 @@ function cssRule(selectors, declarations) {
   return `${selector}{${declarations}}`;
 }
 
+function mediaRule(condition, rules) {
+  return `@media ${condition}{${rules.join("")}}`;
+}
+
+function descendantSelectors(container, targets) {
+  return targets.map((target) => `${container}${target}`);
+}
+
 function interactiveSelectors(container, targets) {
   return targets.map((target) => `${container}:is(:hover,:focus-within)${target}`);
 }
@@ -79,6 +91,49 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
       '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]',
     ],
     "position:relative!important;left:-2px!important;",
+  ),
+];
+
+const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
+  cssRule(
+    [
+      ...descendantSelectors(".group\\/section-toggle", [
+        " .group-hover\\/section-toggle\\:opacity-100",
+        " .group-focus-visible\\/section-toggle\\:opacity-100",
+      ]),
+      ...descendantSelectors(".group\\/projects-section-header", [
+        " .group-hover\\/projects-section-header\\:opacity-100",
+        " .group-focus-within\\/projects-section-header\\:opacity-100",
+      ]),
+      ...descendantSelectors(".group\\/chats-section-header", [
+        " .group-hover\\/chats-section-header\\:opacity-100",
+        " .group-focus-within\\/chats-section-header\\:opacity-100",
+      ]),
+      ...descendantSelectors(".group\\/folder-row", [
+        " .group-hover\\/folder-row\\:opacity-100",
+      ]),
+    ],
+    SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      ...interactiveSelectors(".group\\/section-toggle", [
+        " .group-hover\\/section-toggle\\:opacity-100",
+        " .group-focus-visible\\/section-toggle\\:opacity-100",
+      ]),
+      ...interactiveSelectors(".group\\/projects-section-header", [
+        " .group-hover\\/projects-section-header\\:opacity-100",
+        " .group-focus-within\\/projects-section-header\\:opacity-100",
+      ]),
+      ...interactiveSelectors(".group\\/chats-section-header", [
+        " .group-hover\\/chats-section-header\\:opacity-100",
+        " .group-focus-within\\/chats-section-header\\:opacity-100",
+      ]),
+      ...interactiveSelectors(".group\\/folder-row", [
+        " .group-hover\\/folder-row\\:opacity-100",
+      ]),
+    ],
+    SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
   ),
 ];
 
@@ -135,6 +190,10 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
         " .group-hover\\/folder-row\\:opacity-100",
     ]),
     HIDDEN_CONTROL_DECLARATIONS,
+  ),
+  mediaRule(
+    "(prefers-reduced-motion:no-preference)",
+    SIDEBAR_HOVER_CONTROL_MOTION_RULES,
   ),
 ];
 
