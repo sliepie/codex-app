@@ -5,8 +5,12 @@ const VISIBLE_CONTROL_DECLARATIONS =
 const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
 const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
+const HIDDEN_META_DECLARATIONS =
+  "opacity:0!important;visibility:hidden!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
+const SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS =
+  "padding-inline-start:1.25rem!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
 const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
@@ -18,6 +22,26 @@ const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
 const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
   '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
 const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
+const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
+const SIDEBAR_THREAD_ROW_ACTION_TARGETS = [
+  " .absolute.top-0.left-1.z-10",
+  " .absolute.top-0.left-1.z-10 button",
+  " .w-4 span:has(button)",
+  " .w-4 span:has(button) button",
+  ">.absolute.right-0.top-0.z-10",
+  ">.absolute.right-0.top-0.z-10 button",
+];
+const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
+  " .absolute.top-0.left-1.z-10 button svg",
+  " .absolute.top-0.left-1.z-10 button .icon-xs",
+  " .absolute.top-0.left-1.z-10 button .icon-sm",
+  " .w-4 span:has(button) button svg",
+  " .w-4 span:has(button) button .icon-2xs",
+  " .w-4 span:has(button) button .icon-xs",
+  ">.absolute.right-0.top-0.z-10 button svg",
+  ">.absolute.right-0.top-0.z-10 button .icon-xs",
+  ">.absolute.right-0.top-0.z-10 button .icon-sm",
+];
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -144,6 +168,46 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   cssRule(
     SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR,
     SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_TARGETS,
+    ),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS,
+    ),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10)`,
+      [" [data-thread-title-trigger]"],
+    ),
+    SIDEBAR_THREAD_TITLE_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10)`,
+      [
+        " .w-4:not(:has(button))",
+        " .w-4>:not(:has(button))",
+        " .w-4 span:not(:has(button))",
+        " .w-4 svg:not(button svg)",
+      ],
+    ),
+    HIDDEN_META_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
+      " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
+      " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
+    ]),
+    HIDDEN_META_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(".group\\/section-toggle", [
