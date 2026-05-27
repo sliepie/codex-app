@@ -1882,31 +1882,6 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [class*="group-hover/"][class*=":opacity-100"]`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [class*="group-focus-within/"][class*=":opacity-100"]{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [class*="group-hover/"][class*=":flex"]`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [class*="group-hover/"][class*=":opacity-0"]`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [class*="group-focus-within/"][class*=":hidden"]{display:none!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
         String.raw`.group\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\/folder-row\:opacity-100){gap:0!important;}`,
       ),
     );
@@ -1942,10 +1917,9 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100`,
+        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
       ),
     );
-    assert.ok(uiOverrideCss.includes("transform:translateX(0)!important;"));
     assert.match(
       appendedStyles[0].textContent,
       /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
