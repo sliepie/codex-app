@@ -2312,19 +2312,17 @@ test("repo Node toolchain matches the Electron runtime Node major", () => {
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
   const nodeVersionFile = fs.readFileSync(path.join(repoRoot, ".node-version"), "utf8").trim();
-  const electronPath = require("electron");
-  const electronNodeVersion = execFileSync(
-    electronPath,
-    ["-p", "process.versions.node"],
-    {
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        ELECTRON_RUN_AS_NODE: "1",
-      },
-    },
-  ).trim();
-  const electronNodeMajor = electronNodeVersion.split(".")[0];
+  const electronPackageJson = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "node_modules", "electron", "package.json"), "utf8"),
+  );
+  const electronNodeTypesRange = electronPackageJson.dependencies?.["@types/node"];
+  assert.equal(typeof electronNodeTypesRange, "string");
+  const electronNodeMajorMatch = /^\^?(\d+)\./.exec(electronNodeTypesRange);
+  assert.ok(
+    electronNodeMajorMatch,
+    `Expected Electron @types/node range to start with a major version, got ${electronNodeTypesRange}`,
+  );
+  const electronNodeMajor = electronNodeMajorMatch[1];
 
   assert.equal(nodeVersionFile, electronNodeMajor);
   assert.equal(packageJson.engines.node, electronNodeMajor);
