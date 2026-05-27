@@ -14,7 +14,7 @@ const SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS =
 const SIDEBAR_THREAD_TITLE_LEFT_OFFSET_DECLARATIONS =
   "padding-inline-start:1.25rem!important;";
 const SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS =
-  "padding-inline-end:1.25rem!important;";
+  "padding-inline-end:1rem!important;";
 const SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS =
   "display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
