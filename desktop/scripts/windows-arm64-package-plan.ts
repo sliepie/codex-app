@@ -27,7 +27,7 @@ export const windowsArm64HydratedCacheInputPaths = [
   "scripts/hydrate-codex-app.ts",
   "scripts/hydrate-codex-cli.ts",
   "scripts/resource-binary-exceptions.ts",
-  "scripts/run-hydrate-codex-app.mjs",
+  "scripts/run-hydrate-codex-app.ts",
   "scripts/windows-arm64-package-plan.ts",
   "resources/extension-host.json",
   "resources/node_repl.json",

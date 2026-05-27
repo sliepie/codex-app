@@ -2291,23 +2291,24 @@ test("Codex app hydration runs through an explicit package runner", () => {
     "utf8",
   );
   const runnerSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "run-hydrate-codex-app.mjs"),
+    path.join(desktopRoot, "scripts", "run-hydrate-codex-app.ts"),
     "utf8",
   );
 
   assert.equal(
     packageJson.scripts["hydrate:app"],
-    "npm run build:scripts && node ./scripts/run-hydrate-codex-app.mjs",
+    "npm run build:scripts && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/run-hydrate-codex-app.ts",
   );
   assert.equal(
     packageJson.scripts["hydrate:app:compiled"],
-    "node ./scripts/run-hydrate-codex-app.mjs",
+    "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/run-hydrate-codex-app.ts",
   );
   assert.match(
     appHydratorSource,
     /export async function main\(argv: string\[\] = process\.argv\.slice\(2\)\): Promise<void>/,
   );
   assert.match(runnerSource, /createRequire\(import\.meta\.url\)/);
+  assert.match(runnerSource, /import type \{ main as hydrateCodexApp \} from "\.\/hydrate-codex-app"/);
   assert.match(runnerSource, /require\("\.\.\/\.cache\/scripts\/hydrate-codex-app\.js"\)/);
   assert.match(runnerSource, /await main\(process\.argv\.slice\(2\)\)/);
   assert.doesNotMatch(appHydratorSource, /process\.argv\[1\]/);
@@ -2409,7 +2410,7 @@ test("caches rebuilt native Node modules separately from hydrated app resources"
   assert.match(resolverSource, /native_modules_cache_key/);
   assert.match(
     planSource,
-    /windowsArm64HydratedCacheInputPaths[\s\S]*"scripts\/run-hydrate-codex-app\.mjs"/,
+    /windowsArm64HydratedCacheInputPaths[\s\S]*"scripts\/run-hydrate-codex-app\.ts"/,
   );
 
   const hydrateSource = fs.readFileSync(
