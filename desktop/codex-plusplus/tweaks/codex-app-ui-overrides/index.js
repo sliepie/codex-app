@@ -23,10 +23,6 @@ const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;";
 const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
   "transform:translateX(0)!important;";
-const SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS =
-  "transition:opacity 110ms ease-out,transform 110ms ease-out!important;transform:translateX(1px)!important;";
-const SIDEBAR_THREAD_ROW_ACTION_ACTIVE_MOTION_DECLARATIONS =
-  "transform:translateX(0)!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
 const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
@@ -144,14 +140,14 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
     ),
-    SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS,
+    SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
     ),
-    SIDEBAR_THREAD_ROW_ACTION_ACTIVE_MOTION_DECLARATIONS,
+    SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
   ),
   cssRule(
     [
