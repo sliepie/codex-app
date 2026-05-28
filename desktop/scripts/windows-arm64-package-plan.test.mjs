@@ -111,6 +111,23 @@ test("Windows ARM64 package scripts delegate to the package plan", () => {
   assert.equal(packageJson.scripts["make:win:arm64:ci"], "npm run build:scripts && npm run plan:win:arm64:compiled -- make");
 });
 
+test("Windows ARM64 package commands use the awaited Forge API runner", () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"));
+  const runnerSource = fs.readFileSync(path.join(desktopRoot, "scripts", "run-electron-forge.mjs"), "utf8");
+
+  assert.equal(
+    packageJson.scripts["package:win:arm64:compiled"],
+    "node ./scripts/run-electron-forge.mjs package --platform win32 --arch arm64",
+  );
+  assert.equal(
+    packageJson.scripts["make:win:arm64:compiled"],
+    "node ./scripts/run-electron-forge.mjs make --platform win32 --arch arm64",
+  );
+  assert.match(runnerSource, /await main\(\)/);
+  assert.match(runnerSource, /api\.package\(options\)/);
+  assert.match(runnerSource, /api\.make\(options\)/);
+});
+
 test("Windows ARM64 workflows use the package plan adapter", () => {
   for (const workflowName of ["windows-arm64-pr-build.yml", "windows-arm64-release.yml"]) {
     const workflowSource = fs.readFileSync(path.join(repoRoot, ".github", "workflows", workflowName), "utf8");
