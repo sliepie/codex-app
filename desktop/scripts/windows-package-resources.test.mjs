@@ -2460,8 +2460,13 @@ test("repo Node toolchain matches the Electron runtime Node major", () => {
     `Expected Electron @types/node range to start with a major version, got ${electronNodeTypesRange}`,
   );
   const electronNodeMajor = electronNodeMajorMatch[1];
+  const nodeVersionMajorMatch = /^(\d+)(?:\.|$)/.exec(nodeVersionFile);
+  assert.ok(
+    nodeVersionMajorMatch,
+    `Expected .node-version to start with a major version, got ${nodeVersionFile}`,
+  );
 
-  assert.equal(nodeVersionFile, electronNodeMajor);
+  assert.equal(nodeVersionMajorMatch[1], electronNodeMajor);
   assert.equal(packageJson.engines.node, electronNodeMajor);
 });
 
