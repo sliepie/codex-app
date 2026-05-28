@@ -265,8 +265,19 @@ async function main() {
   await runMake(options);
 }
 
+async function runWithNodeLiveness(action) {
+  // Electron Packager can have unsettled promise work before Node sees an
+  // active handle on 24.16. Keep the process alive while the command is active.
+  const keepAlive = setInterval(() => {}, 1000);
+  try {
+    return await action();
+  } finally {
+    clearInterval(keepAlive);
+  }
+}
+
 try {
-  await main();
+  await runWithNodeLiveness(main);
 } catch (error) {
   console.error(error);
   process.exitCode = 1;
