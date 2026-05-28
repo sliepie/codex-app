@@ -1668,11 +1668,116 @@ test("Codex app compact Windows titlebar tweak installs renderer-only compact ch
     "codex-app-compact-windows-titlebar",
   );
   const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
-  assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+  assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
   assert.doesNotMatch(source, /titleBarOverlay|setTitleBarOverlay|BrowserWindow/);
 
   const appendedStyles = [];
   const previousDocument = globalThis.document;
+  const previousMutationObserver = globalThis.MutationObserver;
+  const observedTargets = [];
+
+  function createFakeElement(tagName) {
+    const element = {
+      tagName: tagName.toUpperCase(),
+      id: "",
+      attributes: new Map(),
+      children: [],
+      parentElement: null,
+      nextSibling: null,
+      textContent: "",
+      setAttribute(name, value) {
+        this.attributes.set(name, String(value));
+      },
+      appendChild(child) {
+        if (child.parentElement) {
+          child.parentElement.children = child.parentElement.children.filter(
+            (existingChild) => existingChild !== child,
+          );
+        }
+        child.parentElement = this;
+        this.children.push(child);
+        refreshSiblings(this);
+        return child;
+      },
+      insertBefore(child, nextSibling) {
+        if (child.parentElement) {
+          child.parentElement.children = child.parentElement.children.filter(
+            (existingChild) => existingChild !== child,
+          );
+        }
+        child.parentElement = this;
+        const nextIndex = nextSibling ? this.children.indexOf(nextSibling) : -1;
+        if (nextIndex === -1) {
+          this.children.push(child);
+        } else {
+          this.children.splice(nextIndex, 0, child);
+        }
+        refreshSiblings(this);
+        return child;
+      },
+      remove() {
+        if (!this.parentElement) {
+          return;
+        }
+        this.parentElement.children = this.parentElement.children.filter(
+          (existingChild) => existingChild !== this,
+        );
+        refreshSiblings(this.parentElement);
+        this.parentElement = null;
+      },
+      querySelector(selector) {
+        return findDescendant(this, selector);
+      },
+    };
+
+    return element;
+  }
+
+  function refreshSiblings(parent) {
+    parent.children.forEach((child, index) => {
+      child.nextSibling = parent.children[index + 1] || null;
+    });
+  }
+
+  function matchesFakeSelector(element, selector) {
+    if (selector === "button") {
+      return element.tagName === "BUTTON";
+    }
+    if (selector === 'button[aria-haspopup="menu"][aria-expanded]') {
+      return (
+        element.tagName === "BUTTON" &&
+        element.attributes.get("aria-haspopup") === "menu" &&
+        element.attributes.has("aria-expanded")
+      );
+    }
+    return false;
+  }
+
+  function findDescendant(element, selector) {
+    for (const child of element.children) {
+      if (matchesFakeSelector(child, selector)) {
+        return child;
+      }
+      const descendant = findDescendant(child, selector);
+      if (descendant) {
+        return descendant;
+      }
+    }
+    return null;
+  }
+
+  function findById(element, id) {
+    if (element.id === id) {
+      return element;
+    }
+    for (const child of element.children) {
+      const descendant = findById(child, id);
+      if (descendant) {
+        return descendant;
+      }
+    }
+    return null;
+  }
 
   const head = {
     appendChild(style) {
@@ -1680,15 +1785,46 @@ test("Codex app compact Windows titlebar tweak installs renderer-only compact ch
       return style;
     },
   };
+  const documentElement = createFakeElement("html");
+  const body = createFakeElement("body");
+  const topBar = createFakeElement("div");
+  const leftControls = createFakeElement("div");
+  const sidebarButton = createFakeElement("button");
+  const menuRow = createFakeElement("div");
+  const menuButton = createFakeElement("button");
+  menuButton.setAttribute("aria-haspopup", "menu");
+  menuButton.setAttribute("aria-expanded", "false");
+  leftControls.appendChild(sidebarButton);
+  menuRow.appendChild(menuButton);
+  topBar.appendChild(leftControls);
+  topBar.appendChild(menuRow);
+
+  globalThis.MutationObserver = class FakeMutationObserver {
+    constructor(callback) {
+      this.callback = callback;
+      this.disconnected = false;
+    }
+
+    observe(target, options) {
+      observedTargets.push({ target, options });
+    }
+
+    disconnect() {
+      this.disconnected = true;
+    }
+  };
+
   globalThis.document = {
     head,
-    getElementById: () => null,
-    createElement: (tagName) => ({
-      tagName: tagName.toUpperCase(),
-      id: "",
-      textContent: "",
-      remove() {},
-    }),
+    body,
+    documentElement,
+    getElementById: (id) =>
+      appendedStyles.find((style) => style.id === id) ||
+      findById(body, id) ||
+      null,
+    querySelector: (selector) =>
+      selector === ".app-header-tint.group\\/windows-top-bar" ? topBar : null,
+    createElement: createFakeElement,
   };
 
   try {
@@ -1707,9 +1843,10 @@ test("Codex app compact Windows titlebar tweak installs renderer-only compact ch
     const css = appendedStyles[0].textContent;
     assert.ok(
       css.includes(
-        '.group\\/windows-top-bar>.flex.items-center.gap-0\\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded]){display:none!important;}',
+        ".app-header-tint.group\\/windows-top-bar{display:none!important;}",
       ),
     );
+    assert.ok(css.includes("#codex-app-compact-windows-titlebar-controls{position:fixed!important;top:0!important;left:0.5rem!important;"));
     assert.ok(
       css.includes(
         '.app-header-tint.draggable.pointer-events-none.fixed.h-toolbar:not(.group\\/windows-top-bar){top:0!important;height:var(--height-toolbar-sm)!important;z-index:50!important;background-color:var(--codex-titlebar-tint,transparent)!important;}',
@@ -1726,11 +1863,17 @@ test("Codex app compact Windows titlebar tweak installs renderer-only compact ch
       ),
     );
     assert.equal(
-      css.includes(".group\\/windows-top-bar{display:none!important;}"),
+      css.includes("background-color:transparent!important;pointer-events:none!important;z-index:60!important;"),
       false,
     );
+    assert.equal(leftControls.parentElement.id, "codex-app-compact-windows-titlebar-controls");
+    assert.equal(observedTargets.length, 1);
+
+    module.exports.stop();
+    assert.equal(leftControls.parentElement, topBar);
   } finally {
     globalThis.document = previousDocument;
+    globalThis.MutationObserver = previousMutationObserver;
   }
 });
 
