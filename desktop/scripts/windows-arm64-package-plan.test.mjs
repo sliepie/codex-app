@@ -34,8 +34,9 @@ test("Windows ARM64 package plan owns target ordering", () => {
     "hydrate-app",
     "hydrate-cli",
     "verify-browser-client-runtime",
-    "make-win-arm64",
+    "package-win-arm64",
     "verify-windows-arm64-resource-binaries",
+    "make-win-arm64",
   ]);
   assert.deepEqual(stepIds("package"), [
     "build-windows-updater",
@@ -74,6 +75,15 @@ test("Windows ARM64 package plan passes appcast feed only to app hydration", () 
     ["--", "--appcast-feed", "beta"],
   );
   assert.doesNotMatch(commandForWindowsArm64PlanStep(hydrateCli, { CODEX_APPCAST_FEED: "beta" }).join(" "), /appcast-feed/);
+});
+
+test("Windows ARM64 make target zips an already verified package root", () => {
+  const makeStep = expandWindowsArm64Plan("make").find((step) => step.id === "make-win-arm64");
+  assert.ok(makeStep);
+  assert.deepEqual(
+    commandForWindowsArm64PlanStep(makeStep).slice(-2),
+    ["--", "--skip-package"],
+  );
 });
 
 test("Windows ARM64 package plan launches npm through a Windows-safe process adapter", () => {
