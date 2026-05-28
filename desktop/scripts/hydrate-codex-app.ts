@@ -460,7 +460,7 @@ async function downloadFileWithRedirects(
           return;
         }
 
-        if (statusCode === 401 && headers.Authorization) {
+        if (shouldRetryWithoutAuthorization(statusCode, headers)) {
           response.resume();
           await downloadFileWithRedirects(url, outputPath, withoutAuthorization(headers), redirectCount);
           resolve();
@@ -555,11 +555,18 @@ function withoutAuthorization(headers: Record<string, string>): Record<string, s
 async function fetchGithubUrl(url: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(url, init);
   const headers = init?.headers as Record<string, string> | undefined;
-  if (response.status !== 401 || !headers?.Authorization) {
+  if (!shouldRetryWithoutAuthorization(response.status, headers)) {
     return response;
   }
 
   return fetch(url, { ...init, headers: withoutAuthorization(headers) });
+}
+
+function shouldRetryWithoutAuthorization(
+  statusCode: number,
+  headers: Record<string, string> | undefined,
+): headers is Record<string, string> {
+  return (statusCode === 401 || statusCode === 404) && Boolean(headers?.Authorization);
 }
 
 function repositoryApiPath(repository: string): string {

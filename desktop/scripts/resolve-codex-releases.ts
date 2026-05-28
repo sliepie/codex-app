@@ -291,7 +291,7 @@ function hasAuthorization(headers: HeadersInit | undefined): boolean {
 async function fetchPublicGithubUrl(url: string | URL, init?: RequestInit): Promise<Response> {
   const response = await fetch(url, init);
   const headers = init?.headers;
-  if (response.status !== 401 || !hasAuthorization(headers)) {
+  if (!shouldRetryPublicGithubWithoutAuthorization(response.status, headers)) {
     return response;
   }
 
@@ -299,6 +299,13 @@ async function fetchPublicGithubUrl(url: string | URL, init?: RequestInit): Prom
     ...init,
     headers: withoutAuthorization(headers as HeadersInit),
   });
+}
+
+function shouldRetryPublicGithubWithoutAuthorization(
+  statusCode: number,
+  headers: HeadersInit | undefined,
+): boolean {
+  return (statusCode === 401 || statusCode === 404) && hasAuthorization(headers);
 }
 
 async function fetchExistingReleases(): Promise<GithubRelease[]> {

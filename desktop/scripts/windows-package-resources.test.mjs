@@ -2266,6 +2266,8 @@ test("authenticates Codex++ GitHub release lookup when a token is available", ()
   assert.match(scriptSource, /headers\.Authorization = "Bearer " \+ token/);
   assert.match(scriptSource, /fetchGithubUrl/);
   assert.match(scriptSource, /withoutAuthorization/);
+  assert.match(scriptSource, /shouldRetryWithoutAuthorization/);
+  assert.match(scriptSource, /statusCode === 401 \|\| statusCode === 404/);
   assert.match(scriptSource, /headers: githubHeaders\(\)/);
   assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_REPOSITORY/);
   assert.match(scriptSource, /process\.env\.CODEX_APP_VERSION/);
@@ -2458,8 +2460,13 @@ test("repo Node toolchain matches the Electron runtime Node major", () => {
     `Expected Electron @types/node range to start with a major version, got ${electronNodeTypesRange}`,
   );
   const electronNodeMajor = electronNodeMajorMatch[1];
+  const nodeVersionMajorMatch = /^(\d+)(?:\.|$)/.exec(nodeVersionFile);
+  assert.ok(
+    nodeVersionMajorMatch,
+    `Expected .node-version to start with a major version, got ${nodeVersionFile}`,
+  );
 
-  assert.equal(nodeVersionFile, electronNodeMajor);
+  assert.equal(nodeVersionMajorMatch[1], electronNodeMajor);
   assert.equal(packageJson.engines.node, electronNodeMajor);
 });
 

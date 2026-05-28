@@ -95,8 +95,9 @@ const targetSteps: Record<WindowsArm64PlanTarget, WindowsArm64PlanStepId[]> = {
     "hydrate-app",
     "hydrate-cli",
     "verify-browser-client-runtime",
-    "make-win-arm64",
+    "package-win-arm64",
     "verify-windows-arm64-resource-binaries",
+    "make-win-arm64",
   ],
   verify: ["verify-browser-client-runtime", "verify-windows-arm64-resource-binaries"],
 };
@@ -146,7 +147,7 @@ export function commandForWindowsArm64PlanStep(step: WindowsArm64PlanStep, env =
     case "package-win-arm64":
       return [npmCommand(), "run", "package:win:arm64:compiled"];
     case "make-win-arm64":
-      return [npmCommand(), "run", "make:win:arm64:compiled"];
+      return [npmCommand(), "run", "make:win:arm64:compiled", "--", "--skip-package"];
     case "verify-windows-arm64-resource-binaries":
       return [npmCommand(), "run", "verify:windows-arm64-resource-binaries:compiled"];
   }

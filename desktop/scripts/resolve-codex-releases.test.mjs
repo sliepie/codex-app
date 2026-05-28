@@ -69,6 +69,7 @@ function startServer(
     codexPlusPlusObjectType = "commit",
     codexPlusPlusRepo = "b-nnett/codex-plusplus",
     rejectAuthorizedCodexPlusPlusRequests = false,
+    rejectAuthorizedCodexPlusPlusRequestsStatus = 401,
     releasePages = [releases],
     codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
     codexPlusPlusTag = "v0.1.7",
@@ -107,8 +108,12 @@ function startServer(
       requestPath?.startsWith("/repos/" + codexPlusPlusRepo + "/") &&
       request.headers.authorization
     ) {
-      response.writeHead(401, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ message: "Bad credentials" }));
+      response.writeHead(rejectAuthorizedCodexPlusPlusRequestsStatus, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify({
+          message: rejectAuthorizedCodexPlusPlusRequestsStatus === 404 ? "Not Found" : "Bad credentials",
+        }),
+      );
       return;
     }
 
@@ -192,6 +197,7 @@ async function runResolver({
   codexPlusPlusObjectType,
   codexPlusPlusRepo = "b-nnett/codex-plusplus",
   rejectAuthorizedCodexPlusPlusRequests,
+  rejectAuthorizedCodexPlusPlusRequestsStatus = 401,
   releasePages,
   codexPlusPlusSha,
   codexPlusPlusTag,
@@ -206,6 +212,7 @@ async function runResolver({
     codexPlusPlusObjectType,
     codexPlusPlusRepo,
     rejectAuthorizedCodexPlusPlusRequests,
+    rejectAuthorizedCodexPlusPlusRequestsStatus,
     releasePages,
     codexPlusPlusSha,
     codexPlusPlusTag,
@@ -397,6 +404,17 @@ test("retries public upstream Codex++ lookups without a repo-scoped token after 
   const output = await runResolver({
     releases: [],
     rejectAuthorizedCodexPlusPlusRequests: true,
+  });
+
+  assert.equal(output.codex_plus_plus_tag, "v0.1.7");
+  assert.equal(output.codex_plus_plus_sha, "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413");
+});
+
+test("retries public upstream Codex++ lookups without a repo-scoped token after 404", async () => {
+  const output = await runResolver({
+    releases: [],
+    rejectAuthorizedCodexPlusPlusRequests: true,
+    rejectAuthorizedCodexPlusPlusRequestsStatus: 404,
   });
 
   assert.equal(output.codex_plus_plus_tag, "v0.1.7");
