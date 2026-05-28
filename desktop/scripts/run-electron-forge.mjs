@@ -1,9 +1,11 @@
-import * as electronGetModule from "@electron/get";
-import * as forgeCoreModule from "@electron-forge/core";
+import { createRequire } from "node:module";
+import fs from "node:fs/promises";
+import path from "node:path";
 
-const api = forgeCoreModule.api ?? forgeCoreModule.default?.api;
-const initializeProxy =
-  electronGetModule.initializeProxy ?? electronGetModule.default?.initializeProxy;
+const require = createRequire(import.meta.url);
+const { initializeProxy } = require("@electron/get");
+const { packager } = require("@electron/packager");
+const { flipFuses } = require("@electron/fuses");
 
 function readOptionValue(argv, index, optionName) {
   const value = argv[index + 1];
@@ -65,38 +67,206 @@ function parseForgeArgs(argv) {
     throw new Error("Unsupported Forge argument: " + arg);
   }
 
+  options.platform ??= process.platform;
+  options.arch ??= process.arch;
   return { command, options };
 }
 
-async function main() {
-  if (!api) {
-    throw new Error("Unable to load Electron Forge core API.");
+function asArray(value) {
+  if (!value) {
+    return [];
   }
+  return Array.isArray(value) ? value : [value];
+}
 
-  const { command, options } = parseForgeArgs(process.argv.slice(2));
-  initializeProxy?.();
+function loadForgeConfig(dir) {
+  return require(path.join(dir, "forge.config.js"));
+}
 
-  if (command === "package") {
-    await api.package(options);
+function readPackageJson(packageRoot) {
+  return require(path.join(packageRoot, "package.json"));
+}
+
+function applyAutoUnpackNatives(packagerConfig) {
+  if (!packagerConfig.asar) {
     return;
   }
 
-  await api.make(options);
+  const nativeUnpackPattern = "**/{.**,**}/**/*.node";
+  if (packagerConfig.asar === true) {
+    packagerConfig.asar = { unpack: nativeUnpackPattern };
+    return;
+  }
+
+  const existingUnpack = packagerConfig.asar.unpack;
+  packagerConfig.asar = {
+    ...packagerConfig.asar,
+    unpack: existingUnpack
+      ? `{${existingUnpack},${nativeUnpackPattern}}`
+      : nativeUnpackPattern,
+  };
 }
 
-async function runWithForgeLiveness(action) {
-  // Forge 7 bridges Electron Packager callbacks through promises. Keep Node
-  // alive while that bridge is pending, otherwise Node 24 can exit early.
-  const keepAlive = setInterval(() => {}, 1000);
+function callbackHook(action) {
+  return (buildPath, electronVersion, platform, arch, callback) => {
+    Promise.resolve()
+      .then(() => action(buildPath, electronVersion, platform, arch))
+      .then(() => callback(), callback);
+  };
+}
+
+async function removeDotBinDirectories(root) {
+  let entries;
   try {
-    return await action();
-  } finally {
-    clearInterval(keepAlive);
+    entries = await fs.readdir(root, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return;
+    }
+    throw error;
+  }
+
+  await Promise.all(
+    entries.map(async (entry) => {
+      if (!entry.isDirectory()) {
+        return;
+      }
+
+      const entryPath = path.join(root, entry.name);
+      if (entry.name === ".bin") {
+        await fs.rm(entryPath, { force: true, recursive: true });
+        return;
+      }
+
+      await removeDotBinDirectories(entryPath);
+    }),
+  );
+}
+
+function findFusesConfig(forgeConfig) {
+  return forgeConfig.plugins?.find((plugin) => plugin?.name === "fuses")?.fusesConfig ?? {};
+}
+
+function electronExecutablePath(buildPath, platform) {
+  if (platform !== "win32") {
+    throw new Error("Direct Forge runner only supports win32 packaging.");
+  }
+
+  return path.resolve(buildPath, "../..", "electron.exe");
+}
+
+async function flipConfiguredFuses(buildPath, _electronVersion, platform, _arch, forgeConfig) {
+  const fusesConfig = findFusesConfig(forgeConfig);
+  if (Object.keys(fusesConfig).length === 0) {
+    return;
+  }
+
+  await flipFuses(electronExecutablePath(buildPath, platform), fusesConfig);
+}
+
+function createPackagerOptions(options, forgeConfig) {
+  const packagerConfig = {
+    ...(forgeConfig.packagerConfig ?? {}),
+  };
+  const afterCopyHooks = asArray(packagerConfig.afterCopy);
+
+  applyAutoUnpackNatives(packagerConfig);
+  packagerConfig.afterCopy = [
+    callbackHook((buildPath) => removeDotBinDirectories(path.join(buildPath, "node_modules", ".bin"))),
+    callbackHook((buildPath, electronVersion, platform, arch) =>
+      flipConfiguredFuses(buildPath, electronVersion, platform, arch, forgeConfig),
+    ),
+    ...afterCopyHooks,
+  ];
+
+  return {
+    asar: false,
+    overwrite: true,
+    ignore: [/^\/out\//g],
+    quiet: false,
+    ...packagerConfig,
+    dir: options.dir,
+    arch: options.arch,
+    platform: options.platform,
+    out: path.join(options.dir, "out"),
+  };
+}
+
+async function runPackage(options) {
+  const forgeConfig = loadForgeConfig(options.dir);
+  const outputPaths = await packager(createPackagerOptions(options, forgeConfig));
+  for (const outputPath of outputPaths) {
+    console.log("Packaged Electron app: " + outputPath);
+  }
+  return outputPaths;
+}
+
+function packageRootForOptions(options) {
+  const packageJson = readPackageJson(options.dir);
+  const appName = packageJson.productName ?? packageJson.name;
+  return path.join(options.dir, "out", `${appName}-${options.platform}-${options.arch}`);
+}
+
+async function runMake(options) {
+  if (!options.skipPackage) {
+    await runPackage(options);
+  }
+
+  const forgeConfig = loadForgeConfig(options.dir);
+  const packageRoot = packageRootForOptions(options);
+  const packagedPackageJson = JSON.parse(
+    await fs.readFile(path.join(packageRoot, "resources", "app", "package.json"), "utf8"),
+  );
+  const maker = forgeConfig.makers?.find((candidate) => candidate?.name === "zip");
+  if (!maker) {
+    throw new Error("Missing ZIP maker in Forge config.");
+  }
+
+  await maker.prepareConfig?.(options.arch);
+  const artifacts = await maker.make({
+    appName: packagedPackageJson.productName ?? "Codex",
+    dir: packageRoot,
+    forgeConfig,
+    makeDir: path.join(options.dir, "out", "make"),
+    packageJSON: packagedPackageJson,
+    targetArch: options.arch,
+    targetPlatform: options.platform,
+  });
+
+  let makeResults = [
+    {
+      artifacts,
+      packageJSON: packagedPackageJson,
+      platform: options.platform,
+      arch: options.arch,
+    },
+  ];
+
+  if (forgeConfig.hooks?.postMake) {
+    makeResults = await forgeConfig.hooks.postMake(forgeConfig, makeResults);
+  }
+
+  for (const result of makeResults) {
+    for (const artifact of result.artifacts) {
+      console.log("Made Electron artifact: " + artifact);
+    }
   }
 }
 
+async function main() {
+  const { command, options } = parseForgeArgs(process.argv.slice(2));
+  initializeProxy();
+
+  if (command === "package") {
+    await runPackage(options);
+    return;
+  }
+
+  await runMake(options);
+}
+
 try {
-  await runWithForgeLiveness(main);
+  await main();
 } catch (error) {
   console.error(error);
   process.exitCode = 1;
