@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import extract from "extract-zip";
+import http, { type IncomingMessage } from "node:http";
+import https from "node:https";
 
 export type ReleaseAsset = {
   digest?: string | null;
@@ -28,6 +30,12 @@ type GithubRelease = {
   html_url?: string | null;
   name?: string | null;
   tag_name?: string | null;
+};
+
+type HttpResponse = {
+  body: Buffer;
+  statusCode: number;
+  statusMessage: string;
 };
 
 export type AcquiredReleaseAsset = {
@@ -79,35 +87,154 @@ function withoutAuthorization(headers: Record<string, string>): Record<string, s
   return retryHeaders;
 }
 
-async function fetchPublicGithubUrl(url: string | URL, init?: RequestInit): Promise<Response> {
-  const urlText = typeof url === "string" ? url : url.href;
-  const response = await fetch(url, init);
-  const headers = init?.headers as Record<string, string> | undefined;
-  if (response.status !== 401 || !isPublicGithubUrl(urlText) || !headers?.Authorization) {
-    return response;
-  }
-
-  return fetch(url, { ...init, headers: withoutAuthorization(headers) });
-}
-
 export async function downloadFile(url: string, outputPath: string): Promise<void> {
-  const headers = headersForUrl(url);
-  const response = await fetchPublicGithubUrl(url, headers ? { headers } : undefined);
-  if (!response.ok || !response.body) {
-    throw new Error("Failed to download " + url + ": " + response.status + " " + response.statusText);
+  const temporaryOutputPath = outputPath + ".download";
+  fs.rmSync(temporaryOutputPath, { force: true });
+  try {
+    await downloadUrlToFile(url, temporaryOutputPath, headersForUrl(url) ?? {}, 0);
+    fs.renameSync(temporaryOutputPath, outputPath);
+  } catch (error) {
+    fs.rmSync(temporaryOutputPath, { force: true });
+    throw error;
   }
-
-  fs.writeFileSync(outputPath, Buffer.from(await response.arrayBuffer()));
 }
 
 export async function fetchText(url: string): Promise<string> {
-  const headers = headersForUrl(url);
-  const response = await fetchPublicGithubUrl(url, headers ? { headers } : undefined);
-  if (!response.ok) {
-    throw new Error("Failed to fetch " + url + ": " + response.status + " " + response.statusText);
+  const response = await readUrl(url, headersForUrl(url) ?? {}, 0);
+  assertSuccessResponse(url, response);
+  return response.body.toString("utf8");
+}
+
+async function readUrl(
+  url: string | URL,
+  headers: Record<string, string>,
+  redirectCount: number,
+): Promise<HttpResponse> {
+  return requestUrl(url, headers, redirectCount, async (response) => readResponseBody(response));
+}
+
+async function downloadUrlToFile(
+  url: string | URL,
+  outputPath: string,
+  headers: Record<string, string>,
+  redirectCount: number,
+): Promise<void> {
+  await requestUrl(url, headers, redirectCount, async (response) => {
+    const statusCode = response.statusCode ?? 0;
+    if (!isSuccessStatus(statusCode)) {
+      const failure = await readResponseBody(response);
+      throw new Error("Failed to download " + url.toString() + ": " + failure.statusCode + " " + failure.statusMessage);
+    }
+    await writeResponseToFile(response, outputPath);
+    return {
+      body: Buffer.alloc(0),
+      statusCode: response.statusCode ?? 0,
+      statusMessage: response.statusMessage ?? "",
+    };
+  });
+}
+
+async function requestUrl<T>(
+  url: string | URL,
+  headers: Record<string, string>,
+  redirectCount: number,
+  readBody: (response: IncomingMessage) => Promise<T>,
+): Promise<T> {
+  if (redirectCount > 5) {
+    throw new Error("Too many redirects while fetching " + url.toString());
   }
 
-  return response.text();
+  const parsedUrl = new URL(url);
+  const client = parsedUrl.protocol === "http:" ? http : https;
+  return await new Promise<T>((resolve, reject) => {
+    const request = client.get(parsedUrl, { headers }, async (response) => {
+      try {
+        const statusCode = response.statusCode ?? 0;
+        const locationHeader = response.headers.location;
+        const location = Array.isArray(locationHeader) ? locationHeader[0] : locationHeader;
+        if (statusCode >= 300 && statusCode < 400 && location) {
+          response.resume();
+          const nextUrl = new URL(location, parsedUrl);
+          const nextHeaders =
+            nextUrl.origin === parsedUrl.origin ? headers : withoutAuthorization(headers);
+          resolve(await requestUrl(nextUrl, nextHeaders, redirectCount + 1, readBody));
+          return;
+        }
+
+        if (statusCode === 401 && isPublicGithubUrl(parsedUrl.href) && headers.Authorization) {
+          response.resume();
+          resolve(await requestUrl(parsedUrl, withoutAuthorization(headers), redirectCount, readBody));
+          return;
+        }
+
+        resolve(await readBody(response));
+      } catch (error) {
+        reject(error);
+      }
+    });
+    request.on("error", reject);
+  });
+}
+
+function readResponseBody(response: IncomingMessage): Promise<HttpResponse> {
+  return new Promise<HttpResponse>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    response.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    response.on("end", () => {
+      resolve({
+        body: Buffer.concat(chunks),
+        statusCode: response.statusCode ?? 0,
+        statusMessage: response.statusMessage ?? "",
+      });
+    });
+    response.on("error", reject);
+  });
+}
+
+function writeResponseToFile(response: IncomingMessage, outputPath: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const file = fs.openSync(outputPath, "w");
+    let fileClosed = false;
+    let writeError: unknown;
+    const closeFile = () => {
+      if (!fileClosed) {
+        fs.closeSync(file);
+        fileClosed = true;
+      }
+    };
+    response.on("data", (chunk) => {
+      try {
+        fs.writeSync(file, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      } catch (error) {
+        writeError = error;
+        response.destroy(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+    response.on("end", () => {
+      closeFile();
+      if (writeError) {
+        reject(writeError);
+        return;
+      }
+      resolve();
+    });
+    response.on("error", (error) => {
+      closeFile();
+      reject(writeError ?? error);
+    });
+  });
+}
+
+function assertSuccessResponse(url: string, response: HttpResponse): void {
+  if (!isSuccessStatus(response.statusCode)) {
+    throw new Error("Failed to fetch " + url + ": " + response.statusCode + " " + response.statusMessage);
+  }
+}
+
+function isSuccessStatus(statusCode: number): boolean {
+  return statusCode >= 200 && statusCode < 300;
 }
 
 export function sha256(filePath: string): string {
@@ -181,14 +308,13 @@ export async function fetchGitHubRelease(repository: string, tagName?: string): 
   const releasePath = tagName
     ? "/releases/tags/" + encodeURIComponent(tagName)
     : "/releases/latest";
-  const response = await fetchPublicGithubUrl(repositoryApiUrl(repository, releasePath), {
-    headers: githubHeaders(),
-  });
-  if (!response.ok) {
-    throw new Error("Failed to fetch GitHub release for " + repository + ": " + response.status + " " + response.statusText);
+  const url = repositoryApiUrl(repository, releasePath);
+  const response = await readUrl(url, githubHeaders(), 0);
+  if (!isSuccessStatus(response.statusCode)) {
+    throw new Error("Failed to fetch GitHub release for " + repository + ": " + response.statusCode + " " + response.statusMessage);
   }
 
-  return normalizeReleaseInfo((await response.json()) as GithubRelease, repository);
+  return normalizeReleaseInfo(JSON.parse(response.body.toString("utf8")) as GithubRelease, repository);
 }
 
 export function findReleaseAsset(release: ReleaseInfo, assetName: string, label: string): ReleaseAsset {
@@ -312,7 +438,7 @@ export async function ensureExtractedZip({
   fs.rmSync(temporaryExtractRoot, { recursive: true, force: true });
   try {
     fs.mkdirSync(temporaryExtractRoot, { recursive: true });
-    await extract(archivePath, { dir: temporaryExtractRoot });
+    execFileSync("tar", ["-xf", archivePath, "-C", temporaryExtractRoot], { stdio: "inherit" });
     fs.renameSync(temporaryExtractRoot, extractRoot);
     fs.writeFileSync(completeMarkerPath, JSON.stringify(expectedMarker, null, 2) + "\n");
   } catch (error) {
