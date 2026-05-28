@@ -127,6 +127,8 @@ test("Windows ARM64 package commands use the awaited Forge API runner", () => {
   assert.match(runnerSource, /packager\(createPackagerOptions\(options, forgeConfig\)\)/);
   assert.match(runnerSource, /maker\.make\(\{/);
   assert.match(runnerSource, /hooks\.postMake/);
+  assert.match(runnerSource, /runWithNodeLiveness\(main\)/);
+  assert.match(runnerSource, /setInterval\(\(\) => \{\}, 1000\)/);
 });
 
 test("Windows ARM64 workflows use the package plan adapter", () => {
