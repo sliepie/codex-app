@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import http, { type IncomingMessage } from "node:http";
 import https from "node:https";
+import extract from "extract-zip";
 
 export type ReleaseAsset = {
   digest?: string | null;
@@ -438,12 +439,30 @@ export async function ensureExtractedZip({
   fs.rmSync(temporaryExtractRoot, { recursive: true, force: true });
   try {
     fs.mkdirSync(temporaryExtractRoot, { recursive: true });
-    execFileSync("tar", ["-xf", archivePath, "-C", temporaryExtractRoot], { stdio: "inherit" });
+    await extractZip(archivePath, temporaryExtractRoot);
     fs.renameSync(temporaryExtractRoot, extractRoot);
     fs.writeFileSync(completeMarkerPath, JSON.stringify(expectedMarker, null, 2) + "\n");
   } catch (error) {
     fs.rmSync(temporaryExtractRoot, { recursive: true, force: true });
     fs.rmSync(completeMarkerPath, { force: true });
     throw error;
+  }
+}
+
+async function extractZip(archivePath: string, outputDir: string): Promise<void> {
+  if (tarCanReadZip(archivePath)) {
+    execFileSync("tar", ["-xf", archivePath, "-C", outputDir], { stdio: "inherit" });
+    return;
+  }
+
+  await extract(archivePath, { dir: outputDir });
+}
+
+function tarCanReadZip(archivePath: string): boolean {
+  try {
+    execFileSync("tar", ["-tf", archivePath], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
   }
 }
