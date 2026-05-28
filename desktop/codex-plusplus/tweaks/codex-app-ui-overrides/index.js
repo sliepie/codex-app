@@ -212,7 +212,7 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     VISIBLE_CONTROL_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    descendantSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
     ),

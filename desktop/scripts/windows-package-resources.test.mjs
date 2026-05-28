@@ -1949,6 +1949,16 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
       uiOverrideCss.includes(" [data-thread-title-trigger]>:first-child"),
     );
     assert.ok(uiOverrideCss.includes("gap:0.25rem!important;"));
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
+      ),
+    );
+    assert.ok(
+      !uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
+      ),
+    );
     assert.ok(!uiOverrideCss.includes(" .w-4:not(:has(button))"));
     assert.ok(
       uiOverrideCss.includes(
