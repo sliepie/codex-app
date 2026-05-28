@@ -123,10 +123,10 @@ test("Windows ARM64 package commands use the awaited Forge API runner", () => {
     packageJson.scripts["make:win:arm64:compiled"],
     "node ./scripts/run-electron-forge.mjs make --platform win32 --arch arm64",
   );
-  assert.match(runnerSource, /runWithForgeLiveness\(main\)/);
-  assert.match(runnerSource, /setInterval\(\(\) => \{\}, 1000\)/);
-  assert.match(runnerSource, /api\.package\(options\)/);
-  assert.match(runnerSource, /api\.make\(options\)/);
+  assert.match(runnerSource, /@electron\/packager/);
+  assert.match(runnerSource, /packager\(createPackagerOptions\(options, forgeConfig\)\)/);
+  assert.match(runnerSource, /maker\.make\(\{/);
+  assert.match(runnerSource, /hooks\.postMake/);
 });
 
 test("Windows ARM64 workflows use the package plan adapter", () => {
