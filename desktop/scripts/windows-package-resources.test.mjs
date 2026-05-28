@@ -1865,6 +1865,106 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
         String.raw`.group\/chats-section-header{position:relative!important;left:-1px!important;}`,
       ),
     );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/section-toggle:is(:hover,:focus-within) .group-hover\/section-toggle\:opacity-100,.group\/section-toggle:is(:hover,:focus-within) .group-focus-visible\/section-toggle\:opacity-100{opacity:1!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/projects-section-header:is(:hover,:focus-within) .group-hover\/projects-section-header\:opacity-100,.group\/projects-section-header:is(:hover,:focus-within) .group-focus-within\/projects-section-header\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/chats-section-header:is(:hover,:focus-within) .group-hover\/chats-section-header\:opacity-100,.group\/chats-section-header:is(:hover,:focus-within) .group-focus-within\/chats-section-header\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\/folder-row\:opacity-100){gap:0!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:hidden{display:none!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-0{opacity:1!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-100{opacity:0!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`@media (prefers-reduced-motion:no-preference){`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/section-toggle .group-hover\/section-toggle\:opacity-100`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{transition:opacity 120ms ease-out!important;}",
+      ),
+    );
+    assert.ok(
+      !uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{transform:translateX(0)!important;}",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes("opacity:0!important;pointer-events:none!important;"),
+    );
+    assert.ok(
+      !uiOverrideCss.includes("opacity:0!important;visibility:hidden!important;"),
+    );
+    assert.ok(uiOverrideCss.includes("padding-inline-end:1rem!important;"));
+    assert.ok(
+      uiOverrideCss.includes(
+        ":has(>.absolute.right-0.top-0.z-10):is(:hover,:focus-within) [data-thread-title-trigger]",
+      ),
+    );
+    assert.ok(uiOverrideCss.includes("text-overflow:ellipsis!important;"));
+    assert.ok(uiOverrideCss.includes("white-space:nowrap!important;"));
+    assert.ok(uiOverrideCss.includes("word-break:normal!important;"));
+    assert.ok(
+      uiOverrideCss.includes(" [data-thread-title-trigger]>:first-child"),
+    );
+    assert.ok(uiOverrideCss.includes("gap:0.25rem!important;"));
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
+      ),
+    );
+    assert.ok(
+      !uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
+      ),
+    );
+    assert.ok(!uiOverrideCss.includes(" .w-4:not(:has(button))"));
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
+      ),
+    );
     assert.match(
       appendedStyles[0].textContent,
       /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,

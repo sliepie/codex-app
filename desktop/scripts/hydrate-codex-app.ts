@@ -1,8 +1,9 @@
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import http, { type IncomingMessage } from "node:http";
+import https from "node:https";
 import path from "node:path";
-import extract from "extract-zip";
 import {
   prepareBetterSqlite3ElectronRebuild,
   prepareElectronHeadersForNativeRebuild,
@@ -415,12 +416,109 @@ async function downloadFile(
   outputPath: string,
   headers?: Record<string, string>,
 ): Promise<void> {
-  const response = await fetchGithubUrl(url, headers ? { headers } : undefined);
-  if (!response.ok || !response.body) {
-    throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
+  const temporaryOutputPath = `${outputPath}.download`;
+  fs.rmSync(temporaryOutputPath, { force: true });
+  try {
+    await downloadFileWithRedirects(url, temporaryOutputPath, headers ?? {}, 0);
+    fs.renameSync(temporaryOutputPath, outputPath);
+  } catch (error) {
+    fs.rmSync(temporaryOutputPath, { force: true });
+    throw error;
+  }
+}
+
+async function downloadFileWithRedirects(
+  url: string,
+  outputPath: string,
+  headers: Record<string, string>,
+  redirectCount: number,
+): Promise<void> {
+  if (redirectCount > 5) {
+    throw new Error(`Too many redirects while downloading ${url}`);
   }
 
-  fs.writeFileSync(outputPath, Buffer.from(await response.arrayBuffer()));
+  const requestUrl = new URL(url);
+  const client = requestUrl.protocol === "http:" ? http : https;
+  await new Promise<void>((resolve, reject) => {
+    const request = client.get(requestUrl, { headers }, async (response) => {
+      try {
+        const statusCode = response.statusCode ?? 0;
+        const locationHeader = response.headers.location;
+        const location = Array.isArray(locationHeader) ? locationHeader[0] : locationHeader;
+        if (statusCode >= 300 && statusCode < 400 && location) {
+          response.resume();
+          const nextUrl = new URL(location, requestUrl);
+          const nextHeaders =
+            nextUrl.origin === requestUrl.origin ? headers : withoutAuthorization(headers);
+          await downloadFileWithRedirects(
+            nextUrl.toString(),
+            outputPath,
+            nextHeaders,
+            redirectCount + 1,
+          );
+          resolve();
+          return;
+        }
+
+        if (statusCode === 401 && headers.Authorization) {
+          response.resume();
+          await downloadFileWithRedirects(url, outputPath, withoutAuthorization(headers), redirectCount);
+          resolve();
+          return;
+        }
+
+        if (statusCode < 200 || statusCode >= 300) {
+          response.resume();
+          reject(new Error(`Failed to download ${url}: ${statusCode} ${response.statusMessage ?? ""}`));
+          return;
+        }
+
+        await writeResponseToFile(response, outputPath);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
+    request.on("error", reject);
+  });
+}
+
+function writeResponseToFile(response: IncomingMessage, outputPath: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const file = fs.openSync(outputPath, "w");
+    let fileClosed = false;
+    let writeError: unknown;
+    const closeFile = () => {
+      if (!fileClosed) {
+        fs.closeSync(file);
+        fileClosed = true;
+      }
+    };
+    response.on("data", (chunk) => {
+      try {
+        fs.writeSync(file, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      } catch (error) {
+        writeError = error;
+        response.destroy(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+    response.on("end", () => {
+      closeFile();
+      if (writeError) {
+        reject(writeError);
+        return;
+      }
+      resolve();
+    });
+    response.on("error", (error) => {
+      closeFile();
+      reject(writeError ?? error);
+    });
+  });
+}
+
+function extractZip(zipPath: string, extractRoot: string): void {
+  execFileSync("tar", ["-xf", zipPath, "-C", extractRoot], { stdio: "inherit" });
 }
 
 function sanitizePathSegment(value: string): string {
@@ -668,7 +766,7 @@ async function hydrateCodexPlusPlusRuntime(
 
   if (!fs.existsSync(extractRoot)) {
     fs.mkdirSync(extractRoot, { recursive: true });
-    await extract(zipPath, { dir: extractRoot });
+    extractZip(zipPath, extractRoot);
   }
 
   const sourceRoot = findCodexPlusPlusSourceRoot(extractRoot);
@@ -2444,7 +2542,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
   if (!fs.existsSync(extractRoot)) {
     fs.mkdirSync(extractRoot, { recursive: true });
-    await extract(zipPath, { dir: extractRoot });
+    extractZip(zipPath, extractRoot);
   }
 
   const appAsar = findAppAsar(extractRoot);

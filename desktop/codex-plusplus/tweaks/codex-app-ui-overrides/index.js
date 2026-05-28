@@ -5,8 +5,64 @@ const VISIBLE_CONTROL_DECLARATIONS =
 const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
 const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
+const HIDDEN_META_DECLARATIONS =
+  "opacity:0!important;pointer-events:none!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
+const SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS =
+  "box-sizing:border-box!important;min-width:0!important;max-width:100%!important;";
+const SIDEBAR_THREAD_TITLE_LEFT_OFFSET_DECLARATIONS =
+  "padding-inline-start:1.25rem!important;";
+const SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS =
+  "padding-inline-end:1rem!important;";
+const SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS =
+  "display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;";
+const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
+const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
+const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
+  "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;";
+const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
+  "transform:translateX(0)!important;";
+const SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS =
+  "transition:opacity 120ms ease-out!important;";
+const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
+  "transition:opacity 120ms ease-out!important;";
+const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
+  ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
+const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
+  '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
+const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
+const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
+const SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR = `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10,>.absolute.right-0.top-0.z-10)`;
+const SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS = [
+  " .absolute.top-0.left-1.z-10",
+  " .w-4 span:has(button)",
+  ">.absolute.right-0.top-0.z-10",
+];
+const SIDEBAR_THREAD_ROW_META_TARGETS = [
+  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
+  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
+];
+const SIDEBAR_THREAD_ROW_ACTION_TARGETS = [
+  " .absolute.top-0.left-1.z-10",
+  " .absolute.top-0.left-1.z-10 button",
+  " .w-4 span:has(button)",
+  " .w-4 span:has(button) button",
+  ">.absolute.right-0.top-0.z-10",
+  ">.absolute.right-0.top-0.z-10 button",
+];
+const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
+  " .absolute.top-0.left-1.z-10 button svg",
+  " .absolute.top-0.left-1.z-10 button .icon-xs",
+  " .absolute.top-0.left-1.z-10 button .icon-sm",
+  " .w-4 span:has(button) button svg",
+  " .w-4 span:has(button) button .icon-2xs",
+  " .w-4 span:has(button) button .icon-xs",
+  ">.absolute.right-0.top-0.z-10 button svg",
+  ">.absolute.right-0.top-0.z-10 button .icon-xs",
+  ">.absolute.right-0.top-0.z-10 button .icon-sm",
+];
+const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS = "gap:0.25rem!important;";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -51,6 +107,14 @@ function cssRule(selectors, declarations) {
   return `${selector}{${declarations}}`;
 }
 
+function mediaRule(condition, rules) {
+  return `@media ${condition}{${rules.join("")}}`;
+}
+
+function descendantSelectors(container, targets) {
+  return targets.map((target) => `${container}${target}`);
+}
+
 function interactiveSelectors(container, targets) {
   return targets.map((target) => `${container}:is(:hover,:focus-within)${target}`);
 }
@@ -75,6 +139,185 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
       '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]',
     ],
     "position:relative!important;left:-2px!important;",
+  ),
+];
+
+const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
+  cssRule(
+    [
+      ...descendantSelectors(".group\\/section-toggle", [
+        " .group-hover\\/section-toggle\\:opacity-100",
+        " .group-focus-visible\\/section-toggle\\:opacity-100",
+      ]),
+      ...descendantSelectors(".group\\/projects-section-header", [
+        " .group-hover\\/projects-section-header\\:opacity-100",
+        " .group-focus-within\\/projects-section-header\\:opacity-100",
+      ]),
+      ...descendantSelectors(".group\\/chats-section-header", [
+        " .group-hover\\/chats-section-header\\:opacity-100",
+        " .group-focus-within\\/chats-section-header\\:opacity-100",
+      ]),
+      ...descendantSelectors(".group\\/folder-row", [
+        " .group-hover\\/folder-row\\:opacity-100",
+      ]),
+    ],
+    SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      ...interactiveSelectors(".group\\/section-toggle", [
+        " .group-hover\\/section-toggle\\:opacity-100",
+        " .group-focus-visible\\/section-toggle\\:opacity-100",
+      ]),
+      ...interactiveSelectors(".group\\/projects-section-header", [
+        " .group-hover\\/projects-section-header\\:opacity-100",
+        " .group-focus-within\\/projects-section-header\\:opacity-100",
+      ]),
+      ...interactiveSelectors(".group\\/chats-section-header", [
+        " .group-hover\\/chats-section-header\\:opacity-100",
+        " .group-focus-within\\/chats-section-header\\:opacity-100",
+      ]),
+      ...interactiveSelectors(".group\\/folder-row", [
+        " .group-hover\\/folder-row\\:opacity-100",
+      ]),
+    ],
+    SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
+  ),
+];
+
+const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
+  cssRule(
+    SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR,
+    SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS,
+  ),
+  cssRule(
+    descendantSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
+    ),
+    SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS,
+  ),
+  cssRule(
+    descendantSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_META_TARGETS,
+    ),
+    SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_TARGETS,
+    ),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    descendantSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
+    ),
+    SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS,
+    ),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
+      [" [data-thread-title-trigger]"],
+    ),
+    SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10)`,
+      [" [data-thread-title-trigger]"],
+    ),
+    SIDEBAR_THREAD_TITLE_LEFT_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(>.absolute.right-0.top-0.z-10)`,
+      [" [data-thread-title-trigger]"],
+    ),
+    SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
+      [
+        " [data-thread-title-trigger]>:first-child",
+        " [data-thread-title-trigger] .truncate",
+        " [data-thread-title-trigger] .whitespace-pre-wrap",
+        " [data-thread-title-trigger] .break-all",
+      ],
+    ),
+    SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS),
+    HIDDEN_META_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/section-toggle", [
+      " .group-hover\\/section-toggle\\:opacity-100",
+      " .group-focus-visible\\/section-toggle\\:opacity-100",
+    ]),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/projects-section-header", [
+      " .group-hover\\/projects-section-header\\:opacity-100",
+      " .group-focus-within\\/projects-section-header\\:opacity-100",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/chats-section-header", [
+      " .group-hover\\/chats-section-header\\:opacity-100",
+      " .group-focus-within\\/chats-section-header\\:opacity-100",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      " .group-hover\\/folder-row\\:opacity-100",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      " .group-hover\\/folder-row\\:opacity-0",
+    ]),
+    HIDDEN_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      " .group-hover\\/folder-row\\:hidden",
+    ]),
+    HIDDEN_DISPLAY_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      SIDEBAR_PROJECT_ROW_ICON_SELECTOR +
+        " .group-hover\\/folder-row\\:opacity-0",
+    ]),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      SIDEBAR_PROJECT_ROW_ICON_SELECTOR +
+        " .group-hover\\/folder-row\\:opacity-100",
+    ]),
+    HIDDEN_CONTROL_DECLARATIONS,
+  ),
+  mediaRule(
+    "(prefers-reduced-motion:no-preference)",
+    SIDEBAR_HOVER_CONTROL_MOTION_RULES,
   ),
 ];
 
@@ -129,6 +372,7 @@ const USAGE_MENU_STYLE_RULES = [
 const STYLE_RULES = [
   ...BASE_STYLE_RULES,
   ...SIDEBAR_PIXEL_NUDGE_STYLE_RULES,
+  ...SIDEBAR_HOVER_CONTROL_STYLE_RULES,
   ...RIGHT_PANEL_TAB_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,
