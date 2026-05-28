@@ -84,8 +84,19 @@ async function main() {
   await api.make(options);
 }
 
+async function runWithForgeLiveness(action) {
+  // Forge 7 bridges Electron Packager callbacks through promises. Keep Node
+  // alive while that bridge is pending, otherwise Node 24 can exit early.
+  const keepAlive = setInterval(() => {}, 1000);
+  try {
+    return await action();
+  } finally {
+    clearInterval(keepAlive);
+  }
+}
+
 try {
-  await main();
+  await runWithForgeLiveness(main);
 } catch (error) {
   console.error(error);
   process.exitCode = 1;
