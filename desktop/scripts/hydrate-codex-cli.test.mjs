@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -99,17 +100,23 @@ test("GitHub release asset helper verifies digest and cached size", async () => 
   const bytes = Buffer.from("asset payload");
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "codex-gh-asset-"));
   const cachePath = path.join(directory, "asset.zip");
-  const originalFetch = globalThis.fetch;
   let fetchCount = 0;
-  globalThis.fetch = async () => {
+  const server = http.createServer((_, response) => {
     fetchCount += 1;
-    return new Response(bytes);
-  };
+    response.writeHead(200, {
+      "Content-Length": bytes.length,
+      "Content-Type": "application/octet-stream",
+    });
+    response.end(bytes);
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 
   try {
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
     const asset = {
       digest: "sha256:" + sha256(bytes),
-      downloadUrl: "https://github.com/example/repo/releases/download/v1/asset.zip",
+      downloadUrl: `http://127.0.0.1:${address.port}/asset.zip`,
       name: "asset.zip",
       size: bytes.length,
     };
@@ -133,7 +140,44 @@ test("GitHub release asset helper verifies digest and cached size", async () => 
     });
     assert.equal(fetchCount, 1);
   } finally {
-    globalThis.fetch = originalFetch;
+    await new Promise((resolve) => server.close(resolve));
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("GitHub release asset helper rejects failed downloads without caching them", async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "codex-gh-asset-fail-"));
+  const cachePath = path.join(directory, "asset.zip");
+  const server = http.createServer((_, response) => {
+    response.writeHead(404, {
+      "Content-Type": "text/plain",
+    });
+    response.end("missing");
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+  try {
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    await assert.rejects(
+      () =>
+        ensureCachedReleaseAsset({
+          asset: {
+            digest: "sha256:" + sha256(Buffer.from("missing")),
+            downloadUrl: "http://127.0.0.1:" + address.port + "/asset.zip",
+            name: "asset.zip",
+            size: 7,
+          },
+          cachePath,
+          checksum: { kind: "digest" },
+          force: false,
+        }),
+      /Failed to download .*404/,
+    );
+    assert.equal(fs.existsSync(cachePath), false);
+    assert.equal(fs.existsSync(cachePath + ".download"), false);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });
