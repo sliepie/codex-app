@@ -1,9 +1,9 @@
 {
-  "id": "app.sliepie.codex.ui-overrides",
-  "name": "Codex app UI",
-  "version": "0.12.0",
+  "id": "app.sliepie.codex.windows-menu-bar",
+  "name": "Codex app Windows menu bar",
+  "version": "0.1.0",
   "githubRepo": "sliepie/codex-app",
-  "description": "Applies the bundled Windows sidebar and preview layout adjustments.",
+  "description": "Adds an Appearance setting for showing or hiding the Windows menu bar.",
   "author": "sliepie",
   "homepage": "https://github.com/sliepie/codex-app",
   "tags": ["ui", "windows"],

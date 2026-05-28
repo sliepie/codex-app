@@ -13,8 +13,10 @@ const desktopRoot = path.dirname(scriptsRoot);
 const repoRoot = path.dirname(desktopRoot);
 const bundledTweakRelativeRoots = new Map([
   ["codex-app-ui-overrides", "desktop/codex-plusplus/tweaks/codex-app-ui-overrides"],
+  ["codex-app-windows-menu-bar", "desktop/codex-plusplus/tweaks/codex-app-windows-menu-bar"],
   ["codex-plusplus-updater-ui-overrides", "desktop/codex-plusplus/tweaks/codex-plusplus-updater-ui-overrides"],
 ]);
+const newBundledTweaks = new Set(["codex-app-windows-menu-bar"]);
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -172,6 +174,13 @@ function bundledTweakRelativeRoot(tweakName) {
 }
 
 function expectedBundledTweakMetadata(tweakName, id) {
+  if (newBundledTweaks.has(tweakName)) {
+    return {
+      id,
+      version: "0.1.0",
+    };
+  }
+
   const relativeRoot = bundledTweakRelativeRoot(tweakName);
   const mainManifest = readMainBranchJson(relativeRoot + "/manifest.json");
   return {
@@ -1142,6 +1151,10 @@ test("includes generated plugin resources and Codex++ integration in the Windows
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json"),
     false,
   );
+  assert.equal(
+    config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-windows-menu-bar/manifest.json"),
+    false,
+  );
 
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
@@ -1499,6 +1512,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
     .sort();
   assert.deepEqual(tweakNames, [
     "codex-app-ui-overrides",
+    "codex-app-windows-menu-bar",
     "codex-plusplus-updater-ui-overrides",
   ]);
   const expectedTweakMetadata = new Map([
@@ -1507,6 +1521,13 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
       expectedBundledTweakMetadata(
         "codex-app-ui-overrides",
         "app.sliepie.codex.ui-overrides",
+      ),
+    ],
+    [
+      "codex-app-windows-menu-bar",
+      expectedBundledTweakMetadata(
+        "codex-app-windows-menu-bar",
+        "app.sliepie.codex.windows-menu-bar",
       ),
     ],
     [
@@ -1530,7 +1551,7 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
     assert.notEqual(manifest.id.includes("keyboard"), true);
 
     const source = fs.readFileSync(path.join(tweakRoot, manifest.main), "utf8");
-    if (tweakName === "codex-app-ui-overrides") {
+    if (tweakName === "codex-app-windows-menu-bar") {
       assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout/);
     } else {
       assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
@@ -1547,9 +1568,14 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
 });
 
 test("Bundled Codex++ tweak versions follow main branch bump policy", () => {
-  for (const relativeRoot of bundledTweakRelativeRoots.values()) {
+  for (const [tweakName, relativeRoot] of bundledTweakRelativeRoots) {
     const manifestPath = relativeRoot + "/manifest.json";
     const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, manifestPath), "utf8"));
+    if (newBundledTweaks.has(tweakName)) {
+      assert.equal(manifest.version, "0.1.0");
+      continue;
+    }
+
     const mainManifest = readMainBranchJson(manifestPath);
     const [mainMajor, mainMinor, mainPatch] = parseThreePartVersion(mainManifest.version);
     const sourceChangedFromMain = !tweakContentMatchesMainBranch(relativeRoot);
@@ -1571,13 +1597,19 @@ test("Bundled Codex++ tweak versions follow main branch bump policy", () => {
   }
 });
 
-test("Codex app UI override installs styles and Appearance menu-bar toggle", () => {
-  const tweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
-  const manifest = JSON.parse(fs.readFileSync(path.join(tweakRoot, "manifest.json"), "utf8"));
-  const source = fs.readFileSync(path.join(tweakRoot, manifest.main), "utf8");
-  assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout/);
+test("Codex app UI override and Windows menu-bar tweak install independently", () => {
+  const uiTweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
+  const uiManifest = JSON.parse(fs.readFileSync(path.join(uiTweakRoot, "manifest.json"), "utf8"));
+  const uiSource = fs.readFileSync(path.join(uiTweakRoot, uiManifest.main), "utf8");
+  assert.doesNotMatch(uiSource, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+  assert.doesNotMatch(uiSource, /hideWindowsMenuBar|codex-app-ui-hide-windows-menu-bar-setting/);
+
+  const menuTweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-windows-menu-bar");
+  const menuManifest = JSON.parse(fs.readFileSync(path.join(menuTweakRoot, "manifest.json"), "utf8"));
+  const menuSource = fs.readFileSync(path.join(menuTweakRoot, menuManifest.main), "utf8");
+  assert.doesNotMatch(menuSource, /createTreeWalker|requestAnimationFrame|setTimeout/);
   const appendedStyles = [];
-  let styleRemoved = false;
+  const removedStyleIds = new Set();
   let observerCallback = null;
   let observerDisconnected = false;
   const storageValues = new Map();
@@ -1638,8 +1670,11 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
     }
 
     remove() {
-      if (this.id === "codex-app-ui-overrides-style") {
-        styleRemoved = true;
+      if (
+        this.id === "codex-app-ui-overrides-style" ||
+        this.id === "codex-app-windows-menu-bar-style"
+      ) {
+        removedStyleIds.add(this.id);
       }
       if (!this.parentElement) {
         return;
@@ -1775,10 +1810,15 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
   };
 
   try {
-    const module = { exports: {} };
-    const exports = module.exports;
-    const fn = new Function("module", "exports", "console", source);
-    fn(module, exports, console);
+    const uiModule = { exports: {} };
+    const uiExports = uiModule.exports;
+    const uiFn = new Function("module", "exports", "console", uiSource);
+    uiFn(uiModule, uiExports, console);
+
+    const menuModule = { exports: {} };
+    const menuExports = menuModule.exports;
+    const menuFn = new Function("module", "exports", "console", menuSource);
+    menuFn(menuModule, menuExports, console);
 
     const storage = {
       get: (key, defaultValue) =>
@@ -1788,33 +1828,40 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
       },
     };
 
-    module.exports.start({ log: console, storage });
+    uiModule.exports.start({ log: console });
+    menuModule.exports.start({ log: console, storage });
 
     assert.equal(
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
       "true",
     );
     assert.equal(typeof observerCallback, "function");
-    assert.equal(appendedStyles.length, 1);
+    assert.equal(appendedStyles.length, 2);
     assert.equal(appendedStyles[0].id, "codex-app-ui-overrides-style");
+    assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
     const uiOverrideCss = appendedStyles[0].textContent;
+    const menuBarCss = appendedStyles[1].textContent;
     assert.match(
       appendedStyles[0].textContent,
       /top:calc\(0\.75rem \+ 26px\)!important/,
     );
     assert.ok(
-      uiOverrideCss.includes(
+      menuBarCss.includes(
         String.raw`:root[data-codex-app-ui-hide-windows-menu-bar="true"] .group\/windows-top-bar>.flex.items-center.gap-0\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded]){display:none!important;}`,
       ),
     );
     assert.equal(
-      uiOverrideCss.includes(
+      uiOverrideCss.includes("data-codex-app-ui-hide-windows-menu-bar"),
+      false,
+    );
+    assert.equal(
+      menuBarCss.includes(
         String.raw`.group\/windows-top-bar{display:none!important;}`,
       ),
       false,
     );
     assert.equal(
-      uiOverrideCss.includes(String.raw`.group\/windows-top-bar button[aria-label]`),
+      menuBarCss.includes(String.raw`.group\/windows-top-bar button[aria-label]`),
       false,
     );
     const settingRow = document.getElementById(
@@ -1984,10 +2031,11 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
       ),
     );
 
-    module.exports.start({ log: console, storage });
-    assert.equal(appendedStyles.length, 1);
+    menuModule.exports.start({ log: console, storage });
+    assert.equal(appendedStyles.length, 2);
 
-    module.exports.stop();
+    menuModule.exports.stop();
+    uiModule.exports.stop();
     assert.equal(observerDisconnected, true);
     assert.equal(
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
@@ -1997,7 +2045,8 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
       document.getElementById("codex-app-ui-hide-windows-menu-bar-setting"),
       null,
     );
-    assert.equal(styleRemoved, true);
+    assert.equal(removedStyleIds.has("codex-app-windows-menu-bar-style"), true);
+    assert.equal(removedStyleIds.has("codex-app-ui-overrides-style"), true);
   } finally {
     globalThis.window = previousWindow;
     globalThis.document = previousDocument;
