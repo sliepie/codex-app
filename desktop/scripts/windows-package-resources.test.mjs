@@ -1930,6 +1930,12 @@ test("Codex app UI override installs styles and Appearance menu-bar toggle", () 
         "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{transform:translateX(0)!important;}",
       ),
     );
+    assert.ok(
+      uiOverrideCss.includes("opacity:0!important;pointer-events:none!important;"),
+    );
+    assert.ok(
+      !uiOverrideCss.includes("opacity:0!important;visibility:hidden!important;"),
+    );
     assert.ok(uiOverrideCss.includes("padding-inline-end:1rem!important;"));
     assert.ok(
       uiOverrideCss.includes(

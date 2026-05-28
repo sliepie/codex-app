@@ -6,7 +6,7 @@ const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONT
 const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
 const HIDDEN_META_DECLARATIONS =
-  "opacity:0!important;visibility:hidden!important;";
+  "opacity:0!important;pointer-events:none!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
 const SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS =
@@ -25,6 +25,8 @@ const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
   "transform:translateX(0)!important;";
 const SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out!important;";
+const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
+  "transition:opacity 120ms ease-out!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
 const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
@@ -36,6 +38,10 @@ const SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS = [
   " .absolute.top-0.left-1.z-10",
   " .w-4 span:has(button)",
   ">.absolute.right-0.top-0.z-10",
+];
+const SIDEBAR_THREAD_ROW_META_TARGETS = [
+  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
+  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
 ];
 const SIDEBAR_THREAD_ROW_ACTION_TARGETS = [
   " .absolute.top-0.left-1.z-10",
@@ -192,6 +198,13 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS,
   ),
   cssRule(
+    descendantSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_META_TARGETS,
+    ),
+    SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS,
+  ),
+  cssRule(
     interactiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_ACTION_TARGETS,
@@ -246,10 +259,7 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
-      " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
-      " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
-    ]),
+    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS),
     HIDDEN_META_DECLARATIONS,
   ),
   cssRule(
