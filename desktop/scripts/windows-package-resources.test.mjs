@@ -12,10 +12,16 @@ const scriptsRoot = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.dirname(scriptsRoot);
 const repoRoot = path.dirname(desktopRoot);
 const bundledTweakRelativeRoots = new Map([
+  [
+    "codex-app-compact-windows-titlebar",
+    "desktop/codex-plusplus/tweaks/codex-app-compact-windows-titlebar",
+  ],
   ["codex-app-ui-overrides", "desktop/codex-plusplus/tweaks/codex-app-ui-overrides"],
   ["codex-app-windows-menu-bar", "desktop/codex-plusplus/tweaks/codex-app-windows-menu-bar"],
 ]);
-const newBundledTweaks = new Set();
+const newBundledTweaks = new Set([
+  "codex-app-compact-windows-titlebar",
+]);
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -1568,10 +1574,18 @@ test("bundles repo-owned Codex++ UI tweaks without keyboard shortcut tweaks", ()
     .map((entry) => entry.name)
     .sort();
   assert.deepEqual(tweakNames, [
+    "codex-app-compact-windows-titlebar",
     "codex-app-ui-overrides",
     "codex-app-windows-menu-bar",
   ]);
   const expectedTweakMetadata = new Map([
+    [
+      "codex-app-compact-windows-titlebar",
+      expectedBundledTweakMetadata(
+        "codex-app-compact-windows-titlebar",
+        "app.sliepie.codex.compact-windows-titlebar",
+      ),
+    ],
     [
       "codex-app-ui-overrides",
       expectedBundledTweakMetadata(
@@ -1643,6 +1657,80 @@ test("Bundled Codex++ tweak versions follow main branch bump policy", () => {
       expectedLocalModifiedTweakVersion(mainManifest.version),
       manifest.version,
     );
+  }
+});
+
+test("Codex app compact Windows titlebar tweak installs renderer-only compact chrome styles", () => {
+  const tweakRoot = path.join(
+    desktopRoot,
+    "codex-plusplus",
+    "tweaks",
+    "codex-app-compact-windows-titlebar",
+  );
+  const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
+  assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+  assert.doesNotMatch(source, /titleBarOverlay|setTitleBarOverlay|BrowserWindow/);
+
+  const appendedStyles = [];
+  const previousDocument = globalThis.document;
+
+  const head = {
+    appendChild(style) {
+      appendedStyles.push(style);
+      return style;
+    },
+  };
+  globalThis.document = {
+    head,
+    getElementById: () => null,
+    createElement: (tagName) => ({
+      tagName: tagName.toUpperCase(),
+      id: "",
+      textContent: "",
+      remove() {},
+    }),
+  };
+
+  try {
+    const module = { exports: {} };
+    const exports = module.exports;
+    const fn = new Function("module", "exports", "console", source);
+    fn(module, exports, console);
+
+    module.exports.start({ log: console });
+    assert.equal(appendedStyles.length, 1);
+    assert.equal(
+      appendedStyles[0].id,
+      "codex-app-compact-windows-titlebar-style",
+    );
+
+    const css = appendedStyles[0].textContent;
+    assert.ok(
+      css.includes(
+        '.group\\/windows-top-bar>.flex.items-center.gap-0\\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded]){display:none!important;}',
+      ),
+    );
+    assert.ok(
+      css.includes(
+        '.app-header-tint.draggable.pointer-events-none.fixed.h-toolbar:not(.group\\/windows-top-bar){top:0!important;height:var(--height-toolbar-sm)!important;z-index:50!important;background-color:var(--codex-titlebar-tint,transparent)!important;}',
+      ),
+    );
+    assert.ok(
+      css.includes(
+        '.app-header-tint.draggable.pointer-events-none.fixed.h-toolbar:not(.group\\/windows-top-bar) [data-testid="app-shell-header-context-menu-surface"]{height:var(--height-toolbar-sm)!important;}',
+      ),
+    );
+    assert.ok(
+      css.includes(
+        ".app-shell-main-content-viewport{--app-shell-main-content-frame-top-offset:var(--height-toolbar-sm)!important;}",
+      ),
+    );
+    assert.equal(
+      css.includes(".group\\/windows-top-bar{display:none!important;}"),
+      false,
+    );
+  } finally {
+    globalThis.document = previousDocument;
   }
 });
 
