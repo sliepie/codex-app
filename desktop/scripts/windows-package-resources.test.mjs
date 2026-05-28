@@ -2266,6 +2266,8 @@ test("authenticates Codex++ GitHub release lookup when a token is available", ()
   assert.match(scriptSource, /headers\.Authorization = "Bearer " \+ token/);
   assert.match(scriptSource, /fetchGithubUrl/);
   assert.match(scriptSource, /withoutAuthorization/);
+  assert.match(scriptSource, /shouldRetryWithoutAuthorization/);
+  assert.match(scriptSource, /statusCode === 401 \|\| statusCode === 404/);
   assert.match(scriptSource, /headers: githubHeaders\(\)/);
   assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_REPOSITORY/);
   assert.match(scriptSource, /process\.env\.CODEX_APP_VERSION/);
