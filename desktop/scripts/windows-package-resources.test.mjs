@@ -2292,8 +2292,9 @@ test("authenticates GitHub release asset downloads when a token is available", (
   assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
   assert.match(scriptSource, /headers\.Authorization = "Bearer " \+ token/);
   assert.match(scriptSource, /hostname === "api\.github\.com" \|\| hostname === "github\.com"/);
-  assert.match(scriptSource, /fetchPublicGithubUrl/);
+  assert.match(scriptSource, /requestUrl/);
   assert.match(scriptSource, /withoutAuthorization/);
+  assert.doesNotMatch(scriptSource, /fetch\(/);
   assert.match(scriptSource, /export async function fetchGitHubRelease/);
   assert.match(scriptSource, /ensureCachedReleaseAsset/);
   assert.doesNotMatch(scriptSource, /execFileSync\(\s*"gh"/);
