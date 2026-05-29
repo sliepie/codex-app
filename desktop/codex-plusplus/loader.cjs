@@ -447,16 +447,8 @@ function startCodexPlusPlusIntegration() {
   });
 }
 
-function scheduleCodexPlusPlusIntegration() {
-  if (typeof setImmediate === "function") {
-    setImmediate(startCodexPlusPlusIntegration);
-    return;
-  }
-  setTimeout(startCodexPlusPlusIntegration, 0);
-}
-
 process.env.CODEX_PLUSPLUS_USER_ROOT = userRoot;
 process.env.CODEX_PLUSPLUS_RUNTIME = runtimeDir;
 registerEarlyPreloadHooks();
+startCodexPlusPlusIntegration();
 require(path.join(packagedRoot, originalMain));
-scheduleCodexPlusPlusIntegration();

@@ -23,6 +23,7 @@ Active goal objective in Codex:
 
 Touched files in the current pass:
 
+- `desktop/codex-plusplus/loader.cjs`
 - `desktop/codex-plusplus/tweaks/codex-app-compact-windows-titlebar/index.js`
 - `desktop/codex-plusplus/tweaks/codex-app-compact-windows-titlebar/manifest.json`
 - `desktop/scripts/windows-package-resources.test.mjs`
@@ -47,6 +48,8 @@ When that returns false:
 
 So the correct seam is to remove only `electronBridge.showApplicationMenu` before renderer boot, not to hide or move rendered DOM after the fact.
 
+The restart check also found that a main-process tweak alone is not early enough when the Codex++ runtime is scheduled after upstream Codex startup. The initial Codex window is created before main tweaks run, so the compact tweak never writes its generated preload shim for that first window. The loader must start Codex++ runtime before requiring upstream Codex so main tweaks can patch Electron constructors before the first `BrowserWindow`.
+
 ## Rejected Approaches
 
 These were tried and rejected:
@@ -62,9 +65,12 @@ The screenshot that showed overlap after the DOM-move pass is:
 
 ## Current Implementation Direction
 
-The compact tweak is now a main-process tweak.
+The implementation has two small pieces:
 
-It patches future `electron.BrowserWindow` construction on Windows:
+1. The Codex++ loader starts runtime integration before requiring the upstream Codex main module.
+2. The compact tweak remains a separate main-process tweak that patches `electron.BrowserWindow` construction on Windows.
+
+The tweak behavior:
 
 1. read the original `webPreferences.preload`
 2. write a generated preload shim under `CODEX_PLUSPLUS_USER_ROOT\generated`
@@ -75,7 +81,7 @@ It patches future `electron.BrowserWindow` construction on Windows:
 
 That leaves the rest of `electronBridge` intact and makes the app shell take its existing macOS-style no-menu layout branch.
 
-Important caveat: because this changes the preload used when a BrowserWindow is created, the running window may need an app restart or a newly created window to show the result. Hot-reloading the tweak file updates the main tweak, but it cannot retroactively change the preload that created an already-loaded renderer.
+Important caveat: because the loader is packaged inside the app ASAR, the currently installed app cannot prove the new startup order until the app package itself is updated. The user-restarted installed app still has the old loader ordering, so it remains valid negative evidence but not a proof of the PR state after this loader change.
 
 ## Screenshot Notes
 
@@ -89,6 +95,7 @@ Older screenshots are useful only as rejected-reference evidence:
 - `C:\tmp\codex-app-screenshots\codex-window-printwindow-spacerfix-topstrip-20260529-010350.png` shows the rejected spacer attempt still failing
 - `C:\tmp\codex-app-screenshots\codex-window-printwindow-nativepath-check-topstrip-20260529-063305.png` shows the already-open renderer still using the old preload/topbar spacing, so it is not accepted proof of the new path.
 - `C:\tmp\codex-app-screenshots\codex-window-printwindow-existingpatch-topstrip-20260529-064203.png` shows that trying to mutate `window.electronBridge` in the already-open renderer did not move the shell into the no-menu layout. That experiment was reverted; do not repeat it as the final path.
+- `C:\tmp\codex-app-screenshots\codex-window-printwindow-restart-codex-topstrip-20260529-075616.png` shows the user-restarted installed app still using the old startup path. That led to the loader-order fix in this PR.
 
 ## Validation
 
@@ -98,6 +105,12 @@ Focused test command:
 fnm exec -- node --test --test-name-pattern "bundles app-owned Codex\+\+ UI tweaks|Bundled Codex\+\+ tweak versions|Codex app compact Windows titlebar tweak|Codex app UI override and Windows menu-bar tweak|includes generated plugin resources" desktop/scripts/windows-package-resources.test.mjs
 ```
 
+Combined loader/tweak command used after the loader-order fix:
+
+```powershell
+fnm exec -- node --test --test-name-pattern "bundles app-owned Codex\+\+ UI tweaks|Bundled Codex\+\+ tweak versions|Codex app compact Windows titlebar tweak|Codex app UI override and Windows menu-bar tweak|includes generated plugin resources|Codex\+\+ loader" desktop/scripts/windows-package-resources.test.mjs
+```
+
 Full file test has had known unrelated failures:
 
 - `PE machine reader rejects invalid PE signatures`
@@ -105,8 +118,8 @@ Full file test has had known unrelated failures:
 
 Latest validation:
 
-- focused test command passed: 5/5
-- repo and local installed tweak hashes match for `index.js` and `manifest.json`
-- Codex++ main log shows `Compact Windows titlebar BrowserWindow preload patch installed`
-- generated shim is still pending because no new BrowserWindow has been constructed since the main tweak started
-- targeted `PrintWindow` capture of the current already-open window confirmed it is not using the patched preload yet
+- combined focused test command passed: 17/17
+- loader tests now prove Codex++ runtime starts before upstream Codex startup
+- loader tests include a regression case where early runtime patches `BrowserWindow` before upstream startup constructs a window
+- compact tweak unit coverage still proves `showApplicationMenu` is removed before renderer boot
+- targeted `PrintWindow` capture of the user-restarted installed app confirmed the old packaged loader still misses the first window, which is expected until the app package is rebuilt/reinstalled with this PR

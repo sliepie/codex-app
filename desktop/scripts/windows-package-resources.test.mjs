@@ -1280,7 +1280,10 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.match(loaderSource, /readInstalledTweakVersion\(targetDir, manifest\.id\)/);
   assert.match(loaderSource, /bundledVersionIsNewer\(manifest\.version, installedVersion\)/);
   assert.match(loaderSource, /__codexpp\.originalMain/);
-  assert.match(loaderSource, /registerEarlyPreloadHooks\(\);[\s\S]*require\(path\.join\(packagedRoot, originalMain\)\)/);
+  assert.match(
+    loaderSource,
+    /registerEarlyPreloadHooks\(\);[\s\S]*startCodexPlusPlusIntegration\(\);[\s\S]*require\(path\.join\(packagedRoot, originalMain\)\)/,
+  );
   assert.match(loaderSource, /maxLogBytes = 10 \* 1024 \* 1024/);
   assert.match(loaderSource, /if \(size > maxLogBytes\)/);
   assert.match(loaderSource, /function trimLogToRetainedBytes/);
@@ -1385,10 +1388,59 @@ function runCodexPlusPlusLoaderFixture(fixture) {
   return fs.readFileSync(fixture.tracePath, "utf8").trim().split(/\r?\n/);
 }
 
-test("Codex++ loader starts original Codex before runtime integration", (t) => {
+test("Codex++ loader starts runtime integration before original Codex", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
+});
+
+test("Codex++ loader lets early runtime patch BrowserWindow before original startup", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.root, "node_modules", "electron", "index.js"),
+    [
+      'const fs = require("node:fs");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      "class BrowserWindow {",
+      '  constructor() { fs.appendFileSync(trace, "browser-window\\n"); }',
+      "}",
+      "module.exports = { BrowserWindow, app: {}, session: {} };",
+      "",
+    ].join("\n"),
+  );
+  writeFixture(
+    path.join(fixture.root, "codex-plusplus", "runtime", "main.js"),
+    [
+      'const fs = require("node:fs");',
+      'const electron = require("electron");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      "const OriginalBrowserWindow = electron.BrowserWindow;",
+      "electron.BrowserWindow = function PatchedBrowserWindow(...args) {",
+      '  fs.appendFileSync(trace, "patched\\n");',
+      "  return new OriginalBrowserWindow(...args);",
+      "};",
+      'fs.appendFileSync(trace, "runtime\\n");',
+      "",
+    ].join("\n"),
+  );
+  writeFixture(
+    path.join(fixture.root, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
+    [
+      'const fs = require("node:fs");',
+      'const { BrowserWindow } = require("electron");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      "new BrowserWindow();",
+      'fs.appendFileSync(trace, "original\\n");',
+      "",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
+    "runtime",
+    "patched",
+    "browser-window",
+    "original",
+  ]);
 });
 
 test("Codex++ loader registers preload hooks before original Codex startup", (t) => {
@@ -1426,8 +1478,8 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
     "when-ready-hook",
     "preload",
     "session-created-hook",
-    "original",
     "runtime",
+    "original",
   ]);
 });
 
@@ -1448,7 +1500,7 @@ test("Codex++ loader upgrades installed tweak directories when bundled version i
   );
   writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "user";\n');
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
   assert.equal(
     fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
     'module.exports = "bundled";\n',
@@ -1481,7 +1533,7 @@ test("Codex++ loader keeps installed tweak directories when bundled version is n
   );
   writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
   assert.equal(
     fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
     'module.exports = "old";\n',
@@ -1510,7 +1562,7 @@ test("Codex++ loader keeps installed tweaks when bundled tweak discovery fails",
   );
   writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
   assert.equal(fs.existsSync(installedTweakRoot), true);
 });
 
@@ -1521,7 +1573,7 @@ test("Codex++ loader rejects unsafe bundled tweak ids", (t) => {
     JSON.stringify({ id: "../escaped", version: "1.0.0" }, null, 2) + "\n",
   );
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
   assert.equal(fs.existsSync(path.join(fixture.appData, "codex-plusplus", "escaped")), false);
 });
 
@@ -1531,7 +1583,7 @@ test("Codex++ loader does not rewrite already disabled updater config", (t) => {
   const configSource = '{"codexPlusPlus":{"autoUpdate":false},"keep":"format"}\n';
   writeFixture(configPath, configSource);
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
   assert.equal(fs.readFileSync(configPath, "utf8"), configSource);
 });
 
@@ -1540,7 +1592,7 @@ test("Codex++ loader disables updater when nested config shape is invalid", (t) 
   const configPath = path.join(fixture.appData, "codex-plusplus", "config.json");
   writeFixture(configPath, JSON.stringify({ codexPlusPlus: "invalid", keep: true }, null, 2) + "\n");
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
   assert.deepEqual(JSON.parse(fs.readFileSync(configPath, "utf8")), {
     codexPlusPlus: { autoUpdate: false },
     keep: true,
@@ -1552,7 +1604,7 @@ test("Codex++ loader disables updater when config JSON is malformed", (t) => {
   const configPath = path.join(fixture.appData, "codex-plusplus", "config.json");
   writeFixture(configPath, "{broken json\n");
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
   assert.deepEqual(JSON.parse(fs.readFileSync(configPath, "utf8")), {
     codexPlusPlus: { autoUpdate: false },
   });
