@@ -1,160 +1,180 @@
-const STYLE_ID = "codex-app-compact-windows-titlebar-style";
-const CONTROLS_HOST_ID = "codex-app-compact-windows-titlebar-controls";
+const PATCH_MARKER = Symbol.for("codex-app.compact-windows-titlebar.browser-window");
+const PRELOAD_SHIM_NAME = "compact-windows-titlebar-preload.cjs";
 
-const WINDOWS_TOP_BAR_SELECTOR = ".app-header-tint.group\\/windows-top-bar";
-const APP_HEADER_SELECTOR =
-  ".app-header-tint.draggable.pointer-events-none.fixed.h-toolbar:not(.group\\/windows-top-bar)";
-const APP_HEADER_CONTEXT_SELECTOR =
-  APP_HEADER_SELECTOR + ' [data-testid="app-shell-header-context-menu-surface"]';
-const MAIN_CONTENT_VIEWPORT_SELECTOR = ".app-shell-main-content-viewport";
+let patchedElectron = null;
+let originalBrowserWindow = null;
+let patchedBrowserWindow = null;
 
-const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
-const TITLEBAR_TINT_DECLARATIONS =
-  "background-color:var(--codex-titlebar-tint,transparent)!important;";
-const COMPACT_HEADER_DECLARATIONS =
-  "top:0!important;height:var(--height-toolbar-sm)!important;" +
-  "z-index:50!important;" +
-  TITLEBAR_TINT_DECLARATIONS;
-const COMPACT_HEADER_CONTEXT_DECLARATIONS =
-  "height:var(--height-toolbar-sm)!important;";
-const COMPACT_MAIN_CONTENT_DECLARATIONS =
-  "--app-shell-main-content-frame-top-offset:var(--height-toolbar-sm)!important;";
-const COMPACT_CONTROLS_HOST_DECLARATIONS =
-  "position:fixed!important;top:0!important;left:0.5rem!important;" +
-  "height:var(--height-toolbar-sm)!important;z-index:70!important;" +
-  "display:flex!important;align-items:center!important;pointer-events:auto!important;";
-const COMPACT_CONTROLS_DECLARATIONS =
-  "height:var(--height-toolbar-sm)!important;display:flex!important;align-items:center!important;";
-
-let movedControls = null;
-let originalControlsParent = null;
-let originalControlsNextSibling = null;
-let titlebarObserver = null;
-
-function cssRule(selectors, declarations) {
-  const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
-  return selector + "{" + declarations + "}";
+function logInfo(api, message) {
+  if (typeof api?.log?.info === "function") {
+    api.log.info(message);
+  }
 }
 
-const STYLE_RULES = [
-  cssRule(WINDOWS_TOP_BAR_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
-  cssRule("#" + CONTROLS_HOST_ID, COMPACT_CONTROLS_HOST_DECLARATIONS),
-  cssRule("#" + CONTROLS_HOST_ID + ">*", COMPACT_CONTROLS_DECLARATIONS),
-  cssRule(
-    [
-      APP_HEADER_SELECTOR,
-      APP_HEADER_SELECTOR + '[data-app-shell-header-edge-scroll="true"]',
-    ],
-    TITLEBAR_TINT_DECLARATIONS,
-  ),
-  cssRule(APP_HEADER_SELECTOR, COMPACT_HEADER_DECLARATIONS),
-  cssRule(APP_HEADER_CONTEXT_SELECTOR, COMPACT_HEADER_CONTEXT_DECLARATIONS),
-  cssRule(MAIN_CONTENT_VIEWPORT_SELECTOR, COMPACT_MAIN_CONTENT_DECLARATIONS),
-];
+function logWarn(api, message, error) {
+  if (typeof api?.log?.warn === "function") {
+    api.log.warn(message, error);
+    return;
+  }
 
-function findWindowsTopBarLeftControls(topBar) {
+  if (typeof api?.log?.error === "function") {
+    api.log.error(message, error);
+  }
+}
+
+function userRoot(electron, path) {
+  if (process.env.CODEX_PLUSPLUS_USER_ROOT) {
+    return process.env.CODEX_PLUSPLUS_USER_ROOT;
+  }
+
+  return path.join(electron.app.getPath("userData"), "codex-plusplus");
+}
+
+function preloadShimSource(originalPreloadPath) {
   return (
-    Array.from(topBar?.children || []).find((child) => {
-      if (!child?.querySelector?.("button")) {
-        return false;
-      }
-
-      return !child.querySelector?.('button[aria-haspopup="menu"][aria-expanded]');
-    }) || null
+    '"use strict";\n' +
+    'const electron = require("electron");\n' +
+    "const contextBridge = electron && electron.contextBridge;\n" +
+    "const originalExposeInMainWorld = contextBridge && contextBridge.exposeInMainWorld;\n" +
+    "function withoutApplicationMenuBridge(name, api) {\n" +
+    '  if (name !== "electronBridge" || !api || typeof api !== "object") {\n' +
+    "    return api;\n" +
+    "  }\n" +
+    "  const compactApi = { ...api };\n" +
+    "  delete compactApi.showApplicationMenu;\n" +
+    "  return compactApi;\n" +
+    "}\n" +
+    "if (typeof originalExposeInMainWorld === \"function\") {\n" +
+    "  const wrappedExposeInMainWorld = function(name, api) {\n" +
+    "    return originalExposeInMainWorld.call(\n" +
+    "      this,\n" +
+    "      name,\n" +
+    "      withoutApplicationMenuBridge(name, api),\n" +
+    "    );\n" +
+    "  };\n" +
+    "  contextBridge.exposeInMainWorld = wrappedExposeInMainWorld;\n" +
+    "  try {\n" +
+    "    require(" +
+    JSON.stringify(originalPreloadPath) +
+    ");\n" +
+    "  } finally {\n" +
+    "    if (contextBridge.exposeInMainWorld === wrappedExposeInMainWorld) {\n" +
+    "      contextBridge.exposeInMainWorld = originalExposeInMainWorld;\n" +
+    "    }\n" +
+    "  }\n" +
+    "} else {\n" +
+    "  require(" +
+    JSON.stringify(originalPreloadPath) +
+    ");\n" +
+    "}\n"
   );
 }
 
-function installStyle() {
-  const existingStyle = document.getElementById(STYLE_ID);
-  if (existingStyle) {
-    existingStyle.textContent = STYLE_RULES.join("\n");
-    return;
+function ensurePreloadShim(electron, fs, path, originalPreloadPath) {
+  const shimDir = path.join(userRoot(electron, path), "generated");
+  const shimPath = path.join(shimDir, PRELOAD_SHIM_NAME);
+  const source = preloadShimSource(path.resolve(originalPreloadPath));
+
+  fs.mkdirSync(shimDir, { recursive: true });
+
+  let currentSource = null;
+  try {
+    currentSource = fs.readFileSync(shimPath, "utf8");
+  } catch {
+    currentSource = null;
   }
 
-  const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = STYLE_RULES.join("\n");
-  document.head.appendChild(style);
+  if (currentSource !== source) {
+    fs.writeFileSync(shimPath, source, "utf8");
+  }
+
+  return shimPath;
 }
 
-function ensureControlsHost() {
-  let host = document.getElementById(CONTROLS_HOST_ID);
-  if (host) {
-    return host;
+function patchBrowserWindowOptions(electron, fs, path, options) {
+  if (!options || typeof options !== "object") {
+    return options;
   }
 
-  host = document.createElement("div");
-  host.id = CONTROLS_HOST_ID;
-  host.setAttribute("aria-hidden", "false");
-  document.body?.appendChild(host);
-  return host;
+  const webPreferences = options.webPreferences;
+  if (!webPreferences || typeof webPreferences.preload !== "string") {
+    return options;
+  }
+
+  if (path.basename(webPreferences.preload) === PRELOAD_SHIM_NAME) {
+    return options;
+  }
+
+  return {
+    ...options,
+    webPreferences: {
+      ...webPreferences,
+      preload: ensurePreloadShim(electron, fs, path, webPreferences.preload),
+    },
+  };
 }
 
-function moveLeftControlsIntoCompactTitlebar() {
-  const topBar = document.querySelector?.(WINDOWS_TOP_BAR_SELECTOR);
-  const controls = movedControls || findWindowsTopBarLeftControls(topBar);
-
-  if (!topBar || !controls) {
-    return;
+function installBrowserWindowPatch(electron, fs, path, api) {
+  const BrowserWindow = electron?.BrowserWindow;
+  if (typeof BrowserWindow !== "function") {
+    return false;
   }
 
-  const host = ensureControlsHost();
-  if (!host || controls.parentElement === host) {
-    return;
+  if (BrowserWindow[PATCH_MARKER]) {
+    return true;
   }
 
-  if (!movedControls) {
-    originalControlsParent = controls.parentElement;
-    originalControlsNextSibling = controls.nextSibling;
-    movedControls = controls;
-  }
-
-  host.appendChild(controls);
-}
-
-function restoreMovedControls() {
-  titlebarObserver?.disconnect();
-  titlebarObserver = null;
-
-  document.getElementById(CONTROLS_HOST_ID)?.remove();
-
-  if (movedControls && originalControlsParent) {
-    originalControlsParent.insertBefore(
-      movedControls,
-      originalControlsNextSibling || null,
-    );
-  }
-
-  movedControls = null;
-  originalControlsParent = null;
-  originalControlsNextSibling = null;
-}
-
-function installCompactTitlebarControls() {
-  moveLeftControlsIntoCompactTitlebar();
-
-  if (typeof MutationObserver !== "function") {
-    return;
-  }
-
-  titlebarObserver?.disconnect();
-  titlebarObserver = new MutationObserver(() => {
-    moveLeftControlsIntoCompactTitlebar();
+  originalBrowserWindow = BrowserWindow;
+  patchedBrowserWindow = new Proxy(originalBrowserWindow, {
+    construct(target, args, newTarget) {
+      const [options, ...rest] = args;
+      const patchedOptions = patchBrowserWindowOptions(electron, fs, path, options);
+      return Reflect.construct(
+        target,
+        [patchedOptions, ...rest],
+        newTarget === patchedBrowserWindow ? target : newTarget,
+      );
+    },
   });
-  titlebarObserver.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
+
+  Object.defineProperty(patchedBrowserWindow, PATCH_MARKER, {
+    value: true,
   });
+
+  electron.BrowserWindow = patchedBrowserWindow;
+  patchedElectron = electron;
+  logInfo(api, "Compact Windows titlebar BrowserWindow preload patch installed");
+  return true;
 }
 
 module.exports = {
-  start() {
-    installStyle();
-    installCompactTitlebarControls();
+  start(api = {}) {
+    const platform = api.platform || process.platform;
+    if (platform !== "win32") {
+      return;
+    }
+
+    try {
+      const electron = require("electron");
+      const fs = require("node:fs");
+      const path = require("node:path");
+      installBrowserWindowPatch(electron, fs, path, api);
+    } catch (error) {
+      logWarn(api, "Compact Windows titlebar tweak failed to start", error);
+    }
   },
 
   stop() {
-    restoreMovedControls();
-    document.getElementById(STYLE_ID)?.remove();
+    if (
+      patchedElectron &&
+      patchedBrowserWindow &&
+      patchedElectron.BrowserWindow === patchedBrowserWindow
+    ) {
+      patchedElectron.BrowserWindow = originalBrowserWindow;
+    }
+
+    patchedElectron = null;
+    originalBrowserWindow = null;
+    patchedBrowserWindow = null;
   },
 };

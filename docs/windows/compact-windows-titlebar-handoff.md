@@ -2,28 +2,26 @@
 
 ## Current Goal
 
-Implement the compact Windows titlebar tweak so Windows uses the macOS-style layout:
+Implement the compact Windows titlebar tweak by reusing the app's native no-menu titlebar path:
 
-- the old Windows topbar is hidden, not kept alive as a transparent layer
-- the chat/app header owns the titlebar surface and uses the old titlebar background tint
-- the left top controls remain available: sidebar toggle, back, forward
-- the right/native Windows controls remain available
-- the chat header does not overlap the sidebar
-- the local installed tweak is refreshed and verified with a screenshot
+- no extra Windows topbar rendered by the app shell
+- chat/app header owns the top titlebar surface, like macOS
+- native Windows window controls stay visible on the right
+- built-in sidebar/back/forward header buttons stay in their normal app-shell slots
+- no transparent old topbar layer and no DOM-moving button workaround
+- refresh the local installed tweak and verify without capturing the user's fullscreen desktop
 
 Active goal objective in Codex:
 
-> Implement the compact Windows titlebar tweak so it hides the old topbar visually while preserving the left topbar controls, keeps the Windows/right controls usable, refreshes the local installed tweak, and verifies the result with a screenshot.
+> Replace the compact Windows titlebar tweak direction with the native/macOS-style no-extra-topbar path: keep Windows window controls, reuse existing app header layout, verify with targeted screenshots, update the handoff doc, and publish the PR update.
 
 ## Repo State
 
 - Repo: `C:\dev\source\personal\codex-app`
 - Branch: `sliepie/compact-windows-titlebar-tweak`
 - PR: `https://github.com/sliepie/codex-app/pull/87`
-- Existing pushed commit: `00aecda` (`Add compact Windows titlebar tweak`)
-- Current local files are dirty and include a rejected transparent-topbar experiment. Do not commit that shape as-is.
 
-Touched files:
+Touched files in the current pass:
 
 - `desktop/codex-plusplus/tweaks/codex-app-compact-windows-titlebar/index.js`
 - `desktop/codex-plusplus/tweaks/codex-app-compact-windows-titlebar/manifest.json`
@@ -34,109 +32,80 @@ Local installed tweak path:
 
 - `C:\Users\sliepie\AppData\Roaming\codex-plusplus\tweaks\app.sliepie.codex.compact-windows-titlebar`
 
-The local installed tweak auto-reloads when `index.js` is copied there.
+## Key Finding
 
-## What Was Tried
+The installed renderer app shell already has the desired layout branch.
 
-Initial pushed PR implementation:
+In `app-shell-DnmC_oyn.js`, the Windows topbar path is controlled by `platform === windows && window.electronBridge?.showApplicationMenu != null`.
 
-- hid only the menu row from the Windows topbar
-- moved the chat header to `top:0`
-- kept native/right controls
-- this looked like the old PR86 trick and did not fully hide the old topbar
+When that returns false:
 
-Second attempt:
+- `or()` does not render `.group/windows-top-bar`
+- `Fn()` renders the app header with `top-0` and `inset-x-0`
+- the left panel gets `paddingTop: var(--height-toolbar)`, matching the macOS/no-menu shape
+- `use-window-controls-safe-area` still provides safe header spacing for native controls
 
-- hid the whole Windows topbar with `display:none`
-- moved the chat header to `top:0; left:0; right:0`
-- screenshot showed the chat title overlapping the sidebar and the left controls missing
+So the correct seam is to remove only `electronBridge.showApplicationMenu` before renderer boot, not to hide or move rendered DOM after the fact.
 
-Third attempt:
+## Rejected Approaches
 
-- removed `left:0/right:0` so the chat header respected the content column
-- screenshot fixed sidebar overlap
-- but the left top controls were still missing because the whole Windows topbar was hidden
+These were tried and rejected:
 
-Rejected workaround:
+- keeping the old Windows topbar as a transparent layer
+- hiding only the menu row from the Windows topbar
+- moving the Windows topbar left controls into a fixed overlay host
+- adding spacer/sidebar text matching or other layout hacks after the topbar had already rendered
 
-- kept the Windows topbar visible as a transparent layer
-- hid only the menu row
-- set the topbar to `pointer-events:none` and topbar buttons to `pointer-events:auto`
-- screenshot looked close, with left controls visible, but it is explicitly not the requested direction
-- user called this out as "the old trick again"
+The screenshot that showed overlap after the DOM-move pass is:
 
-## Desired Direction
+- `C:\tmp\codex-app-screenshots\codex-window-printwindow-checkagain-topstrip-20260529-005940.png`
 
-Go full macOS-style:
+## Current Implementation Direction
 
-- old Windows topbar should be hidden
-- do not preserve it as a transparent button layer
-- reuse/move the real left controls if possible instead of recreating behavior
-- keep CSS small; do not add a large custom layout stylesheet
+The compact tweak is now a main-process tweak.
 
-Likely implementation path:
+It patches future `electron.BrowserWindow` construction on Windows:
 
-1. Find the Windows topbar and its left control group.
-2. Move the existing left control group into a small host attached to the app/chat header, so the real buttons keep their existing event handlers.
-3. Hide the original Windows topbar.
-4. Style only the compact host and the chat header:
-   - app header `top:0`
-   - app header background `var(--codex-titlebar-tint, transparent)`
-   - compact host positioned at the left edge of the titlebar/header area
-   - main content top offset `var(--height-toolbar-sm)`
+1. read the original `webPreferences.preload`
+2. write a generated preload shim under `CODEX_PLUSPLUS_USER_ROOT\generated`
+3. replace the window preload with the shim
+4. in the shim, wrap `contextBridge.exposeInMainWorld`
+5. when the original preload exposes `electronBridge`, copy the API and delete `showApplicationMenu`
+6. require the original preload and restore the original `exposeInMainWorld`
 
-Current implementation pass:
+That leaves the rest of `electronBridge` intact and makes the app shell take its existing macOS-style no-menu layout branch.
 
-- `index.js` now uses a small DOM move with `MutationObserver`
-- it creates `#codex-app-compact-windows-titlebar-controls`
-- it moves the first non-menu button group out of `.app-header-tint.group\\/windows-top-bar`
-- it then hides `.app-header-tint.group\\/windows-top-bar` with `display:none!important`
-- screenshot verification passed visually with targeted `PrintWindow`
-
-Important selectors seen so far:
-
-- Windows topbar: `.app-header-tint.group\\/windows-top-bar`
-- PR86 menu row selector: `.group\\/windows-top-bar>.flex.items-center.gap-0\\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded])`
-- App/chat header: `.app-header-tint.draggable.pointer-events-none.fixed.h-toolbar:not(.group\\/windows-top-bar)`
-- App header context menu surface: `[data-testid="app-shell-header-context-menu-surface"]`
-- Main content viewport: `.app-shell-main-content-viewport`
+Important caveat: because this changes the preload used when a BrowserWindow is created, the running window may need an app restart or a newly created window to show the result. Hot-reloading the tweak file updates the main tweak, but it cannot retroactively change the preload that created an already-loaded renderer.
 
 ## Screenshot Notes
 
 The user is watching fullscreen YouTube. Avoid full desktop screenshots and `CopyFromScreen`.
 
-Use targeted `PrintWindow` captures of the Codex window only. If `PrintWindow` stops working or returns stale/blank output, pause screenshot verification instead of capturing the desktop.
+Use targeted `PrintWindow` captures of the Codex window only. If `PrintWindow` returns stale/blank output, stop screenshot verification instead of capturing the desktop.
 
-Useful existing screenshots:
+Older screenshots are useful only as rejected-reference evidence:
 
-- `C:\tmp\codex-app-screenshots\codex-window-full-20260529-004140.png`
-- `C:\tmp\codex-app-screenshots\codex-window-topstrip-20260529-004140.png`
-- `C:\tmp\codex-app-screenshots\codex-window-printwindow-full-20260529-005029.png`
-- `C:\tmp\codex-app-screenshots\codex-window-printwindow-topstrip-20260529-005029.png`
-
-The `004140` screenshot shows the rejected transparent-topbar workaround. It is useful as a visual reference for button placement, not as accepted implementation proof.
-
-The `005029` screenshot shows the current macOS-style DOM-move pass: left controls visible, old topbar hidden by CSS, chat header not overlapping the sidebar.
+- `C:\tmp\codex-app-screenshots\codex-window-printwindow-checkagain-topstrip-20260529-005940.png` shows the bad left-control/sidebar overlap from the DOM-move pass
+- `C:\tmp\codex-app-screenshots\codex-window-printwindow-spacerfix-topstrip-20260529-010350.png` shows the rejected spacer attempt still failing
+- `C:\tmp\codex-app-screenshots\codex-window-printwindow-nativepath-check-topstrip-20260529-063305.png` shows the already-open renderer still using the old preload/topbar spacing, so it is not accepted proof of the new path.
 
 ## Validation
 
-Focused test command that has passed earlier for the pushed PR version:
+Focused test command:
 
 ```powershell
 fnm exec -- node --test --test-name-pattern "bundles app-owned Codex\+\+ UI tweaks|Bundled Codex\+\+ tweak versions|Codex app compact Windows titlebar tweak|Codex app UI override and Windows menu-bar tweak|includes generated plugin resources" desktop/scripts/windows-package-resources.test.mjs
 ```
 
-Full file test still had known unrelated failures:
+Full file test has had known unrelated failures:
 
 - `PE machine reader rejects invalid PE signatures`
 - `Windows ARM64 Resource binary verifier rejects unlisted x64 files`
 
-Need rerun focused tests after final implementation. Also verify by `PrintWindow` screenshot.
+Latest validation:
 
-## Things To Avoid
-
-- Do not keep the old Windows topbar around as a transparent layer.
-- Do not use the PR86 menu-row-only hide approach as the final solution.
-- Do not capture the whole desktop while the user has fullscreen YouTube open.
-- Do not commit the current transparent-topbar experiment.
-- Keep changes scoped to the new compact tweak and its packaging test unless a tiny supporting change is truly required.
+- focused test command passed: 5/5
+- repo and local installed tweak hashes match for `index.js` and `manifest.json`
+- Codex++ main log shows `Compact Windows titlebar BrowserWindow preload patch installed`
+- generated shim is still pending because no new BrowserWindow has been constructed since the main tweak started
+- targeted `PrintWindow` capture of the current already-open window confirmed it is not using the patched preload yet

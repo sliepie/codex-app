@@ -3,11 +3,11 @@
   "name": "Codex app compact Windows titlebar",
   "version": "0.1.0",
   "githubRepo": "sliepie/codex-app",
-  "description": "Moves the Codex app header into the Windows titlebar area while preserving window controls.",
+  "description": "Uses the app's native no-menu titlebar layout on Windows while preserving window controls.",
   "author": "sliepie",
   "homepage": "https://github.com/sliepie/codex-app",
   "tags": ["ui", "windows"],
-  "scope": "renderer",
+  "scope": "main",
   "main": "index.js",
   "permissions": ["codex.views"]
 }

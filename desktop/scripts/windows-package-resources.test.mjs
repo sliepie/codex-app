@@ -1609,7 +1609,10 @@ test("bundles repo-owned Codex++ UI tweaks without keyboard shortcut tweaks", ()
       { id: manifest.id, version: manifest.version },
       expectedTweakMetadata.get(tweakName),
     );
-    assert.equal(manifest.scope, "renderer");
+    assert.equal(
+      manifest.scope,
+      tweakName === "codex-app-compact-windows-titlebar" ? "main" : "renderer",
+    );
     assert.equal(manifest.main, "index.js");
     assert.notEqual(manifest.id.includes("keyboard"), true);
 
@@ -1660,7 +1663,7 @@ test("Bundled Codex++ tweak versions follow main branch bump policy", () => {
   }
 });
 
-test("Codex app compact Windows titlebar tweak installs renderer-only compact chrome styles", () => {
+test("Codex app compact Windows titlebar tweak removes the menu bridge before renderer boot", () => {
   const tweakRoot = path.join(
     desktopRoot,
     "codex-plusplus",
@@ -1669,211 +1672,108 @@ test("Codex app compact Windows titlebar tweak installs renderer-only compact ch
   );
   const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
   assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
-  assert.doesNotMatch(source, /titleBarOverlay|setTitleBarOverlay|BrowserWindow/);
+  assert.doesNotMatch(source, /querySelector|appendChild|MutationObserver/);
+  assert.match(source, /showApplicationMenu/);
+  assert.match(source, /BrowserWindow/);
 
-  const appendedStyles = [];
-  const previousDocument = globalThis.document;
-  const previousMutationObserver = globalThis.MutationObserver;
-  const observedTargets = [];
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-compact-titlebar-"));
+  const originalPreloadPath = path.join(tempRoot, "original-preload.cjs");
+  fs.writeFileSync(originalPreloadPath, "// original preload fixture\n", "utf8");
+  const previousUserRoot = process.env.CODEX_PLUSPLUS_USER_ROOT;
 
-  function createFakeElement(tagName) {
-    const element = {
-      tagName: tagName.toUpperCase(),
-      id: "",
-      attributes: new Map(),
-      children: [],
-      parentElement: null,
-      nextSibling: null,
-      textContent: "",
-      setAttribute(name, value) {
-        this.attributes.set(name, String(value));
-      },
-      appendChild(child) {
-        if (child.parentElement) {
-          child.parentElement.children = child.parentElement.children.filter(
-            (existingChild) => existingChild !== child,
-          );
-        }
-        child.parentElement = this;
-        this.children.push(child);
-        refreshSiblings(this);
-        return child;
-      },
-      insertBefore(child, nextSibling) {
-        if (child.parentElement) {
-          child.parentElement.children = child.parentElement.children.filter(
-            (existingChild) => existingChild !== child,
-          );
-        }
-        child.parentElement = this;
-        const nextIndex = nextSibling ? this.children.indexOf(nextSibling) : -1;
-        if (nextIndex === -1) {
-          this.children.push(child);
-        } else {
-          this.children.splice(nextIndex, 0, child);
-        }
-        refreshSiblings(this);
-        return child;
-      },
-      remove() {
-        if (!this.parentElement) {
-          return;
-        }
-        this.parentElement.children = this.parentElement.children.filter(
-          (existingChild) => existingChild !== this,
-        );
-        refreshSiblings(this.parentElement);
-        this.parentElement = null;
-      },
-      querySelector(selector) {
-        return findDescendant(this, selector);
-      },
-    };
+  class FakeBrowserWindow {
+    static latestOptions = null;
 
-    return element;
+    constructor(options) {
+      FakeBrowserWindow.latestOptions = options;
+    }
   }
 
-  function refreshSiblings(parent) {
-    parent.children.forEach((child, index) => {
-      child.nextSibling = parent.children[index + 1] || null;
-    });
-  }
-
-  function matchesFakeSelector(element, selector) {
-    if (selector === "button") {
-      return element.tagName === "BUTTON";
-    }
-    if (selector === 'button[aria-haspopup="menu"][aria-expanded]') {
-      return (
-        element.tagName === "BUTTON" &&
-        element.attributes.get("aria-haspopup") === "menu" &&
-        element.attributes.has("aria-expanded")
-      );
-    }
-    return false;
-  }
-
-  function findDescendant(element, selector) {
-    for (const child of element.children) {
-      if (matchesFakeSelector(child, selector)) {
-        return child;
-      }
-      const descendant = findDescendant(child, selector);
-      if (descendant) {
-        return descendant;
-      }
-    }
-    return null;
-  }
-
-  function findById(element, id) {
-    if (element.id === id) {
-      return element;
-    }
-    for (const child of element.children) {
-      const descendant = findById(child, id);
-      if (descendant) {
-        return descendant;
-      }
-    }
-    return null;
-  }
-
-  const head = {
-    appendChild(style) {
-      appendedStyles.push(style);
-      return style;
+  const electron = {
+    app: {
+      getPath() {
+        return tempRoot;
+      },
     },
-  };
-  const documentElement = createFakeElement("html");
-  const body = createFakeElement("body");
-  const topBar = createFakeElement("div");
-  const leftControls = createFakeElement("div");
-  const sidebarButton = createFakeElement("button");
-  const menuRow = createFakeElement("div");
-  const menuButton = createFakeElement("button");
-  menuButton.setAttribute("aria-haspopup", "menu");
-  menuButton.setAttribute("aria-expanded", "false");
-  leftControls.appendChild(sidebarButton);
-  menuRow.appendChild(menuButton);
-  topBar.appendChild(leftControls);
-  topBar.appendChild(menuRow);
-
-  globalThis.MutationObserver = class FakeMutationObserver {
-    constructor(callback) {
-      this.callback = callback;
-      this.disconnected = false;
-    }
-
-    observe(target, options) {
-      observedTargets.push({ target, options });
-    }
-
-    disconnect() {
-      this.disconnected = true;
-    }
+    BrowserWindow: FakeBrowserWindow,
   };
 
-  globalThis.document = {
-    head,
-    body,
-    documentElement,
-    getElementById: (id) =>
-      appendedStyles.find((style) => style.id === id) ||
-      findById(body, id) ||
-      null,
-    querySelector: (selector) =>
-      selector === ".app-header-tint.group\\/windows-top-bar" ? topBar : null,
-    createElement: createFakeElement,
-  };
+  function fakeRequire(id) {
+    if (id === "electron") {
+      return electron;
+    }
+    if (id === "node:fs") {
+      return fs;
+    }
+    if (id === "node:path") {
+      return path;
+    }
+    throw new Error("Unexpected require: " + id);
+  }
 
   try {
+    process.env.CODEX_PLUSPLUS_USER_ROOT = tempRoot;
+
     const module = { exports: {} };
     const exports = module.exports;
-    const fn = new Function("module", "exports", "console", source);
-    fn(module, exports, console);
+    const fn = new Function("module", "exports", "console", "require", source);
+    fn(module, exports, console, fakeRequire);
 
-    module.exports.start({ log: console });
-    assert.equal(appendedStyles.length, 1);
-    assert.equal(
-      appendedStyles[0].id,
-      "codex-app-compact-windows-titlebar-style",
-    );
+    module.exports.start({ log: console, platform: "win32" });
+    assert.notEqual(electron.BrowserWindow, FakeBrowserWindow);
 
-    const css = appendedStyles[0].textContent;
-    assert.ok(
-      css.includes(
-        ".app-header-tint.group\\/windows-top-bar{display:none!important;}",
-      ),
-    );
-    assert.ok(css.includes("#codex-app-compact-windows-titlebar-controls{position:fixed!important;top:0!important;left:0.5rem!important;"));
-    assert.ok(
-      css.includes(
-        '.app-header-tint.draggable.pointer-events-none.fixed.h-toolbar:not(.group\\/windows-top-bar){top:0!important;height:var(--height-toolbar-sm)!important;z-index:50!important;background-color:var(--codex-titlebar-tint,transparent)!important;}',
-      ),
-    );
-    assert.ok(
-      css.includes(
-        '.app-header-tint.draggable.pointer-events-none.fixed.h-toolbar:not(.group\\/windows-top-bar) [data-testid="app-shell-header-context-menu-surface"]{height:var(--height-toolbar-sm)!important;}',
-      ),
-    );
-    assert.ok(
-      css.includes(
-        ".app-shell-main-content-viewport{--app-shell-main-content-frame-top-offset:var(--height-toolbar-sm)!important;}",
-      ),
-    );
-    assert.equal(
-      css.includes("background-color:transparent!important;pointer-events:none!important;z-index:60!important;"),
-      false,
-    );
-    assert.equal(leftControls.parentElement.id, "codex-app-compact-windows-titlebar-controls");
-    assert.equal(observedTargets.length, 1);
+    new electron.BrowserWindow({
+      title: "primary",
+      webPreferences: {
+        contextIsolation: true,
+        preload: originalPreloadPath,
+      },
+    });
+
+    const patchedPreload = FakeBrowserWindow.latestOptions.webPreferences.preload;
+    assert.notEqual(patchedPreload, originalPreloadPath);
+    assert.equal(path.basename(patchedPreload), "compact-windows-titlebar-preload.cjs");
+
+    const exposed = {};
+    const preloadElectron = {
+      contextBridge: {
+        exposeInMainWorld(name, api) {
+          exposed[name] = api;
+        },
+      },
+    };
+    const originalPreloadSource =
+      'const { contextBridge } = require("electron");\n' +
+      'contextBridge.exposeInMainWorld("electronBridge", {\n' +
+      '  keepApplicationBridge: true,\n' +
+      '  showApplicationMenu() {},\n' +
+      '});\n';
+
+    function fakePreloadRequire(id) {
+      if (id === "electron") {
+        return preloadElectron;
+      }
+      if (id === originalPreloadPath) {
+        new Function("require", originalPreloadSource)(fakePreloadRequire);
+        return {};
+      }
+      throw new Error("Unexpected preload require: " + id);
+    }
+
+    const preloadShim = fs.readFileSync(patchedPreload, "utf8");
+    new Function("require", preloadShim)(fakePreloadRequire);
+    assert.equal(exposed.electronBridge.keepApplicationBridge, true);
+    assert.equal("showApplicationMenu" in exposed.electronBridge, false);
 
     module.exports.stop();
-    assert.equal(leftControls.parentElement, topBar);
+    assert.equal(electron.BrowserWindow, FakeBrowserWindow);
   } finally {
-    globalThis.document = previousDocument;
-    globalThis.MutationObserver = previousMutationObserver;
+    if (previousUserRoot === undefined) {
+      delete process.env.CODEX_PLUSPLUS_USER_ROOT;
+    } else {
+      process.env.CODEX_PLUSPLUS_USER_ROOT = previousUserRoot;
+    }
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
 
