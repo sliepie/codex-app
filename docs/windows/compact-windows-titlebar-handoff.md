@@ -89,6 +89,17 @@ The user is watching fullscreen YouTube. Avoid full desktop screenshots and `Cop
 
 Use targeted `PrintWindow` captures of the Codex window only. If `PrintWindow` returns stale/blank output, stop screenshot verification instead of capturing the desktop.
 
+Prepared verification copy:
+
+- extracted installed app: `C:\tmp\codex-app-titlebar-verify\app`
+- isolated user data path: `C:\tmp\codex-app-titlebar-verify\user-data`
+- isolated appdata path: `C:\tmp\codex-app-titlebar-verify\appdata`
+- Electron runner exists at `desktop\node_modules\.bin\electron.cmd`
+- overlaid loader hash matches repo: `293FC12FFF5B7EBEBBD4F45C9A99AD135656BE4480B9E50E24DDA423F9A09B67`
+- overlaid compact tweak hash matches repo: `CCAD009ADDC86AE93289C125C00FB71C0B43A524AB2E65D6F0EF9A5B50C394F9`
+
+Do not launch this extracted app unless the user explicitly allows a brief separate Codex window. When allowed, run it with isolated state, capture only the extracted Codex window with `PrintWindow`, and close that process after the screenshot.
+
 Older screenshots are useful only as rejected-reference evidence:
 
 - `C:\tmp\codex-app-screenshots\codex-window-printwindow-checkagain-topstrip-20260529-005940.png` shows the bad left-control/sidebar overlap from the DOM-move pass
@@ -123,3 +134,4 @@ Latest validation:
 - loader tests include a regression case where early runtime patches `BrowserWindow` before upstream startup constructs a window
 - compact tweak unit coverage still proves `showApplicationMenu` is removed before renderer boot
 - targeted `PrintWindow` capture of the user-restarted installed app confirmed the old packaged loader still misses the first window, which is expected until the app package is rebuilt/reinstalled with this PR
+- extracted verification app has been prepared under `C:\tmp\codex-app-titlebar-verify\app`, but final screenshot capture is still pending explicit permission to launch a separate GUI window
