@@ -7,7 +7,7 @@
   "author": "sliepie",
   "homepage": "https://github.com/sliepie/codex-app",
   "tags": ["ui", "windows"],
-  "scope": "main",
+  "scope": "renderer",
   "main": "index.js",
   "permissions": ["codex.views"]
 }

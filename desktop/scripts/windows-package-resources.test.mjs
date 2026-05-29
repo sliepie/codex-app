@@ -19,9 +19,10 @@ const bundledTweakRelativeRoots = new Map([
   ["codex-app-ui-overrides", "desktop/codex-plusplus/tweaks/codex-app-ui-overrides"],
   ["codex-app-windows-menu-bar", "desktop/codex-plusplus/tweaks/codex-app-windows-menu-bar"],
 ]);
-const newBundledTweaks = new Set([
-  "codex-app-compact-windows-titlebar",
+const newBundledTweakVersions = new Map([
+  ["codex-app-compact-windows-titlebar", "0.1.8"],
 ]);
+const newBundledTweaks = new Set(newBundledTweakVersions.keys());
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -189,7 +190,7 @@ function expectedBundledTweakMetadata(tweakName, id) {
   if (newBundledTweaks.has(tweakName)) {
     return {
       id,
-      version: "0.1.0",
+      version: newBundledTweakVersions.get(tweakName),
     };
   }
 
@@ -1265,6 +1266,10 @@ test("includes generated plugin resources and Codex++ integration in the Windows
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-windows-menu-bar/manifest.json"),
     false,
   );
+  assert.equal(
+    config.packagerConfig.ignore("/codex-plusplus/compact-windows-titlebar-preload.cjs"),
+    false,
+  );
 
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
@@ -1280,10 +1285,7 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.match(loaderSource, /readInstalledTweakVersion\(targetDir, manifest\.id\)/);
   assert.match(loaderSource, /bundledVersionIsNewer\(manifest\.version, installedVersion\)/);
   assert.match(loaderSource, /__codexpp\.originalMain/);
-  assert.match(
-    loaderSource,
-    /registerEarlyPreloadHooks\(\);[\s\S]*startCodexPlusPlusIntegration\(\);[\s\S]*require\(path\.join\(packagedRoot, originalMain\)\)/,
-  );
+  assert.match(loaderSource, /registerEarlyPreloadHooks\(\);[\s\S]*require\(path\.join\(packagedRoot, originalMain\)\)/);
   assert.match(loaderSource, /maxLogBytes = 10 \* 1024 \* 1024/);
   assert.match(loaderSource, /if \(size > maxLogBytes\)/);
   assert.match(loaderSource, /function trimLogToRetainedBytes/);
@@ -1338,6 +1340,10 @@ test("Forge preflight fails when hydrated Codex++ runtime is missing", async (t)
 
   writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
   writeFixture(path.join(buildPath, "codex-plusplus", "loader.cjs"), "module.exports = {};\n");
+  writeFixture(
+    path.join(buildPath, "codex-plusplus", "compact-windows-titlebar-preload.cjs"),
+    "module.exports = {};\n",
+  );
 
   await assert.rejects(
     () => runForgeAfterCopy(config, buildPath),
@@ -1353,11 +1359,16 @@ function createCodexPlusPlusLoaderFixture(t) {
   const originalMain = "recovered/app-asar-extracted/.vite/build/bootstrap.js";
   const originalMainPath = path.join(root, originalMain);
   const runtimeMainPath = path.join(root, "codex-plusplus", "runtime", "main.js");
+  const compactPreloadPath = path.join(root, "codex-plusplus", "compact-windows-titlebar-preload.cjs");
   const appData = path.join(root, "AppData");
   const tracePath = path.join(root, "trace.txt");
 
   fs.mkdirSync(path.dirname(loaderPath), { recursive: true });
   fs.copyFileSync(path.join(desktopRoot, "codex-plusplus", "loader.cjs"), loaderPath);
+  fs.copyFileSync(
+    path.join(desktopRoot, "codex-plusplus", "compact-windows-titlebar-preload.cjs"),
+    compactPreloadPath,
+  );
   writeFixture(
     path.join(root, "package.json"),
     JSON.stringify({ __codexpp: { originalMain } }, null, 2) + "\n",
@@ -1371,7 +1382,7 @@ function createCodexPlusPlusLoaderFixture(t) {
     'require("node:fs").appendFileSync(process.env.CODEX_LOADER_TRACE, "runtime\\n");\n',
   );
 
-  return { root, loaderPath, appData, tracePath };
+  return { root, loaderPath, appData, tracePath, compactPreloadPath };
 }
 
 function runCodexPlusPlusLoaderFixture(fixture) {
@@ -1388,38 +1399,35 @@ function runCodexPlusPlusLoaderFixture(fixture) {
   return fs.readFileSync(fixture.tracePath, "utf8").trim().split(/\r?\n/);
 }
 
-test("Codex++ loader starts runtime integration before original Codex", (t) => {
+test("Codex++ loader starts original Codex before scheduled runtime integration", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
 });
 
-test("Codex++ loader lets early runtime patch BrowserWindow before original startup", (t) => {
+test("Codex++ loader exposes compact Windows titlebar state before original startup", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   writeFixture(
     path.join(fixture.root, "node_modules", "electron", "index.js"),
     [
       'const fs = require("node:fs");',
       "const trace = process.env.CODEX_LOADER_TRACE;",
-      "class BrowserWindow {",
-      '  constructor() { fs.appendFileSync(trace, "browser-window\\n"); }',
-      "}",
-      "module.exports = { BrowserWindow, app: {}, session: {} };",
-      "",
-    ].join("\n"),
-  );
-  writeFixture(
-    path.join(fixture.root, "codex-plusplus", "runtime", "main.js"),
-    [
-      'const fs = require("node:fs");',
-      'const electron = require("electron");',
-      "const trace = process.env.CODEX_LOADER_TRACE;",
-      "const OriginalBrowserWindow = electron.BrowserWindow;",
-      "electron.BrowserWindow = function PatchedBrowserWindow(...args) {",
-      '  fs.appendFileSync(trace, "patched\\n");',
-      "  return new OriginalBrowserWindow(...args);",
+      "let handler = null;",
+      "const ipcMain = {",
+      "  eventNames() { return handler ? [\"codexpp:compact-windows-titlebar-enabled\"] : []; },",
+      "  on(channel, callback) {",
+      "    if (channel === \"codexpp:compact-windows-titlebar-enabled\") {",
+      "      handler = callback;",
+      "      fs.appendFileSync(trace, \"handler\\n\");",
+      "    }",
+      "  },",
+      "  invokeCompactTitlebarState() {",
+      "    const event = { returnValue: undefined };",
+      "    handler(event);",
+      "    return event.returnValue;",
+      "  },",
       "};",
-      'fs.appendFileSync(trace, "runtime\\n");',
+      "module.exports = { app: {}, session: {}, ipcMain };",
       "",
     ].join("\n"),
   );
@@ -1427,19 +1435,75 @@ test("Codex++ loader lets early runtime patch BrowserWindow before original star
     path.join(fixture.root, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
     [
       'const fs = require("node:fs");',
-      'const { BrowserWindow } = require("electron");',
+      'const electron = require("electron");',
       "const trace = process.env.CODEX_LOADER_TRACE;",
-      "new BrowserWindow();",
+      'fs.appendFileSync(trace, "enabled=" + electron.ipcMain.invokeCompactTitlebarState() + "\\n");',
       'fs.appendFileSync(trace, "original\\n");',
       "",
     ].join("\n"),
   );
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
-    "runtime",
-    "patched",
-    "browser-window",
+    "handler",
+    "enabled=true",
     "original",
+    "runtime",
+  ]);
+});
+
+test("Codex++ loader respects disabled compact Windows titlebar tweak before original startup", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.appData, "codex-plusplus", "config.json"),
+    JSON.stringify(
+      {
+        tweaks: {
+          "app.sliepie.codex.compact-windows-titlebar": {
+            enabled: false,
+          },
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  writeFixture(
+    path.join(fixture.root, "node_modules", "electron", "index.js"),
+    [
+      'const fs = require("node:fs");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      "let handler = null;",
+      "const ipcMain = {",
+      "  eventNames() { return handler ? [\"codexpp:compact-windows-titlebar-enabled\"] : []; },",
+      "  on(channel, callback) {",
+      "    if (channel === \"codexpp:compact-windows-titlebar-enabled\") handler = callback;",
+      "  },",
+      "  invokeCompactTitlebarState() {",
+      "    const event = { returnValue: undefined };",
+      "    handler(event);",
+      "    return event.returnValue;",
+      "  },",
+      "};",
+      "module.exports = { app: {}, session: {}, ipcMain };",
+      "",
+    ].join("\n"),
+  );
+  writeFixture(
+    path.join(fixture.root, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
+    [
+      'const fs = require("node:fs");',
+      'const electron = require("electron");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      'fs.appendFileSync(trace, "enabled=" + electron.ipcMain.invokeCompactTitlebarState() + "\\n");',
+      'fs.appendFileSync(trace, "original\\n");',
+      "",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
+    "enabled=false",
+    "original",
+    "runtime",
   ]);
 });
 
@@ -1449,9 +1513,12 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
     path.join(fixture.root, "node_modules", "electron", "index.js"),
     [
       'const fs = require("node:fs");',
+      'const path = require("node:path");',
       "const trace = process.env.CODEX_LOADER_TRACE;",
       "const session = {",
-      "  registerPreloadScript() { fs.appendFileSync(trace, \"preload\\n\"); },",
+      "  registerPreloadScript(entry) {",
+      "    fs.appendFileSync(trace, \"preload:\" + entry.id + \":\" + path.basename(entry.filePath) + \"\\n\");",
+      "  },",
       "};",
       "module.exports = {",
       "  app: {",
@@ -1476,10 +1543,11 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
     "when-ready-hook",
-    "preload",
+    "preload:codex-plusplus-compact-windows-titlebar:compact-windows-titlebar-preload.cjs",
+    "preload:codex-plusplus:preload.js",
     "session-created-hook",
-    "runtime",
     "original",
+    "runtime",
   ]);
 });
 
@@ -1500,7 +1568,7 @@ test("Codex++ loader upgrades installed tweak directories when bundled version i
   );
   writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "user";\n');
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(
     fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
     'module.exports = "bundled";\n',
@@ -1533,7 +1601,7 @@ test("Codex++ loader keeps installed tweak directories when bundled version is n
   );
   writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(
     fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
     'module.exports = "old";\n',
@@ -1562,7 +1630,7 @@ test("Codex++ loader keeps installed tweaks when bundled tweak discovery fails",
   );
   writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(fs.existsSync(installedTweakRoot), true);
 });
 
@@ -1573,7 +1641,7 @@ test("Codex++ loader rejects unsafe bundled tweak ids", (t) => {
     JSON.stringify({ id: "../escaped", version: "1.0.0" }, null, 2) + "\n",
   );
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(fs.existsSync(path.join(fixture.appData, "codex-plusplus", "escaped")), false);
 });
 
@@ -1583,7 +1651,7 @@ test("Codex++ loader does not rewrite already disabled updater config", (t) => {
   const configSource = '{"codexPlusPlus":{"autoUpdate":false},"keep":"format"}\n';
   writeFixture(configPath, configSource);
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(fs.readFileSync(configPath, "utf8"), configSource);
 });
 
@@ -1592,7 +1660,7 @@ test("Codex++ loader disables updater when nested config shape is invalid", (t) 
   const configPath = path.join(fixture.appData, "codex-plusplus", "config.json");
   writeFixture(configPath, JSON.stringify({ codexPlusPlus: "invalid", keep: true }, null, 2) + "\n");
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.deepEqual(JSON.parse(fs.readFileSync(configPath, "utf8")), {
     codexPlusPlus: { autoUpdate: false },
     keep: true,
@@ -1604,7 +1672,7 @@ test("Codex++ loader disables updater when config JSON is malformed", (t) => {
   const configPath = path.join(fixture.appData, "codex-plusplus", "config.json");
   writeFixture(configPath, "{broken json\n");
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["runtime", "original"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.deepEqual(JSON.parse(fs.readFileSync(configPath, "utf8")), {
     codexPlusPlus: { autoUpdate: false },
   });
@@ -1661,10 +1729,7 @@ test("bundles repo-owned Codex++ UI tweaks without keyboard shortcut tweaks", ()
       { id: manifest.id, version: manifest.version },
       expectedTweakMetadata.get(tweakName),
     );
-    assert.equal(
-      manifest.scope,
-      tweakName === "codex-app-compact-windows-titlebar" ? "main" : "renderer",
-    );
+    assert.equal(manifest.scope, "renderer");
     assert.equal(manifest.main, "index.js");
     assert.notEqual(manifest.id.includes("keyboard"), true);
 
@@ -1690,7 +1755,7 @@ test("Bundled Codex++ tweak versions follow main branch bump policy", () => {
     const manifestPath = relativeRoot + "/manifest.json";
     const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, manifestPath), "utf8"));
     if (newBundledTweaks.has(tweakName)) {
-      assert.equal(manifest.version, "0.1.0");
+      assert.equal(manifest.version, newBundledTweakVersions.get(tweakName));
       continue;
     }
 
@@ -1716,117 +1781,43 @@ test("Bundled Codex++ tweak versions follow main branch bump policy", () => {
 });
 
 test("Codex app compact Windows titlebar tweak removes the menu bridge before renderer boot", () => {
-  const tweakRoot = path.join(
-    desktopRoot,
-    "codex-plusplus",
-    "tweaks",
-    "codex-app-compact-windows-titlebar",
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "codex-plusplus", "compact-windows-titlebar-preload.cjs"),
+    "utf8",
   );
-  const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
   assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
   assert.doesNotMatch(source, /querySelector|appendChild|MutationObserver/);
   assert.match(source, /showApplicationMenu/);
-  assert.match(source, /BrowserWindow/);
 
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-compact-titlebar-"));
-  const originalPreloadPath = path.join(tempRoot, "original-preload.cjs");
-  fs.writeFileSync(originalPreloadPath, "// original preload fixture\n", "utf8");
-  const previousUserRoot = process.env.CODEX_PLUSPLUS_USER_ROOT;
-
-  class FakeBrowserWindow {
-    static latestOptions = null;
-
-    constructor(options) {
-      FakeBrowserWindow.latestOptions = options;
-    }
-  }
-
+  const exposed = {};
   const electron = {
-    app: {
-      getPath() {
-        return tempRoot;
+    ipcRenderer: {
+      sendSync(channel) {
+        assert.equal(channel, "codexpp:compact-windows-titlebar-enabled");
+        return true;
       },
     },
-    BrowserWindow: FakeBrowserWindow,
+    contextBridge: {
+      exposeInMainWorld(name, api, ...rest) {
+        exposed[name] = { api, rest };
+      },
+    },
   };
 
-  function fakeRequire(id) {
+  new Function("require", source)((id) => {
     if (id === "electron") {
       return electron;
     }
-    if (id === "node:fs") {
-      return fs;
-    }
-    if (id === "node:path") {
-      return path;
-    }
     throw new Error("Unexpected require: " + id);
-  }
+  });
 
-  try {
-    process.env.CODEX_PLUSPLUS_USER_ROOT = tempRoot;
+  electron.contextBridge.exposeInMainWorld("electronBridge", {
+    keepApplicationBridge: true,
+    showApplicationMenu() {},
+  });
 
-    const module = { exports: {} };
-    const exports = module.exports;
-    const fn = new Function("module", "exports", "console", "require", source);
-    fn(module, exports, console, fakeRequire);
-
-    module.exports.start({ log: console, platform: "win32" });
-    assert.notEqual(electron.BrowserWindow, FakeBrowserWindow);
-
-    new electron.BrowserWindow({
-      title: "primary",
-      webPreferences: {
-        contextIsolation: true,
-        preload: originalPreloadPath,
-      },
-    });
-
-    const patchedPreload = FakeBrowserWindow.latestOptions.webPreferences.preload;
-    assert.notEqual(patchedPreload, originalPreloadPath);
-    assert.equal(path.basename(patchedPreload), "compact-windows-titlebar-preload.cjs");
-
-    const exposed = {};
-    const preloadElectron = {
-      contextBridge: {
-        exposeInMainWorld(name, api) {
-          exposed[name] = api;
-        },
-      },
-    };
-    const originalPreloadSource =
-      'const { contextBridge } = require("electron");\n' +
-      'contextBridge.exposeInMainWorld("electronBridge", {\n' +
-      '  keepApplicationBridge: true,\n' +
-      '  showApplicationMenu() {},\n' +
-      '});\n';
-
-    function fakePreloadRequire(id) {
-      if (id === "electron") {
-        return preloadElectron;
-      }
-      if (id === originalPreloadPath) {
-        new Function("require", originalPreloadSource)(fakePreloadRequire);
-        return {};
-      }
-      throw new Error("Unexpected preload require: " + id);
-    }
-
-    const preloadShim = fs.readFileSync(patchedPreload, "utf8");
-    new Function("require", preloadShim)(fakePreloadRequire);
-    assert.equal(exposed.electronBridge.keepApplicationBridge, true);
-    assert.equal("showApplicationMenu" in exposed.electronBridge, false);
-
-    module.exports.stop();
-    assert.equal(electron.BrowserWindow, FakeBrowserWindow);
-  } finally {
-    if (previousUserRoot === undefined) {
-      delete process.env.CODEX_PLUSPLUS_USER_ROOT;
-    } else {
-      process.env.CODEX_PLUSPLUS_USER_ROOT = previousUserRoot;
-    }
-    fs.rmSync(tempRoot, { recursive: true, force: true });
-  }
+  assert.equal(exposed.electronBridge.api.keepApplicationBridge, true);
+  assert.equal("showApplicationMenu" in exposed.electronBridge.api, false);
 });
 
 test("Codex app UI override and Windows menu-bar tweak install independently", () => {

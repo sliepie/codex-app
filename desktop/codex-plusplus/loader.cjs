@@ -10,6 +10,12 @@ const packagedRoot = path.join(__dirname, "..");
 const originalMain = readPackagedOriginalMain();
 const runtimeDir = path.join(__dirname, "runtime");
 const preloadPath = path.join(runtimeDir, "preload.js");
+const compactWindowsTitlebarTweakId = "app.sliepie.codex.compact-windows-titlebar";
+const compactWindowsTitlebarPreloadPath = path.join(
+  __dirname,
+  "compact-windows-titlebar-preload.cjs",
+);
+const compactWindowsTitlebarEnabledChannel = "codexpp:compact-windows-titlebar-enabled";
 const bundledTweaksDir = path.join(__dirname, "tweaks");
 const userRoot = resolveUserRoot();
 const configFile = path.join(userRoot, "config.json");
@@ -194,6 +200,22 @@ function isCodexPlusPlusSafeModeEnabled() {
   return readConfigOrEmpty().codexPlusPlus?.safeMode === true;
 }
 
+function isTweakEnabled(id) {
+  const config = readConfigOrEmpty();
+  if (config.codexPlusPlus?.safeMode === true) {
+    return false;
+  }
+  return config.tweaks?.[id]?.enabled !== false;
+}
+
+function isCompactWindowsTitlebarEnabled() {
+  return (
+    process.platform === "win32" &&
+    fs.existsSync(compactWindowsTitlebarPreloadPath) &&
+    isTweakEnabled(compactWindowsTitlebarTweakId)
+  );
+}
+
 function disableCodexPlusPlusAutoUpdate() {
   let config = {};
   if (fs.existsSync(configFile)) {
@@ -374,22 +396,48 @@ function runStartupStep(label, fn) {
   }
 }
 
+function preloadRegistrationEntries() {
+  const entries = [];
+  if (fs.existsSync(compactWindowsTitlebarPreloadPath)) {
+    entries.push({
+      id: "codex-plusplus-compact-windows-titlebar",
+      filePath: compactWindowsTitlebarPreloadPath,
+    });
+  }
+  entries.push({ id: "codex-plusplus", filePath: preloadPath });
+  return entries;
+}
+
 function registerPreload(session, label) {
   try {
     const registerPreloadScript = session.registerPreloadScript;
     if (typeof registerPreloadScript === "function") {
-      registerPreloadScript.call(session, {
-        type: "frame",
-        filePath: preloadPath,
-        id: "codex-plusplus",
-      });
+      for (const entry of preloadRegistrationEntries()) {
+        try {
+          registerPreloadScript.call(session, {
+            type: "frame",
+            filePath: entry.filePath,
+            id: entry.id,
+          });
+        } catch (error) {
+          if (!(error instanceof Error && error.message.includes("existing ID"))) {
+            throw error;
+          }
+        }
+      }
       return;
     }
 
     if (typeof session.getPreloads === "function" && typeof session.setPreloads === "function") {
       const existing = session.getPreloads();
-      if (!existing.includes(preloadPath)) {
-        session.setPreloads([...existing, preloadPath]);
+      const next = [...existing];
+      for (const entry of preloadRegistrationEntries()) {
+        if (!next.includes(entry.filePath)) {
+          next.push(entry.filePath);
+        }
+      }
+      if (next.length !== existing.length) {
+        session.setPreloads(next);
       }
     }
   } catch (error) {
@@ -398,6 +446,21 @@ function registerPreload(session, label) {
     }
     log("codex-plusplus early preload registration failed for " + label, error);
   }
+}
+
+function registerCompactWindowsTitlebarHandler(ipcMain) {
+  if (!ipcMain || typeof ipcMain.on !== "function") {
+    return;
+  }
+
+  const eventNames = typeof ipcMain.eventNames === "function" ? ipcMain.eventNames() : [];
+  if (eventNames.includes(compactWindowsTitlebarEnabledChannel)) {
+    return;
+  }
+
+  ipcMain.on(compactWindowsTitlebarEnabledChannel, (event) => {
+    event.returnValue = isCompactWindowsTitlebarEnabled();
+  });
 }
 
 function registerEarlyPreloadHooks() {
@@ -413,6 +476,8 @@ function registerEarlyPreloadHooks() {
   if (!app || !session) {
     return;
   }
+
+  registerCompactWindowsTitlebarHandler(electron.ipcMain);
 
   if (typeof app.whenReady === "function") {
     app
@@ -447,8 +512,16 @@ function startCodexPlusPlusIntegration() {
   });
 }
 
+function scheduleCodexPlusPlusIntegration() {
+  if (typeof setImmediate === "function") {
+    setImmediate(startCodexPlusPlusIntegration);
+    return;
+  }
+  setTimeout(startCodexPlusPlusIntegration, 0);
+}
+
 process.env.CODEX_PLUSPLUS_USER_ROOT = userRoot;
 process.env.CODEX_PLUSPLUS_RUNTIME = runtimeDir;
 registerEarlyPreloadHooks();
-startCodexPlusPlusIntegration();
 require(path.join(packagedRoot, originalMain));
+scheduleCodexPlusPlusIntegration();
