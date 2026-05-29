@@ -120,7 +120,7 @@ Older screenshots are useful only as rejected-reference evidence:
 
 Focused package/resource test command:
 
-fnm exec -- node --test --test-name-pattern "Codex\+\+ loader|compact Windows titlebar|bundles app-owned Codex\+\+ UI tweaks|includes generated plugin resources|Forge preflight" desktop/scripts/windows-package-resources.test.mjs
+fnm exec -- node --test --test-name-pattern "Codex\+\+ loader|compact Windows titlebar|bundles app-owned Codex\+\+ UI tweaks|Bundled Codex\+\+ tweak versions|includes generated plugin resources|Forge preflight" desktop/scripts/windows-package-resources.test.mjs
 
 Latest focused result:
 
@@ -144,4 +144,18 @@ Full desktop/scripts/windows-package-resources.test.mjs has had known unrelated 
 - PE machine reader rejects invalid PE signatures
 - Windows ARM64 Resource binary verifier rejects unlisted x64 files
 
-Final visual proof is still pending a fresh packaged PR build for the latest branch state.
+Packaged PR build verification:
+
+- commit: 4f983124166b40d012ad2c042d7ee3bc564cc181
+- workflow run: 26626657522
+- artifact: C:\tmp\codex-pr87-build-4f98312\codex-app-windows-arm64.zip
+- extracted package: C:\tmp\codex-pr87-build-4f98312\payload\Codex.exe
+- full screenshot: C:\tmp\codex-app-screenshots\codex-pr87-packaged-full-20260529-103701.png
+- top-strip screenshot: C:\tmp\codex-app-screenshots\codex-pr87-packaged-topstrip-20260529-103701.png
+
+Latest visual result:
+
+- packaged build starts without the old Windows menu topbar
+- sidebar toggle, back, and forward controls remain visible on the left
+- native Windows minimize, maximize, and close controls remain visible on the right
+- the Codex app header/top content uses the no-menu/macOS-style layout path
