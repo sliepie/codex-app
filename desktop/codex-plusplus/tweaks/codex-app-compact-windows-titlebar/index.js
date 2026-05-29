@@ -37,6 +37,10 @@ function installStyle() {
 :root[data-codex-window-type="electron"][data-codex-os="win32"] [data-app-shell-main-content-layout="thread-edge-scroll"] .app-shell-main-content-frame {
   border-top-color: transparent !important;
 }
+:root[data-codex-window-type="electron"][data-codex-os="win32"] [data-app-shell-main-content-layout="thread-edge-scroll"] .app-shell-main-content-top-fade {
+  display: none !important;
+  opacity: 0 !important;
+}
 `.trim();
 
   const existingStyle = document.getElementById(STYLE_ID);
