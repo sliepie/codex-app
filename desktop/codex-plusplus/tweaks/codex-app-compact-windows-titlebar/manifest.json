@@ -1,7 +1,7 @@
 {
   "id": "app.sliepie.codex.compact-windows-titlebar",
   "name": "Codex app compact Windows titlebar",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "githubRepo": "sliepie/codex-app",
   "description": "Uses the app's native no-menu titlebar layout on Windows while preserving window controls.",
   "author": "sliepie",
