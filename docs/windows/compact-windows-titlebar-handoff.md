@@ -88,6 +88,7 @@ Older screenshots are useful only as rejected-reference evidence:
 - `C:\tmp\codex-app-screenshots\codex-window-printwindow-checkagain-topstrip-20260529-005940.png` shows the bad left-control/sidebar overlap from the DOM-move pass
 - `C:\tmp\codex-app-screenshots\codex-window-printwindow-spacerfix-topstrip-20260529-010350.png` shows the rejected spacer attempt still failing
 - `C:\tmp\codex-app-screenshots\codex-window-printwindow-nativepath-check-topstrip-20260529-063305.png` shows the already-open renderer still using the old preload/topbar spacing, so it is not accepted proof of the new path.
+- `C:\tmp\codex-app-screenshots\codex-window-printwindow-existingpatch-topstrip-20260529-064203.png` shows that trying to mutate `window.electronBridge` in the already-open renderer did not move the shell into the no-menu layout. That experiment was reverted; do not repeat it as the final path.
 
 ## Validation
 
