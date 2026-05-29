@@ -1,6 +1,6 @@
 # Codex App Executable Inventory
 
-Date: 2026-05-27
+Date: 2026-05-29
 
 ## Source Artifacts
 
@@ -10,10 +10,12 @@ Date: 2026-05-27
 | Windows ARM64 output | `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64-v26.429.30905.zip` |
 | Windows package directory | `desktop/out/Codex-win32-arm64` |
 | macOS extracted app | `desktop/.cache/codex-app/extract-26.429.30905/Codex.app` |
-| Vendored Node REPL fallback | `desktop/resources/node_repl.exe` from `OpenAI.Codex_26.519.11010.0_x64__2p2nqsd0c76g0` |
-| Vendored Chrome extension host fallback | `desktop/resources/extension-host.exe` from `OpenAI.Codex_26.519.11010.0_x64__2p2nqsd0c76g0` |
+| Vendored Node REPL fallback | `desktop/resources/node_repl.exe` from `OpenAI.Codex_26.527.3378.0_x64__2p2nqsd0c76g0` |
+| Vendored Chrome extension host fallback | `desktop/resources/extension-host.exe` from `OpenAI.Codex_26.527.3378.0_x64__2p2nqsd0c76g0` |
+| Vendored Computer Use helper fallback | `desktop/resources/codex-computer-use.exe` from `OpenAI.Codex_26.527.3378.0_x64__2p2nqsd0c76g0` |
 | GitHub-release hydrated Tectonic fallback | `tectonic-0.16.9-x86_64-pc-windows-msvc.zip` from `tectonic-typesetting/tectonic` |
 | Resource binary exception policy | `desktop/scripts/resource-binary-exceptions.ts` enforced by `npm run verify:windows-arm64-resource-binaries` |
+| Store architecture check | Microsoft Store package manifest for `9PLM9XGG6VKS` advertises only an `x64` installer for `OpenAI.Codex_2p2nqsd0c76g0`; explicit `winget install --architecture arm64` returned no applicable installer on Windows ARM64 |
 
 ## Version Match
 
@@ -24,8 +26,9 @@ Date: 2026-05-27
 | Electron | refresh manifest = `41.2.0` | `desktop/package.json` dependency = `41.2.0` | Match |
 | Codex CLI | release payload = `rust-v0.128.0` | `resources/codex.exe --version` = `codex-cli 0.128.0` | Match |
 | CLI helper binaries | release payload = `rust-v0.128.0` | Windows helper `FileVersion` = `0.128.0` | Match |
-| Node REPL fallback | Store package `OpenAI.Codex_26.519.11010.0_x64__2p2nqsd0c76g0` | `resources/node_repl.exe` SHA-256 = `e08f2ccc6411d5ae1928af9ab0f70678649d178b0e15b8a5d080f1c3c83000f1` | Explicit x64 exception |
-| Chrome extension host fallback | Store package `OpenAI.Codex_26.519.11010.0_x64__2p2nqsd0c76g0` | `resources/extension-host.exe` SHA-256 = `bc978352b7ffa1900939b436155de6e1036f85f08cc00ad1ec619e1c22cd3bbe` | Explicit x64 exception |
+| Node REPL fallback | Store package `OpenAI.Codex_26.527.3378.0_x64__2p2nqsd0c76g0` | `resources/node_repl.exe` SHA-256 = `cd5855513159366c6d2a9c9aca0a2fded24f79f6347a19254a109a119d310f08` | Explicit x64 exception |
+| Chrome extension host fallback | Store package `OpenAI.Codex_26.527.3378.0_x64__2p2nqsd0c76g0` | `resources/extension-host.exe` SHA-256 = `f57756cc1430e927249a3a5d36877d484243d2e80faf544e4eaa236e00c2f945` | Explicit x64 exception |
+| Computer Use helper fallback | Store package `OpenAI.Codex_26.527.3378.0_x64__2p2nqsd0c76g0` | `resources/codex-computer-use.exe` SHA-256 = `eb9ea2e0dcd5af1d35f73df4d02250d61cbd63ee585eeac773d8e48aa2fac85b` | Explicit x64 exception |
 | Tectonic fallback | Public release `tectonic@0.16.9` | `tectonic.exe` SHA-256 = `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb`; asset digest = `sha256:131a24604785a9600989a3d91225f597df52ac06f00aeffe86fd529f99ee5cdd` | `hydrate:cli` x64 exception |
 
 ## Architecture Summary
@@ -33,7 +36,7 @@ Date: 2026-05-27
 | Artifact | Executable count | Architecture result |
 | --- | ---: | --- |
 | macOS source app | 36 Mach-O files | 31 `arm64`, 5 Sparkle universal `fat(2)` files |
-| Windows ARM64 output | Pending package rebuild | Adds explicit `x64` exceptions for `resources/node_repl.exe`, Chrome plugin `extension-host.exe` at the ARM64 lookup path, and LaTeX `tectonic.exe` |
+| Windows ARM64 output | Pending package rebuild | Adds explicit `x64` exceptions for `resources/node_repl.exe`, Chrome plugin `extension-host.exe` at the ARM64 lookup path, Computer Use `codex-computer-use.exe`, and LaTeX `tectonic.exe` |
 | Rebuilt native module cache | 1 PE file | `better_sqlite3.node` is `ARM64`; `.forge-meta` is `arm64--145` |
 
 The produced Windows package contains no `.node` files in `resources/app.asar` and no `resources/app.asar.unpacked` directory. The local native cache is rebuilt for ARM64, but no native module is emitted as a separate file in the produced package.
@@ -95,8 +98,9 @@ The Windows ARM64 package is ARM64 by default. Any x64 PE payload must match the
 | `resources/codex-command-runner.exe` | `ARM64` | `0.128.0` |
 | `resources/codex-windows-sandbox-setup.exe` | `ARM64` | `0.128.0` |
 | `resources/codex.exe` | `ARM64` | `0.128.0`; CLI reports `codex-cli 0.128.0` |
-| `resources/node_repl.exe` | `x64` | Vendored from `OpenAI.Codex_26.519.11010.0_x64__2p2nqsd0c76g0`; SHA-256 `e08f2ccc6411d5ae1928af9ab0f70678649d178b0e15b8a5d080f1c3c83000f1` |
-| `resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe` | `x64` | Vendored from `OpenAI.Codex_26.519.11010.0_x64__2p2nqsd0c76g0`; copied to the ARM64 plugin lookup path because the bundled installer uses `os.arch()`; SHA-256 `bc978352b7ffa1900939b436155de6e1036f85f08cc00ad1ec619e1c22cd3bbe` |
+| `resources/node_repl.exe` | `x64` | Vendored from `OpenAI.Codex_26.527.3378.0_x64__2p2nqsd0c76g0`; SHA-256 `cd5855513159366c6d2a9c9aca0a2fded24f79f6347a19254a109a119d310f08` |
+| `resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe` | `x64` | Vendored from `OpenAI.Codex_26.527.3378.0_x64__2p2nqsd0c76g0`; copied to the ARM64 plugin lookup path because the bundled installer uses `os.arch()`; SHA-256 `f57756cc1430e927249a3a5d36877d484243d2e80faf544e4eaa236e00c2f945` |
+| `resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe` | `x64` | Vendored from `OpenAI.Codex_26.527.3378.0_x64__2p2nqsd0c76g0`; SHA-256 `eb9ea2e0dcd5af1d35f73df4d02250d61cbd63ee585eeac773d8e48aa2fac85b` |
 | `resources/plugins/openai-bundled*/plugins/latex*/bin/tectonic.exe` | `x64` | Downloaded by `hydrate:cli` from `tectonic-typesetting/tectonic` release `tectonic@0.16.9`; SHA-256 `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb` |
 | `vk_swiftshader.dll` | `ARM64` | `5.0.0` |
 | `vulkan-1.dll` | `ARM64` | Vulkan Loader |

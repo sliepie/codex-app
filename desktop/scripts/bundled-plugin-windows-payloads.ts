@@ -7,6 +7,7 @@ import {
 } from "./resource-binary-exceptions";
 
 export type BundledPluginWindowsPayloadOptions = {
+  computerUsePath?: string;
   extensionHostPath?: string;
   targetArch?: string;
 };
@@ -18,11 +19,11 @@ function resolveDesktopRoot(): string {
 }
 
 const desktopRoot = resolveDesktopRoot();
+const defaultComputerUsePath = path.join(desktopRoot, "resources", "codex-computer-use.exe");
 const defaultExtensionHostPath = path.join(desktopRoot, "resources", "extension-host.exe");
 const defaultTargetArch = "arm64";
 
 export const openAiBundledMarketplaceNames = ["openai-bundled", "openai-bundled-beta"] as const;
-export const excludedBundledPluginNames = new Set(["computer-use"]);
 
 function requireWindowsPayload(payloadPath: string, label: string, command: string): void {
   if (!fs.existsSync(payloadPath)) {
@@ -62,6 +63,29 @@ function syncChromeWindowsPayload(
   fs.copyFileSync(extensionHostPath, destinationPath);
 }
 
+function syncComputerUseWindowsPayload(
+  destinationPluginRoot: string,
+  options: BundledPluginWindowsPayloadOptions,
+): void {
+  const exception = resourceBinaryExceptionById("computer-use");
+  const computerUsePath = options.computerUsePath ?? defaultComputerUsePath;
+  requireWindowsPayload(computerUsePath, "codex-computer-use.exe", "npm run update:node-repl");
+  assertExpectedMachine(computerUsePath, exception.expectedMachine, exception.label);
+
+  fs.rmSync(path.join(destinationPluginRoot, "Codex Computer Use.app"), { recursive: true, force: true });
+  const destinationPath = path.join(
+    destinationPluginRoot,
+    "node_modules",
+    "@oai",
+    "sky",
+    "bin",
+    "windows",
+    "codex-computer-use.exe",
+  );
+  fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
+  fs.copyFileSync(computerUsePath, destinationPath);
+}
+
 function pruneLatexMacPayload(destinationPluginRoot: string): void {
   const binRoot = path.join(destinationPluginRoot, "bin");
   fs.rmSync(path.join(binRoot, "tectonic"), { force: true });
@@ -72,6 +96,9 @@ export function syncBundledPluginWindowsPayloads(
   destinationPluginRoot: string,
   options: BundledPluginWindowsPayloadOptions = {},
 ): void {
+  if (pluginName === "computer-use") {
+    syncComputerUseWindowsPayload(destinationPluginRoot, options);
+  }
   if (pluginName === "chrome") {
     syncChromeWindowsPayload(destinationPluginRoot, options);
   }

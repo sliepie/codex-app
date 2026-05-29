@@ -89,7 +89,7 @@ assets:
 - `desktop/scripts/hydrate-codex-cli.ts`: downloads the latest Windows ARM64
   Codex CLI and helper binaries from `openai/codex`.
 - `desktop/scripts/update-node-repl.ps1`: refreshes the vendored x64
-  `node_repl.exe` fallback from the official Microsoft Store Codex app.
+  Store helper fallbacks from the official Microsoft Store Codex app.
 - `desktop/scripts/refresh-recovered-from-dmg.ts`: extracts the app payload
   into `desktop/recovered/app-asar-extracted/`.
 - `desktop/forge.config.js`: packages the app and creates the Windows ARM64
@@ -146,9 +146,10 @@ list. Each exception must be listed in
 `desktop/scripts/resource-binary-exceptions.ts`, have provenance metadata, and
 pass packaged PE-machine and SHA-256 verification.
 
-- `desktop/resources/node_repl.exe` and `desktop/resources/extension-host.exe`
-  are copied from the official Microsoft Store Codex app because no Windows
-  ARM64 source or download path is available.
+- `desktop/resources/node_repl.exe`, `desktop/resources/extension-host.exe`,
+  and `desktop/resources/codex-computer-use.exe` are copied from the official
+  Microsoft Store Codex app because no Windows ARM64 source or download path is
+  available.
 - `plugins/*/latex*/bin/tectonic.exe` is installed during CLI hydration from
   the public Tectonic x86_64 Windows GitHub release because upstream does not
   publish a Windows ARM64 build.
@@ -160,9 +161,10 @@ npm run update:node-repl
 ```
 
 The updater installs or upgrades the official Microsoft Store Codex app
-(`9PLM9XGG6VKS`), copies `node_repl.exe` and `extension-host.exe`, writes
-provenance metadata next to the binaries, and uninstalls Codex only if the
-script installed it into a previously missing state.
+(`9PLM9XGG6VKS`), copies `node_repl.exe`, `extension-host.exe`, and
+`codex-computer-use.exe`, writes provenance metadata next to the binaries, and
+uninstalls Codex only if the script installed it into a previously missing
+state.
 
 - Built installers and packaging outputs are release artifacts and should not be committed to git.
 - Windows self-signed MSIX/App Installer work is documented in `docs/windows/self-signed-msix-updates.md`.

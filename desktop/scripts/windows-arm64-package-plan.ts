@@ -17,7 +17,7 @@ export type WindowsArm64PlanStep = {
   label: string;
 };
 
-export const windowsArm64HydratedCacheKeyVersion = "v6";
+export const windowsArm64HydratedCacheKeyVersion = "v7";
 export const windowsArm64NativeModulesCacheKeyVersion = "v1";
 
 export const windowsArm64HydratedCacheInputPaths = [
@@ -29,6 +29,7 @@ export const windowsArm64HydratedCacheInputPaths = [
   "scripts/resource-binary-exceptions.ts",
   "scripts/run-hydrate-codex-app.ts",
   "scripts/windows-arm64-package-plan.ts",
+  "resources/codex-computer-use.json",
   "resources/extension-host.json",
   "resources/node_repl.json",
 ] as const;

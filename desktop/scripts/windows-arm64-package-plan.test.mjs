@@ -128,6 +128,7 @@ test("Windows ARM64 cache input lists include the executable plan and hydrators"
   assert.ok(windowsArm64HydratedCacheInputPaths.includes("scripts/windows-arm64-package-plan.ts"));
   assert.ok(windowsArm64HydratedCacheInputPaths.includes("scripts/hydrate-codex-cli.ts"));
   assert.ok(windowsArm64HydratedCacheInputPaths.includes("scripts/resource-binary-exceptions.ts"));
+  assert.ok(windowsArm64HydratedCacheInputPaths.includes("resources/codex-computer-use.json"));
   assert.ok(windowsArm64NativeModuleCacheInputPaths.includes("scripts/patch-better-sqlite3-electron.ts"));
 });
 
