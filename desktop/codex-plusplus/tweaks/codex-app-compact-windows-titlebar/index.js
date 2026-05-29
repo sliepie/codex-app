@@ -35,7 +35,7 @@ function installStyle() {
   padding-top: var(--height-toolbar-sm) !important;
 }
 :root[data-codex-window-type="electron"][data-codex-os="win32"] [data-app-shell-main-content-layout="thread-edge-scroll"] .app-shell-main-content-frame {
-  border-top-color: transparent !important;
+  border-top-color: var(--color-border) !important;
 }
 :root[data-codex-window-type="electron"][data-codex-os="win32"] [data-app-shell-main-content-layout="thread-edge-scroll"] .app-shell-main-content-top-fade {
   display: none !important;
