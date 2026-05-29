@@ -9,8 +9,12 @@ function logInfo(api, message) {
 
 function installStyle() {
   const styleText = `
-:root[data-codex-window-type="electron"][data-codex-os="win32"] .app-header-tint {
+:root[data-codex-window-type="electron"][data-codex-os="win32"] header.app-header-tint {
+  background: transparent !important;
   padding-inline-end: max(var(--spacing-token-safe-header-right, 0px), ${RESERVED_WINDOWS_CONTROLS_WIDTH}px) !important;
+}
+:root[data-codex-window-type="electron"][data-codex-os="win32"] .main-surface {
+  background: linear-gradient(to bottom, transparent 0 var(--height-toolbar), var(--color-token-main-surface-primary) var(--height-toolbar) 100%) !important;
 }
 `.trim();
 
