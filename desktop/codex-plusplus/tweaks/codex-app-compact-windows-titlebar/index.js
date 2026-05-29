@@ -17,6 +17,7 @@ function installStyle() {
 }
 :root[data-codex-window-type="electron"][data-codex-os="win32"] .main-surface {
   background: linear-gradient(to bottom, transparent 0 var(--height-toolbar-sm), var(--color-token-main-surface-primary) var(--height-toolbar-sm) 100%) !important;
+  --tw-shadow: 0 0 #0000 !important;
   --tw-ring-shadow: 0 0 #0000 !important;
 }
 :root[data-codex-window-type="electron"][data-codex-os="win32"] .app-shell-main-content-viewport {
