@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string] $OutputPath,
-    [string] $ExtensionHostOutputPath
+    [string] $ExtensionHostOutputPath,
+    [string] $ComputerUseOutputPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,6 +15,9 @@ if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 if ([string]::IsNullOrWhiteSpace($ExtensionHostOutputPath)) {
     $ExtensionHostOutputPath = Join-Path $PSScriptRoot "..\resources\extension-host.exe"
+}
+if ([string]::IsNullOrWhiteSpace($ComputerUseOutputPath)) {
+    $ComputerUseOutputPath = Join-Path $PSScriptRoot "..\resources\codex-computer-use.exe"
 }
 
 function Invoke-Winget {
@@ -106,6 +110,17 @@ function Resolve-ExtensionHostPath {
     throw "Could not find Chrome extension-host.exe under installed package: $($Package.InstallLocation)"
 }
 
+function Resolve-ComputerUsePath {
+    param($Package)
+
+    $candidate = Join-Path $Package.InstallLocation "app\resources\plugins\openai-bundled\plugins\computer-use\node_modules\@oai\sky\bin\windows\codex-computer-use.exe"
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+        return $candidate
+    }
+
+    throw "Could not find codex-computer-use.exe under installed package: $($Package.InstallLocation)"
+}
+
 function Update-StoreBinary {
     param(
         [string] $Label,
@@ -189,6 +204,8 @@ try {
     Update-StoreBinary -Label "node_repl.exe" -SourcePath (Resolve-NodeReplPath -Package $package) -DestinationPath $OutputPath -SourceRelativePath "app/resources/node_repl.exe" -Package $package
 
     Update-StoreBinary -Label "extension-host.exe" -SourcePath (Resolve-ExtensionHostPath -Package $package) -DestinationPath $ExtensionHostOutputPath -SourceRelativePath "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/x64/extension-host.exe" -Package $package
+
+    Update-StoreBinary -Label "codex-computer-use.exe" -SourcePath (Resolve-ComputerUsePath -Package $package) -DestinationPath $ComputerUseOutputPath -SourceRelativePath "app/resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe" -Package $package
 }
 finally {
     if ($installedByScript) {

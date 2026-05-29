@@ -320,6 +320,30 @@ function createAppResourcesFixture({ marketplaceName = "openai-bundled" } = {}) 
     path.join(bundledRoot, "plugins", "computer-use", "skills", "computer", "SKILL.md"),
     "# Computer\n",
   );
+  writePeFixture(
+    path.join(
+      bundledRoot,
+      "plugins",
+      "computer-use",
+      "Codex Computer Use.app",
+      "Contents",
+      "MacOS",
+      "SkyComputerUseService",
+    ),
+    0xaa64,
+  );
+  writeFixture(
+    path.join(
+      bundledRoot,
+      "plugins",
+      "computer-use",
+      "node_modules",
+      "@oai",
+      "sky",
+      "package.json",
+    ),
+    `${JSON.stringify({ name: "@oai/sky", version: "0.4.5" }, null, 2)}\n`,
+  );
   writeFixture(
     path.join(bundledRoot, "plugins", "chrome", ".codex-plugin", "plugin.json"),
     `${JSON.stringify({ name: "chrome", version: "0.1.0-alpha1" }, null, 2)}\n`,
@@ -343,8 +367,10 @@ function createAppResourcesFixture({ marketplaceName = "openai-bundled" } = {}) 
 function createWindowsPluginPayloadFixture() {
   const payloadRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-windows-plugin-payloads-"));
   const extensionHostPath = path.join(payloadRoot, "extension-host.exe");
+  const computerUsePath = path.join(payloadRoot, "codex-computer-use.exe");
   writePeFixture(extensionHostPath, 0x8664);
-  return { extensionHostPath };
+  writePeFixture(computerUsePath, 0x8664);
+  return { computerUsePath, extensionHostPath };
 }
 
 function createMarkdownDirectiveFixture() {
@@ -373,7 +399,7 @@ function evaluateMarkdownDirectiveFixture(source, operationNames = ["git-create-
   return new Function("s", source + "; return { Hr, Br };")(new Set(operationNames));
 }
 
-test("generates Windows bundled plugin resources except macOS-only plugins", () => {
+test("generates Windows bundled plugin resources with Windows helper payloads", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
   const windowsPayloads = createWindowsPluginPayloadFixture();
@@ -391,11 +417,12 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
   );
   assert.deepEqual(
     marketplace.plugins.map((plugin) => plugin.name),
-    ["browser", "chrome", "latex"],
+    ["browser", "computer-use", "chrome", "latex"],
   );
   assert.equal(marketplace.plugins[0].source.path, "./plugins/browser");
-  assert.equal(marketplace.plugins[1].source.path, "./plugins/chrome");
-  assert.equal(marketplace.plugins[2].source.path, "./plugins/latex");
+  assert.equal(marketplace.plugins[1].source.path, "./plugins/computer-use");
+  assert.equal(marketplace.plugins[2].source.path, "./plugins/chrome");
+  assert.equal(marketplace.plugins[3].source.path, "./plugins/latex");
 
   assert.equal(
     fs.existsSync(
@@ -408,6 +435,21 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
   );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/computer-use")),
+    true,
+  );
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        destinationPluginsRoot,
+        "openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe",
+      ),
+    ),
+    true,
+  );
+  assert.equal(
+    fs.existsSync(
+      path.join(destinationPluginsRoot, "openai-bundled/plugins/computer-use/Codex Computer Use.app"),
+    ),
     false,
   );
   assert.equal(
@@ -440,7 +482,7 @@ test("generates Windows bundled plugin resources except macOS-only plugins", () 
 test("Windows ARM64 Resource binary policy lists the approved x64 exceptions", () => {
   assert.deepEqual(
     windowsArm64ResourceBinaryExceptions.map((exception) => exception.id).sort(),
-    ["chrome-extension-host", "node-repl", "tectonic"],
+    ["chrome-extension-host", "computer-use", "node-repl", "tectonic"],
   );
   assert.equal(
     matchWindowsArm64ResourceBinaryException("resources/node_repl.exe")?.expectedMachine,
@@ -457,6 +499,12 @@ test("Windows ARM64 Resource binary policy lists the approved x64 exceptions", (
       "resources/plugins/openai-bundled-beta/plugins/latex-tectonic/bin/tectonic.exe",
     )?.id,
     "tectonic",
+  );
+  assert.equal(
+    matchWindowsArm64ResourceBinaryException(
+      "resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe",
+    )?.id,
+    "computer-use",
   );
   assert.equal(
     matchWindowsArm64ResourceBinaryException("resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/x64/extension-host.exe"),
@@ -493,8 +541,10 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
   const packageRoot = path.join(fixtureRoot, "out", "Codex-win32-arm64");
   const nodeReplPath = path.join(fixtureRoot, "resources", "node_repl.exe");
   const extensionHostPath = path.join(fixtureRoot, "resources", "extension-host.exe");
+  const computerUsePath = path.join(fixtureRoot, "resources", "codex-computer-use.exe");
   writePeFixture(nodeReplPath, 0x8664);
   writePeFixture(extensionHostPath, 0x8664);
+  writePeFixture(computerUsePath, 0x8664);
   writeFixture(
     path.join(fixtureRoot, "resources", "node_repl.json"),
     JSON.stringify({
@@ -517,13 +567,26 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
       sourceRelativePath: "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/x64/extension-host.exe",
     }),
   );
+  writeFixture(
+    path.join(fixtureRoot, "resources", "codex-computer-use.json"),
+    JSON.stringify({
+      architecture: "x64",
+      packageFamilyName: "OpenAI.Codex_2p2nqsd0c76g0",
+      packageName: "OpenAI.Codex",
+      productId: "9PLM9XGG6VKS",
+      sha256: sha256File(computerUsePath),
+      sourceRelativePath: "app/resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe",
+    }),
+  );
 
   const packageNodeReplPath = path.join(packageRoot, "resources", "node_repl.exe");
   const packageExtensionHostPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "chrome", "extension-host", "windows", "arm64", "extension-host.exe");
+  const packageComputerUsePath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "computer-use", "node_modules", "@oai", "sky", "bin", "windows", "codex-computer-use.exe");
   const packageTectonicPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "latex", "bin", "tectonic.exe");
   const tectonicMetadataPath = path.join(fixtureRoot, ".cache", "codex-cli", "latest-release.json");
   copyFixture(nodeReplPath, packageNodeReplPath);
   copyFixture(extensionHostPath, packageExtensionHostPath);
+  copyFixture(computerUsePath, packageComputerUsePath);
   writePeFixture(packageTectonicPath, 0x8664);
   const tectonicRepo = "tectonic-typesetting/tectonic";
   const tectonicTag = "tectonic@0.16.9";
@@ -550,7 +613,7 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
 
   assert.deepEqual(
     verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }).allowedExceptions,
-    ["chrome-extension-host", "node-repl", "tectonic"],
+    ["chrome-extension-host", "computer-use", "node-repl", "tectonic"],
   );
 
   writeFixture(
@@ -612,7 +675,7 @@ test("preserves beta bundled plugin marketplace resources", () => {
   );
   assert.deepEqual(
     marketplace.plugins.map((plugin) => plugin.name),
-    ["browser", "chrome", "latex"],
+    ["browser", "computer-use", "chrome", "latex"],
   );
   assert.equal(marketplace.name, "openai-bundled-beta");
   assert.equal(
@@ -741,7 +804,7 @@ test("keeps non-operation directives and fenced operation directive examples", (
   assert.equal(patched.Br(content, false), content);
 });
 
-test("discovers native modules copied inside every non-excluded bundled plugin resource", () => {
+test("discovers native modules copied inside bundled plugin resources", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
   const marketplacePath = path.join(
@@ -862,6 +925,7 @@ test("discovers native modules copied inside every non-excluded bundled plugin r
     targetsByPath.get("openai-bundled/plugins/browser/scripts/node_modules")?.nativeModules,
     [{ name: "classic-level", version: "3.0.0" }],
   );
+  assert.equal(targetsByPath.has("openai-bundled/plugins/computer-use/node_modules"), false);
   assert.equal(
     targetsByPath.get("openai-bundled/plugins/native-helper/scripts/node_modules")?.runtime,
     "node",
@@ -1125,7 +1189,7 @@ test("allows the upstream bundle to omit the browser plugin", () => {
   );
   assert.deepEqual(
     destinationMarketplace.plugins.map((plugin) => plugin.name),
-    ["chrome", "latex"],
+    ["computer-use", "chrome", "latex"],
   );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled", "plugins", "browser")),
@@ -2689,6 +2753,10 @@ test("Store binary updater only accepts the official Store package family", () =
   assert.match(
     source,
     /app\\resources\\plugins\\openai-bundled\\plugins\\chrome\\extension-host\\windows\\x64\\extension-host\.exe/,
+  );
+  assert.match(
+    source,
+    /app\\resources\\plugins\\openai-bundled\\plugins\\computer-use\\node_modules\\@oai\\sky\\bin\\windows\\codex-computer-use\.exe/,
   );
 });
 

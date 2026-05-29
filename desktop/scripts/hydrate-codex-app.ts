@@ -15,7 +15,6 @@ import {
 } from "./codex-appcast-feeds";
 import {
   type BundledPluginWindowsPayloadOptions,
-  excludedBundledPluginNames,
   openAiBundledMarketplaceNames,
   syncBundledPluginWindowsPayloads,
 } from "./bundled-plugin-windows-payloads";
@@ -343,9 +342,7 @@ export function syncBundledPluginResources(
     throw new Error(`Bundled plugin marketplace does not list plugins: ${sourceMarketplacePath}`);
   }
 
-  const selectedPlugins = sourceMarketplace.plugins.filter(
-    (plugin) => !excludedBundledPluginNames.has(plugin.name ?? ""),
-  );
+  const selectedPlugins = sourceMarketplace.plugins;
 
   for (const marketplaceName of openAiBundledMarketplaceNames) {
     fs.rmSync(path.join(destinationPluginsRoot, marketplaceName), { recursive: true, force: true });
@@ -833,6 +830,11 @@ function hasNativePayload(packageRoot: string): boolean {
       if (hasNativePayload(entryPath)) {
         return true;
       }
+      continue;
+    }
+
+    const normalizedEntryPath = entryPath.replaceAll(path.sep, "/");
+    if (normalizedEntryPath.endsWith("/@oai/sky/bin/windows/codex-computer-use.exe")) {
       continue;
     }
 
