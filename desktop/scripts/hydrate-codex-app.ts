@@ -81,6 +81,14 @@ type PluginJson = {
   name?: string;
 };
 
+type ChromeExtensionIdJson = {
+  extensionId?: unknown;
+};
+
+const chromePluginName = "chrome";
+const bundledChromeBrowserClientSafeUrlPolicy =
+  "var QP=new Set([\"about:blank\"]);function sy(e){if(QP.has(e))return!0;let t;try{t=new URL(e)}catch{return!1}return t.protocol===\"http:\"||t.protocol===\"https:\"}";
+
 type BundledMarketplaceSource = {
   name: string;
   path: string;
@@ -309,6 +317,49 @@ function packagedPluginSourcePath(pluginName: string): string {
   return `./plugins/${pluginName}`;
 }
 
+function patchBundledChromeExtensionTrust(pluginName: string, destinationPluginRoot: string): void {
+  if (pluginName !== chromePluginName) {
+    return;
+  }
+
+  const browserClientPath = path.join(destinationPluginRoot, "scripts", "browser-client.mjs");
+  const extensionIdPath = path.join(destinationPluginRoot, "scripts", "extension-id.json");
+  if (!fs.existsSync(browserClientPath) && !fs.existsSync(extensionIdPath)) {
+    return;
+  }
+  if (!fs.existsSync(browserClientPath)) {
+    throw new Error(`Missing bundled Chrome browser client: ${browserClientPath}`);
+  }
+  if (!fs.existsSync(extensionIdPath)) {
+    throw new Error(`Missing bundled Chrome extension id: ${extensionIdPath}`);
+  }
+
+  const extensionIdJson = readJsonFile<ChromeExtensionIdJson>(extensionIdPath);
+  if (
+    typeof extensionIdJson.extensionId !== "string" ||
+    !/^[a-z]{32}$/.test(extensionIdJson.extensionId)
+  ) {
+    throw new Error(`Invalid bundled Chrome extension id in ${extensionIdPath}`);
+  }
+
+  const trustedExtensionPolicy =
+    `${bundledChromeBrowserClientSafeUrlPolicy.slice(0, -1)}||` +
+    `t.protocol==="chrome-extension:"&&t.hostname===${JSON.stringify(extensionIdJson.extensionId)}}`;
+  let browserClientSource = fs.readFileSync(browserClientPath, "utf8");
+  if (browserClientSource.includes(trustedExtensionPolicy)) {
+    return;
+  }
+  if (!browserClientSource.includes(bundledChromeBrowserClientSafeUrlPolicy)) {
+    throw new Error(`Could not patch bundled Chrome extension trust in ${browserClientPath}`);
+  }
+
+  browserClientSource = browserClientSource.replace(
+    bundledChromeBrowserClientSafeUrlPolicy,
+    trustedExtensionPolicy,
+  );
+  fs.writeFileSync(browserClientPath, browserClientSource, "utf8");
+}
+
 function findBundledMarketplaceSource(appResourcesRoot: string): BundledMarketplaceSource {
   const candidates = openAiBundledMarketplaceNames.map((name) => {
     const root = path.join(appResourcesRoot, "plugins", name);
@@ -383,6 +434,7 @@ export function syncBundledPluginResources(
     const destinationPluginRoot = path.join(destinationMarketplaceRoot, "plugins", pluginName);
     fs.cpSync(sourcePluginRoot, destinationPluginRoot, { recursive: true, force: true });
     syncBundledPluginWindowsPayloads(pluginName, destinationPluginRoot, options);
+    patchBundledChromeExtensionTrust(pluginName, destinationPluginRoot);
     destinationPlugins.push({
       ...plugin,
       source: {

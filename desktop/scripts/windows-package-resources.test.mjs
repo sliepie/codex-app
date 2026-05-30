@@ -232,6 +232,9 @@ function writeMachOFixture(filePath) {
   fs.writeFileSync(filePath, Buffer.from([0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0x00, 0x00, 0x01]));
 }
 
+const upstreamBrowserClientSafeUrlPolicy =
+  "var QP=new Set([\"about:blank\"]);function sy(e){if(QP.has(e))return!0;let t;try{t=new URL(e)}catch{return!1}return t.protocol===\"http:\"||t.protocol===\"https:\"}";
+
 function createAppResourcesFixture({ marketplaceName = "openai-bundled" } = {}) {
   const appResourcesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-app-resources-"));
   const bundledRoot = path.join(appResourcesRoot, "plugins", marketplaceName);
@@ -349,6 +352,21 @@ function createAppResourcesFixture({ marketplaceName = "openai-bundled" } = {}) 
     `${JSON.stringify({ name: "chrome", version: "0.1.0-alpha1" }, null, 2)}\n`,
   );
   writeFixture(
+    path.join(bundledRoot, "plugins", "chrome", "scripts", "extension-id.json"),
+    `${JSON.stringify(
+      {
+        extensionId: "hehggadaopoacecdllhhajmbjkdcmajg",
+        extensionHostName: "com.openai.codexextension",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  writeFixture(
+    path.join(bundledRoot, "plugins", "chrome", "scripts", "browser-client.mjs"),
+    `${upstreamBrowserClientSafeUrlPolicy}\n`,
+  );
+  writeFixture(
     path.join(bundledRoot, "plugins", "chrome", "skills", "chrome", "SKILL.md"),
     "# Chrome\n",
   );
@@ -434,6 +452,16 @@ test("generates Windows bundled plugin resources with Windows helper payloads", 
     true,
   );
   assert.equal(
+    fs.readFileSync(
+      path.join(
+        destinationPluginsRoot,
+        "openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      ),
+      "utf8",
+    ),
+    "export const browserClient = true;\n",
+  );
+  assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/computer-use")),
     true,
   );
@@ -468,6 +496,17 @@ test("generates Windows bundled plugin resources with Windows helper payloads", 
       ),
     ),
     true,
+  );
+  const chromeBrowserClient = fs.readFileSync(
+    path.join(
+      destinationPluginsRoot,
+      "openai-bundled/plugins/chrome/scripts/browser-client.mjs",
+    ),
+    "utf8",
+  );
+  assert.match(
+    chromeBrowserClient,
+    /t\.protocol==="chrome-extension:"&&t\.hostname==="hehggadaopoacecdllhhajmbjkdcmajg"/,
   );
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex/bin/tectonic.exe")),
