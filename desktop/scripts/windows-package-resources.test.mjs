@@ -1247,7 +1247,8 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   );
   assert.match(loaderSource, /config\.json/);
   assert.match(loaderSource, /autoUpdate: false/);
-  assert.match(loaderSource, /bundledVersionIsNewer\(marker\.version, current\.version\)/);
+  assert.match(loaderSource, /readInstalledTweakVersion\(targetDir, markerPath, manifest\.id\)/);
+  assert.match(loaderSource, /bundledVersionIsNewer\(marker\.version, installedVersion\)/);
   assert.match(loaderSource, /__codexpp\.originalMain/);
   assert.match(loaderSource, /registerEarlyPreloadHooks\(\);[\s\S]*require\(path\.join\(packagedRoot, originalMain\)\)/);
   assert.match(loaderSource, /canRemoveStaleTweaks/);
@@ -1421,7 +1422,7 @@ test("Codex++ loader still starts runtime when a bundled tweak marker is corrupt
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
 });
 
-test("Codex++ loader does not replace user-owned tweak directories", (t) => {
+test("Codex++ loader upgrades installed tweak directories when bundled version is newer", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   writeFixture(
     path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "manifest.json"),
@@ -1441,7 +1442,11 @@ test("Codex++ loader does not replace user-owned tweak directories", (t) => {
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(
     fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
-    'module.exports = "user";\n',
+    'module.exports = "bundled";\n',
+  );
+  assert.deepEqual(
+    JSON.parse(fs.readFileSync(path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"), "utf8")),
+    { source: "codex-app", id: "app-tweak", version: "2.0.0" },
   );
 });
 
@@ -1474,13 +1479,12 @@ test("Codex++ loader upgrades trusted bundled tweak installs", (t) => {
   );
 });
 
-test("Codex++ loader upgrades markerless legacy bundled tweak installs", (t) => {
+test("Codex++ loader upgrades markerless installed tweak directories when bundled version is newer", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   const bundledManifest = {
     id: "app-tweak",
     name: "App tweak",
     version: "1.1.0",
-    githubRepo: "sliepie/codex-app",
   };
   writeFixture(
     path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "manifest.json"),

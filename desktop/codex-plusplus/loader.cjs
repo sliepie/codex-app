@@ -149,16 +149,6 @@ function assertBundledManifest(manifest, entryName) {
   }
 }
 
-function isTrustedBundledMarker(marker, expectedId) {
-  return (
-    isPlainObject(marker) &&
-    marker.source === "codex-app" &&
-    marker.id === expectedId &&
-    typeof marker.version === "string" &&
-    marker.version.trim() !== ""
-  );
-}
-
 function isTrustedInstalledBundledMarker(marker, installedDirName) {
   return (
     isPlainObject(marker) &&
@@ -167,18 +157,6 @@ function isTrustedInstalledBundledMarker(marker, installedDirName) {
     isSafeTweakId(marker.id) &&
     typeof marker.version === "string" &&
     marker.version.trim() !== ""
-  );
-}
-
-function isLegacyBundledTweakManifest(installedManifest, bundledManifest) {
-  return (
-    isPlainObject(installedManifest) &&
-    installedManifest.id === bundledManifest.id &&
-    typeof installedManifest.version === "string" &&
-    installedManifest.version.trim() !== "" &&
-    typeof bundledManifest.githubRepo === "string" &&
-    bundledManifest.githubRepo.trim() !== "" &&
-    installedManifest.githubRepo === bundledManifest.githubRepo
   );
 }
 
@@ -415,30 +393,41 @@ function syncBundledTweak(entry, manifest, tweaksDir) {
   };
 
   if (fs.existsSync(targetDir)) {
-    if (!fs.existsSync(markerPath)) {
-      const installedManifestPath = path.join(targetDir, "manifest.json");
-      if (!fs.existsSync(installedManifestPath)) {
-        return;
-      }
-      const installedManifest = readJson(installedManifestPath);
-      if (!isLegacyBundledTweakManifest(installedManifest, manifest)) {
-        return;
-      }
-      if (!bundledVersionIsNewer(marker.version, installedManifest.version)) {
-        return;
-      }
-    } else {
-      const current = readJson(markerPath);
-      if (!isTrustedBundledMarker(current, manifest.id)) {
-        return;
-      }
-      if (!bundledVersionIsNewer(marker.version, current.version)) {
-        return;
-      }
+    const installedVersion = readInstalledTweakVersion(targetDir, markerPath, manifest.id);
+    if (!installedVersion || !bundledVersionIsNewer(marker.version, installedVersion)) {
+      return;
     }
   }
 
   installBundledTweak(sourceDir, targetDir, marker);
+}
+
+function readInstalledTweakVersion(targetDir, markerPath, expectedId) {
+  const manifestPath = path.join(targetDir, "manifest.json");
+  if (fs.existsSync(manifestPath)) {
+    const manifest = readJson(manifestPath);
+    if (
+      isPlainObject(manifest) &&
+      manifest.id === expectedId &&
+      typeof manifest.version === "string" &&
+      manifest.version.trim() !== ""
+    ) {
+      return manifest.version;
+    }
+  }
+
+  if (fs.existsSync(markerPath)) {
+    const marker = readJson(markerPath);
+    if (
+      isPlainObject(marker) &&
+      typeof marker.version === "string" &&
+      marker.version.trim() !== ""
+    ) {
+      return marker.version;
+    }
+  }
+
+  return null;
 }
 
 function runStartupStep(label, fn) {
