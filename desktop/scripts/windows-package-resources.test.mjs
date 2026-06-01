@@ -701,6 +701,18 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
     path.join(sourceRoot, "packages", "installer", "assets", "runtime", "preload.js"),
     "window.__codexppSettingsSurfaceVisible = true; window.dispatchEvent(new CustomEvent('codexpp:settings-surface', { detail: { visible: true } }));\n",
   );
+  writeFixture(
+    path.join(
+      sourceRoot,
+      "packages",
+      "installer",
+      "assets",
+      "runtime",
+      "native",
+      "codexpp_native_host.node",
+    ),
+    "macOS native host\n",
+  );
   writeFixture(path.join(sourceRoot, "LICENSE"), "MIT\n");
 
   syncCodexPlusPlusRuntimeAssets(
@@ -719,6 +731,10 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   assert.equal(
     fs.readFileSync(path.join(destinationRoot, "runtime", "main.js"), "utf8"),
     "module.exports = {};\n",
+  );
+  assert.equal(
+    fs.existsSync(path.join(destinationRoot, "runtime", "native", "codexpp_native_host.node")),
+    false,
   );
   assert.equal(fs.readFileSync(path.join(destinationRoot, "LICENSE"), "utf8"), "MIT\n");
   const release = JSON.parse(fs.readFileSync(path.join(destinationRoot, "release.json"), "utf8"));
@@ -1203,6 +1219,7 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus-old/loader.cjs"), true);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/windows-menu-bar-preload.cjs"), false);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);
   assert.equal(config.packagerConfig.ignore("/package.json.bak"), true);
   assert.equal(
@@ -1289,6 +1306,10 @@ test("Forge preflight fails when hydrated Codex++ runtime is missing", async (t)
 
   writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
   writeFixture(path.join(buildPath, "codex-plusplus", "loader.cjs"), "module.exports = {};\n");
+  writeFixture(
+    path.join(buildPath, "codex-plusplus", "windows-menu-bar-preload.cjs"),
+    "module.exports = {};\n",
+  );
 
   await assert.rejects(
     () => runForgeAfterCopy(config, buildPath),
@@ -1304,11 +1325,16 @@ function createCodexPlusPlusLoaderFixture(t) {
   const originalMain = "recovered/app-asar-extracted/.vite/build/bootstrap.js";
   const originalMainPath = path.join(root, originalMain);
   const runtimeMainPath = path.join(root, "codex-plusplus", "runtime", "main.js");
+  const windowsMenuBarPreloadPath = path.join(root, "codex-plusplus", "windows-menu-bar-preload.cjs");
   const appData = path.join(root, "AppData");
   const tracePath = path.join(root, "trace.txt");
 
   fs.mkdirSync(path.dirname(loaderPath), { recursive: true });
   fs.copyFileSync(path.join(desktopRoot, "codex-plusplus", "loader.cjs"), loaderPath);
+  fs.copyFileSync(
+    path.join(desktopRoot, "codex-plusplus", "windows-menu-bar-preload.cjs"),
+    windowsMenuBarPreloadPath,
+  );
   writeFixture(
     path.join(root, "package.json"),
     JSON.stringify({ __codexpp: { originalMain } }, null, 2) + "\n",
@@ -1322,7 +1348,7 @@ function createCodexPlusPlusLoaderFixture(t) {
     'require("node:fs").appendFileSync(process.env.CODEX_LOADER_TRACE, "runtime\\n");\n',
   );
 
-  return { root, loaderPath, appData, tracePath };
+  return { root, loaderPath, appData, tracePath, windowsMenuBarPreloadPath };
 }
 
 function runCodexPlusPlusLoaderFixture(fixture) {
@@ -1345,15 +1371,118 @@ test("Codex++ loader starts original Codex before runtime integration", (t) => {
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
 });
 
-test("Codex++ loader registers preload hooks before original Codex startup", (t) => {
+test("Codex++ loader exposes Windows menu-bar tweak state before original startup", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   writeFixture(
     path.join(fixture.root, "node_modules", "electron", "index.js"),
     [
       'const fs = require("node:fs");',
       "const trace = process.env.CODEX_LOADER_TRACE;",
+      "let handler = null;",
+      "const ipcMain = {",
+      "  eventNames() { return handler ? [\"codexpp:windows-menu-bar-enabled\"] : []; },",
+      "  on(channel, callback) {",
+      "    if (channel === \"codexpp:windows-menu-bar-enabled\") {",
+      "      handler = callback;",
+      "      fs.appendFileSync(trace, \"handler\\n\");",
+      "    }",
+      "  },",
+      "  invokeWindowsMenuBarState() {",
+      "    const event = { returnValue: undefined };",
+      "    handler(event);",
+      "    return event.returnValue;",
+      "  },",
+      "};",
+      "module.exports = { app: {}, session: {}, ipcMain };",
+      "",
+    ].join("\n"),
+  );
+  writeFixture(
+    path.join(fixture.root, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
+    [
+      'const fs = require("node:fs");',
+      'const electron = require("electron");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      'fs.appendFileSync(trace, "enabled=" + electron.ipcMain.invokeWindowsMenuBarState() + "\\n");',
+      'fs.appendFileSync(trace, "original\\n");',
+      "",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
+    "handler",
+    "enabled=true",
+    "original",
+    "runtime",
+  ]);
+});
+
+test("Codex++ loader respects disabled Windows menu-bar tweak before original startup", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.appData, "codex-plusplus", "config.json"),
+    JSON.stringify(
+      {
+        tweaks: {
+          "app.sliepie.codex.windows-menu-bar": {
+            enabled: false,
+          },
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  writeFixture(
+    path.join(fixture.root, "node_modules", "electron", "index.js"),
+    [
+      "let handler = null;",
+      "const ipcMain = {",
+      "  eventNames() { return handler ? [\"codexpp:windows-menu-bar-enabled\"] : []; },",
+      "  on(channel, callback) {",
+      "    if (channel === \"codexpp:windows-menu-bar-enabled\") handler = callback;",
+      "  },",
+      "  invokeWindowsMenuBarState() {",
+      "    const event = { returnValue: undefined };",
+      "    handler(event);",
+      "    return event.returnValue;",
+      "  },",
+      "};",
+      "module.exports = { app: {}, session: {}, ipcMain };",
+      "",
+    ].join("\n"),
+  );
+  writeFixture(
+    path.join(fixture.root, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
+    [
+      'const fs = require("node:fs");',
+      'const electron = require("electron");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      'fs.appendFileSync(trace, "enabled=" + electron.ipcMain.invokeWindowsMenuBarState() + "\\n");',
+      'fs.appendFileSync(trace, "original\\n");',
+      "",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
+    "enabled=false",
+    "original",
+    "runtime",
+  ]);
+});
+
+test("Codex++ loader registers preload hooks before original Codex startup", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.root, "node_modules", "electron", "index.js"),
+    [
+      'const fs = require("node:fs");',
+      'const path = require("node:path");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
       "const session = {",
-      "  registerPreloadScript() { fs.appendFileSync(trace, \"preload\\n\"); },",
+      "  registerPreloadScript(entry) {",
+      "    fs.appendFileSync(trace, \"preload:\" + entry.id + \":\" + path.basename(entry.filePath) + \"\\n\");",
+      "  },",
       "};",
       "module.exports = {",
       "  app: {",
@@ -1378,7 +1507,8 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
     "when-ready-hook",
-    "preload",
+    "preload:codex-plusplus-windows-menu-bar:windows-menu-bar-preload.cjs",
+    "preload:codex-plusplus:preload.js",
     "session-created-hook",
     "original",
     "runtime",
@@ -1659,6 +1789,46 @@ test("Bundled Codex++ tweak versions follow main branch bump policy", () => {
       manifest.version,
     );
   }
+});
+
+test("Codex app Windows menu-bar preload removes the menu bridge before renderer boot", () => {
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "codex-plusplus", "windows-menu-bar-preload.cjs"),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+  assert.doesNotMatch(source, /querySelector|appendChild|MutationObserver/);
+  assert.match(source, /showApplicationMenu/);
+
+  const exposed = {};
+  const electron = {
+    ipcRenderer: {
+      sendSync(channel) {
+        assert.equal(channel, "codexpp:windows-menu-bar-enabled");
+        return true;
+      },
+    },
+    contextBridge: {
+      exposeInMainWorld(name, api, ...rest) {
+        exposed[name] = { api, rest };
+      },
+    },
+  };
+
+  new Function("require", source)((id) => {
+    if (id === "electron") {
+      return electron;
+    }
+    throw new Error("Unexpected require: " + id);
+  });
+
+  electron.contextBridge.exposeInMainWorld("electronBridge", {
+    keepApplicationBridge: true,
+    showApplicationMenu() {},
+  });
+
+  assert.equal(exposed.electronBridge.api.keepApplicationBridge, true);
+  assert.equal("showApplicationMenu" in exposed.electronBridge.api, false);
 });
 
 test("Codex app UI override and Windows menu-bar tweak install independently", () => {

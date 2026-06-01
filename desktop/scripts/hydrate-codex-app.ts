@@ -713,6 +713,10 @@ export function syncCodexPlusPlusRuntimeAssets(
   fs.rmSync(runtimeDestinationRoot, { recursive: true, force: true });
   fs.mkdirSync(destinationRoot, { recursive: true });
   fs.cpSync(runtimeSourceRoot, runtimeDestinationRoot, { recursive: true });
+  // Codex++ native host is macOS-only; Windows ARM64 packages must not ship it.
+  fs.rmSync(path.join(runtimeDestinationRoot, "native", "codexpp_native_host.node"), {
+    force: true,
+  });
   fs.copyFileSync(licensePath, path.join(destinationRoot, "LICENSE"));
   fs.writeFileSync(
     path.join(destinationRoot, "release.json"),
