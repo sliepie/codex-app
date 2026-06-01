@@ -719,6 +719,18 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
     path.join(sourceRoot, "packages", "installer", "assets", "runtime", "preload.js"),
     "window.__codexppSettingsSurfaceVisible = true; window.dispatchEvent(new CustomEvent('codexpp:settings-surface', { detail: { visible: true } }));\n",
   );
+  writeFixture(
+    path.join(
+      sourceRoot,
+      "packages",
+      "installer",
+      "assets",
+      "runtime",
+      "native",
+      "codexpp_native_host.node",
+    ),
+    "macOS native host\n",
+  );
   writeFixture(path.join(sourceRoot, "LICENSE"), "MIT\n");
 
   syncCodexPlusPlusRuntimeAssets(
@@ -737,6 +749,10 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   assert.equal(
     fs.readFileSync(path.join(destinationRoot, "runtime", "main.js"), "utf8"),
     "module.exports = {};\n",
+  );
+  assert.equal(
+    fs.existsSync(path.join(destinationRoot, "runtime", "native", "codexpp_native_host.node")),
+    false,
   );
   assert.equal(fs.readFileSync(path.join(destinationRoot, "LICENSE"), "utf8"), "MIT\n");
   const release = JSON.parse(fs.readFileSync(path.join(destinationRoot, "release.json"), "utf8"));
@@ -1249,10 +1265,10 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   );
   assert.match(loaderSource, /config\.json/);
   assert.match(loaderSource, /autoUpdate: false/);
-  assert.match(loaderSource, /bundledVersionIsNewer\(marker\.version, current\.version\)/);
+  assert.match(loaderSource, /readInstalledTweakVersion\(targetDir, manifest\.id\)/);
+  assert.match(loaderSource, /bundledVersionIsNewer\(manifest\.version, installedVersion\)/);
   assert.match(loaderSource, /__codexpp\.originalMain/);
   assert.match(loaderSource, /registerEarlyPreloadHooks\(\);[\s\S]*require\(path\.join\(packagedRoot, originalMain\)\)/);
-  assert.match(loaderSource, /canRemoveStaleTweaks/);
   assert.match(loaderSource, /maxLogBytes = 10 \* 1024 \* 1024/);
   assert.match(loaderSource, /if \(size > maxLogBytes\)/);
   assert.match(loaderSource, /function trimLogToRetainedBytes/);
@@ -1403,27 +1419,7 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
   ]);
 });
 
-test("Codex++ loader still starts runtime when a bundled tweak marker is corrupt", (t) => {
-  const fixture = createCodexPlusPlusLoaderFixture(t);
-  writeFixture(
-    path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "manifest.json"),
-    JSON.stringify({ id: "app-tweak", version: "1.1.0" }, null, 2) + "\n",
-  );
-  writeFixture(
-    path.join(
-      fixture.appData,
-      "codex-plusplus",
-      "tweaks",
-      "app-tweak",
-      ".codex-app-bundled-tweak.json",
-    ),
-    "{broken json",
-  );
-
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
-});
-
-test("Codex++ loader does not replace user-owned tweak directories", (t) => {
+test("Codex++ loader upgrades installed tweak directories when bundled version is newer", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   writeFixture(
     path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "manifest.json"),
@@ -1434,77 +1430,50 @@ test("Codex++ loader does not replace user-owned tweak directories", (t) => {
     'module.exports = "bundled";\n',
   );
   const installedTweakRoot = path.join(fixture.appData, "codex-plusplus", "tweaks", "app-tweak");
-  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "user";\n');
   writeFixture(
-    path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"),
-    JSON.stringify({ source: "other", id: "app-tweak", version: "1.0.0" }, null, 2) + "\n",
+    path.join(installedTweakRoot, "manifest.json"),
+    JSON.stringify({ id: "app-tweak", version: "1.0.0" }, null, 2) + "\n",
   );
+  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "user";\n');
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(
     fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
-    'module.exports = "user";\n',
+    'module.exports = "bundled";\n',
+  );
+  assert.equal(
+    JSON.parse(fs.readFileSync(path.join(installedTweakRoot, "manifest.json"), "utf8")).version,
+    "2.0.0",
   );
 });
 
-test("Codex++ loader upgrades trusted bundled tweak installs", (t) => {
+test("Codex++ loader keeps installed tweak directories when bundled version is not newer", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
+  const bundledManifest = {
+    id: "app-tweak",
+    name: "App tweak",
+    version: "1.1.0",
+  };
   writeFixture(
     path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "manifest.json"),
-    JSON.stringify({ id: "app-tweak", version: "1.1.0" }, null, 2) + "\n",
+    JSON.stringify(bundledManifest, null, 2) + "\n",
   );
   writeFixture(
     path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "index.js"),
     'module.exports = "bundled";\n',
   );
   const installedTweakRoot = path.join(fixture.appData, "codex-plusplus", "tweaks", "app-tweak");
-  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
   writeFixture(
-    path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"),
-    JSON.stringify({ source: "codex-app", id: "app-tweak", version: "1.0.0" }, null, 2) + "\n",
+    path.join(installedTweakRoot, "manifest.json"),
+    JSON.stringify({ ...bundledManifest, version: "1.1.0" }, null, 2) + "\n",
   );
+  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(
     fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
-    'module.exports = "bundled";\n',
+    'module.exports = "old";\n',
   );
-  assert.equal(
-    JSON.parse(fs.readFileSync(path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"), "utf8"))
-      .version,
-    "1.1.0",
-  );
-});
-
-test("Codex++ loader removes trusted app-owned bundled tweaks no longer packaged", (t) => {
-  const fixture = createCodexPlusPlusLoaderFixture(t);
-  fs.mkdirSync(path.join(fixture.root, "codex-plusplus", "tweaks"), { recursive: true });
-  const removedTweakRoot = path.join(
-    fixture.appData,
-    "codex-plusplus",
-    "tweaks",
-    "app.sliepie.codex.mobile-pairing",
-  );
-  const userTweakRoot = path.join(fixture.appData, "codex-plusplus", "tweaks", "user-tweak");
-
-  writeFixture(path.join(removedTweakRoot, "index.js"), 'module.exports = "removed";\n');
-  writeFixture(
-    path.join(removedTweakRoot, ".codex-app-bundled-tweak.json"),
-    JSON.stringify(
-      { source: "codex-app", id: "app.sliepie.codex.mobile-pairing", version: "0.1.0" },
-      null,
-      2,
-    ) + "\n",
-  );
-  writeFixture(path.join(userTweakRoot, "index.js"), 'module.exports = "user";\n');
-  writeFixture(
-    path.join(userTweakRoot, ".codex-app-bundled-tweak.json"),
-    JSON.stringify({ source: "other", id: "user-tweak", version: "1.0.0" }, null, 2) + "\n",
-  );
-
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
-  assert.equal(fs.existsSync(removedTweakRoot), false);
-  assert.equal(fs.existsSync(userTweakRoot), true);
 });
 
 test("Codex++ loader keeps installed tweaks when bundled tweak discovery fails", (t) => {
@@ -1519,15 +1488,15 @@ test("Codex++ loader keeps installed tweaks when bundled tweak discovery fails",
     "tweaks",
     "app.sliepie.codex.mobile-pairing",
   );
-  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
   writeFixture(
-    path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"),
+    path.join(installedTweakRoot, "manifest.json"),
     JSON.stringify(
-      { source: "codex-app", id: "app.sliepie.codex.mobile-pairing", version: "0.1.0" },
+      { id: "app.sliepie.codex.mobile-pairing", version: "0.1.0" },
       null,
       2,
     ) + "\n",
   );
+  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(fs.existsSync(installedTweakRoot), true);
@@ -1685,6 +1654,9 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   const uiSource = fs.readFileSync(path.join(uiTweakRoot, uiManifest.main), "utf8");
   assert.doesNotMatch(uiSource, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
   assert.doesNotMatch(uiSource, /hideWindowsMenuBar|codex-app-ui-hide-windows-menu-bar-setting/);
+  assert.ok(uiSource.includes('cssRule(".group\\\\/windows-top-bar", "margin-inline-start:0.5rem;")'));
+  assert.doesNotMatch(uiSource, /windows-top-bar[\s\S]{0,120}display:none!important/);
+  assert.doesNotMatch(uiSource, /:has\(\+\.scrollbar-stable/);
 
   const menuTweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-windows-menu-bar");
   const menuManifest = JSON.parse(fs.readFileSync(path.join(menuTweakRoot, "manifest.json"), "utf8"));
@@ -2094,9 +2066,9 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
       ),
     );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
+    assert.doesNotMatch(
+      uiOverrideCss,
+      /:has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,

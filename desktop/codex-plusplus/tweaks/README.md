@@ -7,4 +7,4 @@ Bundled Codex++ tweak manifests are versioned against the version currently on m
 - Every time a changed local test copy is installed or refreshed, increment that installed copy's patch version again, for example local `0.N.1` becomes local `0.N.2`. Update the installed `manifest.json` in the same step as copying changed tweak files so reloads can observe the new local patch.
 - Local installed test copies must never be higher than the PR manifest version.
 - New bundled tweaks start at 0.1.0; local installed copies use that same version unless the PR manifest has already advanced.
-- The Codex++ loader only replaces an installed bundled tweak when the bundled manifest version is newer than the installed marker version.
+- The Codex++ loader replaces an installed tweak when the bundled manifest version is newer than the installed manifest version.

@@ -149,27 +149,6 @@ function assertBundledManifest(manifest, entryName) {
   }
 }
 
-function isTrustedBundledMarker(marker, expectedId) {
-  return (
-    isPlainObject(marker) &&
-    marker.source === "codex-app" &&
-    marker.id === expectedId &&
-    typeof marker.version === "string" &&
-    marker.version.trim() !== ""
-  );
-}
-
-function isTrustedInstalledBundledMarker(marker, installedDirName) {
-  return (
-    isPlainObject(marker) &&
-    marker.source === "codex-app" &&
-    marker.id === installedDirName &&
-    isSafeTweakId(marker.id) &&
-    typeof marker.version === "string" &&
-    marker.version.trim() !== ""
-  );
-}
-
 function readConfigOrEmpty() {
   if (!fs.existsSync(configFile)) {
     return {};
@@ -296,7 +275,7 @@ function replaceDirectoryFromStaging(stagingDir, targetDir) {
   }
 }
 
-function installBundledTweak(sourceDir, targetDir, marker) {
+function installBundledTweak(sourceDir, targetDir) {
   const parentDir = path.dirname(targetDir);
   const stagingDir = path.join(
     parentDir,
@@ -306,38 +285,9 @@ function installBundledTweak(sourceDir, targetDir, marker) {
   fs.rmSync(stagingDir, { recursive: true, force: true });
   try {
     copyDirectory(sourceDir, stagingDir);
-    writeJson(path.join(stagingDir, ".codex-app-bundled-tweak.json"), marker);
     replaceDirectoryFromStaging(stagingDir, targetDir);
   } finally {
     fs.rmSync(stagingDir, { recursive: true, force: true });
-  }
-}
-
-function removeUnbundledAppTweaks(tweaksDir, bundledIds) {
-  for (const entry of fs.readdirSync(tweaksDir, { withFileTypes: true })) {
-    if (!entry.isDirectory() || bundledIds.has(entry.name)) {
-      continue;
-    }
-
-    const targetDir = path.join(tweaksDir, entry.name);
-    const markerPath = path.join(targetDir, ".codex-app-bundled-tweak.json");
-    if (!fs.existsSync(markerPath)) {
-      continue;
-    }
-
-    let marker;
-    try {
-      marker = readJson(markerPath);
-    } catch (error) {
-      log("codex-plusplus bundled tweak marker read failed for " + entry.name, error);
-      continue;
-    }
-
-    if (!isTrustedInstalledBundledMarker(marker, entry.name)) {
-      continue;
-    }
-
-    fs.rmSync(targetDir, { recursive: true, force: true });
   }
 }
 
@@ -350,7 +300,6 @@ function syncBundledTweaks() {
 
   fs.mkdirSync(tweaksDir, { recursive: true });
   const bundledTweaks = [];
-  let canRemoveStaleTweaks = true;
 
   for (const entry of fs.readdirSync(bundledTweaksDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) {
@@ -361,7 +310,6 @@ function syncBundledTweaks() {
       const sourceDir = path.join(bundledTweaksDir, entry.name);
       const manifestPath = path.join(sourceDir, "manifest.json");
       if (!fs.existsSync(manifestPath)) {
-        canRemoveStaleTweaks = false;
         log(
           "codex-plusplus bundled tweak discovery failed for " + entry.name,
           "Missing manifest.json",
@@ -373,12 +321,10 @@ function syncBundledTweaks() {
       assertBundledManifest(manifest, entry.name);
       bundledTweaks.push({ entry, manifest });
     } catch (error) {
-      canRemoveStaleTweaks = false;
       log("codex-plusplus bundled tweak discovery failed for " + entry.name, error);
     }
   }
 
-  const bundledIds = new Set(bundledTweaks.map((tweak) => tweak.manifest.id));
   for (const { entry, manifest } of bundledTweaks) {
     try {
       syncBundledTweak(entry, manifest, tweaksDir);
@@ -386,36 +332,37 @@ function syncBundledTweaks() {
       log("codex-plusplus bundled tweak sync failed for " + entry.name, error);
     }
   }
-
-  if (canRemoveStaleTweaks) {
-    removeUnbundledAppTweaks(tweaksDir, bundledIds);
-  }
 }
 
 function syncBundledTweak(entry, manifest, tweaksDir) {
   const sourceDir = path.join(bundledTweaksDir, entry.name);
   const targetDir = path.join(tweaksDir, manifest.id);
-  const markerPath = path.join(targetDir, ".codex-app-bundled-tweak.json");
-  const marker = {
-    source: "codex-app",
-    id: manifest.id,
-    version: manifest.version,
-  };
 
   if (fs.existsSync(targetDir)) {
-    if (!fs.existsSync(markerPath)) {
-      return;
-    }
-    const current = readJson(markerPath);
-    if (!isTrustedBundledMarker(current, manifest.id)) {
-      return;
-    }
-    if (!bundledVersionIsNewer(marker.version, current.version)) {
+    const installedVersion = readInstalledTweakVersion(targetDir, manifest.id);
+    if (!installedVersion || !bundledVersionIsNewer(manifest.version, installedVersion)) {
       return;
     }
   }
 
-  installBundledTweak(sourceDir, targetDir, marker);
+  installBundledTweak(sourceDir, targetDir);
+}
+
+function readInstalledTweakVersion(targetDir, expectedId) {
+  const manifestPath = path.join(targetDir, "manifest.json");
+  if (fs.existsSync(manifestPath)) {
+    const manifest = readJson(manifestPath);
+    if (
+      isPlainObject(manifest) &&
+      manifest.id === expectedId &&
+      typeof manifest.version === "string" &&
+      manifest.version.trim() !== ""
+    ) {
+      return manifest.version;
+    }
+  }
+
+  return null;
 }
 
 function runStartupStep(label, fn) {
