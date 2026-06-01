@@ -87,6 +87,7 @@ function interactiveSelectors(container, targets) {
 }
 
 const BASE_STYLE_RULES = [
+  cssRule(".group\\/windows-top-bar", "margin-inline-start:0.5rem;"),
   cssRule(
     '[style*="view-transition-name: sidebar-trigger"]',
     "transform:translateX(2px);",
