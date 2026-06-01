@@ -81,6 +81,13 @@ type PluginJson = {
   name?: string;
 };
 
+const browserPluginName = "browser";
+const browserClientNativePipeUnavailableMessage =
+  "privileged native pipe bridge is not available; browser-client is not trusted";
+const browserClientNativePipeUnavailableDetail =
+  "Browser Use loaded stale or overwritten bundled plugins. Another Codex app may have overwritten them. Ask the user to use Debug Menu > Plugins > Reload bundled plugins, then retry.";
+const identifierPattern = "[$A-Za-z_][$A-Za-z0-9_]*";
+
 type BundledMarketplaceSource = {
   name: string;
   path: string;
@@ -309,6 +316,81 @@ function packagedPluginSourcePath(pluginName: string): string {
   return `./plugins/${pluginName}`;
 }
 
+function patchBundledBrowserClientNativePipeTrust(
+  pluginName: string,
+  destinationPluginRoot: string,
+): void {
+  if (pluginName !== browserPluginName) {
+    return;
+  }
+
+  const browserClientPath = path.join(destinationPluginRoot, "scripts", "browser-client.mjs");
+  if (!fs.existsSync(browserClientPath)) {
+    throw new Error(`Missing bundled Browser client: ${browserClientPath}`);
+  }
+
+  let browserClientSource = fs.readFileSync(browserClientPath, "utf8");
+  if (
+    browserClientSource.includes("import.meta.__codexNativePipe") &&
+    browserClientSource.includes("codexBrowserNetPipeConnect")
+  ) {
+    return;
+  }
+
+  const messagePattern = new RegExp(
+    `function (${identifierPattern})\\(\\)\\{let ${identifierPattern}=` +
+      `${JSON.stringify(browserClientNativePipeUnavailableMessage)};return ` +
+      `${identifierPattern}\\(\\)===\"production\"\\?${identifierPattern}:` +
+      "`\\$\\{" + identifierPattern + "\\}\\. " +
+      escapeRegExp(browserClientNativePipeUnavailableDetail) +
+      "`\\}",
+  );
+  const messageMatch = messagePattern.exec(browserClientSource);
+  if (!messageMatch?.[1]) {
+    throw new Error(`Could not find bundled Browser native pipe trust message in ${browserClientPath}`);
+  }
+  const messageFunctionName = messageMatch[1];
+  browserClientSource = browserClientSource.replace(
+    messagePattern,
+    `function ${messageFunctionName}(){let e=import.meta.__codexNativePipeUnavailableMessage;return typeof e=="string"&&e.length>0?e:${JSON.stringify(browserClientNativePipeUnavailableMessage)}}`,
+  );
+
+  const nativePipePattern = new RegExp(
+    `function (${identifierPattern})\\(\\)\\{let ${identifierPattern}=globalThis\\.nodeRepl\\?\\.nativePipe;` +
+      `return ${identifierPattern}==null\\|\\|typeof ${identifierPattern}\\.createConnection!=\"function\"\\?null:${identifierPattern}\\}`,
+  );
+  const nativePipeMatch = nativePipePattern.exec(browserClientSource);
+  if (!nativePipeMatch?.[1]) {
+    throw new Error(`Could not find bundled Browser native pipe getter in ${browserClientPath}`);
+  }
+  const nativePipeFunctionName = nativePipeMatch[1];
+  browserClientSource = browserClientSource.replace(
+    nativePipePattern,
+    `function ${nativePipeFunctionName}(){let e=import.meta.__codexNativePipe;return e==null||typeof e.createConnection!="function"?null:e}async function codexBrowserNetPipeConnect(e){let{connect:t}=await import("node:net");return t(e)}`,
+  );
+
+  const createPattern = new RegExp(
+    `static async create\\((${identifierPattern})\\)\\{let (${identifierPattern})=${escapeRegExp(nativePipeFunctionName)}\\(\\);` +
+      `if\\(\\2!=null\\)\\{let (${identifierPattern})=await \\2\\.createConnection\\(\\1\\);return new (${identifierPattern})\\(\\3\\)\\}` +
+      `throw new Error\\(${escapeRegExp(messageFunctionName)}\\(\\)\\)\\}`,
+  );
+  if (!createPattern.test(browserClientSource)) {
+    throw new Error(`Could not find bundled Browser native pipe create fallback in ${browserClientPath}`);
+  }
+  browserClientSource = browserClientSource.replace(
+    createPattern,
+    (
+      _match,
+      pipePath: string,
+      nativePipe: string,
+      socket: string,
+      transportClass: string,
+    ) =>
+      `static async create(${pipePath}){let ${nativePipe}=${nativePipeFunctionName}();if(${nativePipe}!=null){let ${socket}=await ${nativePipe}.createConnection(${pipePath});return new ${transportClass}(${socket})}let ${socket}=await codexBrowserNetPipeConnect(${pipePath});return new ${transportClass}(${socket})}`,
+  );
+  fs.writeFileSync(browserClientPath, browserClientSource, "utf8");
+}
+
 function findBundledMarketplaceSource(appResourcesRoot: string): BundledMarketplaceSource {
   const candidates = openAiBundledMarketplaceNames.map((name) => {
     const root = path.join(appResourcesRoot, "plugins", name);
@@ -383,6 +465,7 @@ export function syncBundledPluginResources(
     const destinationPluginRoot = path.join(destinationMarketplaceRoot, "plugins", pluginName);
     fs.cpSync(sourcePluginRoot, destinationPluginRoot, { recursive: true, force: true });
     syncBundledPluginWindowsPayloads(pluginName, destinationPluginRoot, options);
+    patchBundledBrowserClientNativePipeTrust(pluginName, destinationPluginRoot);
     destinationPlugins.push({
       ...plugin,
       source: {

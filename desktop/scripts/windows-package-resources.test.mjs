@@ -232,6 +232,13 @@ function writeMachOFixture(filePath) {
   fs.writeFileSync(filePath, Buffer.from([0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0x00, 0x00, 0x01]));
 }
 
+const upstreamBrowserClientNativePipeSource = [
+  'function Un(){return"production"}',
+  'function fh(){let e="privileged native pipe bridge is not available; browser-client is not trusted";return Un()==="production"?e:`\${e}. Browser Use loaded stale or overwritten bundled plugins. Another Codex app may have overwritten them. Ask the user to use Debug Menu > Plugins > Reload bundled plugins, then retry.`}',
+  'function mh(){let e=globalThis.nodeRepl?.nativePipe;return e==null||typeof e.createConnection!="function"?null:e}',
+  'var Tl=class e{constructor(t){this.socket=t}static async create(t){let r=mh();if(r!=null){let n=await r.createConnection(t);return new e(n)}throw new Error(fh())}sendMessage(t){}};',
+].join("");
+
 function createAppResourcesFixture({ marketplaceName = "openai-bundled" } = {}) {
   const appResourcesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-app-resources-"));
   const bundledRoot = path.join(appResourcesRoot, "plugins", marketplaceName);
@@ -306,7 +313,7 @@ function createAppResourcesFixture({ marketplaceName = "openai-bundled" } = {}) 
   );
   writeFixture(
     path.join(bundledRoot, "plugins", "browser", "scripts", "browser-client.mjs"),
-    "export const browserClient = true;\n",
+    `${upstreamBrowserClientNativePipeSource}\n`,
   );
   writeFixture(
     path.join(bundledRoot, "plugins", "browser", "skills", "browser", "SKILL.md"),
@@ -433,6 +440,17 @@ test("generates Windows bundled plugin resources with Windows helper payloads", 
     ),
     true,
   );
+  const browserClient = fs.readFileSync(
+    path.join(
+      destinationPluginsRoot,
+      "openai-bundled/plugins/browser/scripts/browser-client.mjs",
+    ),
+    "utf8",
+  );
+  assert.match(browserClient, /import\.meta\.__codexNativePipe/);
+  assert.match(browserClient, /codexBrowserNetPipeConnect/);
+  assert.equal(browserClient.includes("globalThis.nodeRepl?.nativePipe"), false);
+  assert.equal(browserClient.includes("throw new Error(fh())"), false);
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/computer-use")),
     true,
