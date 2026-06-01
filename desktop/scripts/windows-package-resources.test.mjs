@@ -1247,11 +1247,10 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   );
   assert.match(loaderSource, /config\.json/);
   assert.match(loaderSource, /autoUpdate: false/);
-  assert.match(loaderSource, /readInstalledTweakVersion\(targetDir, markerPath, manifest\.id\)/);
-  assert.match(loaderSource, /bundledVersionIsNewer\(marker\.version, installedVersion\)/);
+  assert.match(loaderSource, /readInstalledTweakVersion\(targetDir, manifest\.id\)/);
+  assert.match(loaderSource, /bundledVersionIsNewer\(manifest\.version, installedVersion\)/);
   assert.match(loaderSource, /__codexpp\.originalMain/);
   assert.match(loaderSource, /registerEarlyPreloadHooks\(\);[\s\S]*require\(path\.join\(packagedRoot, originalMain\)\)/);
-  assert.match(loaderSource, /canRemoveStaleTweaks/);
   assert.match(loaderSource, /maxLogBytes = 10 \* 1024 \* 1024/);
   assert.match(loaderSource, /if \(size > maxLogBytes\)/);
   assert.match(loaderSource, /function trimLogToRetainedBytes/);
@@ -1402,26 +1401,6 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
   ]);
 });
 
-test("Codex++ loader still starts runtime when a bundled tweak marker is corrupt", (t) => {
-  const fixture = createCodexPlusPlusLoaderFixture(t);
-  writeFixture(
-    path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "manifest.json"),
-    JSON.stringify({ id: "app-tweak", version: "1.1.0" }, null, 2) + "\n",
-  );
-  writeFixture(
-    path.join(
-      fixture.appData,
-      "codex-plusplus",
-      "tweaks",
-      "app-tweak",
-      ".codex-app-bundled-tweak.json",
-    ),
-    "{broken json",
-  );
-
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
-});
-
 test("Codex++ loader upgrades installed tweak directories when bundled version is newer", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   writeFixture(
@@ -1433,39 +1412,11 @@ test("Codex++ loader upgrades installed tweak directories when bundled version i
     'module.exports = "bundled";\n',
   );
   const installedTweakRoot = path.join(fixture.appData, "codex-plusplus", "tweaks", "app-tweak");
+  writeFixture(
+    path.join(installedTweakRoot, "manifest.json"),
+    JSON.stringify({ id: "app-tweak", version: "1.0.0" }, null, 2) + "\n",
+  );
   writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "user";\n');
-  writeFixture(
-    path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"),
-    JSON.stringify({ source: "other", id: "app-tweak", version: "1.0.0" }, null, 2) + "\n",
-  );
-
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
-  assert.equal(
-    fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
-    'module.exports = "bundled";\n',
-  );
-  assert.deepEqual(
-    JSON.parse(fs.readFileSync(path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"), "utf8")),
-    { source: "codex-app", id: "app-tweak", version: "2.0.0" },
-  );
-});
-
-test("Codex++ loader upgrades trusted bundled tweak installs", (t) => {
-  const fixture = createCodexPlusPlusLoaderFixture(t);
-  writeFixture(
-    path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "manifest.json"),
-    JSON.stringify({ id: "app-tweak", version: "1.1.0" }, null, 2) + "\n",
-  );
-  writeFixture(
-    path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "index.js"),
-    'module.exports = "bundled";\n',
-  );
-  const installedTweakRoot = path.join(fixture.appData, "codex-plusplus", "tweaks", "app-tweak");
-  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
-  writeFixture(
-    path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"),
-    JSON.stringify({ source: "codex-app", id: "app-tweak", version: "1.0.0" }, null, 2) + "\n",
-  );
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(
@@ -1473,13 +1424,12 @@ test("Codex++ loader upgrades trusted bundled tweak installs", (t) => {
     'module.exports = "bundled";\n',
   );
   assert.equal(
-    JSON.parse(fs.readFileSync(path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"), "utf8"))
-      .version,
-    "1.1.0",
+    JSON.parse(fs.readFileSync(path.join(installedTweakRoot, "manifest.json"), "utf8")).version,
+    "2.0.0",
   );
 });
 
-test("Codex++ loader upgrades markerless installed tweak directories when bundled version is newer", (t) => {
+test("Codex++ loader keeps installed tweak directories when bundled version is not newer", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   const bundledManifest = {
     id: "app-tweak",
@@ -1497,51 +1447,15 @@ test("Codex++ loader upgrades markerless installed tweak directories when bundle
   const installedTweakRoot = path.join(fixture.appData, "codex-plusplus", "tweaks", "app-tweak");
   writeFixture(
     path.join(installedTweakRoot, "manifest.json"),
-    JSON.stringify({ ...bundledManifest, version: "1.0.0" }, null, 2) + "\n",
+    JSON.stringify({ ...bundledManifest, version: "1.1.0" }, null, 2) + "\n",
   );
   writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(
     fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
-    'module.exports = "bundled";\n',
+    'module.exports = "old";\n',
   );
-  assert.equal(
-    JSON.parse(fs.readFileSync(path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"), "utf8"))
-      .version,
-    "1.1.0",
-  );
-});
-
-test("Codex++ loader removes trusted app-owned bundled tweaks no longer packaged", (t) => {
-  const fixture = createCodexPlusPlusLoaderFixture(t);
-  fs.mkdirSync(path.join(fixture.root, "codex-plusplus", "tweaks"), { recursive: true });
-  const removedTweakRoot = path.join(
-    fixture.appData,
-    "codex-plusplus",
-    "tweaks",
-    "app.sliepie.codex.mobile-pairing",
-  );
-  const userTweakRoot = path.join(fixture.appData, "codex-plusplus", "tweaks", "user-tweak");
-
-  writeFixture(path.join(removedTweakRoot, "index.js"), 'module.exports = "removed";\n');
-  writeFixture(
-    path.join(removedTweakRoot, ".codex-app-bundled-tweak.json"),
-    JSON.stringify(
-      { source: "codex-app", id: "app.sliepie.codex.mobile-pairing", version: "0.1.0" },
-      null,
-      2,
-    ) + "\n",
-  );
-  writeFixture(path.join(userTweakRoot, "index.js"), 'module.exports = "user";\n');
-  writeFixture(
-    path.join(userTweakRoot, ".codex-app-bundled-tweak.json"),
-    JSON.stringify({ source: "other", id: "user-tweak", version: "1.0.0" }, null, 2) + "\n",
-  );
-
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
-  assert.equal(fs.existsSync(removedTweakRoot), false);
-  assert.equal(fs.existsSync(userTweakRoot), true);
 });
 
 test("Codex++ loader keeps installed tweaks when bundled tweak discovery fails", (t) => {
@@ -1556,15 +1470,15 @@ test("Codex++ loader keeps installed tweaks when bundled tweak discovery fails",
     "tweaks",
     "app.sliepie.codex.mobile-pairing",
   );
-  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
   writeFixture(
-    path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"),
+    path.join(installedTweakRoot, "manifest.json"),
     JSON.stringify(
-      { source: "codex-app", id: "app.sliepie.codex.mobile-pairing", version: "0.1.0" },
+      { id: "app.sliepie.codex.mobile-pairing", version: "0.1.0" },
       null,
       2,
     ) + "\n",
   );
+  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
   assert.equal(fs.existsSync(installedTweakRoot), true);
