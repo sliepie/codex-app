@@ -10,9 +10,6 @@ const packagedRoot = path.join(__dirname, "..");
 const originalMain = readPackagedOriginalMain();
 const runtimeDir = path.join(__dirname, "runtime");
 const preloadPath = path.join(runtimeDir, "preload.js");
-const windowsMenuBarTweakId = "app.sliepie.codex.windows-menu-bar";
-const windowsMenuBarPreloadPath = path.join(__dirname, "windows-menu-bar-preload.cjs");
-const windowsMenuBarEnabledChannel = "codexpp:windows-menu-bar-enabled";
 const bundledTweaksDir = path.join(__dirname, "tweaks");
 const userRoot = resolveUserRoot();
 const configFile = path.join(userRoot, "config.json");
@@ -216,22 +213,6 @@ function moveInvalidConfigAside(error) {
 
 function isCodexPlusPlusSafeModeEnabled() {
   return readConfigOrEmpty().codexPlusPlus?.safeMode === true;
-}
-
-function isTweakEnabled(id) {
-  const config = readConfigOrEmpty();
-  if (config.codexPlusPlus?.safeMode === true) {
-    return false;
-  }
-  return config.tweaks?.[id]?.enabled !== false;
-}
-
-function isWindowsMenuBarTweakEnabled() {
-  return (
-    process.platform === "win32" &&
-    fs.existsSync(windowsMenuBarPreloadPath) &&
-    isTweakEnabled(windowsMenuBarTweakId)
-  );
 }
 
 function disableCodexPlusPlusAutoUpdate() {
@@ -446,48 +427,22 @@ function runStartupStep(label, fn) {
   }
 }
 
-function preloadRegistrationEntries() {
-  const entries = [];
-  if (fs.existsSync(windowsMenuBarPreloadPath)) {
-    entries.push({
-      id: "codex-plusplus-windows-menu-bar",
-      filePath: windowsMenuBarPreloadPath,
-    });
-  }
-  entries.push({ id: "codex-plusplus", filePath: preloadPath });
-  return entries;
-}
-
 function registerPreload(session, label) {
   try {
     const registerPreloadScript = session.registerPreloadScript;
     if (typeof registerPreloadScript === "function") {
-      for (const entry of preloadRegistrationEntries()) {
-        try {
-          registerPreloadScript.call(session, {
-            type: "frame",
-            filePath: entry.filePath,
-            id: entry.id,
-          });
-        } catch (error) {
-          if (!(error instanceof Error && error.message.includes("existing ID"))) {
-            throw error;
-          }
-        }
-      }
+      registerPreloadScript.call(session, {
+        type: "frame",
+        filePath: preloadPath,
+        id: "codex-plusplus",
+      });
       return;
     }
 
     if (typeof session.getPreloads === "function" && typeof session.setPreloads === "function") {
       const existing = session.getPreloads();
-      const next = [...existing];
-      for (const entry of preloadRegistrationEntries()) {
-        if (!next.includes(entry.filePath)) {
-          next.push(entry.filePath);
-        }
-      }
-      if (next.length !== existing.length) {
-        session.setPreloads(next);
+      if (!existing.includes(preloadPath)) {
+        session.setPreloads([...existing, preloadPath]);
       }
     }
   } catch (error) {
@@ -496,21 +451,6 @@ function registerPreload(session, label) {
     }
     log("codex-plusplus early preload registration failed for " + label, error);
   }
-}
-
-function registerWindowsMenuBarHandler(ipcMain) {
-  if (!ipcMain || typeof ipcMain.on !== "function") {
-    return;
-  }
-
-  const eventNames = typeof ipcMain.eventNames === "function" ? ipcMain.eventNames() : [];
-  if (eventNames.includes(windowsMenuBarEnabledChannel)) {
-    return;
-  }
-
-  ipcMain.on(windowsMenuBarEnabledChannel, (event) => {
-    event.returnValue = isWindowsMenuBarTweakEnabled();
-  });
 }
 
 function registerEarlyPreloadHooks() {
@@ -526,8 +466,6 @@ function registerEarlyPreloadHooks() {
   if (!app || !session) {
     return;
   }
-
-  registerWindowsMenuBarHandler(electron.ipcMain);
 
   if (typeof app.whenReady === "function") {
     app
