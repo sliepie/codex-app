@@ -1474,6 +1474,41 @@ test("Codex++ loader upgrades trusted bundled tweak installs", (t) => {
   );
 });
 
+test("Codex++ loader upgrades markerless legacy bundled tweak installs", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  const bundledManifest = {
+    id: "app-tweak",
+    name: "App tweak",
+    version: "1.1.0",
+    githubRepo: "sliepie/codex-app",
+  };
+  writeFixture(
+    path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "manifest.json"),
+    JSON.stringify(bundledManifest, null, 2) + "\n",
+  );
+  writeFixture(
+    path.join(fixture.root, "codex-plusplus", "tweaks", "app-tweak", "index.js"),
+    'module.exports = "bundled";\n',
+  );
+  const installedTweakRoot = path.join(fixture.appData, "codex-plusplus", "tweaks", "app-tweak");
+  writeFixture(
+    path.join(installedTweakRoot, "manifest.json"),
+    JSON.stringify({ ...bundledManifest, version: "1.0.0" }, null, 2) + "\n",
+  );
+  writeFixture(path.join(installedTweakRoot, "index.js"), 'module.exports = "old";\n');
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.equal(
+    fs.readFileSync(path.join(installedTweakRoot, "index.js"), "utf8"),
+    'module.exports = "bundled";\n',
+  );
+  assert.equal(
+    JSON.parse(fs.readFileSync(path.join(installedTweakRoot, ".codex-app-bundled-tweak.json"), "utf8"))
+      .version,
+    "1.1.0",
+  );
+});
+
 test("Codex++ loader removes trusted app-owned bundled tweaks no longer packaged", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   fs.mkdirSync(path.join(fixture.root, "codex-plusplus", "tweaks"), { recursive: true });
@@ -1684,6 +1719,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   assert.doesNotMatch(uiSource, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
   assert.doesNotMatch(uiSource, /hideWindowsMenuBar|codex-app-ui-hide-windows-menu-bar-setting/);
   assert.doesNotMatch(uiSource, /windows-top-bar/);
+  assert.doesNotMatch(uiSource, /:has\(\+\.scrollbar-stable/);
 
   const menuTweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-windows-menu-bar");
   const menuManifest = JSON.parse(fs.readFileSync(path.join(menuTweakRoot, "manifest.json"), "utf8"));
@@ -2093,9 +2129,9 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
       ),
     );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\):has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
+    assert.doesNotMatch(
+      uiOverrideCss,
+      /:has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,

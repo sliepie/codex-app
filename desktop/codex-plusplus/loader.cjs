@@ -170,6 +170,18 @@ function isTrustedInstalledBundledMarker(marker, installedDirName) {
   );
 }
 
+function isLegacyBundledTweakManifest(installedManifest, bundledManifest) {
+  return (
+    isPlainObject(installedManifest) &&
+    installedManifest.id === bundledManifest.id &&
+    typeof installedManifest.version === "string" &&
+    installedManifest.version.trim() !== "" &&
+    typeof bundledManifest.githubRepo === "string" &&
+    bundledManifest.githubRepo.trim() !== "" &&
+    installedManifest.githubRepo === bundledManifest.githubRepo
+  );
+}
+
 function readConfigOrEmpty() {
   if (!fs.existsSync(configFile)) {
     return {};
@@ -404,14 +416,25 @@ function syncBundledTweak(entry, manifest, tweaksDir) {
 
   if (fs.existsSync(targetDir)) {
     if (!fs.existsSync(markerPath)) {
-      return;
-    }
-    const current = readJson(markerPath);
-    if (!isTrustedBundledMarker(current, manifest.id)) {
-      return;
-    }
-    if (!bundledVersionIsNewer(marker.version, current.version)) {
-      return;
+      const installedManifestPath = path.join(targetDir, "manifest.json");
+      if (!fs.existsSync(installedManifestPath)) {
+        return;
+      }
+      const installedManifest = readJson(installedManifestPath);
+      if (!isLegacyBundledTweakManifest(installedManifest, manifest)) {
+        return;
+      }
+      if (!bundledVersionIsNewer(marker.version, installedManifest.version)) {
+        return;
+      }
+    } else {
+      const current = readJson(markerPath);
+      if (!isTrustedBundledMarker(current, manifest.id)) {
+        return;
+      }
+      if (!bundledVersionIsNewer(marker.version, current.version)) {
+        return;
+      }
     }
   }
 
