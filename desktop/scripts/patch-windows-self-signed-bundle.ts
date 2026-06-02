@@ -22,9 +22,6 @@ const windowsArm64PrimaryRuntimeManifestUrl =
 const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
   escapeRegExp(windowsArm64PrimaryRuntimeManifestUrl),
 );
-const windowsTitleBarOverlayDefaultHeightPattern = new RegExp(
-  String.raw`\b(${identifierPattern})=36,${identifierPattern}=\x60#1f1f1f\x60,${identifierPattern}=\x60#ffffff\x60;function\s+${identifierPattern}\(\)\{return\{color:${identifierPattern},symbolColor:${identifierPattern}\.nativeTheme\.shouldUseDarkColors\?${identifierPattern}:${identifierPattern},height:\1\}\}`,
-);
 const enabledDesktopFeatureGateIds = [
   "533078438",
   "3789238711",
@@ -836,31 +833,6 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(path.join(recoveredRoot, ".vite", "build"), /^main-.*\.js$/);
 
   return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "restore Windows title bar overlay controls height",
-      [
-        regexPatch(
-          new RegExp(
-            String.raw`\b(${identifierPattern})=(?:96|106),(${identifierPattern})=\x60#1f1f1f\x60,(${identifierPattern})=\x60#ffffff\x60;function\s+(${identifierPattern})\(\)\{return\{color:(${identifierPattern}),symbolColor:(${identifierPattern})\.nativeTheme\.shouldUseDarkColors\?\3:\2,height:\1\}\}`,
-            "g",
-          ),
-          (match) => {
-            const heightName = match[1];
-            const darkSymbolName = match[2];
-            const lightSymbolName = match[3];
-            const functionName = match[4];
-            const colorName = match[5];
-            const electronName = match[6];
-
-            return `${heightName}=36,${darkSymbolName}=\`#1f1f1f\`,${lightSymbolName}=\`#ffffff\`;function ${functionName}(){return{color:${colorName},symbolColor:${electronName}.nativeTheme.shouldUseDarkColors?${lightSymbolName}:${darkSymbolName},height:${heightName}}}`;
-          },
-          windowsTitleBarOverlayDefaultHeightPattern,
-        ),
-      ],
-      { missingTargetMarkers: ["titleBarOverlay", "height:"] },
-    ),
     replaceWithPatchers(
       recoveredRoot,
       filePath,

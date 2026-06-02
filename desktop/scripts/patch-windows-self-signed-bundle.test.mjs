@@ -114,7 +114,6 @@ test("writes patch report file paths relative to the recovered app root", () => 
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
-      ".vite/build/main-fixture.js",
     ],
   );
   assert.ok(report.patches.every((patch) => !path.isAbsolute(patch.file)));
@@ -384,35 +383,8 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 10);
-  assert.ok(
-    report.patches.every((patch) =>
-      patch.name === "restore Windows title bar overlay controls height"
-        ? patch.status === "already-applied"
-        : patch.status === "applied",
-    ),
-  );
-});
-
-test("restores oversized Windows title bar overlay controls", () => {
-  const recoveredRoot = createRecoveredFixture();
-  const mainPath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
-  fs.writeFileSync(
-    mainPath,
-    fs.readFileSync(mainPath, "utf8").replace("vM=36", "vM=96"),
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(fs.readFileSync(mainPath, "utf8"), /vM=36/);
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  const patch = report.patches.find(
-    (patch) => patch.name === "restore Windows title bar overlay controls height",
-  );
-  assert.equal(patch?.status, "applied");
+  assert.equal(report.patches.length, 9);
+  assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
 test("uses collision-free locals when relocation helper names are minified", () => {
@@ -497,7 +469,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 10);
+  assert.equal(report.patches.length, 9);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),
