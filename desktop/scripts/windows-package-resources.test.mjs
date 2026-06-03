@@ -14,9 +14,8 @@ const repoRoot = path.dirname(desktopRoot);
 const bundledTweakRelativeRoots = new Map([
   ["codex-app-ui-overrides", "desktop/codex-plusplus/tweaks/codex-app-ui-overrides"],
   ["codex-app-windows-menu-bar", "desktop/codex-plusplus/tweaks/codex-app-windows-menu-bar"],
-  ["codex-plusplus-updater-ui-overrides", "desktop/codex-plusplus/tweaks/codex-plusplus-updater-ui-overrides"],
 ]);
-const newBundledTweaks = new Set(["codex-app-windows-menu-bar"]);
+const newBundledTweaks = new Set();
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -145,19 +144,26 @@ function expectedLocalModifiedTweakVersion(mainVersion) {
   return `${major}.${minor}.${patch + 1}`;
 }
 
+function comparableTweakFileText(relativePath, source) {
+  if (!relativePath.endsWith("/manifest.json")) {
+    return normalizeText(source);
+  }
+
+  const manifest = JSON.parse(source);
+  delete manifest.version;
+  return JSON.stringify(manifest);
+}
+
 function tweakContentMatchesMainBranch(relativeRoot) {
-  const comparableFiles = (files) => files
-    .filter((file) => !file.endsWith("/manifest.json"))
-    .sort();
-  const localFiles = comparableFiles(listLocalFiles(relativeRoot));
-  const mainFiles = comparableFiles(readMainBranchFileList(relativeRoot));
+  const localFiles = listLocalFiles(relativeRoot).sort();
+  const mainFiles = readMainBranchFileList(relativeRoot).sort();
   if (JSON.stringify(localFiles) !== JSON.stringify(mainFiles)) {
     return false;
   }
 
   return localFiles.every((relativePath) => (
-    normalizeText(fs.readFileSync(path.join(repoRoot, relativePath), "utf8")) ===
-    normalizeText(readMainBranchFile(relativePath))
+    comparableTweakFileText(relativePath, fs.readFileSync(path.join(repoRoot, relativePath), "utf8")) ===
+    comparableTweakFileText(relativePath, readMainBranchFile(relativePath))
   ));
 }
 
@@ -1554,7 +1560,7 @@ test("Codex++ loader disables updater when config JSON is malformed", (t) => {
   );
 });
 
-test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
+test("bundles repo-owned Codex++ UI tweaks without keyboard shortcut tweaks", () => {
   const tweaksRoot = path.join(desktopRoot, "codex-plusplus", "tweaks");
   const tweakNames = fs
     .readdirSync(tweaksRoot, { withFileTypes: true })
@@ -1564,28 +1570,20 @@ test("bundles app-owned Codex++ UI tweaks without keyboard shortcut tweaks", () 
   assert.deepEqual(tweakNames, [
     "codex-app-ui-overrides",
     "codex-app-windows-menu-bar",
-    "codex-plusplus-updater-ui-overrides",
   ]);
   const expectedTweakMetadata = new Map([
     [
       "codex-app-ui-overrides",
       expectedBundledTweakMetadata(
         "codex-app-ui-overrides",
-        "app.sliepie.codex.ui-overrides",
+        "dev.sliepie.codex.ui-overrides",
       ),
     ],
     [
       "codex-app-windows-menu-bar",
       expectedBundledTweakMetadata(
         "codex-app-windows-menu-bar",
-        "app.sliepie.codex.windows-menu-bar",
-      ),
-    ],
-    [
-      "codex-plusplus-updater-ui-overrides",
-      expectedBundledTweakMetadata(
-        "codex-plusplus-updater-ui-overrides",
-        "app.sliepie.codex.codex-plusplus-updater-ui",
+        "dev.sliepie.codex.windows-menu-bar",
       ),
     ],
   ]);
@@ -2121,60 +2119,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     globalThis.document = previousDocument;
     globalThis.NodeFilter = previousNodeFilter;
     globalThis.MutationObserver = previousMutationObserver;
-  }
-});
-
-test("Codex++ updater UI override installs static styles without observing renderer mutations", () => {
-  const tweakRoot = path.join(
-    desktopRoot,
-    "codex-plusplus",
-    "tweaks",
-    "codex-plusplus-updater-ui-overrides",
-  );
-  const source = fs.readFileSync(path.join(tweakRoot, "index.js"), "utf8");
-  assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
-  const appendedStyles = [];
-  let removed = false;
-
-  const previousDocument = globalThis.document;
-  globalThis.document = {
-    head: {
-      appendChild(style) {
-        appendedStyles.push(style);
-      },
-    },
-    getElementById: (id) => appendedStyles.find((style) => style.id === id) ?? null,
-    createElement: () => ({
-      id: "",
-      textContent: "",
-      remove() {
-        removed = true;
-      },
-    }),
-  };
-
-  try {
-    const module = { exports: {} };
-    const exports = module.exports;
-    const fn = new Function("module", "exports", "console", source);
-    fn(module, exports, console);
-
-    module.exports.start({ log: console });
-
-    assert.equal(appendedStyles.length, 1);
-    assert.equal(appendedStyles[0].id, "codex-plusplus-updater-ui-overrides-style");
-    assert.match(appendedStyles[0].textContent, /button\[title="Open Codex\+\+ releases"\]/);
-    assert.match(appendedStyles[0].textContent, /\[data-codexpp="tweaks-panel"\] section:has\(> \[data-codexpp-config-card\]\)/);
-    assert.match(appendedStyles[0].textContent, /\[data-codexpp="tweaks-panel"\] section:has\(> \[data-codexpp-config-card\]\) \+ section/);
-
-    module.exports.start({ log: console });
-    assert.equal(appendedStyles.length, 1);
-
-    module.exports.stop();
-
-    assert.equal(removed, true);
-  } finally {
-    globalThis.document = previousDocument;
   }
 });
 
