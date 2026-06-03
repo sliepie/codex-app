@@ -11,15 +11,26 @@ const originalMain = readPackagedOriginalMain();
 const runtimeDir = path.join(__dirname, "runtime");
 const preloadPath = path.join(runtimeDir, "preload.js");
 const bundledTweaksDir = path.join(__dirname, "tweaks");
+const bundledPluginsDir = path.join(packagedRoot, "resources", "plugins");
 const userRoot = resolveUserRoot();
+const codexHome = resolveCodexHome();
 const configFile = path.join(userRoot, "config.json");
 const logFile = path.join(userRoot, "log", "loader.log");
 const maxLogBytes = 10 * 1024 * 1024;
 const retainedLogBytes = 5 * 1024 * 1024;
+const bundledMarketplaceNames = ["openai-bundled", "openai-bundled-beta"];
+const browserPluginName = "browser";
 
 function resolveUserRoot() {
   const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
   return path.join(appData, "codex-plusplus");
+}
+
+function resolveCodexHome() {
+  if (process.env.CODEX_HOME && process.env.CODEX_HOME.trim()) {
+    return process.env.CODEX_HOME;
+  }
+  return path.join(os.homedir(), ".codex");
 }
 
 function readPackagedOriginalMain() {
@@ -137,6 +148,25 @@ function isSafeTweakId(id) {
   return typeof id === "string" && /^[A-Za-z0-9._-]+$/.test(id) && id !== "." && id !== "..";
 }
 
+function isSafeCacheSegment(value) {
+  return (
+    typeof value === "string" &&
+    /^[A-Za-z0-9._-]+$/.test(value) &&
+    value !== "." &&
+    value !== ".."
+  );
+}
+
+function isPathInside(parentPath, childPath) {
+  const relativePath = path.relative(path.resolve(parentPath), path.resolve(childPath));
+  return (
+    relativePath === "" ||
+    (relativePath !== ".." &&
+      !relativePath.startsWith(".." + path.sep) &&
+      !path.isAbsolute(relativePath))
+  );
+}
+
 function assertBundledManifest(manifest, entryName) {
   if (!isPlainObject(manifest)) {
     throw new Error("Expected object in bundled tweak manifest for " + entryName);
@@ -147,6 +177,122 @@ function assertBundledManifest(manifest, entryName) {
   if (typeof manifest.version !== "string" || !manifest.version.trim()) {
     throw new Error("Invalid bundled tweak version for " + manifest.id);
   }
+}
+
+function assertBundledBrowserPluginManifest(manifest, sourceDir) {
+  if (!isPlainObject(manifest)) {
+    throw new Error("Expected object in bundled Browser plugin manifest for " + sourceDir);
+  }
+  if (manifest.name !== browserPluginName) {
+    throw new Error(
+      "Invalid bundled Browser plugin name for " + sourceDir + ": " + String(manifest.name),
+    );
+  }
+  if (!isSafeCacheSegment(manifest.version)) {
+    throw new Error(
+      "Invalid bundled Browser plugin version for " +
+        sourceDir +
+        ": " +
+        String(manifest.version),
+    );
+  }
+}
+
+function resolveBundledPluginSourcePath(marketplaceRoot, relativeSourcePath) {
+  if (typeof relativeSourcePath !== "string" || !relativeSourcePath.trim()) {
+    throw new Error("Bundled Browser plugin source path is empty.");
+  }
+  if (path.isAbsolute(relativeSourcePath)) {
+    throw new Error("Bundled Browser plugin source path must be relative: " + relativeSourcePath);
+  }
+
+  const resolvedPath = path.resolve(marketplaceRoot, relativeSourcePath);
+  if (!isPathInside(marketplaceRoot, resolvedPath)) {
+    throw new Error("Bundled Browser plugin source path escapes its root: " + relativeSourcePath);
+  }
+
+  return resolvedPath;
+}
+
+function findBundledBrowserPluginSource() {
+  for (const marketplaceName of bundledMarketplaceNames) {
+    const marketplaceRoot = path.join(bundledPluginsDir, marketplaceName);
+    const marketplacePath = path.join(marketplaceRoot, ".agents", "plugins", "marketplace.json");
+    if (!fs.existsSync(marketplacePath)) {
+      continue;
+    }
+
+    const marketplace = readJson(marketplacePath);
+    if (!Array.isArray(marketplace.plugins)) {
+      throw new Error("Bundled plugin marketplace does not list plugins: " + marketplacePath);
+    }
+
+    const plugin = marketplace.plugins.find(
+      (candidate) => isPlainObject(candidate) && candidate.name === browserPluginName,
+    );
+    if (!plugin) {
+      return null;
+    }
+
+    const source = plugin.source;
+    if (!isPlainObject(source) || source.source !== "local" || typeof source.path !== "string") {
+      throw new Error("Bundled Browser plugin must use a local source path in " + marketplacePath);
+    }
+
+    return {
+      marketplaceName,
+      sourceDir: resolveBundledPluginSourcePath(marketplaceRoot, source.path),
+    };
+  }
+
+  return null;
+}
+
+function cachedBrowserPluginIsCurrent(targetDir, expectedVersion) {
+  const manifestPath = path.join(targetDir, ".codex-plugin", "plugin.json");
+  if (!fs.existsSync(manifestPath)) {
+    return false;
+  }
+
+  try {
+    const manifest = readJson(manifestPath);
+    return manifest.name === browserPluginName && manifest.version === expectedVersion;
+  } catch {
+    return false;
+  }
+}
+
+function syncBundledBrowserPluginCache() {
+  if (!fs.existsSync(bundledPluginsDir)) {
+    return;
+  }
+
+  const source = findBundledBrowserPluginSource();
+  if (!source) {
+    return;
+  }
+
+  const manifestPath = path.join(source.sourceDir, ".codex-plugin", "plugin.json");
+  if (!fs.existsSync(manifestPath)) {
+    throw new Error("Missing bundled Browser plugin manifest: " + manifestPath);
+  }
+
+  const manifest = readJson(manifestPath);
+  assertBundledBrowserPluginManifest(manifest, source.sourceDir);
+
+  const targetDir = path.join(
+    codexHome,
+    "plugins",
+    "cache",
+    source.marketplaceName,
+    browserPluginName,
+    manifest.version,
+  );
+  if (cachedBrowserPluginIsCurrent(targetDir, manifest.version)) {
+    return;
+  }
+
+  installBundledDirectory(source.sourceDir, targetDir);
 }
 
 function readConfigOrEmpty() {
@@ -275,7 +421,7 @@ function replaceDirectoryFromStaging(stagingDir, targetDir) {
   }
 }
 
-function installBundledTweak(sourceDir, targetDir) {
+function installBundledDirectory(sourceDir, targetDir) {
   const parentDir = path.dirname(targetDir);
   const stagingDir = path.join(
     parentDir,
@@ -289,6 +435,10 @@ function installBundledTweak(sourceDir, targetDir) {
   } finally {
     fs.rmSync(stagingDir, { recursive: true, force: true });
   }
+}
+
+function installBundledTweak(sourceDir, targetDir) {
+  installBundledDirectory(sourceDir, targetDir);
 }
 
 function syncBundledTweaks() {
@@ -457,6 +607,7 @@ function scheduleCodexPlusPlusIntegration() {
 
 process.env.CODEX_PLUSPLUS_USER_ROOT = userRoot;
 process.env.CODEX_PLUSPLUS_RUNTIME = runtimeDir;
+runStartupStep("codex-plusplus bundled Browser plugin cache sync failed", syncBundledBrowserPluginCache);
 registerEarlyPreloadHooks();
 require(path.join(packagedRoot, originalMain));
 scheduleCodexPlusPlusIntegration();

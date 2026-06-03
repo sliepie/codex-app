@@ -1273,6 +1273,8 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.match(loaderSource, /autoUpdate: false/);
   assert.match(loaderSource, /readInstalledTweakVersion\(targetDir, manifest\.id\)/);
   assert.match(loaderSource, /bundledVersionIsNewer\(manifest\.version, installedVersion\)/);
+  assert.match(loaderSource, /syncBundledBrowserPluginCache/);
+  assert.match(loaderSource, /plugins[\s\S]*cache[\s\S]*source\.marketplaceName[\s\S]*browserPluginName/);
   assert.match(loaderSource, /__codexpp\.originalMain/);
   assert.match(loaderSource, /registerEarlyPreloadHooks\(\);[\s\S]*require\(path\.join\(packagedRoot, originalMain\)\)/);
   assert.match(loaderSource, /maxLogBytes = 10 \* 1024 \* 1024/);
@@ -1345,6 +1347,7 @@ function createCodexPlusPlusLoaderFixture(t) {
   const originalMainPath = path.join(root, originalMain);
   const runtimeMainPath = path.join(root, "codex-plusplus", "runtime", "main.js");
   const appData = path.join(root, "AppData");
+  const codexHome = path.join(root, ".codex");
   const tracePath = path.join(root, "trace.txt");
 
   fs.mkdirSync(path.dirname(loaderPath), { recursive: true });
@@ -1362,7 +1365,7 @@ function createCodexPlusPlusLoaderFixture(t) {
     'require("node:fs").appendFileSync(process.env.CODEX_LOADER_TRACE, "runtime\\n");\n',
   );
 
-  return { root, loaderPath, appData, tracePath };
+  return { root, loaderPath, appData, codexHome, tracePath };
 }
 
 function runCodexPlusPlusLoaderFixture(fixture) {
@@ -1371,6 +1374,7 @@ function runCodexPlusPlusLoaderFixture(fixture) {
     env: {
       ...process.env,
       APPDATA: fixture.appData,
+      CODEX_HOME: fixture.codexHome,
       CODEX_LOADER_TRACE: fixture.tracePath,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -1379,10 +1383,87 @@ function runCodexPlusPlusLoaderFixture(fixture) {
   return fs.readFileSync(fixture.tracePath, "utf8").trim().split(/\r?\n/);
 }
 
+function writeBundledBrowserPluginFixture(fixture, version = "26.999.1") {
+  const bundledRoot = path.join(fixture.root, "resources", "plugins", "openai-bundled");
+  writeFixture(
+    path.join(bundledRoot, ".agents", "plugins", "marketplace.json"),
+    JSON.stringify(
+      {
+        name: "openai-bundled",
+        plugins: [
+          {
+            name: "browser",
+            source: {
+              source: "local",
+              path: "./plugins/browser",
+            },
+          },
+        ],
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  writeFixture(
+    path.join(bundledRoot, "plugins", "browser", ".codex-plugin", "plugin.json"),
+    JSON.stringify({ name: "browser", version }, null, 2) + "\n",
+  );
+  writeFixture(
+    path.join(bundledRoot, "plugins", "browser", "scripts", "browser-client.mjs"),
+    "export const browserClient = true;\n",
+  );
+}
+
 test("Codex++ loader starts original Codex before runtime integration", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+});
+
+test("Codex++ loader seeds bundled Browser plugin cache before original Codex startup", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  const version = "26.999.1";
+  writeBundledBrowserPluginFixture(fixture, version);
+  writeFixture(
+    path.join(fixture.root, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
+    [
+      'const fs = require("node:fs");',
+      'const path = require("node:path");',
+      "const cachedBrowserClient = path.join(",
+      "  process.env.CODEX_HOME,",
+      '  "plugins",',
+      '  "cache",',
+      '  "openai-bundled",',
+      '  "browser",',
+      "  " + JSON.stringify(version) + ",",
+      '  "scripts",',
+      '  "browser-client.mjs",',
+      ");",
+      "fs.appendFileSync(",
+      "  process.env.CODEX_LOADER_TRACE,",
+      '  fs.existsSync(cachedBrowserClient) ? "plugin-present\\n" : "plugin-missing\\n",',
+      ");",
+      "",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["plugin-present", "runtime"]);
+  assert.equal(
+    fs.readFileSync(
+      path.join(
+        fixture.codexHome,
+        "plugins",
+        "cache",
+        "openai-bundled",
+        "browser",
+        version,
+        ".codex-plugin",
+        "plugin.json",
+      ),
+      "utf8",
+    ),
+    JSON.stringify({ name: "browser", version }, null, 2) + "\n",
+  );
 });
 
 test("Codex++ loader registers preload hooks before original Codex startup", (t) => {
