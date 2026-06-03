@@ -15,11 +15,18 @@ const patcherPath = path.join(
   "patch-windows-self-signed-bundle.js",
 );
 const indexFeatureTargets =
-  "var YA=[`apps`,`memories`,`plugins`,`tool_call_mcp_elicitation`,`tool_search`,`tool_suggest`,kr];function QA(){J.dispatchMessage(`electron-desktop-features-changed`,{avatarOverlay:n,ambientSuggestions:r,artifactsPane:!0,browserAgent:a.available,browserAgentAvailable:a.available,browserPane:i,computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,multiWindow:d})}";
+  "function QA(){J.dispatchMessage(`electron-desktop-features-changed`,{ambientSuggestions:n,appshotsEnabled:r,codexChronicleConfig:s,inAppBrowserUse:p.available,inAppBrowserUseAllowed:p.allowed,browserPane:c,externalBrowserUse:h.available,externalBrowserUseAllowed:h.allowed,computerUse:_.available,computerUseNodeRepl:_.available,sites:i,control:v,dil:y,multiBrowserTabs:l,multiWindow:b,processManager:x})}";
 const sidebarPixelTargets =
   "function Sidebar(){let A=C.formatMessage({id:`sidebarElectron.recentChats`,defaultMessage:`Chats`}),rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,className:`-translate-x-px`,itemClassName:`after:block after:h-px after:content-[''] last:after:hidden`,itemWrapper:ke?Tg:void 0,emptyState:(0,$.jsx)(Y,{id:`sidebarElectron.noRecentChats`,defaultMessage:`No chats`,description:`Empty state for projectless chats in the sidebar`}),emptyStateClassName:`text-token-description-foreground p-2 text-base opacity-50`,rowOptions:{hideRemoteHostEnvIcon:!1,showPinActionOnHover:!0,getSectionContextMenuItems:Kt}}),ar=bt?(0,$.jsx)(`div`,{className:`px-row-x`,...ne.sidebarSection({collapsed:At.chats,heading:`Chats`}),children:(0,$.jsx)(Zd,{title:rr})}):null;return[rr,ir,ar]}function Row(){return(0,$.jsx)(L_,{conversationId:N,isAutomationRun:i,hasPendingChildApproval:c,isActive:u,forceLoadingIndicator:t&&l,className:s?`opacity-50`:void 0,rowContentClassName:Dc(t&&(D?`ml-10`:`ml-5`),g&&`pr-3 group-focus-within:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)] group-hover:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)]`),envIconLocation:`end`,dataAttributes:ne.sidebarThreadRow({kind:`local`,title:H})})}function vy(){let C=(0,$.jsx)(`div`,{className:`min-w-0 flex-1`,children:(0,$.jsx)(cn,{triggerButton:(0,$.jsx)(Qd,{icon:b,label:x,onClick:yy,trailing:S,iconClassName:`icon-sm`})})});return C}let settingsLabel={id:`codex.profileFooter.signedInFallback`};";
 
 const enabledDesktopFeatureGateIds = [
+  "2425897452",
+  "1304276663",
+  "637432221",
+  "2171042036",
+  "2957382457",
+  "459748632",
+  "3264431617",
   "533078438",
   "3789238711",
   "2798711298",
@@ -34,6 +41,24 @@ const enabledDesktopFeatureGateIds = [
 const enabledDesktopFeatureGateTargets = enabledDesktopFeatureGateIds
   .map((id, index) => `selectedGate${index}=FeatureGate(\`${id}\`)`)
   .join(",");
+const enabledBrowserPluginFeatureGateIds = ["410262010", "410065390", "1506311413"];
+const enabledBrowserPluginFeatureGateTargets = enabledBrowserPluginFeatureGateIds
+  .map((id, index) => `browserGate${index}=FeatureGate(\`${id}\`)`)
+  .join(",");
+const enabledDefaultFeatureMapKeys = [
+  "workspace_dependencies",
+  "enable_mcp_apps",
+  "apps",
+  "apps_mcp_path_override",
+  "plugins",
+  "tool_suggest",
+  "auth_elicitation",
+  "tool_call_mcp_elicitation",
+  "in_app_browser",
+  "browser_use",
+  "browser_use_external",
+  "computer_use",
+];
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -50,6 +75,14 @@ function createRecoveredFixture() {
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
     `let commandGate=FeatureGate(\`1981165915\`),${enabledDesktopFeatureGateTargets};function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${indexFeatureTargets}${sidebarPixelTargets}`,
+  );
+  writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "use-is-plugins-enabled-fixture.js"),
+    `let ${enabledBrowserPluginFeatureGateTargets};function browserUse(){return{browser:browserGate0,external:browserGate1,computer:browserGate2}}`,
+  );
+  writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "app-server-manager-signals-fixture.js"),
+    "let ug=`feature_overrides`,fg=`memories`,pg=`875176429`,dg=`3525926994`,vg=[{featureKeys:[`enable_mcp_apps`],layerName:`2138468235`,param:`enable_mcp_apps`},{featureKeys:[`apps`,`plugins`],layerName:`223073164`,param:`enable_plugins`}];function buildDefaultFeatures(e){let t=xg(e),n=Sg(e),r={[lp]:Tt(e,`2380644311`)};return{...t,...n,[fg]:Tt(e,pg)&&Et(e,dg).groupName===`Test`,...r}}",
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
@@ -94,6 +127,12 @@ function moveIndexFixtureToAppMain(recoveredRoot) {
   return appMainPath;
 }
 
+function assertDefaultFeatureMapEntries(source) {
+  for (const featureKey of enabledDefaultFeatureMapKeys) {
+    assert.match(source, new RegExp(`${featureKey}:!0`), featureKey);
+  }
+}
+
 test("writes patch report file paths relative to the recovered app root", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -109,6 +148,8 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
       "webview/assets/index-fixture.js",
+      "webview/assets/use-is-plugins-enabled-fixture.js",
+      "webview/assets/app-server-manager-signals-fixture.js",
       "webview/assets/agent-settings-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
@@ -181,7 +222,7 @@ test("patches app main bundle when upstream moves index targets there", () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const appMainSource = fs.readFileSync(appMainPath, "utf8");
   assert.match(appMainSource, /commandGate=!0/);
-  assert.match(appMainSource, /workspace_dependencies:!0/);
+  assertDefaultFeatureMapEntries(appMainSource);
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   assert.equal(
@@ -288,7 +329,7 @@ test("does not let one main-bundle gate marker fail the other gate patch", () =>
   assert.equal(report.patches.at(-1).status, "applied");
 });
 
-test("keeps workspace dependency feature-map already-applied evidence contextual", () => {
+test("keeps default feature-map already-applied evidence contextual", () => {
   const recoveredRoot = createRecoveredFixture();
   fs.writeFileSync(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
@@ -302,12 +343,11 @@ test("keeps workspace dependency feature-map already-applied evidence contextual
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   const featureMapPatch = report.patches.find(
-    (patch) => patch.name === "include workspace dependencies in default feature map",
+    (patch) => patch.name === "include self-signed defaults in desktop feature map",
   );
   assert.equal(featureMapPatch?.status, "applied");
-  assert.match(
+  assertDefaultFeatureMapEntries(
     fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /return\{\.\.\.base,\.\.\.remote,workspace_dependencies:!0,\[workspaceKey\]:/,
   );
 });
 
@@ -341,6 +381,24 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     assert.match(patchedIndexSource, new RegExp("selectedGate" + index + "=true"), id);
     assert.doesNotMatch(patchedIndexSource, new RegExp("FeatureGate\\(\\`" + id + "\\`\\)"), id);
   }
+  const patchedPluginAvailabilitySource = fs.readFileSync(
+    path.join(recoveredRoot, "webview", "assets", "use-is-plugins-enabled-fixture.js"),
+    "utf8",
+  );
+  for (const [index, id] of enabledBrowserPluginFeatureGateIds.entries()) {
+    assert.match(patchedPluginAvailabilitySource, new RegExp("browserGate" + index + "=true"), id);
+    assert.doesNotMatch(
+      patchedPluginAvailabilitySource,
+      new RegExp("FeatureGate\\(\\`" + id + "\\`\\)"),
+      id,
+    );
+  }
+  assertDefaultFeatureMapEntries(
+    fs.readFileSync(
+      path.join(recoveredRoot, "webview", "assets", "app-server-manager-signals-fixture.js"),
+      "utf8",
+    ),
+  );
   assert.match(
     fs.readFileSync(
       path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
@@ -383,7 +441,7 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 9);
+  assert.equal(report.patches.length, 11);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -454,6 +512,8 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
   const files = [
     path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "use-is-plugins-enabled-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "app-server-manager-signals-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "use-model-settings-fixture.js"),
@@ -469,7 +529,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 9);
+  assert.equal(report.patches.length, 11);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),
