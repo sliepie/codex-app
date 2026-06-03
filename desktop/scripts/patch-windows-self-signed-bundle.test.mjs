@@ -69,7 +69,7 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "var dM=`#00000000`,vM=36,yM=`#1f1f1f`,bM=`#ffffff`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===`win32`?{titleBarStyle:`hidden`,titleBarOverlay:xM()}:null}function zx(config){return typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}",
+    "var dM=`#00000000`,vM=36,yM=`#1f1f1f`,bM=`#ffffff`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===`win32`?{titleBarStyle:`hidden`,titleBarOverlay:xM()}:null}function zx(config){return typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}class Hq{getStaticDisabledReason(){return this.options.hostId===`local`?this.options.sharedObjectRepository?.get(`codex_runtimes_config`)==null?`runtime-config-missing`:Bq(this.options.sharedObjectRepository?.get(`statsig_default_enable_features`))?null:`feature-gate-disabled`:`not-local-host`}}",
   );
 
   return recoveredRoot;
@@ -112,6 +112,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/agent-settings-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
+      ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
     ],
@@ -381,9 +382,17 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /async function qp\(client\)\{return!0\}/,
   );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /getStaticDisabledReason\(\)\{return this\.options\.hostId===`local`\?Bq\(this\.options\.sharedObjectRepository\?\.get\(`statsig_default_enable_features`\)\)\?null:`feature-gate-disabled`:`not-local-host`\}/,
+  );
+  assert.doesNotMatch(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /runtime-config-missing/,
+  );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 9);
+  assert.equal(report.patches.length, 10);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -469,7 +478,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 9);
+  assert.equal(report.patches.length, 10);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),

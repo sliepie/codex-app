@@ -836,6 +836,24 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
     replaceWithPatchers(
       recoveredRoot,
       filePath,
+      "allow workspace dependencies without remote runtime config",
+      [
+        exactPatch(
+          "getStaticDisabledReason(){return this.options.hostId===`local`?this.options.sharedObjectRepository?.get(`codex_runtimes_config`)==null?`runtime-config-missing`:Bq(this.options.sharedObjectRepository?.get(`statsig_default_enable_features`))?null:`feature-gate-disabled`:`not-local-host`}",
+          "getStaticDisabledReason(){return this.options.hostId===`local`?Bq(this.options.sharedObjectRepository?.get(`statsig_default_enable_features`))?null:`feature-gate-disabled`:`not-local-host`}",
+        ),
+        regexPatch(
+          /getStaticDisabledReason\(\)\{return this\.options\.hostId===`local`\?this\.options\.sharedObjectRepository\?\.get\(`codex_runtimes_config`\)==null\?`runtime-config-missing`:([^{}]+?)\?null:`feature-gate-disabled`:`not-local-host`\}/g,
+          (match) =>
+            `getStaticDisabledReason(){return this.options.hostId===\`local\`?${match[1]}?null:\`feature-gate-disabled\`:\`not-local-host\`}`,
+          /getStaticDisabledReason\(\)\{return this\.options\.hostId===`local`\?(?!this\.options\.sharedObjectRepository\?\.get\(`codex_runtimes_config`\)==null\?`runtime-config-missing`:)[^{}]+?\?null:`feature-gate-disabled`:`not-local-host`\}/,
+        ),
+      ],
+      { missingTargetMarkers: ["runtime-config-missing", "codex_runtimes_config"] },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
       "enable workspace dependencies static gate",
       [
         exactPatch(
