@@ -13,6 +13,8 @@ type PatchResult = {
 
 const desktopRoot = process.cwd();
 const identifierPattern = String.raw`[A-Za-z_$][\w$]*`;
+const workspaceDependencyFeatureMapAppliedPattern =
+  /return\{(?=[^{}]*workspace_dependencies:!0)(?=[^{}]*\[[^\]]+\]:[^{}]*?\.groupName===`Test`)[^{}]*\}/;
 const packageLocalCacheRelocationAppliedPattern =
   /process\.resourcesPath\?\.replace[\s\S]*?`Packages`[\s\S]*?`LocalCache`[\s\S]*?`Local`/;
 const windowsArm64PrimaryRuntimeManifestUrl =
@@ -21,13 +23,6 @@ const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
   escapeRegExp(windowsArm64PrimaryRuntimeManifestUrl),
 );
 const enabledDesktopFeatureGateIds = [
-  "2425897452",
-  "1304276663",
-  "637432221",
-  "2171042036",
-  "2957382457",
-  "459748632",
-  "3264431617",
   "533078438",
   "3789238711",
   "2798711298",
@@ -39,28 +34,6 @@ const enabledDesktopFeatureGateIds = [
   "1848317837",
   "2423536643",
 ] as const;
-const enabledBrowserPluginFeatureGateIds = ["410262010", "410065390", "1506311413"] as const;
-const enabledDefaultFeatureMapKeys = [
-  "workspace_dependencies",
-  "enable_mcp_apps",
-  "apps",
-  "apps_mcp_path_override",
-  "plugins",
-  "tool_suggest",
-  "auth_elicitation",
-  "tool_call_mcp_elicitation",
-  "in_app_browser",
-  "browser_use",
-  "browser_use_external",
-  "computer_use",
-] as const;
-const defaultFeatureMapAppliedPattern = new RegExp(
-  "return\\{" +
-    enabledDefaultFeatureMapKeys
-      .map((featureKey) => `(?=[^{}]*${escapeRegExp(featureKey)}:!0)`)
-      .join("") +
-    "(?=[^{}]*\\[[^\\]]+\\]:[^{}]*?\\.groupName===`Test`)[^{}]*\\}",
-);
 
 type SourcePatchResult = {
   source: string;
@@ -640,24 +613,6 @@ function forceFeatureGateCalls(gateIds: readonly string[]): SourcePatcher {
   };
 }
 
-function includeDefaultFeatureMapKeys(featureKeys: readonly string[]): SourcePatcher {
-  const keyPattern = (featureKey: string) =>
-    new RegExp(String.raw`(?:^|,)${escapeRegExp(featureKey)}:!0(?:,|$)`);
-
-  return regexPatch(
-    /return\{([^{}]*?)(\[[^\]]+\]:[^{}]*?\.groupName===`Test`)(,\.\.\.[^{}]+?)\}/g,
-    (match) => {
-      const missingEntries = featureKeys
-        .filter((featureKey) => !keyPattern(featureKey).test(match[0]))
-        .map((featureKey) => `${featureKey}:!0,`)
-        .join("");
-
-      return `return{${match[1]}${missingEntries}${match[2]}${match[3]}}`;
-    },
-    defaultFeatureMapAppliedPattern,
-  );
-}
-
 function replaceWithPatchers(
   recoveredRoot: string,
   filePath: string,
@@ -774,8 +729,19 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
     replaceWithPatchers(
       recoveredRoot,
       filePath,
-      "include self-signed defaults in desktop feature map",
-      [includeDefaultFeatureMapKeys(enabledDefaultFeatureMapKeys)],
+      "include workspace dependencies in default feature map",
+      [
+        exactPatch(
+          "return{...t,...n,[xE]:ps(e,SE)&&gs(e,bE).groupName===`Test`,...r}",
+          "return{...t,...n,workspace_dependencies:!0,[xE]:ps(e,SE)&&gs(e,bE).groupName===`Test`,...r}",
+        ),
+        alreadyAppliedPatch(workspaceDependencyFeatureMapAppliedPattern),
+        regexPatch(
+          /return\{([^{}]*?)(\[[^\]]+\]:[^{}]*?\.groupName===`Test`)(,\.\.\.[^{}]+?)\}/g,
+          (match) => `return{${match[1]}workspace_dependencies:!0,${match[2]}${match[3]}}`,
+          workspaceDependencyFeatureMapAppliedPattern,
+        ),
+      ],
       { missingTargetMarkers: [".groupName===`Test`"] },
     ),
     replaceWithPatchers(
@@ -784,40 +750,6 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
       "enable selected desktop feature gates",
       [forceFeatureGateCalls(enabledDesktopFeatureGateIds)],
       { missingTargetMarkers: enabledDesktopFeatureGateIds.map((id) => `\`${id}\``) },
-    ),
-  ];
-}
-
-function patchPluginAvailability(recoveredRoot: string): PatchResult[] {
-  const filePath = findFile(
-    path.join(recoveredRoot, "webview", "assets"),
-    /^use-is-plugins-enabled-.*\.js$/,
-  );
-
-  return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "enable Browser plugin availability gates",
-      [forceFeatureGateCalls(enabledBrowserPluginFeatureGateIds)],
-      { missingTargetMarkers: enabledBrowserPluginFeatureGateIds.map((id) => `\`${id}\``) },
-    ),
-  ];
-}
-
-function patchAppServerManagerSignals(recoveredRoot: string): PatchResult[] {
-  const filePath = findFile(
-    path.join(recoveredRoot, "webview", "assets"),
-    /^app-server-manager-signals-.*\.js$/,
-  );
-
-  return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "include self-signed defaults in app-server feature map",
-      [includeDefaultFeatureMapKeys(enabledDefaultFeatureMapKeys)],
-      { missingTargetMarkers: [".groupName===`Test`", "feature_overrides"] },
     ),
   ];
 }
@@ -975,8 +907,6 @@ function main(): void {
   try {
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
-    results.push(...patchPluginAvailability(recoveredRoot));
-    results.push(...patchAppServerManagerSignals(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
     results.push(...patchMainBundle(recoveredRoot));
