@@ -68,6 +68,12 @@ const USAGE_MENU_CONTENT_SELECTOR =
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
   "padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;";
 const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
+const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
+  ":where(aside,nav,[role='navigation'],div):has(>[data-codexpp=\"nav-group\"])";
+const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
+  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
+  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
+];
 
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
@@ -317,6 +323,25 @@ const SETTINGS_STYLE_RULES = [
   ),
 ];
 
+const CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES = [
+  cssRule(
+    CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR,
+    "justify-content:flex-start!important;",
+  ),
+  cssRule(
+    CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS,
+    "flex:0 0 auto!important;",
+  ),
+  cssRule(
+    `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"mt-auto\"]`,
+    "margin-top:0!important;",
+  ),
+  cssRule(
+    '[data-codexpp="nav-group"],[data-codexpp="pages-group"]',
+    "flex:0 0 auto!important;margin-top:0!important;",
+  ),
+];
+
 const USAGE_MENU_STYLE_RULES = [
   cssRule(
     ".flex.flex-col.text-sm>.grid.items-center.gap-y-1\\.5.py-1",
@@ -338,6 +363,7 @@ const STYLE_RULES = [
   ...RIGHT_PANEL_TAB_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,
+  ...CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES,
   ...USAGE_MENU_STYLE_RULES,
 ];
 
