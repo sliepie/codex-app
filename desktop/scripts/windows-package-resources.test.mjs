@@ -144,19 +144,26 @@ function expectedLocalModifiedTweakVersion(mainVersion) {
   return `${major}.${minor}.${patch + 1}`;
 }
 
+function comparableTweakFileText(relativePath, source) {
+  if (!relativePath.endsWith("/manifest.json")) {
+    return normalizeText(source);
+  }
+
+  const manifest = JSON.parse(source);
+  delete manifest.version;
+  return JSON.stringify(manifest);
+}
+
 function tweakContentMatchesMainBranch(relativeRoot) {
-  const comparableFiles = (files) => files
-    .filter((file) => !file.endsWith("/manifest.json"))
-    .sort();
-  const localFiles = comparableFiles(listLocalFiles(relativeRoot));
-  const mainFiles = comparableFiles(readMainBranchFileList(relativeRoot));
+  const localFiles = listLocalFiles(relativeRoot).sort();
+  const mainFiles = readMainBranchFileList(relativeRoot).sort();
   if (JSON.stringify(localFiles) !== JSON.stringify(mainFiles)) {
     return false;
   }
 
   return localFiles.every((relativePath) => (
-    normalizeText(fs.readFileSync(path.join(repoRoot, relativePath), "utf8")) ===
-    normalizeText(readMainBranchFile(relativePath))
+    comparableTweakFileText(relativePath, fs.readFileSync(path.join(repoRoot, relativePath), "utf8")) ===
+    comparableTweakFileText(relativePath, readMainBranchFile(relativePath))
   ));
 }
 
