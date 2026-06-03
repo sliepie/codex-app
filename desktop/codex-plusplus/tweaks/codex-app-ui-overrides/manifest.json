@@ -1,5 +1,5 @@
 {
-  "id": "app.sliepie.codex.ui-overrides",
+  "id": "dev.sliepie.codex.ui-overrides",
   "name": "Codex app UI",
   "version": "0.14.0",
   "githubRepo": "sliepie/codex-app",
