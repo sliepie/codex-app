@@ -43,11 +43,12 @@ const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
   '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
 const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
-const SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR = `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10,>.absolute.right-0.top-0.z-10)`;
+const SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR = `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10,>.absolute.right-0.top-0.z-10,>.contents>.absolute.right-0.top-0.z-10)`;
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS = [
   " .absolute.top-0.left-1.z-10",
   " .w-4 span:has(button)",
   ">.absolute.right-0.top-0.z-10",
+  ">.contents>.absolute.right-0.top-0.z-10",
 ];
 const SIDEBAR_THREAD_ROW_META_TARGETS = [
   " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
@@ -63,6 +64,8 @@ const SIDEBAR_THREAD_ROW_ACTION_TARGETS = [
   " .w-4 span:has(button) button",
   ">.absolute.right-0.top-0.z-10",
   ">.absolute.right-0.top-0.z-10 button",
+  ">.contents>.absolute.right-0.top-0.z-10",
+  ">.contents>.absolute.right-0.top-0.z-10 button",
 ];
 const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
   " .absolute.top-0.left-1.z-10 button svg",
@@ -74,9 +77,13 @@ const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
   ">.absolute.right-0.top-0.z-10 button svg",
   ">.absolute.right-0.top-0.z-10 button .icon-xs",
   ">.absolute.right-0.top-0.z-10 button .icon-sm",
+  ">.contents>.absolute.right-0.top-0.z-10 button svg",
+  ">.contents>.absolute.right-0.top-0.z-10 button .icon-xs",
+  ">.contents>.absolute.right-0.top-0.z-10 button .icon-sm",
 ];
 const SIDEBAR_THREAD_ROW_ACTION_PAIR_BUTTON_TARGETS = [
   '>.absolute.right-0.top-0.z-10:has(button[aria-label*="pin" i]):has(button[aria-label*="archive" i]) button:is([aria-label*="pin" i],[aria-label*="archive" i])',
+  '>.contents>.absolute.right-0.top-0.z-10:has(button[aria-label*="pin" i]):has(button[aria-label*="archive" i]) button:is([aria-label*="pin" i],[aria-label*="archive" i])',
 ];
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS = "gap:0!important;";
 const SIDEBAR_THREAD_ROW_ACTION_PAIR_BUTTON_DECLARATIONS =
@@ -350,6 +357,13 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   cssRule(
     interactiveSelectors(
       `${SIDEBAR_THREAD_ROW_SELECTOR}:has(>.absolute.right-0.top-0.z-10)`,
+      [" [data-thread-title-trigger]"],
+    ),
+    SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(>.contents>.absolute.right-0.top-0.z-10)`,
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS,
