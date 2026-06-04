@@ -28,6 +28,7 @@
     "scripts/resolve-primary-runtime-source.ts",
     "scripts/resource-binary-exceptions.ts",
     "scripts/publish-primary-runtime-release.ts",
+    "scripts/verify-skills.ts",
     "scripts/verify-browser-client-runtime.ts",
     "scripts/verify-windows-arm64-resource-binaries.ts",
     "scripts/windows-arm64-package-plan.ts",
