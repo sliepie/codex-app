@@ -144,9 +144,6 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
         " .group-hover\\/chats-section-header\\:opacity-100",
         " .group-focus-within\\/chats-section-header\\:opacity-100",
       ]),
-      ...descendantSelectors(".group\\/folder-row", [
-        " .group-hover\\/folder-row\\:opacity-100",
-      ]),
     ],
     SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS,
   ),
@@ -176,11 +173,6 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
         ],
         SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR,
       ),
-      ...statefulContainerSelectors(
-        ".group\\/folder-row",
-        [" .group-hover\\/folder-row\\:opacity-100"],
-        SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR,
-      ),
     ],
     SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
   ),
@@ -197,9 +189,6 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
       ...interactiveSelectors(".group\\/chats-section-header", [
         " .group-hover\\/chats-section-header\\:opacity-100",
         " .group-focus-within\\/chats-section-header\\:opacity-100",
-      ]),
-      ...interactiveSelectors(".group\\/folder-row", [
-        " .group-hover\\/folder-row\\:opacity-100",
       ]),
     ],
     SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,

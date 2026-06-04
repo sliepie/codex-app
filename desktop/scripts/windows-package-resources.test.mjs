@@ -2017,7 +2017,17 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;",
+        "@keyframes codex-app-sidebar-hover-control-slide-in{from{transform:translateX(2px);}to{transform:translateX(0);}}",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(0);",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "animation:codex-app-sidebar-hover-control-slide-in 120ms ease-out!important;transform:translateX(0);",
       ),
     );
     assert.ok(
@@ -2060,10 +2070,9 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       ),
     );
     assert.ok(!uiOverrideCss.includes(" .w-4:not(:has(button))"));
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
-      ),
+    assert.doesNotMatch(
+      uiOverrideCss,
+      /\.group\\\/folder-row[^{}]*\.group-hover\\\/folder-row\\:opacity-100\{[^{}]*(?:animation|transform):/,
     );
     assert.doesNotMatch(
       uiOverrideCss,
