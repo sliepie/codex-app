@@ -22,9 +22,9 @@ const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
 const SIDEBAR_HOVER_CONTROL_SLIDE_IN_KEYFRAMES_RULE =
   "@keyframes codex-app-sidebar-hover-control-slide-in{from{transform:translateX(2px);}to{transform:translateX(0);}}";
 const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
-  "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(0)!important;";
+  "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(0);";
 const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
-  "animation:codex-app-sidebar-hover-control-slide-in 120ms ease-out!important;transform:translateX(0)!important;";
+  "animation:codex-app-sidebar-hover-control-slide-in 120ms ease-out!important;transform:translateX(0);";
 const SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR =
   ":is(:active,[aria-expanded=\"true\"],[data-state=\"open\"])";
 const SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS =
@@ -33,8 +33,12 @@ const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
-const SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_SELECTOR =
-  '.group\\/projects-section-header :is(button,[role="button"]):is([aria-label*="collapse" i],[aria-label*="revert" i],[title*="collapse" i],[title*="revert" i],[data-testid*="collapse" i],[data-testid*="revert" i])';
+const SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_TARGET_SELECTOR =
+  ':is(button,[role="button"]):is([aria-label*="collapse" i],[aria-label*="revert" i],[title*="collapse" i],[title*="revert" i],[data-testid*="collapse" i],[data-testid*="revert" i])';
+const SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_SELECTOR = [
+  `.group\\/projects-section-header ${SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_TARGET_SELECTOR}`,
+  `.group\\/projects-section-header :is(span,div):has(>${SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_TARGET_SELECTOR}:only-child)`,
+];
 const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
   '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
 const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
