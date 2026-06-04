@@ -53,6 +53,9 @@ const SIDEBAR_THREAD_ROW_META_TARGETS = [
   " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
   " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
 ];
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_TARGETS = [
+  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:has(button)",
+];
 const SIDEBAR_THREAD_ROW_ACTION_TARGETS = [
   " .absolute.top-0.left-1.z-10",
   " .absolute.top-0.left-1.z-10 button",
@@ -73,6 +76,7 @@ const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
   ">.absolute.right-0.top-0.z-10 button .icon-sm",
 ];
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS = "gap:0.25rem!important;";
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS = "gap:0!important;";
 const SIDEBAR_THREAD_ROW_GROUP_HOVER_POINTER_TARGETS = [
   " .group-hover\\:pointer-events-auto",
 ];
@@ -266,6 +270,13 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
     ),
     SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS,
+  ),
+  cssRule(
+    descendantSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_RAIL_TARGETS,
+    ),
+    SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(
