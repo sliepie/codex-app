@@ -73,6 +73,41 @@ const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
   ">.absolute.right-0.top-0.z-10 button .icon-sm",
 ];
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS = "gap:0.25rem!important;";
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_POINTER_TARGETS = [
+  " .group-hover\\:pointer-events-auto",
+];
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_VISIBLE_TARGETS = [
+  " .group-hover\\:opacity-100",
+];
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_MUTED_TARGETS = [
+  " .group-hover\\:opacity-50",
+];
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_HIDDEN_TARGETS = [
+  " .group-hover\\:opacity-0",
+];
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_DISPLAY_TARGETS = [
+  " .group-hover\\:hidden",
+];
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_MIN_WIDTH_RULES = [
+  cssRule(
+    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
+      " .group-hover\\:min-w-5",
+    ]),
+    "min-width:calc(var(--spacing) * 5)!important;",
+  ),
+  cssRule(
+    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
+      " .group-hover\\:min-w-12",
+    ]),
+    "min-width:calc(var(--spacing) * 12)!important;",
+  ),
+  cssRule(
+    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
+      " .group-hover\\:min-w-20",
+    ]),
+    "min-width:calc(var(--spacing) * 20)!important;",
+  ),
+];
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -239,6 +274,42 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     ),
     VISIBLE_ICON_DECLARATIONS,
   ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_GROUP_HOVER_POINTER_TARGETS,
+    ),
+    "pointer-events:auto!important;",
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_GROUP_HOVER_VISIBLE_TARGETS,
+    ),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_GROUP_HOVER_MUTED_TARGETS,
+    ),
+    "opacity:.5!important;visibility:visible!important;",
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_GROUP_HOVER_HIDDEN_TARGETS,
+    ),
+    HIDDEN_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_GROUP_HOVER_DISPLAY_TARGETS,
+    ),
+    HIDDEN_DISPLAY_DECLARATIONS,
+  ),
+  ...SIDEBAR_THREAD_ROW_GROUP_HOVER_MIN_WIDTH_RULES,
   cssRule(
     interactiveSelectors(
       SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
