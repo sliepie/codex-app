@@ -1655,6 +1655,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   assert.ok(uiSource.includes('cssRule(".group\\\\/windows-top-bar", "margin-inline-start:0.5rem;")'));
   assert.doesNotMatch(uiSource, /windows-top-bar[\s\S]{0,120}display:none!important/);
   assert.doesNotMatch(uiSource, /:has\(\+\.scrollbar-stable/);
+  assert.doesNotMatch(uiSource, /:window-inactive[\s\S]{0,160}app-shell-left-panel/);
 
   const menuTweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-windows-menu-bar");
   const menuManifest = JSON.parse(fs.readFileSync(path.join(menuTweakRoot, "manifest.json"), "utf8"));

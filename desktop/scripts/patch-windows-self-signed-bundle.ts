@@ -17,6 +17,8 @@ const workspaceDependencyFeatureMapAppliedPattern =
   /return\{(?=[^{}]*workspace_dependencies:!0)(?=[^{}]*\[[^\]]+\]:[^{}]*?\.groupName===`Test`)[^{}]*\}/;
 const packageLocalCacheRelocationAppliedPattern =
   /process\.resourcesPath\?\.replace[\s\S]*?`Packages`[\s\S]*?`LocalCache`[\s\S]*?`Local`/;
+const inactiveWindowsMicaBackdropAppliedPattern =
+  /\bfunction\s+[A-Za-z_$][\w$]*\(\{appearance:([A-Za-z_$][\w$]*),isFocused:([A-Za-z_$][\w$]*),platform:([A-Za-z_$][\w$]*)\}\)\{return!\2&&![A-Za-z_$][\w$]*\(\1\)&&\3===`darwin`\}/;
 const windowsArm64PrimaryRuntimeManifestUrl =
   "https://github.com/sliepie/codex-app/releases/download/codex-primary-runtime-win32-arm64/LATEST.json";
 const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
@@ -470,6 +472,81 @@ function patchWindowsArm64PrimaryRuntimeManifestUrl(): SourcePatcher {
   );
 }
 
+function patchInactiveWindowsMicaBackdrop(): SourcePatcher {
+  return (source) => {
+    const matches = findFunctionRanges(source).filter((range) => {
+      const argsMatch = range.args.match(
+        new RegExp(
+          String.raw`^\s*\{\s*appearance\s*:\s*(${identifierPattern})\s*,\s*isFocused\s*:\s*(${identifierPattern})\s*,\s*platform\s*:\s*(${identifierPattern})\s*\}\s*$`,
+        ),
+      );
+      if (!argsMatch) {
+        return false;
+      }
+
+      const [, appearanceArg, isFocusedArg, platformArg] = argsMatch;
+      const bodyPattern = new RegExp(
+        "^return!" +
+          escapeRegExp(isFocusedArg) +
+          "&&!([A-Za-z_$][\\w$]*\\(" +
+          escapeRegExp(appearanceArg) +
+          "\\))&&\\(" +
+          escapeRegExp(platformArg) +
+          "===`darwin`\\|\\|" +
+          escapeRegExp(platformArg) +
+          "===`win32`\\)$",
+      );
+      return bodyPattern.test(range.body);
+    });
+
+    if (inactiveWindowsMicaBackdropAppliedPattern.test(source) && matches.length === 0) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+
+    if (matches.length === 0) {
+      return undefined;
+    }
+    if (matches.length !== 1) {
+      throw new Error(
+        `Expected exactly one inactive Windows Mica backdrop target, found ${matches.length}.`,
+      );
+    }
+
+    const match = matches[0];
+    const argsMatch = match.args.match(
+      new RegExp(
+        String.raw`^\s*\{\s*appearance\s*:\s*(${identifierPattern})\s*,\s*isFocused\s*:\s*(${identifierPattern})\s*,\s*platform\s*:\s*(${identifierPattern})\s*\}\s*$`,
+      ),
+    );
+    if (!argsMatch) {
+      throw new Error("Unable to read inactive Mica backdrop function args.");
+    }
+
+    const [, appearanceArg, isFocusedArg, platformArg] = argsMatch;
+    const darkAppearanceMatch = match.body.match(
+      new RegExp(
+        "^return!" +
+          escapeRegExp(isFocusedArg) +
+          "&&!([A-Za-z_$][\\w$]*\\(" +
+          escapeRegExp(appearanceArg) +
+          "\\))&&",
+      ),
+    );
+    if (!darkAppearanceMatch?.[1]) {
+      throw new Error("Unable to read inactive Mica backdrop appearance check.");
+    }
+
+    const replacement =
+      `${match.asyncPrefix}function ${match.name}(${match.args}){return!${isFocusedArg}&&!${darkAppearanceMatch[1]}&&${platformArg}===\`darwin\`}`;
+
+    return {
+      source: source.slice(0, match.start) + replacement + source.slice(match.end),
+      status: "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
 function failIfUnmodifiedBundleContains(evidence: string | RegExp, reason: string): SourcePatcher {
   return (source) => {
     const matched =
@@ -833,6 +910,27 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(path.join(recoveredRoot, ".vite", "build"), /^main-.*\.js$/);
 
   return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "keep Mica enabled for inactive Windows windows",
+      [
+        exactPatch(
+          "function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&(n===`darwin`||n===`win32`)}",
+          "function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&n===`darwin`}",
+        ),
+        patchInactiveWindowsMicaBackdrop(),
+      ],
+      {
+        missingTargetMarkers: [
+          "setBackgroundMaterial",
+          "backgroundMaterial",
+          "isFocused",
+          "`darwin`",
+          "`win32`",
+        ],
+      },
+    ),
     replaceWithPatchers(
       recoveredRoot,
       filePath,
