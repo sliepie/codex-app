@@ -68,9 +68,28 @@ function assertNonEmptyString(value: unknown, fieldName: string, fileLabel: stri
   return value;
 }
 
+function assertSingleLineScalar(frontmatter: string, fieldName: string, fileLabel: string): void {
+  const match = frontmatter.match(new RegExp(`^${fieldName}:\\s*(.*)$`, "m"));
+  if (!match) {
+    throw new Error(`${fileLabel}: missing frontmatter ${fieldName} field.`);
+  }
+
+  const value = match[1].trim();
+  if (!value) {
+    throw new Error(`${fileLabel}: frontmatter ${fieldName} must be set on the same line.`);
+  }
+
+  if (value.startsWith(">") || value.startsWith("|")) {
+    throw new Error(`${fileLabel}: frontmatter ${fieldName} must be a single-line scalar, not a block scalar.`);
+  }
+}
+
 function verifySkillFile(repoRoot: string, filePath: string): string {
   const fileLabel = toRepoPath(repoRoot, filePath);
   const frontmatter = readFrontmatter(fs.readFileSync(filePath, "utf8"), fileLabel);
+  assertSingleLineScalar(frontmatter, "name", fileLabel);
+  assertSingleLineScalar(frontmatter, "description", fileLabel);
+
   const document = parseDocument(frontmatter, { prettyErrors: true });
   if (document.errors.length > 0) {
     throw new Error(

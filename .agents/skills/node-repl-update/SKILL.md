@@ -1,16 +1,6 @@
 ---
 name: node-repl-update
-description: >-
-  Refreshes the vendored Store-sourced Windows x64 helper binary dependencies
-  for this repo: `node_repl.exe`, Chrome `extension-host.exe`, and Computer
-  Use `codex-computer-use.exe`. Use when updating
-  `desktop/resources/node_repl.exe`, `desktop/resources/node_repl.json`,
-  `desktop/resources/extension-host.exe`,
-  `desktop/resources/extension-host.json`,
-  `desktop/resources/codex-computer-use.exe`,
-  `desktop/resources/codex-computer-use.json`, the Store-binary updater
-  automation, or explicit x64 resource-binary exceptions in the Windows ARM64
-  Codex Desktop package.
+description: "Refreshes the vendored Store-sourced Windows x64 helper binary dependencies for this repo, including `node_repl.exe`, Chrome `extension-host.exe`, and Computer Use `codex-computer-use.exe`. Use when updating `desktop/resources/node_repl.exe`, `desktop/resources/node_repl.json`, `desktop/resources/extension-host.exe`, `desktop/resources/extension-host.json`, `desktop/resources/codex-computer-use.exe`, `desktop/resources/codex-computer-use.json`, the Store-binary updater automation, or explicit x64 resource-binary exceptions in the Windows ARM64 Codex Desktop package."
 ---
 
 # Store x64 Helper Binary Dependency Update
