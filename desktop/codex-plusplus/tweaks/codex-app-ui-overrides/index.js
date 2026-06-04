@@ -19,10 +19,12 @@ const SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS =
   "display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
+const SIDEBAR_HOVER_CONTROL_SLIDE_IN_KEYFRAMES_RULE =
+  "@keyframes codex-app-sidebar-hover-control-slide-in{from{transform:translateX(2px);}to{transform:translateX(0);}}";
 const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
-  "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;";
+  "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(0)!important;";
 const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
-  "transform:translateX(0)!important;";
+  "animation:codex-app-sidebar-hover-control-slide-in 120ms ease-out!important;transform:translateX(0)!important;";
 const SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR =
   ":is(:active,[aria-expanded=\"true\"],[data-state=\"open\"])";
 const SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS =
@@ -36,8 +38,6 @@ const SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_SELECTOR =
 const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
   '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
 const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
-const SIDEBAR_FOLDER_ROW_MENU_TRIGGER_SELECTOR =
-  '.group\\/folder-row .group-hover\\/folder-row\\:opacity-100:is([aria-haspopup],:has([aria-haspopup]))';
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
 const SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR = `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10,>.absolute.right-0.top-0.z-10)`;
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS = [
@@ -125,6 +125,7 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
 ];
 
 const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
+  SIDEBAR_HOVER_CONTROL_SLIDE_IN_KEYFRAMES_RULE,
   cssRule(
     [
       ...descendantSelectors(".group\\/section-toggle", [
@@ -338,10 +339,6 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   mediaRule(
     "(prefers-reduced-motion:no-preference)",
     SIDEBAR_HOVER_CONTROL_MOTION_RULES,
-  ),
-  cssRule(
-    SIDEBAR_FOLDER_ROW_MENU_TRIGGER_SELECTOR,
-    SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
   ),
 ];
 
