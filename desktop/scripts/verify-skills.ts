@@ -69,7 +69,13 @@ function assertNonEmptyString(value: unknown, fieldName: string, fileLabel: stri
 }
 
 function assertSingleLineScalar(frontmatter: string, fieldName: string, fileLabel: string): void {
-  const match = frontmatter.match(new RegExp(`^${fieldName}:\\s*(.*)$`, "m"));
+  const lines = frontmatter.split("\n");
+  const fieldLineIndex = lines.findIndex((line) => new RegExp(`^${fieldName}:\\s*`).test(line));
+  if (fieldLineIndex < 0) {
+    throw new Error(`${fileLabel}: missing frontmatter ${fieldName} field.`);
+  }
+
+  const match = lines[fieldLineIndex].match(new RegExp(`^${fieldName}:\\s*(.*)$`));
   if (!match) {
     throw new Error(`${fileLabel}: missing frontmatter ${fieldName} field.`);
   }
@@ -81,6 +87,11 @@ function assertSingleLineScalar(frontmatter: string, fieldName: string, fileLabe
 
   if (value.startsWith(">") || value.startsWith("|")) {
     throw new Error(`${fileLabel}: frontmatter ${fieldName} must be a single-line scalar, not a block scalar.`);
+  }
+
+  const nextLine = lines[fieldLineIndex + 1];
+  if (nextLine !== undefined && /^[ \t]/.test(nextLine)) {
+    throw new Error(`${fileLabel}: frontmatter ${fieldName} must be a single-line scalar without continuation lines.`);
   }
 }
 
