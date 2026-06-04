@@ -103,13 +103,13 @@ const SIDEBAR_THREAD_ROW_GROUP_HOVER_MIN_WIDTH_RULES = [
     interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
       " .group-hover\\:min-w-12",
     ]),
-    "min-width:calc(var(--spacing) * 12)!important;",
+    "min-width:calc(var(--spacing) * 9)!important;",
   ),
   cssRule(
     interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
       " .group-hover\\:min-w-20",
     ]),
-    "min-width:calc(var(--spacing) * 20)!important;",
+    "min-width:calc(var(--spacing) * 14)!important;",
   ),
 ];
 const USAGE_MENU_CONTENT_SELECTOR =

@@ -1,7 +1,7 @@
 {
   "id": "dev.sliepie.codex.ui-overrides",
   "name": "Codex app UI",
-  "version": "0.16.2",
+  "version": "0.16.3",
   "githubRepo": "sliepie/codex-app",
   "description": "Applies the bundled Windows sidebar and preview layout adjustments.",
   "author": "sliepie",
