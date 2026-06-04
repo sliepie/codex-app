@@ -19,6 +19,8 @@
     "test:resolve-codex-releases:compiled": "node --test scripts/resolve-codex-releases.test.mjs",
     "test:hydrate-codex-cli": "npm run build:scripts && node --test scripts/hydrate-codex-cli.test.mjs",
     "test:hydrate-codex-cli:compiled": "node --test scripts/hydrate-codex-cli.test.mjs",
+    "test:verify-skills": "npm run build:scripts && npm run test:verify-skills:compiled",
+    "test:verify-skills:compiled": "node --test scripts/verify-skills.test.mjs",
     "test:verify-browser-client-runtime": "npm run build:scripts && node --test scripts/verify-browser-client-runtime.test.mjs",
     "test:verify-browser-client-runtime:compiled": "node --test scripts/verify-browser-client-runtime.test.mjs",
     "test:windows-arm64-package-plan": "npm run build:scripts && node --test scripts/windows-arm64-package-plan.test.mjs",
