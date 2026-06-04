@@ -1964,6 +1964,18 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`.group\/chats-section-header{position:relative!important;left:-1px!important;}`,
       ),
     );
+    const inactiveSidebarBackgroundRule = uiOverrideCss.match(
+      /:root\[data-codex-window-type="electron"\]\[data-codex-os="win32"\]:window-inactive \.app-shell-left-panel\{(?<declarations>[^}]+)\}/,
+    );
+    assert.ok(inactiveSidebarBackgroundRule);
+    assert.equal(
+      inactiveSidebarBackgroundRule.groups.declarations,
+      "background-color:color-mix(in srgb,currentColor 8%,transparent)!important;",
+    );
+    assert.doesNotMatch(
+      inactiveSidebarBackgroundRule.groups.declarations,
+      /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|\b(?:black|white)\b/i,
+    );
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.group\/section-toggle:is(:hover,:focus-within) .group-hover\/section-toggle\:opacity-100,.group\/section-toggle:is(:hover,:focus-within) .group-focus-visible\/section-toggle\:opacity-100{opacity:1!important;visibility:visible!important;}`,
