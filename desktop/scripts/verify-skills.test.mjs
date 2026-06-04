@@ -61,3 +61,24 @@ test("skill verifier rejects multiline quoted metadata scalars", () => {
     },
   );
 });
+
+test("skill verifier rejects unindented multiline quoted metadata scalars", () => {
+  withSkillRepo(
+    [
+      "---",
+      "name: example",
+      'description: "first',
+      'second"',
+      "---",
+      "",
+      "# Example",
+      "",
+    ].join("\n"),
+    (repoRoot) => {
+      assert.throws(
+        () => verifySkills({ repoRoot }),
+        /invalid YAML frontmatter|single-line scalar/,
+      );
+    },
+  );
+});

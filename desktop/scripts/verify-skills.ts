@@ -16,6 +16,7 @@ export type VerifySkillsResult = {
 };
 
 const frontmatterDelimiter = "---";
+type YamlDocument = ReturnType<typeof parseDocument>;
 
 function toRepoPath(repoRoot: string, filePath: string): string {
   return path.relative(repoRoot, filePath).replaceAll(path.sep, "/");
@@ -68,7 +69,23 @@ function assertNonEmptyString(value: unknown, fieldName: string, fileLabel: stri
   return value;
 }
 
-function assertSingleLineScalar(frontmatter: string, fieldName: string, fileLabel: string): void {
+function lineIndexAtOffset(source: string, offset: number): number {
+  let lineIndex = 0;
+  for (let index = 0; index < offset && index < source.length; index += 1) {
+    if (source[index] === "\n") {
+      lineIndex += 1;
+    }
+  }
+
+  return lineIndex;
+}
+
+function assertSingleLineScalar(
+  frontmatter: string,
+  document: YamlDocument,
+  fieldName: string,
+  fileLabel: string,
+): void {
   const lines = frontmatter.split("\n");
   const fieldLineIndex = lines.findIndex((line) => new RegExp(`^${fieldName}:\\s*`).test(line));
   if (fieldLineIndex < 0) {
@@ -89,8 +106,17 @@ function assertSingleLineScalar(frontmatter: string, fieldName: string, fileLabe
     throw new Error(`${fileLabel}: frontmatter ${fieldName} must be a single-line scalar, not a block scalar.`);
   }
 
-  const nextLine = lines[fieldLineIndex + 1];
-  if (nextLine !== undefined && /^[ \t]/.test(nextLine)) {
+  const node = document.get(fieldName, true) as unknown;
+  const range = typeof node === "object" && node !== null && "range" in node
+    ? (node as { range?: readonly number[] }).range
+    : undefined;
+  if (!range || range.length < 2) {
+    throw new Error(`${fileLabel}: frontmatter ${fieldName} source range could not be verified.`);
+  }
+
+  const startLine = lineIndexAtOffset(frontmatter, range[0]);
+  const endLine = lineIndexAtOffset(frontmatter, Math.max(range[0], range[1] - 1));
+  if (startLine !== endLine) {
     throw new Error(`${fileLabel}: frontmatter ${fieldName} must be a single-line scalar without continuation lines.`);
   }
 }
@@ -98,15 +124,15 @@ function assertSingleLineScalar(frontmatter: string, fieldName: string, fileLabe
 function verifySkillFile(repoRoot: string, filePath: string): string {
   const fileLabel = toRepoPath(repoRoot, filePath);
   const frontmatter = readFrontmatter(fs.readFileSync(filePath, "utf8"), fileLabel);
-  assertSingleLineScalar(frontmatter, "name", fileLabel);
-  assertSingleLineScalar(frontmatter, "description", fileLabel);
-
   const document = parseDocument(frontmatter, { prettyErrors: true });
   if (document.errors.length > 0) {
     throw new Error(
       [`${fileLabel}: invalid YAML frontmatter.`, ...document.errors.map((error) => error.message)].join("\n"),
     );
   }
+
+  assertSingleLineScalar(frontmatter, document, "name", fileLabel);
+  assertSingleLineScalar(frontmatter, document, "description", fileLabel);
 
   const parsed = document.toJSON() as SkillFrontmatter;
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
