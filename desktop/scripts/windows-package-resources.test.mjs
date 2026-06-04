@@ -20,7 +20,7 @@ const bundledTweakRelativeRoots = new Map([
   ["codex-app-windows-menu-bar", "desktop/codex-plusplus/tweaks/codex-app-windows-menu-bar"],
 ]);
 const newBundledTweakVersions = new Map([
-  ["codex-app-compact-windows-titlebar", "0.1.8"],
+  ["codex-app-compact-windows-titlebar", "0.1.10"],
 ]);
 const newBundledTweaks = new Set(newBundledTweakVersions.keys());
 const require = createRequire(import.meta.url);

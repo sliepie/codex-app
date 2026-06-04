@@ -15,14 +15,6 @@ function installStyle() {
   min-height: var(--height-toolbar-sm) !important;
   padding-inline-end: max(var(--spacing-token-safe-header-right, 0px), ${RESERVED_WINDOWS_CONTROLS_WIDTH}px) !important;
 }
-:root[data-codex-window-type="electron"][data-codex-os="win32"] .main-surface {
-  background: linear-gradient(to bottom, transparent 0 var(--height-toolbar-sm), var(--color-token-main-surface-primary) var(--height-toolbar-sm) 100%) !important;
-  --tw-shadow: 0 0 #0000 !important;
-  --tw-ring-shadow: 0 0 #0000 !important;
-}
-:root[data-codex-window-type="electron"][data-codex-os="win32"] .app-shell-main-content-viewport {
-  --app-shell-main-content-frame-top-offset: var(--height-toolbar-sm) !important;
-}
 :root[data-codex-window-type="electron"][data-codex-os="win32"] header.app-header-tint > [data-test-id="header-shell-slot"]:first-child {
   height: var(--height-toolbar-sm) !important;
   min-height: var(--height-toolbar-sm) !important;
@@ -33,13 +25,6 @@ function installStyle() {
 }
 :root[data-codex-window-type="electron"][data-codex-os="win32"] .app-shell-left-panel {
   padding-top: var(--height-toolbar-sm) !important;
-}
-:root[data-codex-window-type="electron"][data-codex-os="win32"] [data-app-shell-main-content-layout="thread-edge-scroll"] .app-shell-main-content-frame {
-  border-top-color: var(--color-border) !important;
-}
-:root[data-codex-window-type="electron"][data-codex-os="win32"] [data-app-shell-main-content-layout="thread-edge-scroll"] .app-shell-main-content-top-fade {
-  display: none !important;
-  opacity: 0 !important;
 }
 `.trim();
 
