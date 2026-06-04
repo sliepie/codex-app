@@ -31,10 +31,8 @@ const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
-const SIDEBAR_PROJECTS_HEADER_ACTIONS_SELECTOR =
-  '.group\\/projects-section-header :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/projects-section-header\\:opacity-100)';
-const SIDEBAR_PROJECTS_HEADER_THIRD_CONTROL_SELECTOR =
-  `${SIDEBAR_PROJECTS_HEADER_ACTIONS_SELECTOR}>:first-child`;
+const SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_SELECTOR =
+  '.group\\/projects-section-header :is(button,[role="button"]):is([aria-label*="collapse" i],[aria-label*="revert" i],[title*="collapse" i],[title*="revert" i],[data-testid*="collapse" i],[data-testid*="revert" i])';
 const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
   '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
 const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
@@ -203,7 +201,7 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
 
 const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   cssRule(
-    SIDEBAR_PROJECTS_HEADER_THIRD_CONTROL_SELECTOR,
+    SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_SELECTOR,
     HIDDEN_DISPLAY_DECLARATIONS,
   ),
   cssRule(
