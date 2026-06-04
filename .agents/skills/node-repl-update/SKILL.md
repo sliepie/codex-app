@@ -1,9 +1,9 @@
 ---
 name: node-repl-update
-description: Refreshes the vendored Windows x64 `node_repl.exe`, Chrome `extension-host.exe`, and Computer Use `codex-computer-use.exe` fallbacks for this repo and publishes changes through a PR. Use when updating `desktop/resources/node_repl.exe`, `desktop/resources/node_repl.json`, `desktop/resources/extension-host.exe`, `desktop/resources/extension-host.json`, `desktop/resources/codex-computer-use.exe`, `desktop/resources/codex-computer-use.json`, the Store-binary updater automation, or explicit x64 resource-binary exceptions in the Windows ARM64 Codex Desktop package.
+description: Refreshes the vendored Store-sourced Windows x64 helper binary dependencies for this repo: `node_repl.exe`, Chrome `extension-host.exe`, and Computer Use `codex-computer-use.exe`. Use when updating `desktop/resources/node_repl.exe`, `desktop/resources/node_repl.json`, `desktop/resources/extension-host.exe`, `desktop/resources/extension-host.json`, `desktop/resources/codex-computer-use.exe`, `desktop/resources/codex-computer-use.json`, the Store-binary updater automation, or explicit x64 resource-binary exceptions in the Windows ARM64 Codex Desktop package.
 ---
 
-# Store Helper Binary Update
+# Store x64 Helper Binary Dependency Update
 
 ## Quick Start
 
@@ -15,7 +15,7 @@ cd desktop
 npm run update:node-repl
 ```
 
-Then validate, update docs if any binary changed, commit on a feature branch, push, open or update a PR, and enable automerge when the PR is mergeable.
+Despite the script name, this refreshes all three Store-sourced x64 helper binary dependencies: `node_repl.exe`, Chrome `extension-host.exe`, and Computer Use `codex-computer-use.exe`. Then validate, update docs if any package identity, version, architecture, or SHA changed, commit on a feature branch, push, open or update a PR, and enable automerge when the PR is mergeable.
 
 ## Context To Read First
 
@@ -35,7 +35,7 @@ Then validate, update docs if any binary changed, commit on a feature branch, pu
 - Keep every resource binary ARM64 unless it cannot be compiled, downloaded, or otherwise obtained for Windows ARM64.
 - `desktop/resources/node_repl.exe`, `desktop/resources/extension-host.exe`, and `desktop/resources/codex-computer-use.exe` are accepted x64 resource-binary exceptions for now.
 - The authoritative exception list is `desktop/scripts/resource-binary-exceptions.ts`; keep it aligned with `CONTEXT.md`, `docs/adr/0001-use-official-x64-node-repl-fallback.md`, and `docs/executable-inventory.md`.
-- Refresh `node_repl.exe`, `extension-host.exe`, and `codex-computer-use.exe` only from the official Microsoft Store Codex package for product ID `9PLM9XGG6VKS` through `npm run update:node-repl`.
+- Refresh these x64 helper binary dependencies only from the official Microsoft Store Codex package for product ID `9PLM9XGG6VKS` through `npm run update:node-repl`.
 - The package identity must be the official Store package `OpenAI.Codex`; do not use `OpenAI.Codex.Arm64Dev` or any local/dev-modified package identity.
 - Do not replace the vendored binary from an arbitrary local path, a copied WindowsApps path, the macOS appcast, GitHub release assets, npm packages, or any non-Store source.
 - The only acceptable source path is the installed package location resolved from the official Microsoft Store package that the updater installed or upgraded.
