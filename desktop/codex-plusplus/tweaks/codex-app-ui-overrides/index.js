@@ -36,6 +36,8 @@ const SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_SELECTOR =
 const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
   '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
 const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
+const SIDEBAR_FOLDER_ROW_MENU_TRIGGER_SELECTOR =
+  '.group\\/folder-row .group-hover\\/folder-row\\:opacity-100:is([aria-haspopup],:has([aria-haspopup]))';
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
 const SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR = `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10,>.absolute.right-0.top-0.z-10)`;
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS = [
@@ -336,6 +338,10 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   mediaRule(
     "(prefers-reduced-motion:no-preference)",
     SIDEBAR_HOVER_CONTROL_MOTION_RULES,
+  ),
+  cssRule(
+    SIDEBAR_FOLDER_ROW_MENU_TRIGGER_SELECTOR,
+    SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
   ),
 ];
 
