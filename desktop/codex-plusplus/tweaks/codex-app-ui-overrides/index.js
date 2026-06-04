@@ -23,6 +23,8 @@ const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;";
 const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
   "transform:translateX(0)!important;";
+const SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR =
+  ":is(:active,[aria-expanded=\"true\"],[data-state=\"open\"])";
 const SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out!important;";
 const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
@@ -92,6 +94,10 @@ function interactiveSelectors(container, targets) {
   return targets.map((target) => `${container}:is(:hover,:focus-within)${target}`);
 }
 
+function statefulContainerSelectors(container, targets, stateSelector) {
+  return targets.map((target) => `${container}:has(${stateSelector})${target}`);
+}
+
 const BASE_STYLE_RULES = [
   cssRule(".group\\/windows-top-bar", "margin-inline-start:0.5rem;"),
   cssRule(
@@ -134,6 +140,40 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
       ]),
     ],
     SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      ...statefulContainerSelectors(
+        ".group\\/section-toggle",
+        [
+          " .group-hover\\/section-toggle\\:opacity-100",
+          " .group-focus-visible\\/section-toggle\\:opacity-100",
+        ],
+        SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR,
+      ),
+      ...statefulContainerSelectors(
+        ".group\\/projects-section-header",
+        [
+          " .group-hover\\/projects-section-header\\:opacity-100",
+          " .group-focus-within\\/projects-section-header\\:opacity-100",
+        ],
+        SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR,
+      ),
+      ...statefulContainerSelectors(
+        ".group\\/chats-section-header",
+        [
+          " .group-hover\\/chats-section-header\\:opacity-100",
+          " .group-focus-within\\/chats-section-header\\:opacity-100",
+        ],
+        SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR,
+      ),
+      ...statefulContainerSelectors(
+        ".group\\/folder-row",
+        [" .group-hover\\/folder-row\\:opacity-100"],
+        SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR,
+      ),
+    ],
+    SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
   ),
   cssRule(
     [
