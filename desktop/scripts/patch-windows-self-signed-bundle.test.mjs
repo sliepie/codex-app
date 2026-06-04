@@ -69,7 +69,7 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "var dM=`#00000000`,vM=36,yM=`#1f1f1f`,bM=`#ffffff`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===`win32`?{titleBarStyle:`hidden`,titleBarOverlay:xM()}:null}function zx(config){return typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}",
+    "var dM=`#00000000`,vM=36,yM=`#1f1f1f`,bM=`#ffffff`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===`win32`?{titleBarStyle:`hidden`,titleBarOverlay:xM()}:null}function w2(appearance){return appearance===`dark`}function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&(n===`darwin`||n===`win32`)}function applyWindowBackdrop(window,backgroundMaterial){window.setBackgroundMaterial(backgroundMaterial);return{backgroundMaterial}}function zx(config){return typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}",
   );
 
   return recoveredRoot;
@@ -112,6 +112,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/agent-settings-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
+      ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
     ],
@@ -167,6 +168,48 @@ test("routes Windows ARM64 primary runtime manifest checks to GitHub Releases", 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   const patch = report.patches.find(
     (patch) => patch.name === "route Windows ARM64 primary runtime manifest to GitHub release",
+  );
+  assert.equal(patch?.status, "applied");
+});
+
+test("keeps Mica enabled for inactive Windows windows", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const mainBundlePath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(mainBundlePath, "utf8");
+  assert.match(
+    bundle,
+    /function D2\(\{appearance:e,isFocused:t,platform:n\}\)\{return!t&&!w2\(e\)&&n===`darwin`\}/,
+  );
+  assert.doesNotMatch(bundle, /D2[\s\S]{0,160}\|\|n===`win32`/);
+
+  const shouldUseInactiveOpaqueSurface = new Function(
+    `${bundle};return D2(arguments[0]);`,
+  );
+  assert.equal(
+    shouldUseInactiveOpaqueSurface({
+      appearance: "light",
+      isFocused: false,
+      platform: "win32",
+    }),
+    false,
+  );
+  assert.equal(
+    shouldUseInactiveOpaqueSurface({
+      appearance: "light",
+      isFocused: false,
+      platform: "darwin",
+    }),
+    true,
+  );
+
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "keep Mica enabled for inactive Windows windows",
   );
   assert.equal(patch?.status, "applied");
 });
@@ -375,6 +418,10 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /function D2\(\{appearance:e,isFocused:t,platform:n\}\)\{return!t&&!w2\(e\)&&n===`darwin`\}/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /function zx\(config\)\{return!0\}/,
   );
   assert.match(
@@ -383,7 +430,7 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
   );
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 9);
+  assert.equal(report.patches.length, 10);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -469,7 +516,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 9);
+  assert.equal(report.patches.length, 10);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),

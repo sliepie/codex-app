@@ -32,10 +32,6 @@ const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
 const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
   '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
 const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
-const SIDEBAR_INACTIVE_BACKGROUND_DECLARATIONS =
-  "background-color:color-mix(in srgb,currentColor 8%,transparent)!important;";
-const SIDEBAR_INACTIVE_BACKGROUND_SELECTOR =
-  ':root[data-codex-window-type="electron"][data-codex-os="win32"]:window-inactive .app-shell-left-panel';
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
 const SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR = `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10,>.absolute.right-0.top-0.z-10)`;
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS = [
@@ -105,10 +101,6 @@ const BASE_STYLE_RULES = [
 ];
 
 const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
-  cssRule(
-    SIDEBAR_INACTIVE_BACKGROUND_SELECTOR,
-    SIDEBAR_INACTIVE_BACKGROUND_DECLARATIONS,
-  ),
   cssRule(
     ".group\\/chats-section-header",
     SIDEBAR_CHATS_HEADER_DECLARATIONS,

@@ -1655,6 +1655,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   assert.ok(uiSource.includes('cssRule(".group\\\\/windows-top-bar", "margin-inline-start:0.5rem;")'));
   assert.doesNotMatch(uiSource, /windows-top-bar[\s\S]{0,120}display:none!important/);
   assert.doesNotMatch(uiSource, /:has\(\+\.scrollbar-stable/);
+  assert.doesNotMatch(uiSource, /:window-inactive[\s\S]{0,160}app-shell-left-panel/);
 
   const menuTweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-windows-menu-bar");
   const menuManifest = JSON.parse(fs.readFileSync(path.join(menuTweakRoot, "manifest.json"), "utf8"));
@@ -1963,18 +1964,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       uiOverrideCss.includes(
         String.raw`.group\/chats-section-header{position:relative!important;left:-1px!important;}`,
       ),
-    );
-    const inactiveSidebarBackgroundRule = uiOverrideCss.match(
-      /:root\[data-codex-window-type="electron"\]\[data-codex-os="win32"\]:window-inactive \.app-shell-left-panel\{(?<declarations>[^}]+)\}/,
-    );
-    assert.ok(inactiveSidebarBackgroundRule);
-    assert.equal(
-      inactiveSidebarBackgroundRule.groups.declarations,
-      "background-color:color-mix(in srgb,currentColor 8%,transparent)!important;",
-    );
-    assert.doesNotMatch(
-      inactiveSidebarBackgroundRule.groups.declarations,
-      /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|\b(?:black|white)\b/i,
     );
     assert.ok(
       uiOverrideCss.includes(
