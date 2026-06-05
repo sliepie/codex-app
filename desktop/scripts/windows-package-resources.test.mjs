@@ -1652,8 +1652,8 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   const uiSource = fs.readFileSync(path.join(uiTweakRoot, uiManifest.main), "utf8");
   assert.doesNotMatch(uiSource, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
   assert.doesNotMatch(uiSource, /hideWindowsMenuBar|codex-app-ui-hide-windows-menu-bar-setting/);
-  assert.ok(uiSource.includes('cssRule(".group\\\\/windows-top-bar", "margin-inline-start:0.5rem;")'));
-  assert.doesNotMatch(uiSource, /windows-top-bar[\s\S]{0,120}display:none!important/);
+  assert.ok(uiSource.includes('cssRule(".group\\\\/application-menu-top-bar", "margin-inline-start:0.5rem;")'));
+  assert.doesNotMatch(uiSource, /application-menu-top-bar[\s\S]{0,120}display:none!important/);
   assert.doesNotMatch(uiSource, /:has\(\+\.scrollbar-stable/);
   assert.doesNotMatch(uiSource, /:window-inactive[\s\S]{0,160}app-shell-left-panel/);
 
