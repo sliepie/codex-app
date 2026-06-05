@@ -2040,11 +2040,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         "[data-app-action-sidebar-thread-row]>.contents>.absolute.right-0.top-0.z-10",
       ),
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        "{transition:none!important;animation:none!important;}",
-      ),
-    );
+    assert.ok(!uiOverrideCss.includes("transition:none!important;animation:none!important;"));
     assert.ok(
       !uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{transform:translateX(0)!important;}",
