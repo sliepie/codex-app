@@ -2070,12 +2070,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10,[data-app-action-sidebar-thread-row] .w-4 span:has(button),[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10,[data-app-action-sidebar-thread-row]>.contents>.absolute.right-0.top-0.z-10{gap:0.5rem!important;}`,
+        String.raw`[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10,[data-app-action-sidebar-thread-row] .w-4 span:has(button),[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10,[data-app-action-sidebar-thread-row]>.contents>.absolute.right-0.top-0.z-10{gap:0.6rem!important;}`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row] .ml-\[3px\].flex.items-center.justify-end.gap-1:has(button){gap:0.5rem!important;}`,
+        String.raw`[data-app-action-sidebar-thread-row] .ml-\[3px\].flex.items-center.justify-end.gap-1:has(button){gap:0.6rem!important;}`,
       ),
     );
     assert.ok(
@@ -2088,21 +2088,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         "[data-app-action-sidebar-thread-row]>.contents>.absolute.right-0.top-0.z-10",
       ),
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        '[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10:has(button[aria-label*="pin" i]):has(button[aria-label*="archive" i]) button:is([aria-label*="pin" i],[aria-label*="archive" i])',
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        '[data-app-action-sidebar-thread-row]>.contents>.absolute.right-0.top-0.z-10:has(button[aria-label*="pin" i]):has(button[aria-label*="archive" i]) button:is([aria-label*="pin" i],[aria-label*="archive" i])',
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "{width:1rem!important;min-width:1rem!important;max-width:1rem!important;padding:0!important;}",
-      ),
-    );
+    assert.ok(!uiOverrideCss.includes("padding:0!important;"));
     assert.ok(
       !uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",

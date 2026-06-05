@@ -81,14 +81,8 @@ const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
   ">.contents>.absolute.right-0.top-0.z-10 button .icon-xs",
   ">.contents>.absolute.right-0.top-0.z-10 button .icon-sm",
 ];
-const SIDEBAR_THREAD_ROW_ACTION_PAIR_BUTTON_TARGETS = [
-  '>.absolute.right-0.top-0.z-10:has(button[aria-label*="pin" i]):has(button[aria-label*="archive" i]) button:is([aria-label*="pin" i],[aria-label*="archive" i])',
-  '>.contents>.absolute.right-0.top-0.z-10:has(button[aria-label*="pin" i]):has(button[aria-label*="archive" i]) button:is([aria-label*="pin" i],[aria-label*="archive" i])',
-];
-const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS = "gap:0.5rem!important;";
-const SIDEBAR_THREAD_ROW_ACTION_PAIR_BUTTON_DECLARATIONS =
-  "width:1rem!important;min-width:1rem!important;max-width:1rem!important;padding:0!important;";
-const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS = "gap:0.5rem!important;";
+const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS = "gap:0.6rem!important;";
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS = "gap:0.6rem!important;";
 const SIDEBAR_THREAD_ROW_GROUP_HOVER_POINTER_TARGETS = [
   " .group-hover\\:pointer-events-auto",
 ];
@@ -282,13 +276,6 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
     ),
     SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS,
-  ),
-  cssRule(
-    descendantSelectors(
-      SIDEBAR_THREAD_ROW_SELECTOR,
-      SIDEBAR_THREAD_ROW_ACTION_PAIR_BUTTON_TARGETS,
-    ),
-    SIDEBAR_THREAD_ROW_ACTION_PAIR_BUTTON_DECLARATIONS,
   ),
   cssRule(
     descendantSelectors(
