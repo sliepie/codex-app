@@ -28,9 +28,9 @@ const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
 const SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR =
   ":is(:active,[aria-expanded=\"true\"],[data-state=\"open\"])";
 const SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS =
-  "transition:opacity 120ms ease-out!important;";
+  "transition:none!important;animation:none!important;";
 const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
-  "transition:opacity 120ms ease-out!important;";
+  "transition:none!important;animation:none!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
 const SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_TARGET_SELECTOR =

@@ -2042,7 +2042,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        "{transition:opacity 120ms ease-out!important;}",
+        "{transition:none!important;animation:none!important;}",
       ),
     );
     assert.ok(
