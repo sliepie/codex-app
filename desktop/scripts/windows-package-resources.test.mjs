@@ -1900,7 +1900,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       menuBarCss.includes(
-        String.raw`:root[data-codex-app-ui-hide-windows-menu-bar="true"] .group\/application-menu-top-bar>.flex.items-center.gap-0\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded]){display:none!important;}`,
+        String.raw`:root[data-codex-app-ui-hide-windows-menu-bar="true"] .group\/application-menu-top-bar>div:has(>button[aria-haspopup="menu"][aria-expanded]){display:none!important;}`,
       ),
     );
     assert.equal(

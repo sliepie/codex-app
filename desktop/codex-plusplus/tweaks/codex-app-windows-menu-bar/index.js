@@ -1,7 +1,7 @@
 const STYLE_ID = "codex-app-windows-menu-bar-style";
 
 const WINDOWS_MENU_ROW_SELECTOR =
-  '.group\\/application-menu-top-bar>.flex.items-center.gap-0\\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded])';
+  '.group\\/application-menu-top-bar>div:has(>button[aria-haspopup="menu"][aria-expanded])';
 const WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE =
   "data-codex-app-ui-hide-windows-menu-bar";
 const WINDOWS_MENU_ROW_HIDDEN_SELECTOR =
