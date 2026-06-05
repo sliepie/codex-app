@@ -1900,7 +1900,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       menuBarCss.includes(
-        String.raw`:root[data-codex-app-ui-hide-windows-menu-bar="true"] .group\/windows-top-bar>.flex.items-center.gap-0\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded]){display:none!important;}`,
+        String.raw`:root[data-codex-app-ui-hide-windows-menu-bar="true"] .group\/application-menu-top-bar>.flex.items-center.gap-0\.5.pr-2.pl-1:has(>button[aria-haspopup="menu"][aria-expanded]){display:none!important;}`,
       ),
     );
     assert.equal(
@@ -1909,12 +1909,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.equal(
       menuBarCss.includes(
-        String.raw`.group\/windows-top-bar{display:none!important;}`,
+        String.raw`.group\/application-menu-top-bar{display:none!important;}`,
       ),
       false,
     );
     assert.equal(
-      menuBarCss.includes(String.raw`.group\/windows-top-bar button[aria-label]`),
+      menuBarCss.includes(String.raw`.group\/application-menu-top-bar button[aria-label]`),
       false,
     );
     const settingRow = document.getElementById(
