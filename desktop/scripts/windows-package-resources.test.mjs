@@ -2059,7 +2059,17 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(uiOverrideCss.includes("padding-inline-end:1rem!important;"));
     assert.ok(
       uiOverrideCss.includes(
-        ":has(>.absolute.right-0.top-0.z-10):is(:hover,:focus-within) [data-thread-title-trigger]",
+        ":has(>.absolute.right-0.top-0.z-10):is(:hover,:focus-within,:has(",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        ":has(>.absolute.right-0.top-0.z-10:is(:hover,:focus-within))",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        ":has(>.contents>.absolute.right-0.top-0.z-10:is(:hover,:focus-within))",
       ),
     );
     assert.ok(uiOverrideCss.includes("text-overflow:ellipsis!important;"));

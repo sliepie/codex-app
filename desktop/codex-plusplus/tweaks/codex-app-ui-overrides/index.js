@@ -98,21 +98,23 @@ const SIDEBAR_THREAD_ROW_GROUP_HOVER_HIDDEN_TARGETS = [
 const SIDEBAR_THREAD_ROW_GROUP_HOVER_DISPLAY_TARGETS = [
   " .group-hover\\:hidden",
 ];
+const SIDEBAR_THREAD_ROW_ACTIVE_SELECTOR =
+  ":is(:hover,:focus-within,:has(.absolute.top-0.left-1.z-10:is(:hover,:focus-within)),:has(.w-4 span:has(button):is(:hover,:focus-within)),:has(>.absolute.right-0.top-0.z-10:is(:hover,:focus-within)),:has(>.contents>.absolute.right-0.top-0.z-10:is(:hover,:focus-within)))";
 const SIDEBAR_THREAD_ROW_GROUP_HOVER_MIN_WIDTH_RULES = [
   cssRule(
-    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
+    threadRowInteractiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
       " .group-hover\\:min-w-5",
     ]),
     "min-width:calc(var(--spacing) * 5)!important;",
   ),
   cssRule(
-    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
+    threadRowInteractiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
       " .group-hover\\:min-w-12",
     ]),
     "min-width:calc(var(--spacing) * 9)!important;",
   ),
   cssRule(
-    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
+    threadRowInteractiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
       " .group-hover\\:min-w-20",
     ]),
     "min-width:calc(var(--spacing) * 14)!important;",
@@ -145,6 +147,10 @@ function descendantSelectors(container, targets) {
 
 function interactiveSelectors(container, targets) {
   return targets.map((target) => `${container}:is(:hover,:focus-within)${target}`);
+}
+
+function threadRowInteractiveSelectors(container, targets) {
+  return targets.map((target) => `${container}${SIDEBAR_THREAD_ROW_ACTIVE_SELECTOR}${target}`);
 }
 
 function statefulContainerSelectors(container, targets, stateSelector) {
@@ -264,7 +270,7 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_ACTION_TARGETS,
     ),
@@ -285,42 +291,42 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS,
     ),
     VISIBLE_ICON_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_GROUP_HOVER_POINTER_TARGETS,
     ),
     "pointer-events:auto!important;",
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_GROUP_HOVER_VISIBLE_TARGETS,
     ),
     VISIBLE_ICON_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_GROUP_HOVER_MUTED_TARGETS,
     ),
     "opacity:.5!important;visibility:visible!important;",
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_GROUP_HOVER_HIDDEN_TARGETS,
     ),
     HIDDEN_CONTROL_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_GROUP_HOVER_DISPLAY_TARGETS,
     ),
@@ -328,35 +334,35 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   ),
   ...SIDEBAR_THREAD_ROW_GROUP_HOVER_MIN_WIDTH_RULES,
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10)`,
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_LEFT_OFFSET_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       `${SIDEBAR_THREAD_ROW_SELECTOR}:has(>.absolute.right-0.top-0.z-10)`,
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       `${SIDEBAR_THREAD_ROW_SELECTOR}:has(>.contents>.absolute.right-0.top-0.z-10)`,
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
       [
         " [data-thread-title-trigger]>:first-child",
@@ -368,7 +374,7 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS),
+    threadRowInteractiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS),
     HIDDEN_META_DECLARATIONS,
   ),
   cssRule(
