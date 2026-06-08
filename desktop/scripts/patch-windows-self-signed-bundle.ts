@@ -140,6 +140,18 @@ function findFile(root: string, pattern: RegExp): string {
 }
 
 function findFileContaining(root: string, pattern: RegExp, markers: string[]): string {
+  const matches = findFilesContaining(root, pattern, markers);
+
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected exactly one recovered bundle file matching ${pattern} containing ${markers.join(", ")}, found ${matches.length}.`,
+    );
+  }
+
+  return matches[0];
+}
+
+function findFilesContaining(root: string, pattern: RegExp, markers: string[]): string[] {
   const matches: string[] = [];
   const pending = [root];
 
@@ -169,13 +181,7 @@ function findFileContaining(root: string, pattern: RegExp, markers: string[]): s
   }
 
   matches.sort();
-  if (matches.length !== 1) {
-    throw new Error(
-      `Expected exactly one recovered bundle file matching ${pattern} containing ${markers.join(", ")}, found ${matches.length}.`,
-    );
-  }
-
-  return matches[0];
+  return matches;
 }
 
 function countOccurrences(text: string, value: string): number {
@@ -470,6 +476,46 @@ function patchWindowsArm64PrimaryRuntimeManifestUrl(): SourcePatcher {
       return `${range.asyncPrefix}function ${range.name}(${range.args}){if(${configArg}.baseUrl==null&&${releaseArg}===\`latest\`&&${targetExpressionMatch[1]}===\`win32-arm64\`)return\`${windowsArm64PrimaryRuntimeManifestUrl}\`;${range.body}}`;
     },
   );
+}
+
+function findPrimaryRuntimeInstallerBundle(recoveredRoot: string): string | null {
+  const buildRoot = path.join(recoveredRoot, ".vite", "build");
+  const alreadyPatchedMatches = findFilesContaining(buildRoot, /^.*\.js$/, [
+    windowsArm64PrimaryRuntimeManifestUrl,
+  ]);
+  if (alreadyPatchedMatches.length > 1) {
+    throw new Error(
+      `Expected at most one recovered primary runtime bundle already containing ${windowsArm64PrimaryRuntimeManifestUrl}, found ${alreadyPatchedMatches.length}.`,
+    );
+  }
+  if (alreadyPatchedMatches.length === 1) {
+    return alreadyPatchedMatches[0];
+  }
+
+  const installerMatches = findFilesContaining(buildRoot, /^.*\.js$/, [
+    "codex-primary-runtime-installer",
+    "Failed to download primary runtime manifest",
+    "oaisidekickupdates.blob.core.windows.net/owl",
+  ]);
+  if (installerMatches.length > 1) {
+    throw new Error(
+      `Expected at most one recovered primary runtime installer bundle, found ${installerMatches.length}.`,
+    );
+  }
+  if (installerMatches.length === 1) {
+    return installerMatches[0];
+  }
+
+  const legacyMatches = findFilesContaining(buildRoot, /^.*\.js$/, [
+    "latest-alpha",
+    "oaisidekickupdates.blob.core.windows.net/owl",
+  ]);
+  if (legacyMatches.length > 1) {
+    throw new Error(
+      `Expected at most one recovered primary runtime manifest helper bundle, found ${legacyMatches.length}.`,
+    );
+  }
+  return legacyMatches[0] ?? null;
 }
 
 function patchInactiveWindowsMicaBackdrop(): SourcePatcher {
@@ -893,10 +939,29 @@ function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult
       ],
       { missingTargetMarkers: ["process.env.LOCALAPPDATA", "`AppData`,`Local`"] },
     ),
+  ];
+}
+
+function patchPrimaryRuntimeInstallerBundle(recoveredRoot: string): PatchResult[] {
+  const filePath = findPrimaryRuntimeInstallerBundle(recoveredRoot);
+  const patchName = "route Windows ARM64 primary runtime manifest to GitHub release";
+
+  if (filePath == null) {
+    return [
+      {
+        file: ".vite/build",
+        name: patchName,
+        status: "assumed-enabled",
+        reason: "Primary runtime manifest target was not found; assuming upstream removed or enabled this route.",
+      },
+    ];
+  }
+
+  return [
     replaceWithPatchers(
       recoveredRoot,
       filePath,
-      "route Windows ARM64 primary runtime manifest to GitHub release",
+      patchName,
       [
         alreadyAppliedPatch(windowsArm64PrimaryRuntimeManifestUrlPattern),
         patchWindowsArm64PrimaryRuntimeManifestUrl(),
@@ -1007,6 +1072,7 @@ function main(): void {
     results.push(...patchIndex(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
+    results.push(...patchPrimaryRuntimeInstallerBundle(recoveredRoot));
     results.push(...patchMainBundle(recoveredRoot));
   } catch (error) {
     if (error instanceof PatchFailure) {
