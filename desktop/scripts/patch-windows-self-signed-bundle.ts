@@ -472,6 +472,14 @@ function patchWindowsArm64PrimaryRuntimeManifestUrl(): SourcePatcher {
   );
 }
 
+function findPrimaryRuntimeInstallerBundle(recoveredRoot: string): string {
+  return findFileContaining(path.join(recoveredRoot, ".vite", "build"), /^.*\.js$/, [
+    "codex-primary-runtime-installer",
+    "Failed to download primary runtime manifest",
+    "oaisidekickupdates.blob.core.windows.net/owl",
+  ]);
+}
+
 function patchInactiveWindowsMicaBackdrop(): SourcePatcher {
   return (source) => {
     const matches = findFunctionRanges(source).filter((range) => {
@@ -893,6 +901,13 @@ function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult
       ],
       { missingTargetMarkers: ["process.env.LOCALAPPDATA", "`AppData`,`Local`"] },
     ),
+  ];
+}
+
+function patchPrimaryRuntimeInstallerBundle(recoveredRoot: string): PatchResult[] {
+  const filePath = findPrimaryRuntimeInstallerBundle(recoveredRoot);
+
+  return [
     replaceWithPatchers(
       recoveredRoot,
       filePath,
@@ -1007,6 +1022,7 @@ function main(): void {
     results.push(...patchIndex(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
+    results.push(...patchPrimaryRuntimeInstallerBundle(recoveredRoot));
     results.push(...patchMainBundle(recoveredRoot));
   } catch (error) {
     if (error instanceof PatchFailure) {
