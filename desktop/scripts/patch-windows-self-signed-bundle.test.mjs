@@ -177,6 +177,60 @@ test("routes Windows ARM64 primary runtime manifest checks to GitHub Releases", 
   assert.equal(patch?.file, ".vite/build/primary-runtime-installer-fixture.js");
 });
 
+test("routes legacy Windows ARM64 primary runtime manifest helpers outside installer bundles", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const primaryRuntimeInstallerPath = path.join(
+    recoveredRoot,
+    ".vite",
+    "build",
+    "primary-runtime-installer-fixture.js",
+  );
+  const workspaceRootDropHandlerPath = path.join(
+    recoveredRoot,
+    ".vite",
+    "build",
+    "workspace-root-drop-handler-fixture.js",
+  );
+  fs.unlinkSync(primaryRuntimeInstallerPath);
+  fs.writeFileSync(
+    workspaceRootDropHandlerPath,
+    "var runtimeRoot=`codex-primary-runtime`,latestFile=`LATEST.json`,publicBase=`https://persistent.oaistatic.com`;function targetKey(target){return`${platformName(target.platform)}-${archName(target.arch)}`}function manifestUrl(target,config,release){return[(config.baseUrl??(release===`latest`?publicBase:`https://oaisidekickupdates.blob.core.windows.net/owl`)).replace(/\\\\/+$/,``),runtimeRoot,...release===`latest-alpha`?[`alpha`]:[],`latest`,targetKey(target),latestFile].join(`/`)}function localBin(parts){return(0,path.join)(process.env.LOCALAPPDATA??(0,path.join)((0,os.homedir)(),`AppData`,`Local`),...parts)}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(workspaceRootDropHandlerPath, "utf8");
+  assert.match(bundle, /github\.com\/sliepie\/codex-app\/releases\/download\/codex-primary-runtime-win32-arm64\/LATEST\.json/);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "route Windows ARM64 primary runtime manifest to GitHub release",
+  );
+  assert.equal(patch?.status, "applied");
+  assert.equal(patch?.file, ".vite/build/workspace-root-drop-handler-fixture.js");
+});
+
+test("assumes primary runtime manifest route is enabled when target bundle is absent", () => {
+  const recoveredRoot = createRecoveredFixture();
+  fs.unlinkSync(
+    path.join(recoveredRoot, ".vite", "build", "primary-runtime-installer-fixture.js"),
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (patch) => patch.name === "route Windows ARM64 primary runtime manifest to GitHub release",
+  );
+  assert.equal(patch?.status, "assumed-enabled");
+  assert.equal(patch?.file, ".vite/build");
+  assert.match(patch?.reason, /Primary runtime manifest target was not found/);
+});
+
 test("keeps Mica enabled for inactive Windows windows", () => {
   const recoveredRoot = createRecoveredFixture();
   const mainBundlePath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
