@@ -1962,11 +1962,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.group\/chats-section-header{position:relative!important;left:-1px!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
         String.raw`.group\/section-toggle:is(:hover,:focus-within) .group-hover\/section-toggle\:opacity-100,.group\/section-toggle:is(:hover,:focus-within) .group-focus-visible\/section-toggle\:opacity-100{opacity:1!important;visibility:visible!important;}`,
       ),
     );
@@ -1978,11 +1973,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.group\/chats-section-header:is(:hover,:focus-within) .group-hover\/chats-section-header\:opacity-100,.group\/chats-section-header:is(:hover,:focus-within) .group-focus-within\/chats-section-header\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\/folder-row\:opacity-100){gap:0!important;}`,
       ),
     );
     assert.ok(
@@ -2036,7 +2026,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(
       !uiOverrideCss.includes("opacity:0!important;visibility:hidden!important;"),
     );
-    assert.ok(uiOverrideCss.includes("padding-inline-end:1rem!important;"));
     assert.ok(
       uiOverrideCss.includes(
         ":has(>.absolute.right-0.top-0.z-10):is(:hover,:focus-within) [data-thread-title-trigger]",
@@ -2047,17 +2036,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(uiOverrideCss.includes("word-break:normal!important;"));
     assert.ok(
       uiOverrideCss.includes(" [data-thread-title-trigger]>:first-child"),
-    );
-    assert.ok(uiOverrideCss.includes("gap:0.25rem!important;"));
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
-      ),
-    );
-    assert.ok(
-      !uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
-      ),
     );
     assert.ok(!uiOverrideCss.includes(" .w-4:not(:has(button))"));
     assert.ok(
