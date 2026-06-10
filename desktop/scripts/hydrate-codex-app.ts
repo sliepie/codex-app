@@ -243,6 +243,10 @@ function appResourceFileSortKey(filePath: string): string {
 
 function findAppResourceFile(root: string, fileName: string): string | undefined {
   const matches: string[] = [];
+  const suffixes =
+    fileName === "node"
+      ? [`/Contents/Resources/cua_node/bin/${fileName}`, `/Contents/Resources/${fileName}`]
+      : [`/Contents/Resources/${fileName}`];
 
   function walk(currentPath: string): void {
     if (!fs.existsSync(currentPath)) {
@@ -257,7 +261,7 @@ function findAppResourceFile(root: string, fileName: string): string | undefined
       }
 
       const normalized = entryPath.replaceAll(path.sep, "/");
-      if (entry.name === fileName && normalized.endsWith(`/Contents/Resources/${fileName}`)) {
+      if (entry.name === fileName && suffixes.some((suffix) => normalized.endsWith(suffix))) {
         matches.push(entryPath);
       }
     }
@@ -1092,9 +1096,9 @@ function readPackageElectronVersion(packageRoot: string, label: string): string 
 }
 
 function readBundledNodeVersion(appResourcesRoot: string): string {
-  const nodePath = path.join(appResourcesRoot, "node");
-  if (!fs.existsSync(nodePath)) {
-    throw new Error(`Missing bundled macOS Node executable: ${nodePath}`);
+  const nodePath = findAppResourceFile(appResourcesRoot, "node");
+  if (!nodePath) {
+    throw new Error(`Missing bundled macOS Node executable under: ${appResourcesRoot}`);
   }
 
   const binaryText = fs.readFileSync(nodePath).toString("latin1");
