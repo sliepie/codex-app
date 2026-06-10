@@ -80,6 +80,7 @@ function readRecoveredPackageJson() {
 const configuredRecoveredOriginalMain = recoveredOriginalMain(readRecoveredPackageJson() ?? {});
 const requiredCodexPlusPlusPackageFiles = [
   'codex-plusplus/loader.cjs',
+  'codex-plusplus/compact-windows-titlebar-preload.cjs',
   'codex-plusplus/runtime/main.js',
   'codex-plusplus/runtime/preload.js',
   'codex-plusplus/LICENSE',

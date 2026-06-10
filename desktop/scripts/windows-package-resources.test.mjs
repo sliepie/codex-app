@@ -12,10 +12,17 @@ const scriptsRoot = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.dirname(scriptsRoot);
 const repoRoot = path.dirname(desktopRoot);
 const bundledTweakRelativeRoots = new Map([
+  [
+    "codex-app-compact-windows-titlebar",
+    "desktop/codex-plusplus/tweaks/codex-app-compact-windows-titlebar",
+  ],
   ["codex-app-ui-overrides", "desktop/codex-plusplus/tweaks/codex-app-ui-overrides"],
   ["codex-app-windows-menu-bar", "desktop/codex-plusplus/tweaks/codex-app-windows-menu-bar"],
 ]);
-const newBundledTweaks = new Set();
+const newBundledTweakVersions = new Map([
+  ["codex-app-compact-windows-titlebar", "0.1.10"],
+]);
+const newBundledTweaks = new Set(newBundledTweakVersions.keys());
 const require = createRequire(import.meta.url);
 const {
   collectNativeNodeModuleTargets,
@@ -183,7 +190,7 @@ function expectedBundledTweakMetadata(tweakName, id) {
   if (newBundledTweaks.has(tweakName)) {
     return {
       id,
-      version: "0.1.0",
+      version: newBundledTweakVersions.get(tweakName),
     };
   }
 
@@ -1259,6 +1266,10 @@ test("includes generated plugin resources and Codex++ integration in the Windows
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-windows-menu-bar/manifest.json"),
     false,
   );
+  assert.equal(
+    config.packagerConfig.ignore("/codex-plusplus/compact-windows-titlebar-preload.cjs"),
+    false,
+  );
 
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
@@ -1329,6 +1340,10 @@ test("Forge preflight fails when hydrated Codex++ runtime is missing", async (t)
 
   writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
   writeFixture(path.join(buildPath, "codex-plusplus", "loader.cjs"), "module.exports = {};\n");
+  writeFixture(
+    path.join(buildPath, "codex-plusplus", "compact-windows-titlebar-preload.cjs"),
+    "module.exports = {};\n",
+  );
 
   await assert.rejects(
     () => runForgeAfterCopy(config, buildPath),
@@ -1344,11 +1359,16 @@ function createCodexPlusPlusLoaderFixture(t) {
   const originalMain = "recovered/app-asar-extracted/.vite/build/bootstrap.js";
   const originalMainPath = path.join(root, originalMain);
   const runtimeMainPath = path.join(root, "codex-plusplus", "runtime", "main.js");
+  const compactPreloadPath = path.join(root, "codex-plusplus", "compact-windows-titlebar-preload.cjs");
   const appData = path.join(root, "AppData");
   const tracePath = path.join(root, "trace.txt");
 
   fs.mkdirSync(path.dirname(loaderPath), { recursive: true });
   fs.copyFileSync(path.join(desktopRoot, "codex-plusplus", "loader.cjs"), loaderPath);
+  fs.copyFileSync(
+    path.join(desktopRoot, "codex-plusplus", "compact-windows-titlebar-preload.cjs"),
+    compactPreloadPath,
+  );
   writeFixture(
     path.join(root, "package.json"),
     JSON.stringify({ __codexpp: { originalMain } }, null, 2) + "\n",
@@ -1362,7 +1382,7 @@ function createCodexPlusPlusLoaderFixture(t) {
     'require("node:fs").appendFileSync(process.env.CODEX_LOADER_TRACE, "runtime\\n");\n',
   );
 
-  return { root, loaderPath, appData, tracePath };
+  return { root, loaderPath, appData, tracePath, compactPreloadPath };
 }
 
 function runCodexPlusPlusLoaderFixture(fixture) {
@@ -1379,10 +1399,112 @@ function runCodexPlusPlusLoaderFixture(fixture) {
   return fs.readFileSync(fixture.tracePath, "utf8").trim().split(/\r?\n/);
 }
 
-test("Codex++ loader starts original Codex before runtime integration", (t) => {
+test("Codex++ loader starts original Codex before scheduled runtime integration", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+});
+
+test("Codex++ loader exposes compact Windows titlebar state before original startup", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.root, "node_modules", "electron", "index.js"),
+    [
+      'const fs = require("node:fs");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      "let handler = null;",
+      "const ipcMain = {",
+      "  eventNames() { return handler ? [\"codexpp:compact-windows-titlebar-enabled\"] : []; },",
+      "  on(channel, callback) {",
+      "    if (channel === \"codexpp:compact-windows-titlebar-enabled\") {",
+      "      handler = callback;",
+      "      fs.appendFileSync(trace, \"handler\\n\");",
+      "    }",
+      "  },",
+      "  invokeCompactTitlebarState() {",
+      "    const event = { returnValue: undefined };",
+      "    handler(event);",
+      "    return event.returnValue;",
+      "  },",
+      "};",
+      "module.exports = { app: {}, session: {}, ipcMain };",
+      "",
+    ].join("\n"),
+  );
+  writeFixture(
+    path.join(fixture.root, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
+    [
+      'const fs = require("node:fs");',
+      'const electron = require("electron");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      'fs.appendFileSync(trace, "enabled=" + electron.ipcMain.invokeCompactTitlebarState() + "\\n");',
+      'fs.appendFileSync(trace, "original\\n");',
+      "",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
+    "handler",
+    "enabled=true",
+    "original",
+    "runtime",
+  ]);
+});
+
+test("Codex++ loader respects disabled compact Windows titlebar tweak before original startup", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.appData, "codex-plusplus", "config.json"),
+    JSON.stringify(
+      {
+        tweaks: {
+          "app.sliepie.codex.compact-windows-titlebar": {
+            enabled: false,
+          },
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  writeFixture(
+    path.join(fixture.root, "node_modules", "electron", "index.js"),
+    [
+      'const fs = require("node:fs");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      "let handler = null;",
+      "const ipcMain = {",
+      "  eventNames() { return handler ? [\"codexpp:compact-windows-titlebar-enabled\"] : []; },",
+      "  on(channel, callback) {",
+      "    if (channel === \"codexpp:compact-windows-titlebar-enabled\") handler = callback;",
+      "  },",
+      "  invokeCompactTitlebarState() {",
+      "    const event = { returnValue: undefined };",
+      "    handler(event);",
+      "    return event.returnValue;",
+      "  },",
+      "};",
+      "module.exports = { app: {}, session: {}, ipcMain };",
+      "",
+    ].join("\n"),
+  );
+  writeFixture(
+    path.join(fixture.root, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
+    [
+      'const fs = require("node:fs");',
+      'const electron = require("electron");',
+      "const trace = process.env.CODEX_LOADER_TRACE;",
+      'fs.appendFileSync(trace, "enabled=" + electron.ipcMain.invokeCompactTitlebarState() + "\\n");',
+      'fs.appendFileSync(trace, "original\\n");',
+      "",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
+    "enabled=false",
+    "original",
+    "runtime",
+  ]);
 });
 
 test("Codex++ loader registers preload hooks before original Codex startup", (t) => {
@@ -1391,9 +1513,12 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
     path.join(fixture.root, "node_modules", "electron", "index.js"),
     [
       'const fs = require("node:fs");',
+      'const path = require("node:path");',
       "const trace = process.env.CODEX_LOADER_TRACE;",
       "const session = {",
-      "  registerPreloadScript() { fs.appendFileSync(trace, \"preload\\n\"); },",
+      "  registerPreloadScript(entry) {",
+      "    fs.appendFileSync(trace, \"preload:\" + entry.id + \":\" + path.basename(entry.filePath) + \"\\n\");",
+      "  },",
       "};",
       "module.exports = {",
       "  app: {",
@@ -1418,7 +1543,8 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
 
   assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), [
     "when-ready-hook",
-    "preload",
+    "preload:codex-plusplus-compact-windows-titlebar:compact-windows-titlebar-preload.cjs",
+    "preload:codex-plusplus:preload.js",
     "session-created-hook",
     "original",
     "runtime",
@@ -1568,10 +1694,18 @@ test("bundles repo-owned Codex++ UI tweaks without keyboard shortcut tweaks", ()
     .map((entry) => entry.name)
     .sort();
   assert.deepEqual(tweakNames, [
+    "codex-app-compact-windows-titlebar",
     "codex-app-ui-overrides",
     "codex-app-windows-menu-bar",
   ]);
   const expectedTweakMetadata = new Map([
+    [
+      "codex-app-compact-windows-titlebar",
+      expectedBundledTweakMetadata(
+        "codex-app-compact-windows-titlebar",
+        "app.sliepie.codex.compact-windows-titlebar",
+      ),
+    ],
     [
       "codex-app-ui-overrides",
       expectedBundledTweakMetadata(
@@ -1621,7 +1755,7 @@ test("Bundled Codex++ tweak versions follow main branch bump policy", () => {
     const manifestPath = relativeRoot + "/manifest.json";
     const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, manifestPath), "utf8"));
     if (newBundledTweaks.has(tweakName)) {
-      assert.equal(manifest.version, "0.1.0");
+      assert.equal(manifest.version, newBundledTweakVersions.get(tweakName));
       continue;
     }
 
@@ -1644,6 +1778,46 @@ test("Bundled Codex++ tweak versions follow main branch bump policy", () => {
       manifest.version,
     );
   }
+});
+
+test("Codex app compact Windows titlebar tweak removes the menu bridge before renderer boot", () => {
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "codex-plusplus", "compact-windows-titlebar-preload.cjs"),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+  assert.doesNotMatch(source, /querySelector|appendChild|MutationObserver/);
+  assert.match(source, /showApplicationMenu/);
+
+  const exposed = {};
+  const electron = {
+    ipcRenderer: {
+      sendSync(channel) {
+        assert.equal(channel, "codexpp:compact-windows-titlebar-enabled");
+        return true;
+      },
+    },
+    contextBridge: {
+      exposeInMainWorld(name, api, ...rest) {
+        exposed[name] = { api, rest };
+      },
+    },
+  };
+
+  new Function("require", source)((id) => {
+    if (id === "electron") {
+      return electron;
+    }
+    throw new Error("Unexpected require: " + id);
+  });
+
+  electron.contextBridge.exposeInMainWorld("electronBridge", {
+    keepApplicationBridge: true,
+    showApplicationMenu() {},
+  });
+
+  assert.equal(exposed.electronBridge.api.keepApplicationBridge, true);
+  assert.equal("showApplicationMenu" in exposed.electronBridge.api, false);
 });
 
 test("Codex app UI override and Windows menu-bar tweak install independently", () => {
