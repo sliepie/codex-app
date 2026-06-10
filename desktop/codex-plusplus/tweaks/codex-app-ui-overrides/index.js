@@ -9,8 +9,6 @@ const HIDDEN_META_DECLARATIONS =
   "opacity:0!important;pointer-events:none!important;";
 const SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS =
   "box-sizing:border-box!important;min-width:0!important;max-width:100%!important;";
-const SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS =
-  "padding-inline-end:1rem!important;";
 const SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS =
   "display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
@@ -25,8 +23,6 @@ const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
-const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
-  ".group\/folder-row :has(>.group-hover\/folder-row\:opacity-100):has(button)";
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
 const SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR = `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10,>.absolute.right-0.top-0.z-10)`;
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS = [
@@ -57,7 +53,6 @@ const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
   ">.absolute.right-0.top-0.z-10 button .icon-xs",
   ">.absolute.right-0.top-0.z-10 button .icon-sm",
 ];
-const SIDEBAR_ACTION_CLUSTER_GAP_DECLARATIONS = "gap:0.25rem!important;";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -141,10 +136,6 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
 
 const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   cssRule(
-    SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR,
-    SIDEBAR_ACTION_CLUSTER_GAP_DECLARATIONS,
-  ),
-  cssRule(
     descendantSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
@@ -166,13 +157,6 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     VISIBLE_CONTROL_DECLARATIONS,
   ),
   cssRule(
-    descendantSelectors(
-      SIDEBAR_THREAD_ROW_SELECTOR,
-      SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
-    ),
-    SIDEBAR_ACTION_CLUSTER_GAP_DECLARATIONS,
-  ),
-  cssRule(
     interactiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS,
@@ -185,13 +169,6 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(
-      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(>.absolute.right-0.top-0.z-10)`,
-      [" [data-thread-title-trigger]"],
-    ),
-    SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(
