@@ -57,6 +57,8 @@ function createDesktopFixture({ appBundleName = "Codex.app", marketplaceName = "
       appBundleName,
       "Contents",
       "Resources",
+      "cua_node",
+      "bin",
       "node",
     ),
     "fake mac node v24.14.0 v24.14.0\n",
