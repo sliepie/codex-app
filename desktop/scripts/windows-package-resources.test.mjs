@@ -1962,6 +1962,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        String.raw`.group\/chats-section-header{position:relative!important;left:-1px!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
         String.raw`.group\/section-toggle:is(:hover,:focus-within) .group-hover\/section-toggle\:opacity-100,.group\/section-toggle:is(:hover,:focus-within) .group-focus-visible\/section-toggle\:opacity-100{opacity:1!important;visibility:visible!important;}`,
       ),
     );
@@ -2036,6 +2041,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(
       !uiOverrideCss.includes(
         ":has(>.absolute.right-0.top-0.z-10):is(:hover,:focus-within) [data-thread-title-trigger]",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-section-heading=\"Pinned\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger],[data-app-action-sidebar-section-heading=\"Chats\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]{position:relative!important;left:-2px!important;}",
       ),
     );
     assert.ok(!uiOverrideCss.includes("text-overflow:ellipsis!important;"));

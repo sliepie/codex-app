@@ -7,6 +7,8 @@ const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
 const HIDDEN_META_DECLARATIONS =
   "opacity:0!important;pointer-events:none!important;";
+const SIDEBAR_CHATS_HEADER_DECLARATIONS =
+  "position:relative!important;left:-1px!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
 const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
@@ -103,7 +105,19 @@ const BASE_STYLE_RULES = [
   ),
 ];
 
-const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [];
+const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
+  cssRule(
+    ".group\\/chats-section-header",
+    SIDEBAR_CHATS_HEADER_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      '[data-app-action-sidebar-section-heading="Pinned"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]',
+      '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]',
+    ],
+    "position:relative!important;left:-2px!important;",
+  ),
+];
 const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
   cssRule(
     [
