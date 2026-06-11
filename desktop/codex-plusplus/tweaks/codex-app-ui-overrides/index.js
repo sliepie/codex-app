@@ -61,10 +61,14 @@ const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
 const SIDEBAR_THREAD_ROW_ACTION_GAP_DECLARATIONS = "gap:0.25rem!important;";
 const SIDEBAR_THREAD_ROW_ACTION_BUTTON_X_OFFSET_DECLARATIONS =
   "margin-inline:1px!important;";
-const SIDEBAR_THREAD_ROW_TERMINATE_BUTTON_DECLARATIONS = "display:none!important;";
-const SIDEBAR_THREAD_ROW_TERMINATE_BUTTON_TARGETS = [
+const SIDEBAR_THREAD_ROW_STOP_BUTTON_DECLARATIONS = "display:none!important;";
+const SIDEBAR_THREAD_ROW_STOP_BUTTON_TARGETS = [
+  " button[aria-label*='stop' i]",
+  " button[title*='stop' i]",
   " button[aria-label*='terminate' i]",
   " button[title*='terminate' i]",
+  " [role='button'][aria-label*='stop' i]",
+  " [role='button'][title*='stop' i]",
   " [role='button'][aria-label*='terminate' i]",
   " [role='button'][title*='terminate' i]",
 ];
@@ -199,9 +203,9 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   cssRule(
     descendantSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
-      SIDEBAR_THREAD_ROW_TERMINATE_BUTTON_TARGETS,
+      SIDEBAR_THREAD_ROW_STOP_BUTTON_TARGETS,
     ),
-    SIDEBAR_THREAD_ROW_TERMINATE_BUTTON_DECLARATIONS,
+    SIDEBAR_THREAD_ROW_STOP_BUTTON_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(
