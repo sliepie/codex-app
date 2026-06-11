@@ -59,6 +59,15 @@ const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
   ">.absolute.right-0.top-0.z-10 button .icon-sm",
 ];
 const SIDEBAR_THREAD_ROW_ACTION_GAP_DECLARATIONS = "gap:0.25rem!important;";
+const SIDEBAR_THREAD_ROW_ACTION_BUTTON_X_OFFSET_DECLARATIONS =
+  "margin-inline:1px!important;";
+const SIDEBAR_THREAD_ROW_TERMINATE_BUTTON_DECLARATIONS = "display:none!important;";
+const SIDEBAR_THREAD_ROW_TERMINATE_BUTTON_TARGETS = [
+  " button[aria-label*='terminate' i]",
+  " button[title*='terminate' i]",
+  " [role='button'][aria-label*='terminate' i]",
+  " [role='button'][title*='terminate' i]",
+];
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -179,6 +188,20 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
     ),
     SIDEBAR_THREAD_ROW_ACTION_GAP_DECLARATIONS,
+  ),
+  cssRule(
+    descendantSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_TARGETS.filter((target) => target.endsWith(" button")),
+    ),
+    SIDEBAR_THREAD_ROW_ACTION_BUTTON_X_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    descendantSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_TERMINATE_BUTTON_TARGETS,
+    ),
+    SIDEBAR_THREAD_ROW_TERMINATE_BUTTON_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(
