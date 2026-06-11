@@ -7,12 +7,6 @@ const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
 const HIDDEN_META_DECLARATIONS =
   "opacity:0!important;pointer-events:none!important;";
-const SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS =
-  "box-sizing:border-box!important;min-width:0!important;max-width:100%!important;";
-const SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS =
-  "padding-inline-end:1rem!important;";
-const SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS =
-  "display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
 const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
@@ -206,32 +200,6 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       SIDEBAR_THREAD_ROW_STOP_BUTTON_TARGETS,
     ),
     SIDEBAR_THREAD_ROW_STOP_BUTTON_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(
-      SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
-      [" [data-thread-title-trigger]"],
-    ),
-    SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(
-      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(>.absolute.right-0.top-0.z-10)`,
-      [" [data-thread-title-trigger]"],
-    ),
-    SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(
-      SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
-      [
-        " [data-thread-title-trigger]>:first-child",
-        " [data-thread-title-trigger] .truncate",
-        " [data-thread-title-trigger] .whitespace-pre-wrap",
-        " [data-thread-title-trigger] .break-all",
-      ],
-    ),
-    SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS),
