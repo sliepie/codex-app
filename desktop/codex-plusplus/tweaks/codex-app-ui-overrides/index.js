@@ -72,6 +72,21 @@ const SIDEBAR_THREAD_ROW_STOP_BUTTON_TARGETS = [
   " [role='button'][aria-label*='terminate' i]",
   " [role='button'][title*='terminate' i]",
 ];
+const SIDEBAR_THREAD_ROW_STOP_ACTION_SLOT_TARGETS = [
+  " .absolute.top-0.left-1.z-10:has(button[aria-label*='stop' i])",
+  " .absolute.top-0.left-1.z-10:has(button[title*='stop' i])",
+  " .absolute.top-0.left-1.z-10:has([role='button'][aria-label*='stop' i])",
+  " .absolute.top-0.left-1.z-10:has([role='button'][title*='stop' i])",
+  " .w-4 span:has(button[aria-label*='stop' i])",
+  " .w-4 span:has(button[title*='stop' i])",
+  " .w-4 span:has([role='button'][aria-label*='stop' i])",
+  " .w-4 span:has([role='button'][title*='stop' i])",
+];
+const SIDEBAR_THREAD_ROW_STOP_CONTENT_OFFSET_TARGETS = [
+  " :is(.ml-5,.ml-10):has([data-thread-title-trigger])",
+];
+const SIDEBAR_THREAD_ROW_STOP_CONTENT_OFFSET_DECLARATIONS =
+  "margin-left:0!important;";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -206,6 +221,20 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       SIDEBAR_THREAD_ROW_STOP_BUTTON_TARGETS,
     ),
     SIDEBAR_THREAD_ROW_STOP_BUTTON_DECLARATIONS,
+  ),
+  cssRule(
+    descendantSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_STOP_ACTION_SLOT_TARGETS,
+    ),
+    SIDEBAR_THREAD_ROW_STOP_BUTTON_DECLARATIONS,
+  ),
+  cssRule(
+    descendantSelectors(
+      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(${SIDEBAR_THREAD_ROW_STOP_ACTION_SLOT_TARGETS.map((target) => target.trim()).join(",")})`,
+      SIDEBAR_THREAD_ROW_STOP_CONTENT_OFFSET_TARGETS,
+    ),
+    SIDEBAR_THREAD_ROW_STOP_CONTENT_OFFSET_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(
