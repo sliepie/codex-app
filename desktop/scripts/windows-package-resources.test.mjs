@@ -1991,18 +1991,18 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       ),
     );
     assert.ok(
-      uiOverrideCss.includes(
+      !uiOverrideCss.includes(
         String.raw`.group\/folder-row>:has(>:is(button,[role='button'])){gap:0!important;}`,
       ),
     );
     assert.ok(!uiOverrideCss.includes(String.raw`[class~="gap-0.5"]`));
     assert.ok(
-      uiOverrideCss.includes(
+      !uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-0{opacity:1!important;visibility:visible!important;}`,
       ),
     );
     assert.ok(
-      uiOverrideCss.includes(
+      !uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-100{opacity:0!important;}`,
       ),
     );
@@ -2022,7 +2022,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       ),
     );
     assert.ok(
-      uiOverrideCss.includes(
+      !uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{transition:opacity 120ms ease-out!important;}",
       ),
     );
@@ -2053,12 +2053,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(!uiOverrideCss.includes("word-break:normal!important;"));
     assert.ok(!uiOverrideCss.includes(" [data-thread-title-trigger]>:first-child"));
     assert.ok(
-      uiOverrideCss.includes(
+      !uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
       ),
     );
     assert.ok(
-      uiOverrideCss.includes(
+      !uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button,[data-app-action-sidebar-thread-row] .w-4 span:has(button) button,[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button{margin-inline:1px!important;}",
       ),
     );
