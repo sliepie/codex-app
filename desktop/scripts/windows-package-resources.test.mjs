@@ -1987,6 +1987,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        String.raw`.group\/folder-row>:has(>:is(button,[role='button'])){gap:0!important;}`,
+      ),
+    );
+    assert.ok(!uiOverrideCss.includes(String.raw`[class~="gap-0.5"]`));
+    assert.ok(
+      uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-0{opacity:1!important;visibility:visible!important;}`,
       ),
     );
@@ -2026,6 +2032,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(
       !uiOverrideCss.includes("opacity:0!important;visibility:hidden!important;"),
     );
+    assert.ok(uiOverrideCss.includes("padding-inline-end:1rem!important;"));
     assert.ok(
       uiOverrideCss.includes(
         ":has(>.absolute.right-0.top-0.z-10):is(:hover,:focus-within) [data-thread-title-trigger]",
@@ -2036,6 +2043,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(uiOverrideCss.includes("word-break:normal!important;"));
     assert.ok(
       uiOverrideCss.includes(" [data-thread-title-trigger]>:first-child"),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
+      ),
     );
     assert.ok(!uiOverrideCss.includes(" .w-4:not(:has(button))"));
     assert.ok(
