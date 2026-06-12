@@ -2017,14 +2017,30 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;",
+        "@keyframes codex-app-sidebar-hover-control-slide-in{from{transform:translateX(2px);}to{transform:translateX(0);}}",
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{transition:opacity 120ms ease-out!important;}",
+        "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(0);",
       ),
     );
+    assert.ok(
+      uiOverrideCss.includes(
+        "animation:codex-app-sidebar-hover-control-slide-in 120ms ease-out!important;transform:translateX(0);",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]>.contents>.absolute.right-0.top-0.z-10",
+      ),
+    );
+    assert.ok(!uiOverrideCss.includes("transition:none!important;animation:none!important;"));
     assert.ok(
       !uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{transform:translateX(0)!important;}",
@@ -2039,7 +2055,17 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(uiOverrideCss.includes("padding-inline-end:1rem!important;"));
     assert.ok(
       uiOverrideCss.includes(
-        ":has(>.absolute.right-0.top-0.z-10):is(:hover,:focus-within) [data-thread-title-trigger]",
+        ":has(>.absolute.right-0.top-0.z-10):is(:hover,:focus-within,:has(",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        ":has(>.absolute.right-0.top-0.z-10:is(:hover,:focus-within))",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        ":has(>.contents>.absolute.right-0.top-0.z-10:is(:hover,:focus-within))",
       ),
     );
     assert.ok(uiOverrideCss.includes("text-overflow:ellipsis!important;"));
@@ -2048,22 +2074,36 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(
       uiOverrideCss.includes(" [data-thread-title-trigger]>:first-child"),
     );
-    assert.ok(uiOverrideCss.includes("gap:0.25rem!important;"));
     assert.ok(
       uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
+        String.raw`[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10,[data-app-action-sidebar-thread-row] .w-4 span:has(button),[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10,[data-app-action-sidebar-thread-row]>.contents>.absolute.right-0.top-0.z-10{gap:0.6rem!important;}`,
       ),
     );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`[data-app-action-sidebar-thread-row] .ml-\[3px\].flex.items-center.justify-end.gap-1:has(button){gap:0.6rem!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]>.contents>.absolute.right-0.top-0.z-10",
+      ),
+    );
+    assert.ok(!uiOverrideCss.includes("padding:0!important;"));
     assert.ok(
       !uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
       ),
     );
     assert.ok(!uiOverrideCss.includes(" .w-4:not(:has(button))"));
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
-      ),
+    assert.doesNotMatch(
+      uiOverrideCss,
+      /\.group\\\/folder-row[^{}]*\.group-hover\\\/folder-row\\:opacity-100\{[^{}]*(?:animation|transform):/,
     );
     assert.doesNotMatch(
       uiOverrideCss,

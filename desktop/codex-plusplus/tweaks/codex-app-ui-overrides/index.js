@@ -19,29 +19,39 @@ const SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS =
   "display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
+const SIDEBAR_HOVER_CONTROL_SLIDE_IN_KEYFRAMES_RULE =
+  "@keyframes codex-app-sidebar-hover-control-slide-in{from{transform:translateX(2px);}to{transform:translateX(0);}}";
 const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
-  "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;";
+  "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(0);";
 const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
-  "transform:translateX(0)!important;";
-const SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS =
-  "transition:opacity 120ms ease-out!important;";
-const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
-  "transition:opacity 120ms ease-out!important;";
+  "animation:codex-app-sidebar-hover-control-slide-in 120ms ease-out!important;transform:translateX(0);";
+const SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR =
+  ":is(:active,[aria-expanded=\"true\"],[data-state=\"open\"])";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
+const SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_TARGET_SELECTOR =
+  ':is(button,[role="button"]):is([aria-label*="collapse" i],[aria-label*="revert" i],[title*="collapse" i],[title*="revert" i],[data-testid*="collapse" i],[data-testid*="revert" i])';
+const SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_SELECTOR = [
+  `.group\\/projects-section-header ${SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_TARGET_SELECTOR}`,
+  `.group\\/projects-section-header :is(span,div):has(>${SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_TARGET_SELECTOR}:only-child)`,
+];
 const SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR =
   '.group\\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\\/folder-row\\:opacity-100)';
 const SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS = "gap:0!important;";
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
-const SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR = `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10,>.absolute.right-0.top-0.z-10)`;
+const SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR = `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10,>.absolute.right-0.top-0.z-10,>.contents>.absolute.right-0.top-0.z-10)`;
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS = [
   " .absolute.top-0.left-1.z-10",
   " .w-4 span:has(button)",
   ">.absolute.right-0.top-0.z-10",
+  ">.contents>.absolute.right-0.top-0.z-10",
 ];
 const SIDEBAR_THREAD_ROW_META_TARGETS = [
   " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
   " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
+];
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_TARGETS = [
+  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:has(button)",
 ];
 const SIDEBAR_THREAD_ROW_ACTION_TARGETS = [
   " .absolute.top-0.left-1.z-10",
@@ -50,6 +60,8 @@ const SIDEBAR_THREAD_ROW_ACTION_TARGETS = [
   " .w-4 span:has(button) button",
   ">.absolute.right-0.top-0.z-10",
   ">.absolute.right-0.top-0.z-10 button",
+  ">.contents>.absolute.right-0.top-0.z-10",
+  ">.contents>.absolute.right-0.top-0.z-10 button",
 ];
 const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
   " .absolute.top-0.left-1.z-10 button svg",
@@ -61,8 +73,49 @@ const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
   ">.absolute.right-0.top-0.z-10 button svg",
   ">.absolute.right-0.top-0.z-10 button .icon-xs",
   ">.absolute.right-0.top-0.z-10 button .icon-sm",
+  ">.contents>.absolute.right-0.top-0.z-10 button svg",
+  ">.contents>.absolute.right-0.top-0.z-10 button .icon-xs",
+  ">.contents>.absolute.right-0.top-0.z-10 button .icon-sm",
 ];
-const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS = "gap:0.25rem!important;";
+const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS = "gap:0.6rem!important;";
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS = "gap:0.6rem!important;";
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_POINTER_TARGETS = [
+  " .group-hover\\:pointer-events-auto",
+];
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_VISIBLE_TARGETS = [
+  " .group-hover\\:opacity-100",
+];
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_MUTED_TARGETS = [
+  " .group-hover\\:opacity-50",
+];
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_HIDDEN_TARGETS = [
+  " .group-hover\\:opacity-0",
+];
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_DISPLAY_TARGETS = [
+  " .group-hover\\:hidden",
+];
+const SIDEBAR_THREAD_ROW_ACTIVE_SELECTOR =
+  ":is(:hover,:focus-within,:has(.absolute.top-0.left-1.z-10:is(:hover,:focus-within)),:has(.w-4 span:has(button):is(:hover,:focus-within)),:has(>.absolute.right-0.top-0.z-10:is(:hover,:focus-within)),:has(>.contents>.absolute.right-0.top-0.z-10:is(:hover,:focus-within)))";
+const SIDEBAR_THREAD_ROW_GROUP_HOVER_MIN_WIDTH_RULES = [
+  cssRule(
+    threadRowInteractiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
+      " .group-hover\\:min-w-5",
+    ]),
+    "min-width:calc(var(--spacing) * 5)!important;",
+  ),
+  cssRule(
+    threadRowInteractiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
+      " .group-hover\\:min-w-12",
+    ]),
+    "min-width:calc(var(--spacing) * 9)!important;",
+  ),
+  cssRule(
+    threadRowInteractiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, [
+      " .group-hover\\:min-w-20",
+    ]),
+    "min-width:calc(var(--spacing) * 14)!important;",
+  ),
+];
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -92,6 +145,14 @@ function interactiveSelectors(container, targets) {
   return targets.map((target) => `${container}:is(:hover,:focus-within)${target}`);
 }
 
+function threadRowInteractiveSelectors(container, targets) {
+  return targets.map((target) => `${container}${SIDEBAR_THREAD_ROW_ACTIVE_SELECTOR}${target}`);
+}
+
+function statefulContainerSelectors(container, targets, stateSelector) {
+  return targets.map((target) => `${container}:has(${stateSelector})${target}`);
+}
+
 const BASE_STYLE_RULES = [
   cssRule(".group\\/application-menu-top-bar", "margin-inline-start:0.5rem;"),
   cssRule(
@@ -115,6 +176,7 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
 ];
 
 const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
+  SIDEBAR_HOVER_CONTROL_SLIDE_IN_KEYFRAMES_RULE,
   cssRule(
     [
       ...descendantSelectors(".group\\/section-toggle", [
@@ -129,11 +191,37 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
         " .group-hover\\/chats-section-header\\:opacity-100",
         " .group-focus-within\\/chats-section-header\\:opacity-100",
       ]),
-      ...descendantSelectors(".group\\/folder-row", [
-        " .group-hover\\/folder-row\\:opacity-100",
-      ]),
     ],
     SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      ...statefulContainerSelectors(
+        ".group\\/section-toggle",
+        [
+          " .group-hover\\/section-toggle\\:opacity-100",
+          " .group-focus-visible\\/section-toggle\\:opacity-100",
+        ],
+        SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR,
+      ),
+      ...statefulContainerSelectors(
+        ".group\\/projects-section-header",
+        [
+          " .group-hover\\/projects-section-header\\:opacity-100",
+          " .group-focus-within\\/projects-section-header\\:opacity-100",
+        ],
+        SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR,
+      ),
+      ...statefulContainerSelectors(
+        ".group\\/chats-section-header",
+        [
+          " .group-hover\\/chats-section-header\\:opacity-100",
+          " .group-focus-within\\/chats-section-header\\:opacity-100",
+        ],
+        SIDEBAR_HOVER_CONTROL_ACTIVE_STATE_SELECTOR,
+      ),
+    ],
+    SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
   ),
   cssRule(
     [
@@ -149,9 +237,6 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
         " .group-hover\\/chats-section-header\\:opacity-100",
         " .group-focus-within\\/chats-section-header\\:opacity-100",
       ]),
-      ...interactiveSelectors(".group\\/folder-row", [
-        " .group-hover\\/folder-row\\:opacity-100",
-      ]),
     ],
     SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
   ),
@@ -159,25 +244,15 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
 
 const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   cssRule(
+    SIDEBAR_PROJECTS_HEADER_COLLAPSE_CONTROL_SELECTOR,
+    HIDDEN_DISPLAY_DECLARATIONS,
+  ),
+  cssRule(
     SIDEBAR_FOLDER_ROW_ACTIONS_SELECTOR,
     SIDEBAR_FOLDER_ROW_ACTIONS_DECLARATIONS,
   ),
   cssRule(
-    descendantSelectors(
-      SIDEBAR_THREAD_ROW_SELECTOR,
-      SIDEBAR_THREAD_ROW_ACTION_SLOT_TARGETS,
-    ),
-    SIDEBAR_THREAD_ROW_ACTION_MOTION_DECLARATIONS,
-  ),
-  cssRule(
-    descendantSelectors(
-      SIDEBAR_THREAD_ROW_SELECTOR,
-      SIDEBAR_THREAD_ROW_META_TARGETS,
-    ),
-    SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_ACTION_TARGETS,
     ),
@@ -191,35 +266,85 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    descendantSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_ACTION_RAIL_TARGETS,
+    ),
+    SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS,
+  ),
+  cssRule(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
       SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS,
     ),
     VISIBLE_ICON_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_GROUP_HOVER_POINTER_TARGETS,
+    ),
+    "pointer-events:auto!important;",
+  ),
+  cssRule(
+    threadRowInteractiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_GROUP_HOVER_VISIBLE_TARGETS,
+    ),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    threadRowInteractiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_GROUP_HOVER_MUTED_TARGETS,
+    ),
+    "opacity:.5!important;visibility:visible!important;",
+  ),
+  cssRule(
+    threadRowInteractiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_GROUP_HOVER_HIDDEN_TARGETS,
+    ),
+    HIDDEN_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    threadRowInteractiveSelectors(
+      SIDEBAR_THREAD_ROW_SELECTOR,
+      SIDEBAR_THREAD_ROW_GROUP_HOVER_DISPLAY_TARGETS,
+    ),
+    HIDDEN_DISPLAY_DECLARATIONS,
+  ),
+  ...SIDEBAR_THREAD_ROW_GROUP_HOVER_MIN_WIDTH_RULES,
+  cssRule(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_BASE_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       `${SIDEBAR_THREAD_ROW_SELECTOR}:has(.absolute.top-0.left-1.z-10)`,
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_LEFT_OFFSET_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
       `${SIDEBAR_THREAD_ROW_SELECTOR}:has(>.absolute.right-0.top-0.z-10)`,
       [" [data-thread-title-trigger]"],
     ),
     SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(
+    threadRowInteractiveSelectors(
+      `${SIDEBAR_THREAD_ROW_SELECTOR}:has(>.contents>.absolute.right-0.top-0.z-10)`,
+      [" [data-thread-title-trigger]"],
+    ),
+    SIDEBAR_THREAD_TITLE_RIGHT_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    threadRowInteractiveSelectors(
       SIDEBAR_THREAD_ROW_WITH_ACTION_SLOT_SELECTOR,
       [
         " [data-thread-title-trigger]>:first-child",
@@ -231,7 +356,7 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     SIDEBAR_THREAD_TITLE_TEXT_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS),
+    threadRowInteractiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS),
     HIDDEN_META_DECLARATIONS,
   ),
   cssRule(
