@@ -2699,14 +2699,14 @@ test("Store binary updater only accepts the official Store package family", () =
   assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
   assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
   assert.match(source, /Where-Object \{ \$_\.PackageFamilyName -eq \$PackageFamilyName \}/);
-  assert.match(source, /app\\resources\\node_repl\.exe/);
+  assert.match(source, /app\\resources\\cua_node\\bin\\node_repl\.exe/);
   assert.match(
     source,
     /app\\resources\\plugins\\openai-bundled\\plugins\\chrome\\extension-host\\windows\\x64\\extension-host\.exe/,
   );
   assert.match(
     source,
-    /app\\resources\\plugins\\openai-bundled\\plugins\\computer-use\\node_modules\\@oai\\sky\\bin\\windows\\codex-computer-use\.exe/,
+    /app\\resources\\cua_node\\bin\\node_modules\\@oai\\sky\\bin\\windows\\codex-computer-use\.exe/,
   );
 });
 
