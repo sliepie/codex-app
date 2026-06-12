@@ -17,6 +17,8 @@ const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
   "transform:translateX(0)!important;";
 const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out!important;";
+const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
+  ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
 const SIDEBAR_THREAD_ROW_META_TARGETS = [
   " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
@@ -190,6 +192,20 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       " .group-hover\\/folder-row\\:hidden",
     ]),
     HIDDEN_DISPLAY_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      SIDEBAR_PROJECT_ROW_ICON_SELECTOR +
+        " .group-hover\\/folder-row\\:opacity-0",
+    ]),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    interactiveSelectors(".group\\/folder-row", [
+      SIDEBAR_PROJECT_ROW_ICON_SELECTOR +
+        " .group-hover\\/folder-row\\:opacity-100",
+    ]),
+    HIDDEN_CONTROL_DECLARATIONS,
   ),
   mediaRule(
     "(prefers-reduced-motion:no-preference)",

@@ -1997,12 +1997,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(!uiOverrideCss.includes(String.raw`[class~="gap-0.5"]`));
     assert.ok(
-      !uiOverrideCss.includes(
+      uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-0{opacity:1!important;visibility:visible!important;}`,
       ),
     );
     assert.ok(
-      !uiOverrideCss.includes(
+      uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-100{opacity:0!important;}`,
       ),
     );
