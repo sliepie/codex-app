@@ -53,6 +53,15 @@ const SIDEBAR_MOBILE_BUTTON_SELECTOR = [
   ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[title*='phone' i]",
 ];
 const SIDEBAR_MOBILE_BUTTON_DECLARATIONS = "display:none!important;";
+const INVITE_FRIEND_MENU_ITEM_SELECTOR = [
+  ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[aria-label*='invite' i]",
+  ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[title*='invite' i]",
+  ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[aria-label*='friend' i]",
+  ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[title*='friend' i]",
+  ":where([role='menu'],[data-radix-popper-content-wrapper]) a[href*='invite' i]",
+  ":where([role='menu'],[data-radix-popper-content-wrapper]) a[href*='referral' i]",
+];
+const INVITE_FRIEND_MENU_ITEM_DECLARATIONS = "display:none!important;";
 
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
@@ -266,6 +275,10 @@ const SIDEBAR_FOOTER_STYLE_RULES = [
   cssRule(SIDEBAR_MOBILE_BUTTON_SELECTOR, SIDEBAR_MOBILE_BUTTON_DECLARATIONS),
 ];
 
+const INVITE_FRIEND_STYLE_RULES = [
+  cssRule(INVITE_FRIEND_MENU_ITEM_SELECTOR, INVITE_FRIEND_MENU_ITEM_DECLARATIONS),
+];
+
 const USAGE_MENU_STYLE_RULES = [
   cssRule(
     ".flex.flex-col.text-sm>.grid.items-center.gap-y-1\\.5.py-1",
@@ -289,6 +302,7 @@ const STYLE_RULES = [
   ...SETTINGS_STYLE_RULES,
   ...CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES,
   ...SIDEBAR_FOOTER_STYLE_RULES,
+  ...INVITE_FRIEND_STYLE_RULES,
   ...USAGE_MENU_STYLE_RULES,
 ];
 
