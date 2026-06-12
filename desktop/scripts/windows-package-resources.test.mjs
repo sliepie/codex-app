@@ -1982,11 +1982,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.group\/folder-row :is([class~="gap-0.5"],[class~="gap-1"],[class~="gap-1.5"],[class~="gap-2"]):has(>.group-hover\/folder-row\:opacity-100){gap:0!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
       ),
     );
@@ -1995,6 +1990,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:hidden{display:none!important;}`,
       ),
     );
+    assert.ok(
+      !uiOverrideCss.includes(
+        String.raw`.group\/folder-row>:has(>:is(button,[role='button'])){gap:0!important;}`,
+      ),
+    );
+    assert.ok(!uiOverrideCss.includes(String.raw`[class~="gap-0.5"]`));
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-0{opacity:1!important;visibility:visible!important;}`,
@@ -2021,7 +2022,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       ),
     );
     assert.ok(
-      uiOverrideCss.includes(
+      !uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{transition:opacity 120ms ease-out!important;}",
       ),
     );
@@ -2036,27 +2037,34 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(
       !uiOverrideCss.includes("opacity:0!important;visibility:hidden!important;"),
     );
-    assert.ok(uiOverrideCss.includes("padding-inline-end:1rem!important;"));
+    assert.ok(!uiOverrideCss.includes("padding-inline-end:1rem!important;"));
     assert.ok(
-      uiOverrideCss.includes(
+      !uiOverrideCss.includes(
         ":has(>.absolute.right-0.top-0.z-10):is(:hover,:focus-within) [data-thread-title-trigger]",
       ),
     );
-    assert.ok(uiOverrideCss.includes("text-overflow:ellipsis!important;"));
-    assert.ok(uiOverrideCss.includes("white-space:nowrap!important;"));
-    assert.ok(uiOverrideCss.includes("word-break:normal!important;"));
-    assert.ok(
-      uiOverrideCss.includes(" [data-thread-title-trigger]>:first-child"),
-    );
-    assert.ok(uiOverrideCss.includes("gap:0.25rem!important;"));
     assert.ok(
       uiOverrideCss.includes(
+        "[data-app-action-sidebar-section-heading=\"Pinned\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger],[data-app-action-sidebar-section-heading=\"Chats\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]{position:relative!important;left:-2px!important;}",
+      ),
+    );
+    assert.ok(!uiOverrideCss.includes("text-overflow:ellipsis!important;"));
+    assert.ok(!uiOverrideCss.includes("white-space:nowrap!important;"));
+    assert.ok(!uiOverrideCss.includes("word-break:normal!important;"));
+    assert.ok(!uiOverrideCss.includes(" [data-thread-title-trigger]>:first-child"));
+    assert.ok(
+      !uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
       ),
     );
     assert.ok(
       !uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{gap:0.25rem!important;}",
+        "[data-app-action-sidebar-thread-row] .absolute.top-0.left-1.z-10 button,[data-app-action-sidebar-thread-row] .w-4 span:has(button) button,[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10 button{margin-inline:1px!important;}",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row] button[aria-label*='stop' i],[data-app-action-sidebar-thread-row] button[title*='stop' i],[data-app-action-sidebar-thread-row] button[aria-label*='terminate' i],[data-app-action-sidebar-thread-row] button[title*='terminate' i],[data-app-action-sidebar-thread-row] [role='button'][aria-label*='stop' i],[data-app-action-sidebar-thread-row] [role='button'][title*='stop' i],[data-app-action-sidebar-thread-row] [role='button'][aria-label*='terminate' i],[data-app-action-sidebar-thread-row] [role='button'][title*='terminate' i]{display:none!important;}",
       ),
     );
     assert.ok(!uiOverrideCss.includes(" .w-4:not(:has(button))"));
@@ -2086,6 +2094,16 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(
       uiOverrideCss.includes(
         String.raw`[data-codexpp="nav-group"],[data-codexpp="pages-group"]{flex:0 0 auto!important;margin-top:0!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[aria-label*='mobile' i],:where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[title*='mobile' i],:where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[aria-label*='phone' i],:where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[title*='phone' i]{display:none!important;}",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[aria-label*='invite' i],:where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[title*='invite' i],:where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[aria-label*='friend' i],:where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[title*='friend' i],:where([role='menu'],[data-radix-popper-content-wrapper]) a[href*='invite' i],:where([role='menu'],[data-radix-popper-content-wrapper]) a[href*='referral' i]{display:none!important;}",
       ),
     );
     assert.ok(
