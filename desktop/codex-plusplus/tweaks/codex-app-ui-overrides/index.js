@@ -44,6 +44,13 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
 ];
+const SIDEBAR_MOBILE_BUTTON_SELECTOR = [
+  ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[aria-label*='mobile' i]",
+  ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[title*='mobile' i]",
+  ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[aria-label*='phone' i]",
+  ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[title*='phone' i]",
+];
+const SIDEBAR_MOBILE_BUTTON_DECLARATIONS = "display:none!important;";
 
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
@@ -239,6 +246,10 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES = [
   ),
 ];
 
+const SIDEBAR_FOOTER_STYLE_RULES = [
+  cssRule(SIDEBAR_MOBILE_BUTTON_SELECTOR, SIDEBAR_MOBILE_BUTTON_DECLARATIONS),
+];
+
 const USAGE_MENU_STYLE_RULES = [
   cssRule(
     ".flex.flex-col.text-sm>.grid.items-center.gap-y-1\\.5.py-1",
@@ -261,6 +272,7 @@ const STYLE_RULES = [
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,
   ...CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES,
+  ...SIDEBAR_FOOTER_STYLE_RULES,
   ...USAGE_MENU_STYLE_RULES,
 ];
 
