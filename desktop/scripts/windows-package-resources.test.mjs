@@ -1603,7 +1603,7 @@ test("bundles repo-owned Codex++ UI tweaks without keyboard shortcut tweaks", ()
     if (tweakName === "codex-app-windows-menu-bar") {
       assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout/);
     } else {
-      assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+      assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
     }
     assert.doesNotThrow(() => {
       const module = { exports: {} };
@@ -1650,7 +1650,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   const uiTweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
   const uiManifest = JSON.parse(fs.readFileSync(path.join(uiTweakRoot, "manifest.json"), "utf8"));
   const uiSource = fs.readFileSync(path.join(uiTweakRoot, uiManifest.main), "utf8");
-  assert.doesNotMatch(uiSource, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+  assert.doesNotMatch(uiSource, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
   assert.doesNotMatch(uiSource, /hideWindowsMenuBar|codex-app-ui-hide-windows-menu-bar-setting/);
   assert.ok(uiSource.includes('cssRule(".group\\\\/application-menu-top-bar", "margin-inline-start:0.5rem;")'));
   assert.doesNotMatch(uiSource, /application-menu-top-bar[\s\S]{0,120}display:none!important/);
@@ -1813,17 +1813,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   reduceMotionRow.textContent = "Reduce motion";
   settingsSurface.append(themeRow, pointerRow, reduceMotionRow);
   documentElement.appendChild(settingsSurface);
-  const usageMenu = new FakeElement("div");
-  const usageRateRows = new FakeElement("div");
-  usageRateRows.className = "grid items-center gap-y-1.5 py-1";
-  const resetUsageRow = new FakeElement("button");
-  resetUsageRow.textContent = "1 reset available";
-  const inviteFriendRow = new FakeElement("button");
-  inviteFriendRow.textContent = "Invite a friend";
-  const logOutRow = new FakeElement("button");
-  logOutRow.textContent = "Log out";
-  usageMenu.append(usageRateRows, resetUsageRow, inviteFriendRow, logOutRow);
-  documentElement.appendChild(usageMenu);
 
   const findById = (root, id) => {
     if (root.id === id) {
@@ -1867,20 +1856,10 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     getElementById: (id) =>
       findById(head, id) ?? findById(documentElement, id) ?? null,
     createElement: (tagName) => new FakeElement(tagName),
-    querySelectorAll: (selector) => {
-      if (selector === ".main-surface .flex.flex-col.rounded-lg.border") {
-        return [settingsSurface];
-      }
-      if (selector === ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)") {
-        return [usageMenu];
-      }
-      if (selector === "[data-codexpp-usage-action]") {
-        return [usageMenu, ...usageMenu.children].filter((element) =>
-          element.attributes.has("data-codexpp-usage-action"),
-        );
-      }
-      return [];
-    },
+    querySelectorAll: (selector) =>
+      selector === ".main-surface .flex.flex-col.rounded-lg.border"
+        ? [settingsSurface]
+        : [],
   };
 
   try {
@@ -2111,22 +2090,19 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.flex.flex-col.text-sm>.grid.items-center.gap-y-1\.5.py-1{padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1{padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-codexpp-usage-action="reset"]{position:relative!important;left:1px!important;}`,
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1+*{position:relative!important;left:1px!important;}`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href="https://openai.com/chatgpt/pricing"],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"],[data-codexpp-usage-action="invite"]{display:none!important;}`,
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href="https://openai.com/chatgpt/pricing"],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1+*+*{display:none!important;}`,
       ),
     );
-    assert.equal(resetUsageRow.getAttribute("data-codexpp-usage-action"), "reset");
-    assert.equal(inviteFriendRow.getAttribute("data-codexpp-usage-action"), "invite");
-    assert.equal(logOutRow.getAttribute("data-codexpp-usage-action"), null);
 
     menuModule.exports.start({ log: console, storage });
     assert.equal(appendedStyles.length, 2);
@@ -2144,8 +2120,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.equal(removedStyleIds.has("codex-app-windows-menu-bar-style"), true);
     assert.equal(removedStyleIds.has("codex-app-ui-overrides-style"), true);
-    assert.equal(resetUsageRow.getAttribute("data-codexpp-usage-action"), null);
-    assert.equal(inviteFriendRow.getAttribute("data-codexpp-usage-action"), null);
   } finally {
     globalThis.window = previousWindow;
     globalThis.document = previousDocument;

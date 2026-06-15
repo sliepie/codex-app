@@ -65,24 +65,23 @@ const SIDEBAR_THREAD_ROW_ACTION_ICON_TARGETS = [
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS = "gap:0.25rem!important;";
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
+const USAGE_MENU_RATE_ROWS_SELECTOR =
+  `${USAGE_MENU_CONTENT_SELECTOR}>.grid.items-center.gap-y-1\\.5.py-1`;
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
   "padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;";
 const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
 const USAGE_MENU_RESET_ACTION_DECLARATIONS =
   "position:relative!important;left:1px!important;";
-const USAGE_MENU_ANNOTATED_ACTION_SELECTOR = "[data-codexpp-usage-action]";
 const USAGE_MENU_INVITE_ACTION_SELECTOR =
-  '[data-codexpp-usage-action="invite"]';
+  `${USAGE_MENU_RATE_ROWS_SELECTOR}+*+*`;
 const USAGE_MENU_RESET_ACTION_SELECTOR =
-  '[data-codexpp-usage-action="reset"]';
-const USAGE_MENU_RESET_TEXT_PATTERN = /^\d+\s+resets?\s+available$/i;
+  `${USAGE_MENU_RATE_ROWS_SELECTOR}+*`;
 const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
   ":where(aside,nav,[role='navigation'],div):has(>[data-codexpp=\"nav-group\"])";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
 ];
-let usageMenuObserver = null;
 
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
@@ -353,7 +352,7 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES = [
 
 const USAGE_MENU_STYLE_RULES = [
   cssRule(
-    ".flex.flex-col.text-sm>.grid.items-center.gap-y-1\\.5.py-1",
+    USAGE_MENU_RATE_ROWS_SELECTOR,
     USAGE_MENU_RATE_ROWS_DECLARATIONS,
   ),
   cssRule(
@@ -394,64 +393,12 @@ function installStyle() {
   document.head.appendChild(style);
 }
 
-function normalizeUsageMenuText(element) {
-  return element.textContent?.replace(/\s+/g, " ").trim() ?? "";
-}
-
-function usageMenuActionForText(text) {
-  if (text === "Invite a friend") {
-    return "invite";
-  }
-
-  if (USAGE_MENU_RESET_TEXT_PATTERN.test(text)) {
-    return "reset";
-  }
-
-  return null;
-}
-
-function annotateUsageMenuActions() {
-  document.querySelectorAll(USAGE_MENU_CONTENT_SELECTOR).forEach((menu) => {
-    Array.from(menu.children).forEach((child) => {
-      const action = usageMenuActionForText(normalizeUsageMenuText(child));
-      if (action) {
-        child.setAttribute("data-codexpp-usage-action", action);
-        return;
-      }
-
-      if (child.getAttribute("data-codexpp-usage-action")) {
-        child.removeAttribute("data-codexpp-usage-action");
-      }
-    });
-  });
-}
-
-function installUsageMenuObserver() {
-  usageMenuObserver?.disconnect();
-  annotateUsageMenuActions();
-  usageMenuObserver = new MutationObserver(annotateUsageMenuActions);
-  usageMenuObserver.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-  });
-}
-
-function removeUsageMenuAnnotations() {
-  usageMenuObserver?.disconnect();
-  usageMenuObserver = null;
-  document.querySelectorAll(USAGE_MENU_ANNOTATED_ACTION_SELECTOR).forEach((element) => {
-    element.removeAttribute("data-codexpp-usage-action");
-  });
-}
-
 module.exports = {
   start() {
     installStyle();
-    installUsageMenuObserver();
   },
 
   stop() {
     document.getElementById(STYLE_ID)?.remove();
-    removeUsageMenuAnnotations();
   },
 };
