@@ -1977,33 +1977,18 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       ),
     );
     assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/section-toggle .group-hover\/section-toggle\:opacity-100,.group\/section-toggle .group-focus-visible\/section-toggle\:opacity-100{transition:none!important;}`,
+      !uiOverrideCss.includes(
+        String.raw`.group\/section-toggle:is(:hover,:focus-within) .group-hover\/section-toggle\:opacity-100`,
       ),
     );
     assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/projects-section-header .group-hover\/projects-section-header\:opacity-100,.group\/projects-section-header .group-focus-within\/projects-section-header\:opacity-100{transition:none!important;}`,
+      !uiOverrideCss.includes(
+        String.raw`.group\/projects-section-header:is(:hover,:focus-within) .group-hover\/projects-section-header\:opacity-100`,
       ),
     );
     assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/chats-section-header .group-hover\/chats-section-header\:opacity-100,.group\/chats-section-header .group-focus-within\/chats-section-header\:opacity-100{transition:none!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/section-toggle:is(:hover,:focus-within) .group-hover\/section-toggle\:opacity-100,.group\/section-toggle:is(:hover,:focus-within) .group-focus-visible\/section-toggle\:opacity-100{opacity:1!important;visibility:visible!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/projects-section-header:is(:hover,:focus-within) .group-hover\/projects-section-header\:opacity-100,.group\/projects-section-header:is(:hover,:focus-within) .group-focus-within\/projects-section-header\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/chats-section-header:is(:hover,:focus-within) .group-hover\/chats-section-header\:opacity-100,.group\/chats-section-header:is(:hover,:focus-within) .group-focus-within\/chats-section-header\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
+      !uiOverrideCss.includes(
+        String.raw`.group\/chats-section-header:is(:hover,:focus-within) .group-hover\/chats-section-header\:opacity-100`,
       ),
     );
     assert.ok(!uiOverrideCss.includes(String.raw`[class~="gap-0.5"]`));

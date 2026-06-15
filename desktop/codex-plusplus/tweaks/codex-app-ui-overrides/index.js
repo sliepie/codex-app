@@ -11,7 +11,6 @@ const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
-const NO_TRANSITION_DECLARATIONS = "transition:none!important;";
 const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
@@ -59,18 +58,6 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
 const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
-];
-const SIDEBAR_SECTION_TOGGLE_CONTROL_TARGETS = [
-  " .group-hover\\/section-toggle\\:opacity-100",
-  " .group-focus-visible\\/section-toggle\\:opacity-100",
-];
-const SIDEBAR_PROJECTS_HEADER_CONTROL_TARGETS = [
-  " .group-hover\\/projects-section-header\\:opacity-100",
-  " .group-focus-within\\/projects-section-header\\:opacity-100",
-];
-const SIDEBAR_CHATS_HEADER_CONTROL_TARGETS = [
-  " .group-hover\\/chats-section-header\\:opacity-100",
-  " .group-focus-within\\/chats-section-header\\:opacity-100",
 ];
 const SIDEBAR_MOBILE_BUTTON_SELECTOR = [
   ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[aria-label*='mobile' i]",
@@ -141,50 +128,8 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     SIDEBAR_THREAD_ROW_STOP_BUTTON_DECLARATIONS,
   ),
   cssRule(
-    descendantSelectors(
-      ".group\\/section-toggle",
-      SIDEBAR_SECTION_TOGGLE_CONTROL_TARGETS,
-    ),
-    NO_TRANSITION_DECLARATIONS,
-  ),
-  cssRule(
-    descendantSelectors(
-      ".group\\/projects-section-header",
-      SIDEBAR_PROJECTS_HEADER_CONTROL_TARGETS,
-    ),
-    NO_TRANSITION_DECLARATIONS,
-  ),
-  cssRule(
-    descendantSelectors(
-      ".group\\/chats-section-header",
-      SIDEBAR_CHATS_HEADER_CONTROL_TARGETS,
-    ),
-    NO_TRANSITION_DECLARATIONS,
-  ),
-  cssRule(
     interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS),
     HIDDEN_META_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(
-      ".group\\/section-toggle",
-      SIDEBAR_SECTION_TOGGLE_CONTROL_TARGETS,
-    ),
-    VISIBLE_ICON_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(
-      ".group\\/projects-section-header",
-      SIDEBAR_PROJECTS_HEADER_CONTROL_TARGETS,
-    ),
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(
-      ".group\\/chats-section-header",
-      SIDEBAR_CHATS_HEADER_CONTROL_TARGETS,
-    ),
-    VISIBLE_CONTROL_DECLARATIONS,
   ),
   cssRule(
     interactiveSelectors(".group\\/folder-row", [
