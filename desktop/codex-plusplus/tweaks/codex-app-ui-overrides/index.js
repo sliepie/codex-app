@@ -77,7 +77,7 @@ const USAGE_MENU_RESET_ACTION_SELECTOR =
 const PROFILE_DROPDOWN_CONTENT_SELECTOR =
   `.flex.w-full.min-w-0.flex-col.gap-0:has(>${USAGE_MENU_CONTENT_SELECTOR})`;
 const PROFILE_DROPDOWN_INVITE_SELECTOR =
-  `${PROFILE_DROPDOWN_CONTENT_SELECTOR}>[role="menuitem"]:nth-last-child(2)`;
+  `${PROFILE_DROPDOWN_CONTENT_SELECTOR}>:nth-last-child(2)`;
 const SIDEBAR_TRIGGER_SELECTOR =
   '[style*="view-transition-name: sidebar-trigger"]';
 const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
