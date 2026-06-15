@@ -72,10 +72,14 @@ const USAGE_MENU_RATE_ROWS_DECLARATIONS =
 const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
 const USAGE_MENU_RESET_ACTION_DECLARATIONS =
   "position:relative!important;left:1px!important;";
-const USAGE_MENU_INVITE_ACTION_SELECTOR =
-  `${USAGE_MENU_RATE_ROWS_SELECTOR}+*+*`;
 const USAGE_MENU_RESET_ACTION_SELECTOR =
   `${USAGE_MENU_RATE_ROWS_SELECTOR}+*`;
+const SIDEBAR_TRIGGER_SELECTOR =
+  '[style*="view-transition-name: sidebar-trigger"]';
+const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
+  'button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"])',
+  'button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V10.8477"])',
+];
 const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
   ":where(aside,nav,[role='navigation'],div):has(>[data-codexpp=\"nav-group\"])";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
@@ -102,10 +106,8 @@ function interactiveSelectors(container, targets) {
 
 const BASE_STYLE_RULES = [
   cssRule(".group\\/application-menu-top-bar", "margin-inline-start:0.5rem;"),
-  cssRule(
-    '[style*="view-transition-name: sidebar-trigger"]',
-    "transform:translateX(2px);",
-  ),
+  cssRule(SIDEBAR_TRIGGER_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(CODEX_MOBILE_NAV_ITEM_SELECTORS, HIDDEN_DISPLAY_DECLARATIONS),
 ];
 
 const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
@@ -363,7 +365,6 @@ const USAGE_MENU_STYLE_RULES = [
     [
       `${USAGE_MENU_CONTENT_SELECTOR}>a[href="https://openai.com/chatgpt/pricing"]`,
       `${USAGE_MENU_CONTENT_SELECTOR}>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
-      USAGE_MENU_INVITE_ACTION_SELECTOR,
     ],
     USAGE_MENU_LINK_DECLARATIONS,
   ),

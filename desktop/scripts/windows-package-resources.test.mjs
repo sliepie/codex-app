@@ -2098,10 +2098,30 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1+*{position:relative!important;left:1px!important;}`,
       ),
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href="https://openai.com/chatgpt/pricing"],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1+*+*{display:none!important;}`,
+    const uiCssRules = Array.from(uiOverrideCss.matchAll(/([^{}]+)\{([^{}]+)\}/g)).map(
+      ([, selector, declarations]) => ({
+        selector: selector.trim(),
+        declarations: declarations.trim(),
+      }),
+    );
+    const usageLinkHideRule = uiCssRules.find(
+      ({ selector, declarations }) =>
+        declarations === "display:none!important;" &&
+        selector.includes('a[href="https://openai.com/chatgpt/pricing"]'),
+    );
+    assert.ok(usageLinkHideRule);
+    assert.deepEqual(usageLinkHideRule.selector.split(","), [
+      String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href="https://openai.com/chatgpt/pricing"]`,
+      String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
+    ]);
+    assert.doesNotMatch(usageLinkHideRule.selector, /nth-last-child|\+\*\+\*|M16\.834/);
+    assert.equal(
+      uiCssRules.some(
+        ({ selector, declarations }) =>
+          declarations === "display:none!important;" &&
+          selector.includes(".grid.items-center.gap-y-1\\.5.py-1+*+*"),
       ),
+      false,
     );
 
     menuModule.exports.start({ log: console, storage });
