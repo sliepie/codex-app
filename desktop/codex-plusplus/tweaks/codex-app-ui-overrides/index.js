@@ -15,7 +15,17 @@ const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
+const SIDEBAR_PROJECT_ROW_SELECTOR = "[data-app-action-sidebar-project-row]";
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
+const SIDEBAR_ACTION_CONTROL_TARGETS = [
+  " :is(div,span):has(>button:not([aria-hidden='true'])[aria-label])",
+  " button:not([aria-hidden='true'])[aria-label]",
+  " [role='button']:not([aria-hidden='true'])[aria-label]",
+];
+const SIDEBAR_ACTION_ICON_TARGETS = [
+  " button:not([aria-hidden='true'])[aria-label] svg",
+  " [role='button']:not([aria-hidden='true'])[aria-label] svg",
+];
 const SIDEBAR_THREAD_ROW_META_TARGETS = [
   " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
   " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
@@ -93,6 +103,13 @@ function interactiveSelectors(container, targets) {
   return targets.map((target) => `${container}:is(:hover,:focus-within)${target}`);
 }
 
+function rowStateSelectors(container, targets, activeSelectors) {
+  return targets.flatMap((target) => [
+    `${container}:is(:hover,:focus-within)${target}`,
+    ...activeSelectors.map((activeSelector) => `${container}${activeSelector}${target}`),
+  ]);
+}
+
 const BASE_STYLE_RULES = [
   cssRule(".group\\/application-menu-top-bar", "margin-inline-start:0.5rem;"),
   cssRule(SIDEBAR_TRIGGER_SELECTOR, SIDEBAR_TRIGGER_DECLARATIONS),
@@ -130,6 +147,28 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   cssRule(
     interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS),
     HIDDEN_META_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      ...rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_ACTION_CONTROL_TARGETS, [
+        "[aria-current='page']",
+      ]),
+      ...rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_ACTION_CONTROL_TARGETS, [
+        "[data-app-action-sidebar-thread-active='true']",
+      ]),
+    ],
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    [
+      ...rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_ACTION_ICON_TARGETS, [
+        "[aria-current='page']",
+      ]),
+      ...rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_ACTION_ICON_TARGETS, [
+        "[data-app-action-sidebar-thread-active='true']",
+      ]),
+    ],
+    VISIBLE_ICON_DECLARATIONS,
   ),
   /*
   cssRule(

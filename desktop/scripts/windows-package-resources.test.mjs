@@ -1993,23 +1993,23 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(!uiOverrideCss.includes(String.raw`[class~="gap-0.5"]`));
     assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
+      !uiOverrideCss.includes(
+        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:hidden{display:none!important;}`,
+        "[data-app-action-sidebar-project-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label]",
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-0{opacity:1!important;visibility:visible!important;}`,
+        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label] svg",
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-100{opacity:0!important;}`,
+        "[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label]",
       ),
     );
     assert.ok(
