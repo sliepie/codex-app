@@ -70,30 +70,19 @@ const USAGE_MENU_RATE_ROWS_DECLARATIONS =
 const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
 const USAGE_MENU_RESET_ACTION_DECLARATIONS =
   "position:relative!important;left:1px!important;";
-const USAGE_MENU_ACTION_SELECTOR =
-  ':is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])';
-const USAGE_MENU_RESET_ACTION_SELECTORS = [
-  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[aria-label*="reset" i]`,
-  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[title*="reset" i]`,
-  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-testid*="reset" i]`,
-  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-value*="reset" i]`,
-];
-const USAGE_MENU_INVITE_ACTION_SELECTORS = [
-  `${USAGE_MENU_CONTENT_SELECTOR}>a[href*="invite" i]`,
-  `${USAGE_MENU_CONTENT_SELECTOR}>a[href*="referral" i]`,
-  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[aria-label="Invite a friend" i]`,
-  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[title="Invite a friend" i]`,
-  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-testid*="invite" i]`,
-  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-testid*="referral" i]`,
-  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-value*="invite" i]`,
-  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-value*="referral" i]`,
-];
+const USAGE_MENU_ANNOTATED_ACTION_SELECTOR = "[data-codexpp-usage-action]";
+const USAGE_MENU_INVITE_ACTION_SELECTOR =
+  '[data-codexpp-usage-action="invite"]';
+const USAGE_MENU_RESET_ACTION_SELECTOR =
+  '[data-codexpp-usage-action="reset"]';
+const USAGE_MENU_RESET_TEXT_PATTERN = /^\d+\s+resets?\s+available$/i;
 const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
   ":where(aside,nav,[role='navigation'],div):has(>[data-codexpp=\"nav-group\"])";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
 ];
+let usageMenuObserver = null;
 
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
@@ -368,14 +357,14 @@ const USAGE_MENU_STYLE_RULES = [
     USAGE_MENU_RATE_ROWS_DECLARATIONS,
   ),
   cssRule(
-    USAGE_MENU_RESET_ACTION_SELECTORS,
+    USAGE_MENU_RESET_ACTION_SELECTOR,
     USAGE_MENU_RESET_ACTION_DECLARATIONS,
   ),
   cssRule(
     [
       `${USAGE_MENU_CONTENT_SELECTOR}>a[href="https://openai.com/chatgpt/pricing"]`,
       `${USAGE_MENU_CONTENT_SELECTOR}>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
-      ...USAGE_MENU_INVITE_ACTION_SELECTORS,
+      USAGE_MENU_INVITE_ACTION_SELECTOR,
     ],
     USAGE_MENU_LINK_DECLARATIONS,
   ),
@@ -405,12 +394,64 @@ function installStyle() {
   document.head.appendChild(style);
 }
 
+function normalizeUsageMenuText(element) {
+  return element.textContent?.replace(/\s+/g, " ").trim() ?? "";
+}
+
+function usageMenuActionForText(text) {
+  if (text === "Invite a friend") {
+    return "invite";
+  }
+
+  if (USAGE_MENU_RESET_TEXT_PATTERN.test(text)) {
+    return "reset";
+  }
+
+  return null;
+}
+
+function annotateUsageMenuActions() {
+  document.querySelectorAll(USAGE_MENU_CONTENT_SELECTOR).forEach((menu) => {
+    Array.from(menu.children).forEach((child) => {
+      const action = usageMenuActionForText(normalizeUsageMenuText(child));
+      if (action) {
+        child.setAttribute("data-codexpp-usage-action", action);
+        return;
+      }
+
+      if (child.getAttribute("data-codexpp-usage-action")) {
+        child.removeAttribute("data-codexpp-usage-action");
+      }
+    });
+  });
+}
+
+function installUsageMenuObserver() {
+  usageMenuObserver?.disconnect();
+  annotateUsageMenuActions();
+  usageMenuObserver = new MutationObserver(annotateUsageMenuActions);
+  usageMenuObserver.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+function removeUsageMenuAnnotations() {
+  usageMenuObserver?.disconnect();
+  usageMenuObserver = null;
+  document.querySelectorAll(USAGE_MENU_ANNOTATED_ACTION_SELECTOR).forEach((element) => {
+    element.removeAttribute("data-codexpp-usage-action");
+  });
+}
+
 module.exports = {
   start() {
     installStyle();
+    installUsageMenuObserver();
   },
 
   stop() {
     document.getElementById(STYLE_ID)?.remove();
+    removeUsageMenuAnnotations();
   },
 };
