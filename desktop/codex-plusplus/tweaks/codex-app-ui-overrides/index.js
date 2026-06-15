@@ -75,9 +75,9 @@ const USAGE_MENU_RESET_ACTION_DECLARATIONS =
 const USAGE_MENU_RESET_ACTION_SELECTOR =
   `${USAGE_MENU_RATE_ROWS_SELECTOR}+*`;
 const PROFILE_DROPDOWN_CONTENT_SELECTOR =
-  `.flex.w-full.min-w-0.flex-col.gap-0:has(>${USAGE_MENU_CONTENT_SELECTOR})`;
+  '.w-\\[280px\\]>.flex.w-full.min-w-0.flex-col.gap-0';
 const PROFILE_DROPDOWN_INVITE_SELECTOR =
-  `${PROFILE_DROPDOWN_CONTENT_SELECTOR}>:nth-last-child(2)`;
+  `${PROFILE_DROPDOWN_CONTENT_SELECTOR}>:nth-last-child(2):has(svg path[d^="M16.834"])`;
 const SIDEBAR_TRIGGER_SELECTOR =
   '[style*="view-transition-name: sidebar-trigger"]';
 const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
@@ -143,9 +143,6 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
         " .group-hover\\/chats-section-header\\:opacity-100",
         " .group-focus-within\\/chats-section-header\\:opacity-100",
       ]),
-      ...descendantSelectors(".group\\/folder-row", [
-        " .group-hover\\/folder-row\\:opacity-100",
-      ]),
     ],
     SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS,
   ),
@@ -162,9 +159,6 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
       ...interactiveSelectors(".group\\/chats-section-header", [
         " .group-hover\\/chats-section-header\\:opacity-100",
         " .group-focus-within\\/chats-section-header\\:opacity-100",
-      ]),
-      ...interactiveSelectors(".group\\/folder-row", [
-        " .group-hover\\/folder-row\\:opacity-100",
       ]),
     ],
     SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,

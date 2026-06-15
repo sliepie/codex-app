@@ -2061,7 +2061,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(!uiOverrideCss.includes(" .w-4:not(:has(button))"));
     assert.ok(
-      uiOverrideCss.includes(
+      !uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
       ),
     );
@@ -2118,11 +2118,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     const inviteHideRule = uiCssRules.find(
       ({ selector, declarations }) =>
         declarations === "display:none!important;" &&
-        selector.includes(">:nth-last-child(2)"),
+        selector.includes('>:nth-last-child(2):has(svg path[d^="M16.834"])'),
     );
     assert.deepEqual(
       inviteHideRule?.selector,
-      String.raw`.flex.w-full.min-w-0.flex-col.gap-0:has(>.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1))>:nth-last-child(2)`,
+      String.raw`.w-\[280px\]>.flex.w-full.min-w-0.flex-col.gap-0>:nth-last-child(2):has(svg path[d^="M16.834"])`,
     );
     assert.equal(
       uiCssRules.some(
