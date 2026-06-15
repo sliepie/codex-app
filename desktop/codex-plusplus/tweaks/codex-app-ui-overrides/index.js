@@ -11,10 +11,6 @@ const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
-const SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS =
-  "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;";
-const SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS =
-  "transform:translateX(0)!important;";
 const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
   "transition:opacity 120ms ease-out!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
@@ -116,43 +112,6 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
     "position:relative!important;left:-2px!important;",
   ),
 ];
-const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
-  cssRule(
-    [
-      ...descendantSelectors(".group\\/section-toggle", [
-        " .group-hover\\/section-toggle\\:opacity-100",
-        " .group-focus-visible\\/section-toggle\\:opacity-100",
-      ]),
-      ...descendantSelectors(".group\\/projects-section-header", [
-        " .group-hover\\/projects-section-header\\:opacity-100",
-        " .group-focus-within\\/projects-section-header\\:opacity-100",
-      ]),
-      ...descendantSelectors(".group\\/chats-section-header", [
-        " .group-hover\\/chats-section-header\\:opacity-100",
-        " .group-focus-within\\/chats-section-header\\:opacity-100",
-      ]),
-    ],
-    SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      ...interactiveSelectors(".group\\/section-toggle", [
-        " .group-hover\\/section-toggle\\:opacity-100",
-        " .group-focus-visible\\/section-toggle\\:opacity-100",
-      ]),
-      ...interactiveSelectors(".group\\/projects-section-header", [
-        " .group-hover\\/projects-section-header\\:opacity-100",
-        " .group-focus-within\\/projects-section-header\\:opacity-100",
-      ]),
-      ...interactiveSelectors(".group\\/chats-section-header", [
-        " .group-hover\\/chats-section-header\\:opacity-100",
-        " .group-focus-within\\/chats-section-header\\:opacity-100",
-      ]),
-    ],
-    SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
-  ),
-];
-
 const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   cssRule(
     descendantSelectors(
@@ -224,10 +183,6 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
         " .group-hover\\/folder-row\\:opacity-100",
     ]),
     HIDDEN_CONTROL_DECLARATIONS,
-  ),
-  mediaRule(
-    "(prefers-reduced-motion:no-preference)",
-    SIDEBAR_HOVER_CONTROL_MOTION_RULES,
   ),
 ];
 

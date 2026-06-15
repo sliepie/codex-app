@@ -2013,21 +2013,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       ),
     );
     assert.ok(
-      uiOverrideCss.includes(
-        String.raw`@media (prefers-reduced-motion:no-preference){`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/section-toggle .group-hover\/section-toggle\:opacity-100`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "transition:opacity 120ms ease-out,transform 120ms ease-out!important;transform:translateX(2px)!important;",
-      ),
-    );
-    assert.ok(
       !uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]>.absolute.right-0.top-0.z-10{transition:opacity 120ms ease-out!important;}",
       ),
