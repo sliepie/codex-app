@@ -80,6 +80,7 @@ const PROFILE_DROPDOWN_INVITE_SELECTOR =
   `${PROFILE_DROPDOWN_CONTENT_SELECTOR}>:nth-last-child(2):has(svg path[d^="M16.834"])`;
 const SIDEBAR_TRIGGER_SELECTOR =
   '[style*="view-transition-name: sidebar-trigger"]';
+const SIDEBAR_TRIGGER_DECLARATIONS = "transform:translateX(2px);";
 const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
   'button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"])',
   'button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V10.8477"])',
@@ -110,7 +111,7 @@ function interactiveSelectors(container, targets) {
 
 const BASE_STYLE_RULES = [
   cssRule(".group\\/application-menu-top-bar", "margin-inline-start:0.5rem;"),
-  cssRule(SIDEBAR_TRIGGER_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(SIDEBAR_TRIGGER_SELECTOR, SIDEBAR_TRIGGER_DECLARATIONS),
   cssRule(CODEX_MOBILE_NAV_ITEM_SELECTORS, HIDDEN_DISPLAY_DECLARATIONS),
 ];
 

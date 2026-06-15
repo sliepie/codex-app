@@ -1894,6 +1894,17 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
     const uiOverrideCss = appendedStyles[0].textContent;
     const menuBarCss = appendedStyles[1].textContent;
+    assert.ok(
+      uiOverrideCss.includes(
+        '[style*="view-transition-name: sidebar-trigger"]{transform:translateX(2px);}',
+      ),
+    );
+    assert.equal(
+      uiOverrideCss.includes(
+        '[style*="view-transition-name: sidebar-trigger"]{display:none!important;}',
+      ),
+      false,
+    );
     assert.match(
       appendedStyles[0].textContent,
       /top:calc\(0\.75rem \+ 26px\)!important/,
@@ -2060,11 +2071,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       ),
     );
     assert.ok(!uiOverrideCss.includes(" .w-4:not(:has(button))"));
-    assert.ok(
-      !uiOverrideCss.includes(
-        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
-      ),
-    );
     assert.doesNotMatch(
       uiOverrideCss,
       /:has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
