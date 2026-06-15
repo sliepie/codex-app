@@ -9,3 +9,10 @@ Bundled Codex++ tweak manifests are versioned against the version currently on m
 - Local installed test copies must never be higher than the PR manifest version.
 - New bundled tweaks start at 0.1.0; local installed copies use that same version unless the PR manifest has already advanced.
 - The Codex++ loader replaces an installed tweak when the bundled manifest version is newer than the installed manifest version.
+
+## Source Inspection
+
+- Never guess DOM structure, selectors, bundle names, or injected row order for bundled UI tweaks.
+- Before changing a tweak that depends on upstream Codex UI structure, inspect the real upstream source that ships in the app bundle.
+- If the relevant source is not already available locally, download and extract the latest macOS Codex app build, then inspect the recovered renderer bundle before choosing selectors or patch targets.
+- Treat screenshots as symptoms only. Use them to orient the investigation, not as proof of DOM structure.
