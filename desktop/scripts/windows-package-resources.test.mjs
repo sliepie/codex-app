@@ -1999,6 +1999,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        "[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>:is(div,span):has(button:not([aria-hidden='true'])[aria-label])",
+      ),
+    );
+    assert.ok(
+      !uiOverrideCss.includes(
         "[data-app-action-sidebar-project-row]:is(:hover,:focus-within) :is(div,span):has(button:not([aria-hidden='true'])[aria-label])",
       ),
     );
@@ -2009,12 +2014,27 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        "color:var(--color-token-description-foreground)!important;",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label] svg",
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label]",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`[data-app-action-sidebar-thread-row] .ml-\[3px\].flex.items-center.justify-end.gap-1:not(:has(button)),[data-app-action-sidebar-thread-row] .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:has(button)){transition:opacity 120ms ease-out!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1:not(:has(button)),[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:has(button)){opacity:0!important;pointer-events:none!important;}`,
       ),
     );
     assert.ok(

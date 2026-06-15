@@ -1,10 +1,10 @@
 const STYLE_ID = "codex-app-ui-overrides-style";
 
 const VISIBLE_CONTROL_DECLARATIONS =
-  "opacity:1!important;pointer-events:auto!important;visibility:visible!important;";
+  "opacity:1!important;pointer-events:auto!important;visibility:visible!important;color:var(--color-token-description-foreground)!important;";
 const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
 const VISIBLE_ICON_DECLARATIONS =
-  "opacity:1!important;visibility:visible!important;";
+  "opacity:1!important;visibility:visible!important;color:var(--color-token-description-foreground)!important;";
 const HIDDEN_META_DECLARATIONS =
   "opacity:0!important;pointer-events:none!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
@@ -18,7 +18,7 @@ const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
 const SIDEBAR_PROJECT_ROW_SELECTOR = "[data-app-action-sidebar-project-row]";
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
 const SIDEBAR_ACTION_CONTROL_TARGETS = [
-  " :is(div,span):has(button:not([aria-hidden='true'])[aria-label])",
+  ">:is(div,span):has(button:not([aria-hidden='true'])[aria-label])",
   " button:not([aria-hidden='true'])[aria-label]",
   " [role='button']:not([aria-hidden='true'])[aria-label]",
 ];
