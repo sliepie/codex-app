@@ -18,7 +18,7 @@ const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
 const SIDEBAR_PROJECT_ROW_SELECTOR = "[data-app-action-sidebar-project-row]";
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
 const SIDEBAR_ACTION_CONTROL_TARGETS = [
-  " :is(div,span):has(>button:not([aria-hidden='true'])[aria-label])",
+  " :is(div,span):has(button:not([aria-hidden='true'])[aria-label])",
   " button:not([aria-hidden='true'])[aria-label]",
   " [role='button']:not([aria-hidden='true'])[aria-label]",
 ];
