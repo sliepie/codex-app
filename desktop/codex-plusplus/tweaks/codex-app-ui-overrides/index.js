@@ -131,6 +131,7 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS),
     HIDDEN_META_DECLARATIONS,
   ),
+  /*
   cssRule(
     interactiveSelectors(".group\\/folder-row", [
       " .group-hover\\/folder-row\\:opacity-100",
@@ -163,6 +164,7 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     ]),
     HIDDEN_CONTROL_DECLARATIONS,
   ),
+  */
 ];
 
 const RIGHT_PANEL_TAB_STYLE_RULES = [
