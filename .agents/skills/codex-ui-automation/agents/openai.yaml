@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex UI Automation"
+  short_description: "Inspect running Codex UIA trees"
+  default_prompt: "Use $codex-ui-automation to inspect the running Codex app menu via UI Automation."
