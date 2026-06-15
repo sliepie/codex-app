@@ -2115,6 +2115,15 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
     ]);
     assert.doesNotMatch(usageLinkHideRule.selector, /nth-last-child|\+\*\+\*|M16\.834/);
+    const inviteHideRule = uiCssRules.find(
+      ({ selector, declarations }) =>
+        declarations === "display:none!important;" &&
+        selector.includes('[role="menuitem"]:nth-last-child(2)'),
+    );
+    assert.deepEqual(
+      inviteHideRule?.selector,
+      String.raw`.flex.w-full.min-w-0.flex-col.gap-0:has(>.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1))>[role="menuitem"]:nth-last-child(2)`,
+    );
     assert.equal(
       uiCssRules.some(
         ({ selector, declarations }) =>
