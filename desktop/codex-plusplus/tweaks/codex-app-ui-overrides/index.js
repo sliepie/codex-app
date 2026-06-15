@@ -68,6 +68,26 @@ const USAGE_MENU_CONTENT_SELECTOR =
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
   "padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;";
 const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
+const USAGE_MENU_RESET_ACTION_DECLARATIONS =
+  "position:relative!important;left:1px!important;";
+const USAGE_MENU_ACTION_SELECTOR =
+  ':is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])';
+const USAGE_MENU_RESET_ACTION_SELECTORS = [
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[aria-label*="reset" i]`,
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[title*="reset" i]`,
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-testid*="reset" i]`,
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-value*="reset" i]`,
+];
+const USAGE_MENU_INVITE_ACTION_SELECTORS = [
+  `${USAGE_MENU_CONTENT_SELECTOR}>a[href*="invite" i]`,
+  `${USAGE_MENU_CONTENT_SELECTOR}>a[href*="referral" i]`,
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[aria-label="Invite a friend" i]`,
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[title="Invite a friend" i]`,
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-testid*="invite" i]`,
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-testid*="referral" i]`,
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-value*="invite" i]`,
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_ACTION_SELECTOR}[data-value*="referral" i]`,
+];
 const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
   ":where(aside,nav,[role='navigation'],div):has(>[data-codexpp=\"nav-group\"])";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
@@ -348,9 +368,14 @@ const USAGE_MENU_STYLE_RULES = [
     USAGE_MENU_RATE_ROWS_DECLARATIONS,
   ),
   cssRule(
+    USAGE_MENU_RESET_ACTION_SELECTORS,
+    USAGE_MENU_RESET_ACTION_DECLARATIONS,
+  ),
+  cssRule(
     [
       `${USAGE_MENU_CONTENT_SELECTOR}>a[href="https://openai.com/chatgpt/pricing"]`,
       `${USAGE_MENU_CONTENT_SELECTOR}>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
+      ...USAGE_MENU_INVITE_ACTION_SELECTORS,
     ],
     USAGE_MENU_LINK_DECLARATIONS,
   ),

@@ -2095,7 +2095,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href="https://openai.com/chatgpt/pricing"],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]{display:none!important;}`,
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>:is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])[aria-label*="reset" i],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>:is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])[title*="reset" i],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>:is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])[data-testid*="reset" i],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>:is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])[data-value*="reset" i]{position:relative!important;left:1px!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href="https://openai.com/chatgpt/pricing"],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href*="invite" i],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href*="referral" i],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>:is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])[aria-label="Invite a friend" i],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>:is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])[title="Invite a friend" i],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>:is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])[data-testid*="invite" i],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>:is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])[data-testid*="referral" i],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>:is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])[data-value*="invite" i],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>:is(a,button,[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"])[data-value*="referral" i]{display:none!important;}`,
       ),
     );
 
