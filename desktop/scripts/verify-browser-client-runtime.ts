@@ -112,6 +112,10 @@ function appResourceFileSortKey(filePath: string): string {
 
 function findAppResourceFile(root: string, fileName: string): string | undefined {
   const matches: string[] = [];
+  const suffixes =
+    fileName === "node"
+      ? [`/Contents/Resources/cua_node/bin/${fileName}`, `/Contents/Resources/${fileName}`]
+      : [`/Contents/Resources/${fileName}`];
 
   function walk(currentPath: string): void {
     if (!fs.existsSync(currentPath)) {
@@ -126,7 +130,7 @@ function findAppResourceFile(root: string, fileName: string): string | undefined
       }
 
       const normalized = entryPath.replaceAll(path.sep, "/");
-      if (entry.name === fileName && normalized.endsWith(`/Contents/Resources/${fileName}`)) {
+      if (entry.name === fileName && suffixes.some((suffix) => normalized.endsWith(suffix))) {
         matches.push(entryPath);
       }
     }

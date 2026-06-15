@@ -577,7 +577,7 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
       packageName: "OpenAI.Codex",
       productId: "9PLM9XGG6VKS",
       sha256: sha256File(nodeReplPath),
-      sourceRelativePath: "app/resources/node_repl.exe",
+      sourceRelativePath: "app/resources/cua_node/bin/node_repl.exe",
     }),
   );
   writeFixture(
@@ -599,7 +599,7 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
       packageName: "OpenAI.Codex",
       productId: "9PLM9XGG6VKS",
       sha256: sha256File(computerUsePath),
-      sourceRelativePath: "app/resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe",
+      sourceRelativePath: "app/resources/cua_node/bin/node_modules/@oai/sky/bin/windows/codex-computer-use.exe",
     }),
   );
 
@@ -1894,6 +1894,17 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
     const uiOverrideCss = appendedStyles[0].textContent;
     const menuBarCss = appendedStyles[1].textContent;
+    assert.ok(
+      uiOverrideCss.includes(
+        '[style*="view-transition-name: sidebar-trigger"]{transform:translateX(2px);}',
+      ),
+    );
+    assert.equal(
+      uiOverrideCss.includes(
+        '[style*="view-transition-name: sidebar-trigger"]{display:none!important;}',
+      ),
+      false,
+    );
     assert.match(
       appendedStyles[0].textContent,
       /top:calc\(0\.75rem \+ 26px\)!important/,
@@ -1980,6 +1991,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`.group\/chats-section-header:is(:hover,:focus-within) .group-hover\/chats-section-header\:opacity-100,.group\/chats-section-header:is(:hover,:focus-within) .group-focus-within\/chats-section-header\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
       ),
     );
+    assert.ok(!uiOverrideCss.includes(String.raw`[class~="gap-0.5"]`));
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{opacity:1!important;pointer-events:auto!important;visibility:visible!important;}`,
@@ -1990,12 +2002,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:hidden{display:none!important;}`,
       ),
     );
-    assert.ok(
-      !uiOverrideCss.includes(
-        String.raw`.group\/folder-row>:has(>:is(button,[role='button'])){gap:0!important;}`,
-      ),
-    );
-    assert.ok(!uiOverrideCss.includes(String.raw`[class~="gap-0.5"]`));
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.group\/folder-row:is(:hover,:focus-within)>.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center .group-hover\/folder-row\:opacity-0{opacity:1!important;visibility:visible!important;}`,
@@ -2068,11 +2074,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       ),
     );
     assert.ok(!uiOverrideCss.includes(" .w-4:not(:has(button))"));
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/folder-row:is(:hover,:focus-within) .group-hover\/folder-row\:opacity-100{transform:translateX(0)!important;}`,
-      ),
-    );
     assert.doesNotMatch(
       uiOverrideCss,
       /:has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
@@ -2108,13 +2109,47 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.flex.flex-col.text-sm>.grid.items-center.gap-y-1\.5.py-1{padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1{padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href="https://openai.com/chatgpt/pricing"],.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]{display:none!important;}`,
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1+*{position:relative!important;left:1px!important;}`,
       ),
+    );
+    const uiCssRules = Array.from(uiOverrideCss.matchAll(/([^{}]+)\{([^{}]+)\}/g)).map(
+      ([, selector, declarations]) => ({
+        selector: selector.trim(),
+        declarations: declarations.trim(),
+      }),
+    );
+    const usageLinkHideRule = uiCssRules.find(
+      ({ selector, declarations }) =>
+        declarations === "display:none!important;" &&
+        selector.includes('a[href="https://openai.com/chatgpt/pricing"]'),
+    );
+    assert.ok(usageLinkHideRule);
+    assert.deepEqual(usageLinkHideRule.selector.split(","), [
+      String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href="https://openai.com/chatgpt/pricing"]`,
+      String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
+    ]);
+    assert.doesNotMatch(usageLinkHideRule.selector, /nth-last-child|\+\*\+\*|M16\.834/);
+    const inviteHideRule = uiCssRules.find(
+      ({ selector, declarations }) =>
+        declarations === "display:none!important;" &&
+        selector.includes('>:nth-last-child(2):has(svg path[d^="M16.834"])'),
+    );
+    assert.deepEqual(
+      inviteHideRule?.selector,
+      String.raw`.w-\[280px\]>.flex.w-full.min-w-0.flex-col.gap-0>:nth-last-child(2):has(svg path[d^="M16.834"])`,
+    );
+    assert.equal(
+      uiCssRules.some(
+        ({ selector, declarations }) =>
+          declarations === "display:none!important;" &&
+          selector.includes(".grid.items-center.gap-y-1\\.5.py-1+*+*"),
+      ),
+      false,
     );
 
     menuModule.exports.start({ log: console, storage });
@@ -2717,14 +2752,14 @@ test("Store binary updater only accepts the official Store package family", () =
   assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
   assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
   assert.match(source, /Where-Object \{ \$_\.PackageFamilyName -eq \$PackageFamilyName \}/);
-  assert.match(source, /app\\resources\\node_repl\.exe/);
+  assert.match(source, /app\\resources\\cua_node\\bin\\node_repl\.exe/);
   assert.match(
     source,
     /app\\resources\\plugins\\openai-bundled\\plugins\\chrome\\extension-host\\windows\\x64\\extension-host\.exe/,
   );
   assert.match(
     source,
-    /app\\resources\\plugins\\openai-bundled\\plugins\\computer-use\\node_modules\\@oai\\sky\\bin\\windows\\codex-computer-use\.exe/,
+    /app\\resources\\cua_node\\bin\\node_modules\\@oai\\sky\\bin\\windows\\codex-computer-use\.exe/,
   );
 });
 

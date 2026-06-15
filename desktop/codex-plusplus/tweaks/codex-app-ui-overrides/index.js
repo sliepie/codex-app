@@ -37,9 +37,26 @@ const SIDEBAR_THREAD_ROW_STOP_BUTTON_TARGETS = [
 ];
 const USAGE_MENU_CONTENT_SELECTOR =
   ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
+const USAGE_MENU_RATE_ROWS_SELECTOR =
+  `${USAGE_MENU_CONTENT_SELECTOR}>.grid.items-center.gap-y-1\\.5.py-1`;
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
   "padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;";
 const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
+const USAGE_MENU_RESET_ACTION_DECLARATIONS =
+  "position:relative!important;left:1px!important;";
+const USAGE_MENU_RESET_ACTION_SELECTOR =
+  `${USAGE_MENU_RATE_ROWS_SELECTOR}+*`;
+const PROFILE_DROPDOWN_CONTENT_SELECTOR =
+  '.w-\\[280px\\]>.flex.w-full.min-w-0.flex-col.gap-0';
+const PROFILE_DROPDOWN_INVITE_SELECTOR =
+  `${PROFILE_DROPDOWN_CONTENT_SELECTOR}>:nth-last-child(2):has(svg path[d^="M16.834"])`;
+const SIDEBAR_TRIGGER_SELECTOR =
+  '[style*="view-transition-name: sidebar-trigger"]';
+const SIDEBAR_TRIGGER_DECLARATIONS = "transform:translateX(2px);";
+const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
+  'button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"])',
+  'button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V10.8477"])',
+];
 const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
   ":where(aside,nav,[role='navigation'],div):has(>[data-codexpp=\"nav-group\"])";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
@@ -82,10 +99,8 @@ function interactiveSelectors(container, targets) {
 
 const BASE_STYLE_RULES = [
   cssRule(".group\\/application-menu-top-bar", "margin-inline-start:0.5rem;"),
-  cssRule(
-    '[style*="view-transition-name: sidebar-trigger"]',
-    "transform:translateX(2px);",
-  ),
+  cssRule(SIDEBAR_TRIGGER_SELECTOR, SIDEBAR_TRIGGER_DECLARATIONS),
+  cssRule(CODEX_MOBILE_NAV_ITEM_SELECTORS, HIDDEN_DISPLAY_DECLARATIONS),
 ];
 
 const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
@@ -116,9 +131,6 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
         " .group-hover\\/chats-section-header\\:opacity-100",
         " .group-focus-within\\/chats-section-header\\:opacity-100",
       ]),
-      ...descendantSelectors(".group\\/folder-row", [
-        " .group-hover\\/folder-row\\:opacity-100",
-      ]),
     ],
     SIDEBAR_HOVER_CONTROL_MOTION_DECLARATIONS,
   ),
@@ -135,9 +147,6 @@ const SIDEBAR_HOVER_CONTROL_MOTION_RULES = [
       ...interactiveSelectors(".group\\/chats-section-header", [
         " .group-hover\\/chats-section-header\\:opacity-100",
         " .group-focus-within\\/chats-section-header\\:opacity-100",
-      ]),
-      ...interactiveSelectors(".group\\/folder-row", [
-        " .group-hover\\/folder-row\\:opacity-100",
       ]),
     ],
     SIDEBAR_HOVER_CONTROL_ACTIVE_MOTION_DECLARATIONS,
@@ -281,8 +290,12 @@ const INVITE_FRIEND_STYLE_RULES = [
 
 const USAGE_MENU_STYLE_RULES = [
   cssRule(
-    ".flex.flex-col.text-sm>.grid.items-center.gap-y-1\\.5.py-1",
+    USAGE_MENU_RATE_ROWS_SELECTOR,
     USAGE_MENU_RATE_ROWS_DECLARATIONS,
+  ),
+  cssRule(
+    USAGE_MENU_RESET_ACTION_SELECTOR,
+    USAGE_MENU_RESET_ACTION_DECLARATIONS,
   ),
   cssRule(
     [
@@ -291,6 +304,7 @@ const USAGE_MENU_STYLE_RULES = [
     ],
     USAGE_MENU_LINK_DECLARATIONS,
   ),
+  cssRule(PROFILE_DROPDOWN_INVITE_SELECTOR, USAGE_MENU_LINK_DECLARATIONS),
 ];
 
 const STYLE_RULES = [
