@@ -1973,7 +1973,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.group\/chats-section-header{position:relative!important;left:-1px!important;}`,
+        String.raw`.group\/chats-section-header{position:relative!important;left:1px!important;}`,
       ),
     );
     assert.ok(
