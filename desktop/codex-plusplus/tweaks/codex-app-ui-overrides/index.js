@@ -15,6 +15,29 @@ const SIDEBAR_THREAD_ROW_TITLE_ACTION_RESERVE_DECLARATIONS =
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
+const SIDEBAR_SECTION_HEADER_SELECTORS = [
+  ".group\\/chats-section-header",
+  ".group\\/projects-section-header",
+];
+const SIDEBAR_SECTION_HEADER_ACTIVE_SELECTORS = [
+  ":has([data-state='open'])",
+];
+const SIDEBAR_SECTION_HEADER_ACTION_RAIL_TARGETS = [
+  ">div:has(button:not([aria-hidden='true'])[aria-label])",
+  ">div:has([role='button']:not([aria-hidden='true'])[aria-label])",
+];
+const SIDEBAR_SECTION_HEADER_ACTION_CONTROL_TARGETS = [
+  ">div:has(button:not([aria-hidden='true'])[aria-label]) button:not([aria-hidden='true'])[aria-label]",
+  ">div:has([role='button']:not([aria-hidden='true'])[aria-label]) [role='button']:not([aria-hidden='true'])[aria-label]",
+];
+const SIDEBAR_SECTION_HEADER_ACTION_ICON_TARGETS = [
+  ">div:has(button:not([aria-hidden='true'])[aria-label]) button:not([aria-hidden='true'])[aria-label] svg",
+  ">div:has([role='button']:not([aria-hidden='true'])[aria-label]) [role='button']:not([aria-hidden='true'])[aria-label] svg",
+];
+const SIDEBAR_SECTION_TOGGLE_ICON_TARGETS = [
+  ".group\\/section-toggle:is(:hover,:focus-visible) svg",
+  ".group\\/section-toggle:is(:hover,:focus-visible) .icon-2xs",
+];
 const SIDEBAR_PROJECT_ROW_SELECTOR = "[data-app-action-sidebar-project-row]";
 const SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR =
   ">div.flex.gap-1:has(>.relative.mr-0\\.5.h-6.min-w-6.shrink-0)";
@@ -139,6 +162,12 @@ function rowStateSelectors(container, targets, activeSelectors) {
   ]);
 }
 
+function sectionHeaderStateSelectors(targets) {
+  return SIDEBAR_SECTION_HEADER_SELECTORS.flatMap((selector) =>
+    rowStateSelectors(selector, targets, SIDEBAR_SECTION_HEADER_ACTIVE_SELECTORS),
+  );
+}
+
 const BASE_STYLE_RULES = [
   cssRule(".group\\/application-menu-top-bar", "margin-inline-start:0.5rem;"),
   cssRule(SIDEBAR_TRIGGER_SELECTOR, SIDEBAR_TRIGGER_DECLARATIONS),
@@ -159,6 +188,22 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
   ),
 ];
 const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
+  cssRule(
+    sectionHeaderStateSelectors(SIDEBAR_SECTION_HEADER_ACTION_RAIL_TARGETS),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    sectionHeaderStateSelectors(SIDEBAR_SECTION_HEADER_ACTION_CONTROL_TARGETS),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    sectionHeaderStateSelectors(SIDEBAR_SECTION_HEADER_ACTION_ICON_TARGETS),
+    VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_SECTION_TOGGLE_ICON_TARGETS,
+    VISIBLE_ICON_DECLARATIONS,
+  ),
   cssRule(
     descendantSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
