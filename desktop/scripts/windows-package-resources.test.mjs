@@ -1998,6 +1998,16 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>:is(div,span):has(button:not([aria-hidden='true'])[aria-label]),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true']>:is(div,span):has(button:not([aria-hidden='true'])[aria-label]),[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [role='button']:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [role='button']:not([aria-hidden='true'])[aria-label]{color:var(--color-token-description-foreground)!important;}",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible){color:var(--color-token-foreground)!important;}",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
         String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:has(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label]))),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:has(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label]))){display:none!important;}`,
       ),
     );

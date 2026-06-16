@@ -5,6 +5,10 @@ const VISIBLE_CONTROL_DECLARATIONS =
 const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
 const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
+const SIDEBAR_ACTION_BASE_COLOR_DECLARATIONS =
+  "color:var(--color-token-description-foreground)!important;";
+const SIDEBAR_ACTION_HOVER_COLOR_DECLARATIONS =
+  "color:var(--color-token-foreground)!important;";
 const HIDDEN_META_RAIL_DECLARATIONS = "display:none!important;";
 const SIDEBAR_THREAD_ROW_TITLE_ACTION_RESERVE_DECLARATIONS =
   "padding-right:1rem!important;min-width:0!important;";
@@ -40,6 +44,10 @@ const SIDEBAR_ACTION_CONTROL_TARGETS = [
   ">:is(div,span):has(button:not([aria-hidden='true'])[aria-label])",
   " button:not([aria-hidden='true'])[aria-label]",
   " [role='button']:not([aria-hidden='true'])[aria-label]",
+];
+const SIDEBAR_ACTION_HOVER_CONTROL_TARGETS = [
+  " button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible)",
+  " [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible)",
 ];
 const SIDEBAR_ACTION_ICON_TARGETS = [
   " button:not([aria-hidden='true'])[aria-label] svg",
@@ -195,6 +203,18 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       "[data-app-action-sidebar-thread-active='true']",
     ]),
     VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_ACTION_CONTROL_TARGETS, [
+      "[data-app-action-sidebar-thread-active='true']",
+    ]),
+    SIDEBAR_ACTION_BASE_COLOR_DECLARATIONS,
+  ),
+  cssRule(
+    rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_ACTION_HOVER_CONTROL_TARGETS, [
+      "[data-app-action-sidebar-thread-active='true']",
+    ]),
+    SIDEBAR_ACTION_HOVER_COLOR_DECLARATIONS,
   ),
   cssRule(
     rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_PROJECT_ACTION_ICON_TARGETS, [
