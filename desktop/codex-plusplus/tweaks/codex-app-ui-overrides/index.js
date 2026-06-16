@@ -1,10 +1,10 @@
 const STYLE_ID = "codex-app-ui-overrides-style";
 
 const VISIBLE_CONTROL_DECLARATIONS =
-  "opacity:1!important;pointer-events:auto!important;visibility:visible!important;color:var(--color-token-description-foreground)!important;";
+  "opacity:1!important;pointer-events:auto!important;visibility:visible!important;";
 const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
 const VISIBLE_ICON_DECLARATIONS =
-  "opacity:1!important;visibility:visible!important;color:var(--color-token-description-foreground)!important;";
+  "opacity:1!important;visibility:visible!important;";
 const HIDDEN_META_RAIL_DECLARATIONS = "display:none!important;";
 const SIDEBAR_THREAD_ROW_TITLE_ACTION_RESERVE_DECLARATIONS =
   "padding-right:1rem!important;min-width:0!important;";

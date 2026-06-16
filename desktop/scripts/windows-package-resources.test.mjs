@@ -1988,11 +1988,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        "color:var(--color-token-description-foreground)!important;",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label] svg",
       ),
     );
