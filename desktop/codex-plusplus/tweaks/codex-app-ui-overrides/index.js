@@ -26,6 +26,10 @@ const SIDEBAR_PROJECT_ACTION_CONTROL_TARGETS = [
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} button:not([aria-hidden='true'])[aria-label]`,
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} [role='button']:not([aria-hidden='true'])[aria-label]`,
 ];
+const SIDEBAR_PROJECT_ACTION_HOVER_CONTROL_TARGETS = [
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible)`,
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible)`,
+];
 const SIDEBAR_PROJECT_ACTION_ICON_TARGETS = [
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} button:not([aria-hidden='true'])[aria-label] svg`,
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} [role='button']:not([aria-hidden='true'])[aria-label] svg`,
@@ -197,6 +201,20 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       "[aria-current='page']",
     ]),
     VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_PROJECT_ACTION_CONTROL_TARGETS, [
+      "[aria-current='page']",
+    ]),
+    SIDEBAR_ACTION_BASE_COLOR_DECLARATIONS,
+  ),
+  cssRule(
+    rowStateSelectors(
+      SIDEBAR_PROJECT_ROW_SELECTOR,
+      SIDEBAR_PROJECT_ACTION_HOVER_CONTROL_TARGETS,
+      ["[aria-current='page']"],
+    ),
+    SIDEBAR_ACTION_HOVER_COLOR_DECLARATIONS,
   ),
   cssRule(
     rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_ACTION_CONTROL_TARGETS, [
