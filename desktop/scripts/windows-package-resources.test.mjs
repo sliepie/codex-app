@@ -1988,7 +1988,27 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        String.raw`.group\/chats-section-header:is(:hover,:focus-within)>div:has(button:not([aria-hidden='true'])[aria-label]) button:not([aria-hidden='true'])[aria-label]`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/chats-section-header:is(:hover,:focus-within)>div:has(button:not([aria-hidden='true'])[aria-label]) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible)`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
         String.raw`.group\/section-toggle:is(:hover,:focus-visible) svg,.group\/section-toggle:is(:hover,:focus-visible) .icon-2xs{opacity:1!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/section-toggle svg,.group\/section-toggle .icon-2xs{color:var(--color-token-description-foreground)!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/section-toggle:is(:hover,:focus-visible) svg,.group\/section-toggle:is(:hover,:focus-visible) .icon-2xs{color:var(--color-token-foreground)!important;}`,
       ),
     );
     assert.ok(

@@ -30,9 +30,17 @@ const SIDEBAR_SECTION_HEADER_ACTION_CONTROL_TARGETS = [
   ">div:has(button:not([aria-hidden='true'])[aria-label]) button:not([aria-hidden='true'])[aria-label]",
   ">div:has([role='button']:not([aria-hidden='true'])[aria-label]) [role='button']:not([aria-hidden='true'])[aria-label]",
 ];
+const SIDEBAR_SECTION_HEADER_ACTION_HOVER_CONTROL_TARGETS = [
+  ">div:has(button:not([aria-hidden='true'])[aria-label]) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible)",
+  ">div:has([role='button']:not([aria-hidden='true'])[aria-label]) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible)",
+];
 const SIDEBAR_SECTION_HEADER_ACTION_ICON_TARGETS = [
   ">div:has(button:not([aria-hidden='true'])[aria-label]) button:not([aria-hidden='true'])[aria-label] svg",
   ">div:has([role='button']:not([aria-hidden='true'])[aria-label]) [role='button']:not([aria-hidden='true'])[aria-label] svg",
+];
+const SIDEBAR_SECTION_TOGGLE_BASE_ICON_TARGETS = [
+  ".group\\/section-toggle svg",
+  ".group\\/section-toggle .icon-2xs",
 ];
 const SIDEBAR_SECTION_TOGGLE_ICON_TARGETS = [
   ".group\\/section-toggle:is(:hover,:focus-visible) svg",
@@ -197,12 +205,28 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     VISIBLE_CONTROL_DECLARATIONS,
   ),
   cssRule(
+    sectionHeaderStateSelectors(SIDEBAR_SECTION_HEADER_ACTION_CONTROL_TARGETS),
+    SIDEBAR_ACTION_BASE_COLOR_DECLARATIONS,
+  ),
+  cssRule(
+    sectionHeaderStateSelectors(SIDEBAR_SECTION_HEADER_ACTION_HOVER_CONTROL_TARGETS),
+    SIDEBAR_ACTION_HOVER_COLOR_DECLARATIONS,
+  ),
+  cssRule(
     sectionHeaderStateSelectors(SIDEBAR_SECTION_HEADER_ACTION_ICON_TARGETS),
     VISIBLE_ICON_DECLARATIONS,
   ),
   cssRule(
+    SIDEBAR_SECTION_TOGGLE_BASE_ICON_TARGETS,
+    SIDEBAR_ACTION_BASE_COLOR_DECLARATIONS,
+  ),
+  cssRule(
     SIDEBAR_SECTION_TOGGLE_ICON_TARGETS,
     VISIBLE_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_SECTION_TOGGLE_ICON_TARGETS,
+    SIDEBAR_ACTION_HOVER_COLOR_DECLARATIONS,
   ),
   cssRule(
     descendantSelectors(
