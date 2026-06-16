@@ -5,8 +5,9 @@ const VISIBLE_CONTROL_DECLARATIONS =
 const VISIBLE_FLEX_CONTROL_DECLARATIONS = `display:flex!important;${VISIBLE_CONTROL_DECLARATIONS}`;
 const VISIBLE_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;color:var(--color-token-description-foreground)!important;";
-const HIDDEN_META_DECLARATIONS =
-  "opacity:0!important;pointer-events:none!important;";
+const HIDDEN_META_RAIL_DECLARATIONS = "display:none!important;";
+const SIDEBAR_THREAD_ROW_TITLE_ACTION_RESERVE_DECLARATIONS =
+  "padding-right:3rem!important;min-width:0!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
@@ -25,8 +26,10 @@ const SIDEBAR_ACTION_ICON_TARGETS = [
   " [role='button']:not([aria-hidden='true'])[aria-label] svg",
 ];
 const SIDEBAR_THREAD_ROW_META_TARGETS = [
-  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1:not(:has(button))",
-  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(button))",
+  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1",
+];
+const SIDEBAR_THREAD_ROW_TITLE_TARGETS = [
+  " [data-thread-title-trigger]",
 ];
 const SIDEBAR_THREAD_ROW_STOP_BUTTON_DECLARATIONS = "display:none!important;";
 const SIDEBAR_THREAD_ROW_STOP_BUTTON_TARGETS = [
@@ -136,8 +139,16 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     SIDEBAR_THREAD_ROW_STOP_BUTTON_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS),
-    HIDDEN_META_DECLARATIONS,
+    rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS, [
+      "[data-app-action-sidebar-thread-active='true']",
+    ]),
+    HIDDEN_META_RAIL_DECLARATIONS,
+  ),
+  cssRule(
+    rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_TITLE_TARGETS, [
+      "[data-app-action-sidebar-thread-active='true']",
+    ]),
+    SIDEBAR_THREAD_ROW_TITLE_ACTION_RESERVE_DECLARATIONS,
   ),
   cssRule(
     [

@@ -2029,7 +2029,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1:not(:has(button)),[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:has(button)){opacity:0!important;pointer-events:none!important;}`,
+        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1,[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] .ml-\[3px\].flex.items-center.justify-end.gap-1{display:none!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [data-thread-title-trigger],[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [data-thread-title-trigger]{padding-right:3rem!important;min-width:0!important;}",
       ),
     );
     assert.ok(
@@ -2041,12 +2046,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       !uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>.absolute.right-0.top-0.z-10{transform:translateX(0)!important;}",
       ),
-    );
-    assert.ok(
-      uiOverrideCss.includes("opacity:0!important;pointer-events:none!important;"),
-    );
-    assert.ok(
-      !uiOverrideCss.includes("opacity:0!important;visibility:hidden!important;"),
     );
     assert.ok(!uiOverrideCss.includes("padding-inline-end:1rem!important;"));
     assert.ok(
