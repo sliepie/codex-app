@@ -136,8 +136,8 @@ const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
 const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
   ":where(aside,nav,[role='navigation'],div):has(>[data-codexpp=\"nav-group\"])";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
-  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
-  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
+  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]:not(:has(*))`,
+  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]:not(:has(*))`,
 ];
 const INVITE_FRIEND_MENU_ITEM_SELECTOR = [
   ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[aria-label*='invite' i]",
