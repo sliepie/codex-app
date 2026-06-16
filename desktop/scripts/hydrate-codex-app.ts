@@ -800,6 +800,7 @@ export function syncCodexPlusPlusRuntimeAssets(
   fs.rmSync(runtimeDestinationRoot, { recursive: true, force: true });
   fs.mkdirSync(destinationRoot, { recursive: true });
   fs.cpSync(runtimeSourceRoot, runtimeDestinationRoot, { recursive: true });
+  patchCodexPlusPlusRuntimePreload(path.join(runtimeDestinationRoot, "preload.js"));
   // Codex++ native host is macOS-only; Windows ARM64 packages must not ship it.
   fs.rmSync(path.join(runtimeDestinationRoot, "native", "codexpp_native_host.node"), {
     force: true,
@@ -822,6 +823,111 @@ export function syncCodexPlusPlusRuntimeAssets(
     )}\n`,
     "utf8",
   );
+}
+
+function patchCodexPlusPlusRuntimePreload(preloadPath: string): void {
+  const source = fs.readFileSync(preloadPath, "utf8");
+  const updated = rewriteCodexPlusPlusRuntimePreload(source);
+  if (updated !== source) {
+    fs.writeFileSync(preloadPath, updated);
+  }
+}
+
+function rewriteCodexPlusPlusRuntimePreload(source: string): string {
+  return rewriteFunctionBody(source, "tryInject", (body) => {
+    if (body.includes("const sidebarRoot = itemsGroup;")) {
+      return body;
+    }
+
+    let updated = replaceRequired(
+      body,
+      /\bconst\s+outer\s*=\s*itemsGroup\.parentElement\s*\?\?\s*itemsGroup\s*;/,
+      (match) => `${match}\n  const sidebarRoot = itemsGroup;`,
+      "Codex++ settings sidebar root declaration",
+    );
+    updated = replaceRequired(
+      updated,
+      /\bstate\.sidebarRoot\s*=\s*outer\b/g,
+      "state.sidebarRoot = sidebarRoot",
+      "Codex++ settings sidebar root assignments",
+    );
+    updated = replaceRequired(
+      updated,
+      /\bstate\.navGroup\s*&&\s*outer\.contains\(\s*state\.navGroup\s*\)/g,
+      "state.navGroup && sidebarRoot.contains(state.navGroup)",
+      "Codex++ existing nav group containment check",
+    );
+    updated = replaceRequired(
+      updated,
+      /\bouter\.querySelector\(/g,
+      "sidebarRoot.querySelector(",
+      "Codex++ existing nav group lookup",
+    );
+    updated = replaceRequired(
+      updated,
+      /\bouter\.appendChild\(\s*group\s*\)/,
+      "sidebarRoot.appendChild(group)",
+      "Codex++ nav group insertion",
+    );
+    updated = replaceRequired(
+      updated,
+      /\bouterTag\s*:\s*outer\.tagName\b/,
+      "sidebarRootTag: sidebarRoot.tagName",
+      "Codex++ nav group injection log",
+    );
+
+    return updated;
+  });
+}
+
+function rewriteFunctionBody(
+  source: string,
+  functionName: string,
+  rewrite: (body: string) => string,
+): string {
+  const functionMatch = new RegExp(`\\bfunction\\s+${functionName}\\s*\\(`).exec(source);
+  if (!functionMatch) {
+    throw new Error(`Cannot patch Codex++ runtime preload; missing ${functionName} function.`);
+  }
+
+  const functionStart = functionMatch.index;
+  const bodyStart = source.indexOf("{", functionStart);
+  if (bodyStart === -1) {
+    throw new Error(`Cannot patch Codex++ runtime preload; missing ${functionName} body.`);
+  }
+
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        const body = source.slice(bodyStart + 1, index);
+        const updatedBody = rewrite(body);
+        return `${source.slice(0, bodyStart + 1)}${updatedBody}${source.slice(index)}`;
+      }
+    }
+  }
+
+  throw new Error(`Cannot patch Codex++ runtime preload; unterminated ${functionName} body.`);
+}
+
+function replaceRequired(
+  source: string,
+  pattern: RegExp,
+  replacement: string | ((match: string) => string),
+  description: string,
+): string {
+  if (!pattern.test(source)) {
+    throw new Error(`Cannot patch Codex++ runtime preload; missing ${description}.`);
+  }
+  pattern.lastIndex = 0;
+  if (typeof replacement === "function") {
+    return source.replace(pattern, replacement);
+  }
+  return source.replace(pattern, replacement);
 }
 
 async function hydrateCodexPlusPlusRuntime(

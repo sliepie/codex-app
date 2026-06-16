@@ -723,7 +723,12 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   );
   writeFixture(
     path.join(sourceRoot, "packages", "installer", "assets", "runtime", "preload.js"),
-    "window.__codexppSettingsSurfaceVisible = true; window.dispatchEvent(new CustomEvent('codexpp:settings-surface', { detail: { visible: true } }));\n",
+    [
+      "window.__codexppSettingsSurfaceVisible = true;",
+      "window.dispatchEvent(new CustomEvent('codexpp:settings-surface', { detail: { visible: true } }));",
+      `function tryInject(itemsGroup,state){const outer=itemsGroup.parentElement??itemsGroup;state.sidebarRoot=outer;if(state.navGroup&&outer.contains(state.navGroup)){return;}const existingCodexPpNavGroup=outer.querySelector(':scope > [data-codexpp="nav-group"]')??outer.querySelector('[data-codexpp="nav-group"]');if(existingCodexPpNavGroup){state.sidebarRoot=outer;return;}const group=document.createElement('div');outer.appendChild(group);plog("nav group injected",{outerTag:outer.tagName});}`,
+      "",
+    ].join("\n"),
   );
   writeFixture(
     path.join(
@@ -756,6 +761,12 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
     fs.readFileSync(path.join(destinationRoot, "runtime", "main.js"), "utf8"),
     "module.exports = {};\n",
   );
+  const syncedPreload = fs.readFileSync(
+    path.join(destinationRoot, "runtime", "preload.js"),
+    "utf8",
+  );
+  assert.match(syncedPreload, /const sidebarRoot = itemsGroup/);
+  assert.match(syncedPreload, /sidebarRoot\.appendChild\(group\)/);
   assert.equal(
     fs.existsSync(path.join(destinationRoot, "runtime", "native", "codexpp_native_host.node")),
     false,
