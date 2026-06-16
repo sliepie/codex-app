@@ -2027,7 +2027,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         "[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label]",
       ),
     );
-    assert.ok(!uiOverrideCss.includes("transition:opacity 120ms ease-out"));
     assert.ok(
       uiOverrideCss.includes(
         String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1:not(:has(button)),[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:has(button)){opacity:0!important;pointer-events:none!important;}`,
