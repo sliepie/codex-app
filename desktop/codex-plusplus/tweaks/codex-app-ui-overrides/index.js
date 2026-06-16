@@ -92,6 +92,14 @@ const SIDEBAR_THREAD_ROW_META_TARGETS = [
 const SIDEBAR_THREAD_ROW_TITLE_TARGETS = [
   " [data-thread-title-trigger]",
 ];
+const SIDEBAR_THREAD_ROW_TITLE_TEXT_TARGETS = [
+  " [data-thread-title-trigger]>:first-child",
+  " [data-thread-title-trigger] .truncate",
+  " [data-thread-title-trigger] .whitespace-pre-wrap",
+  " [data-thread-title-trigger] .break-all",
+];
+const SIDEBAR_THREAD_ROW_TITLE_TEXT_DECLARATIONS =
+  "display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;";
 const SIDEBAR_THREAD_ROW_STOP_BUTTON_DECLARATIONS = "display:none!important;";
 const SIDEBAR_THREAD_ROW_STOP_BUTTON_TARGETS = [
   " button[aria-label*='stop' i]",
@@ -229,6 +237,12 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       "[data-app-action-sidebar-thread-active='true']",
     ]),
     SIDEBAR_THREAD_ROW_TITLE_ACTION_RESERVE_DECLARATIONS,
+  ),
+  cssRule(
+    rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_TITLE_TEXT_TARGETS, [
+      "[data-app-action-sidebar-thread-active='true']",
+    ]),
+    SIDEBAR_THREAD_ROW_TITLE_TEXT_DECLARATIONS,
   ),
   cssRule(
     rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_ACTION_WRAPPER_TARGETS, [

@@ -2063,6 +2063,16 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [data-thread-title-trigger]>:first-child,[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [data-thread-title-trigger]>:first-child",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;",
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
         "[data-app-action-sidebar-section-heading=\"Pinned\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger],[data-app-action-sidebar-section-heading=\"Chats\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]{position:relative!important;left:-2px!important;}",
       ),
     );
