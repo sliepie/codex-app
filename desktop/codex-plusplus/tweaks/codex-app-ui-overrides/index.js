@@ -11,8 +11,6 @@ const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
 const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
-const SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS =
-  "transition:opacity 120ms ease-out!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
 const SIDEBAR_PROJECT_ROW_SELECTOR = "[data-app-action-sidebar-project-row]";
@@ -130,13 +128,6 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
   ),
 ];
 const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
-  cssRule(
-    descendantSelectors(
-      SIDEBAR_THREAD_ROW_SELECTOR,
-      SIDEBAR_THREAD_ROW_META_TARGETS,
-    ),
-    SIDEBAR_THREAD_ROW_META_MOTION_DECLARATIONS,
-  ),
   cssRule(
     descendantSelectors(
       SIDEBAR_THREAD_ROW_SELECTOR,
