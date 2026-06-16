@@ -12,8 +12,6 @@ const SIDEBAR_ACTION_HOVER_COLOR_DECLARATIONS =
 const HIDDEN_META_RAIL_DECLARATIONS = "display:none!important;";
 const SIDEBAR_THREAD_ROW_TITLE_ACTION_RESERVE_DECLARATIONS =
   "padding-right:1rem!important;min-width:0!important;";
-const SIDEBAR_CHATS_HEADER_DECLARATIONS =
-  "position:relative!important;left:1px!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
 const SIDEBAR_SECTION_HEADER_SELECTORS = [
   ".group\\/chats-section-header",
@@ -179,10 +177,6 @@ const BASE_STYLE_RULES = [
 ];
 
 const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
-  cssRule(
-    ".group\\/chats-section-header",
-    SIDEBAR_CHATS_HEADER_DECLARATIONS,
-  ),
   cssRule(
     [
       '[data-app-action-sidebar-section-heading="Pinned"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]',
