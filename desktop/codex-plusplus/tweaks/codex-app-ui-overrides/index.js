@@ -10,11 +10,25 @@ const SIDEBAR_THREAD_ROW_TITLE_ACTION_RESERVE_DECLARATIONS =
   "padding-right:3rem!important;min-width:0!important;";
 const SIDEBAR_CHATS_HEADER_DECLARATIONS =
   "position:relative!important;left:-1px!important;";
-const HIDDEN_CONTROL_DECLARATIONS = "opacity:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
-const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
-  ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
 const SIDEBAR_PROJECT_ROW_SELECTOR = "[data-app-action-sidebar-project-row]";
+const SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR =
+  ">div.flex.gap-1:has(>.relative.mr-0\\.5.h-6.min-w-6.shrink-0)";
+const SIDEBAR_PROJECT_ACTION_WRAPPER_TARGETS = [
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR}>div:has(button[aria-haspopup='menu'][aria-label])`,
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} span:has(>button:not([aria-hidden='true'])[aria-label])`,
+];
+const SIDEBAR_PROJECT_ACTION_CONTROL_TARGETS = [
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} button:not([aria-hidden='true'])[aria-label]`,
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} [role='button']:not([aria-hidden='true'])[aria-label]`,
+];
+const SIDEBAR_PROJECT_ACTION_ICON_TARGETS = [
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} button:not([aria-hidden='true'])[aria-label] svg`,
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} [role='button']:not([aria-hidden='true'])[aria-label] svg`,
+];
+const SIDEBAR_PROJECT_ACTION_OVERLAY_TARGETS = [
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} .group-hover\\/folder-row\\:hidden`,
+];
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
 const SIDEBAR_ACTION_CONTROL_TARGETS = [
   ">:is(div,span):has(button:not([aria-hidden='true'])[aria-label])",
@@ -151,61 +165,41 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     SIDEBAR_THREAD_ROW_TITLE_ACTION_RESERVE_DECLARATIONS,
   ),
   cssRule(
-    [
-      ...rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_ACTION_CONTROL_TARGETS, [
-        "[aria-current='page']",
-      ]),
-      ...rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_ACTION_CONTROL_TARGETS, [
-        "[data-app-action-sidebar-thread-active='true']",
-      ]),
-    ],
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    [
-      ...rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_ACTION_ICON_TARGETS, [
-        "[aria-current='page']",
-      ]),
-      ...rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_ACTION_ICON_TARGETS, [
-        "[data-app-action-sidebar-thread-active='true']",
-      ]),
-    ],
-    VISIBLE_ICON_DECLARATIONS,
-  ),
-  /*
-  cssRule(
-    interactiveSelectors(".group\\/folder-row", [
-      " .group-hover\\/folder-row\\:opacity-100",
-    ]),
-    VISIBLE_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(".group\\/folder-row", [
-      " .group-hover\\/folder-row\\:opacity-0",
-    ]),
-    HIDDEN_CONTROL_DECLARATIONS,
-  ),
-  cssRule(
-    interactiveSelectors(".group\\/folder-row", [
-      " .group-hover\\/folder-row\\:hidden",
+    rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_PROJECT_ACTION_OVERLAY_TARGETS, [
+      "[aria-current='page']",
     ]),
     HIDDEN_DISPLAY_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(".group\\/folder-row", [
-      SIDEBAR_PROJECT_ROW_ICON_SELECTOR +
-        " .group-hover\\/folder-row\\:opacity-0",
+    rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_PROJECT_ACTION_WRAPPER_TARGETS, [
+      "[aria-current='page']",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_PROJECT_ACTION_CONTROL_TARGETS, [
+      "[aria-current='page']",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_ACTION_CONTROL_TARGETS, [
+      "[data-app-action-sidebar-thread-active='true']",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
+  ),
+  cssRule(
+    rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_PROJECT_ACTION_ICON_TARGETS, [
+      "[aria-current='page']",
     ]),
     VISIBLE_ICON_DECLARATIONS,
   ),
   cssRule(
-    interactiveSelectors(".group\\/folder-row", [
-      SIDEBAR_PROJECT_ROW_ICON_SELECTOR +
-        " .group-hover\\/folder-row\\:opacity-100",
+    rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_ACTION_ICON_TARGETS, [
+      "[data-app-action-sidebar-thread-active='true']",
     ]),
-    HIDDEN_CONTROL_DECLARATIONS,
+    VISIBLE_ICON_DECLARATIONS,
   ),
-  */
 ];
 
 const RIGHT_PANEL_TAB_STYLE_RULES = [
