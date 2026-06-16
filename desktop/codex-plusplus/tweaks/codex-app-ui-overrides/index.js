@@ -46,6 +46,7 @@ const SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR =
 const SIDEBAR_PROJECT_ACTION_WRAPPER_TARGETS = [
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR}>div:has(button[aria-haspopup='menu'][aria-label])`,
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} span:has(>button:not([aria-hidden='true'])[aria-label])`,
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} span:has(>[role='button']:not([aria-hidden='true'])[aria-label])`,
 ];
 const SIDEBAR_PROJECT_ACTION_CONTROL_TARGETS = [
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} button:not([aria-hidden='true'])[aria-label]`,
@@ -56,8 +57,8 @@ const SIDEBAR_PROJECT_ACTION_HOVER_CONTROL_TARGETS = [
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible)`,
 ];
 const SIDEBAR_PROJECT_ACTION_ICON_TARGETS = [
-  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} button:not([aria-hidden='true'])[aria-label] svg`,
-  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} [role='button']:not([aria-hidden='true'])[aria-label] svg`,
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} button:not([aria-hidden='true'])[aria-label] :is(svg,.icon-2xs,.icon-xs,.icon-sm)`,
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} [role='button']:not([aria-hidden='true'])[aria-label] :is(svg,.icon-2xs,.icon-xs,.icon-sm)`,
 ];
 const SIDEBAR_PROJECT_ACTION_OVERLAY_TARGETS = [
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} .group-hover\\/folder-row\\:hidden`,
@@ -79,11 +80,11 @@ const SIDEBAR_ACTION_HOVER_CONTROL_TARGETS = [
   " [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible)",
 ];
 const SIDEBAR_ACTION_ICON_TARGETS = [
-  " button:not([aria-hidden='true'])[aria-label] svg",
-  " [role='button']:not([aria-hidden='true'])[aria-label] svg",
+  " button:not([aria-hidden='true'])[aria-label] :is(svg,.icon-2xs,.icon-xs,.icon-sm)",
+  " [role='button']:not([aria-hidden='true'])[aria-label] :is(svg,.icon-2xs,.icon-xs,.icon-sm)",
 ];
 const SIDEBAR_THREAD_ROW_META_CONTENT_TARGETS = [
-  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label])))",
+  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label])):not(:has(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label])))",
 ];
 const SIDEBAR_THREAD_ROW_META_TARGETS = [
   " .ml-\\[3px\\].flex.items-center.justify-end.gap-1",
