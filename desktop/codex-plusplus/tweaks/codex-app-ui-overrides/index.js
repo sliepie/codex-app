@@ -30,6 +30,12 @@ const SIDEBAR_PROJECT_ACTION_OVERLAY_TARGETS = [
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} .group-hover\\/folder-row\\:hidden`,
 ];
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
+const SIDEBAR_THREAD_ROW_ACTION_WRAPPER_TARGETS = [
+  " .w-4 span:has(>button:not([aria-hidden='true'])[aria-label])",
+  " .w-4 span:has(>[role='button']:not([aria-hidden='true'])[aria-label])",
+  " >.absolute.right-0.top-0.z-10 span:has(>button:not([aria-hidden='true'])[aria-label])",
+  " >.absolute.right-0.top-0.z-10 span:has(>[role='button']:not([aria-hidden='true'])[aria-label])",
+];
 const SIDEBAR_ACTION_CONTROL_TARGETS = [
   ">:is(div,span):has(button:not([aria-hidden='true'])[aria-label])",
   " button:not([aria-hidden='true'])[aria-label]",
@@ -38,6 +44,9 @@ const SIDEBAR_ACTION_CONTROL_TARGETS = [
 const SIDEBAR_ACTION_ICON_TARGETS = [
   " button:not([aria-hidden='true'])[aria-label] svg",
   " [role='button']:not([aria-hidden='true'])[aria-label] svg",
+];
+const SIDEBAR_THREAD_ROW_META_CONTENT_TARGETS = [
+  " .ml-\\[3px\\].flex.items-center.justify-end.gap-1>:not(:has(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label])))",
 ];
 const SIDEBAR_THREAD_ROW_META_TARGETS = [
   " .ml-\\[3px\\].flex.items-center.justify-end.gap-1",
@@ -84,13 +93,6 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
 ];
-const SIDEBAR_MOBILE_BUTTON_SELECTOR = [
-  ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[aria-label*='mobile' i]",
-  ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[title*='mobile' i]",
-  ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[aria-label*='phone' i]",
-  ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[title*='phone' i]",
-];
-const SIDEBAR_MOBILE_BUTTON_DECLARATIONS = "display:none!important;";
 const INVITE_FRIEND_MENU_ITEM_SELECTOR = [
   ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[aria-label*='invite' i]",
   ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[title*='invite' i]",
@@ -153,7 +155,7 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
     SIDEBAR_THREAD_ROW_STOP_BUTTON_DECLARATIONS,
   ),
   cssRule(
-    rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_TARGETS, [
+    rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_META_CONTENT_TARGETS, [
       "[data-app-action-sidebar-thread-active='true']",
     ]),
     HIDDEN_META_RAIL_DECLARATIONS,
@@ -163,6 +165,12 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
       "[data-app-action-sidebar-thread-active='true']",
     ]),
     SIDEBAR_THREAD_ROW_TITLE_ACTION_RESERVE_DECLARATIONS,
+  ),
+  cssRule(
+    rowStateSelectors(SIDEBAR_THREAD_ROW_SELECTOR, SIDEBAR_THREAD_ROW_ACTION_WRAPPER_TARGETS, [
+      "[data-app-action-sidebar-thread-active='true']",
+    ]),
+    VISIBLE_CONTROL_DECLARATIONS,
   ),
   cssRule(
     rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_PROJECT_ACTION_OVERLAY_TARGETS, [
@@ -251,9 +259,7 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES = [
   ),
 ];
 
-const SIDEBAR_FOOTER_STYLE_RULES = [
-  cssRule(SIDEBAR_MOBILE_BUTTON_SELECTOR, SIDEBAR_MOBILE_BUTTON_DECLARATIONS),
-];
+const SIDEBAR_FOOTER_STYLE_RULES = [];
 
 const INVITE_FRIEND_STYLE_RULES = [
   cssRule(INVITE_FRIEND_MENU_ITEM_SELECTOR, INVITE_FRIEND_MENU_ITEM_DECLARATIONS),

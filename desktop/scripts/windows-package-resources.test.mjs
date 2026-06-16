@@ -2029,7 +2029,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1,[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] .ml-\[3px\].flex.items-center.justify-end.gap-1{display:none!important;}`,
+        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:has(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label]))),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:has(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label]))){display:none!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .w-4 span:has(>button:not([aria-hidden='true'])[aria-label]),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] .w-4 span:has(>button:not([aria-hidden='true'])[aria-label])`,
       ),
     );
     assert.ok(
@@ -2103,7 +2108,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[aria-label*='mobile' i],:where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[title*='mobile' i],:where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[aria-label*='phone' i],:where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[title*='phone' i]{display:none!important;}",
+        String.raw`button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"]),button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V10.8477"]){display:none!important;}`,
+      ),
+    );
+    assert.ok(
+      !uiOverrideCss.includes(
+        ":where(aside,nav,[role='navigation']) :is(a,button,[role='button'])[aria-label*='mobile' i]",
       ),
     );
     assert.ok(
