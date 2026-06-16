@@ -1905,6 +1905,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       ),
       false,
     );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`button:has(svg path[d^="M10.6391 1.67517"]) svg{margin-right:1px!important;}`,
+      ),
+    );
     assert.match(
       appendedStyles[0].textContent,
       /top:calc\(0\.75rem \+ 26px\)!important/,

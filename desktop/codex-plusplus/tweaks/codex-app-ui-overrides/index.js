@@ -348,7 +348,12 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES = [
   ),
 ];
 
-const SIDEBAR_FOOTER_STYLE_RULES = [];
+const SIDEBAR_FOOTER_STYLE_RULES = [
+  cssRule(
+    'button:has(svg path[d^="M10.6391 1.67517"]) svg',
+    "margin-right:1px!important;",
+  ),
+];
 
 const INVITE_FRIEND_STYLE_RULES = [
   cssRule(INVITE_FRIEND_MENU_ITEM_SELECTOR, INVITE_FRIEND_MENU_ITEM_DECLARATIONS),
