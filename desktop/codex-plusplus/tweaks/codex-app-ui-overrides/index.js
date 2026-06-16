@@ -15,11 +15,17 @@ const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
 const SIDEBAR_PROJECT_ROW_ICON_SELECTOR =
   ">.flex.min-w-0.flex-1.items-center.gap-1.pl-1>.relative.flex.h-6.w-6.items-center.justify-center";
 const SIDEBAR_PROJECT_ROW_SELECTOR = "[data-app-action-sidebar-project-row]";
+const SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR =
+  ">div:has(>div:has(button[aria-haspopup='menu'][aria-label]))";
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
 const SIDEBAR_ACTION_CONTROL_TARGETS = [
   ">:is(div,span):has(button:not([aria-hidden='true'])[aria-label])",
   " button:not([aria-hidden='true'])[aria-label]",
   " [role='button']:not([aria-hidden='true'])[aria-label]",
+];
+const SIDEBAR_PROJECT_ACTION_WRAPPER_TARGETS = [
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR}>div:has(button[aria-haspopup='menu'][aria-label])`,
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} span:has(>button:not([aria-hidden='true'])[aria-label])`,
 ];
 const SIDEBAR_ACTION_ICON_TARGETS = [
   " button:not([aria-hidden='true'])[aria-label] svg",
@@ -152,6 +158,11 @@ const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
   ),
   cssRule(
     [
+      ...rowStateSelectors(
+        SIDEBAR_PROJECT_ROW_SELECTOR,
+        SIDEBAR_PROJECT_ACTION_WRAPPER_TARGETS,
+        ["[aria-current='page']"],
+      ),
       ...rowStateSelectors(SIDEBAR_PROJECT_ROW_SELECTOR, SIDEBAR_ACTION_CONTROL_TARGETS, [
         "[aria-current='page']",
       ]),
