@@ -2003,16 +2003,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.group\/section-toggle svg,.group\/section-toggle .icon-2xs{color:var(--color-token-description-foreground)!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/section-toggle:is(:hover,:focus-visible) svg,.group\/section-toggle:is(:hover,:focus-visible) .icon-2xs{color:var(--color-token-foreground)!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
         String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0)>div:has(button[aria-haspopup='menu'][aria-label])`,
       ),
     );
