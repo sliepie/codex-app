@@ -2375,6 +2375,16 @@ test("self-signed MSIX payload rewrites shared SwiftShader ICD metadata", () => 
   assert.match(scriptSource, /rewriteSwiftShaderIcdMetadata\(appRoot\);/);
 });
 
+test("self-signed MSIX manifest does not declare phone extensions", () => {
+  const scriptSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "prepare-self-signed-msix-payload.ts"),
+    "utf8",
+  );
+
+  assert.doesNotMatch(scriptSource, /xmlns:mp=/);
+  assert.doesNotMatch(scriptSource, /mp:PhoneIdentity/);
+});
+
 test("log cleanup helper blocks any Codex process before moving SQLite logs", () => {
   const scriptSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "Clear-CodexLocalLogs.ps1"),
