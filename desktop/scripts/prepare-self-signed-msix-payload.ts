@@ -72,7 +72,7 @@ copyDirectory(msixAssetsRoot, assetsRoot);
 fs.writeFileSync(
   path.join(options.outputRoot, "AppxManifest.xml"),
   `<?xml version="1.0" encoding="utf-8"?>
-<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" IgnorableNamespaces="uap rescap">
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" IgnorableNamespaces="uap rescap">
   <Identity Name="OpenAI.Codex" ProcessorArchitecture="arm64" Version="0.0.0.0" Publisher="CN=Codex" />
   <Properties>
     <DisplayName>Codex</DisplayName>
@@ -94,7 +94,6 @@ fs.writeFileSync(
       <uap:VisualElements DisplayName="Codex" Description="Codex" Square44x44Logo="assets\\Square44x44Logo.png" Square150x150Logo="assets\\Square150x150Logo.png" BackgroundColor="transparent" />
     </Application>
   </Applications>
-  <mp:PhoneIdentity PhoneProductId="53bf120e-f20a-474e-892d-d87c803a0e39" PhonePublisherId="7d1e4745-d434-4fde-a9ef-c9c97f199413" />
 </Package>
 `,
   "utf8",
