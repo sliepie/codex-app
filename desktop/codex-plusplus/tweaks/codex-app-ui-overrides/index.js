@@ -11,7 +11,7 @@ const SIDEBAR_ACTION_HOVER_COLOR_DECLARATIONS =
   "color:var(--color-token-foreground)!important;";
 const HIDDEN_META_RAIL_DECLARATIONS = "display:none!important;";
 const SIDEBAR_THREAD_ROW_TITLE_ACTION_RESERVE_DECLARATIONS =
-  "padding-right:1rem!important;min-width:0!important;";
+  "padding-right:1.1rem!important;min-width:0!important;";
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
 const SIDEBAR_SECTION_HEADER_SELECTORS = [
   ".group\\/chats-section-header",
