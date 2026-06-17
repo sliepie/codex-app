@@ -8,6 +8,8 @@ param(
 
   [string]$InstalledTweakPath,
 
+  [string]$InstalledVersion,
+
   [string[]]$SearchRoot = @($env:APPDATA, $env:LOCALAPPDATA, (Join-Path $env:USERPROFILE ".codex")),
 
   [switch]$WhatIf
@@ -17,6 +19,15 @@ $ErrorActionPreference = "Stop"
 
 function Resolve-FullPath([string]$Path) {
   return [System.IO.Path]::GetFullPath((Resolve-Path -LiteralPath $Path).Path)
+}
+
+function Parse-ThreePartVersion([string]$Version) {
+  $parts = $Version.Split(".")
+  if ($parts.Count -ne 3) {
+    throw "Expected a three-part version, got '$Version'."
+  }
+
+  return @([int]$parts[0], [int]$parts[1], [int]$parts[2])
 }
 
 $repoFullPath = Resolve-FullPath $RepoRoot
@@ -30,6 +41,22 @@ if (-not (Test-Path -LiteralPath $sourceManifestPath)) {
 $sourceManifest = Get-Content -LiteralPath $sourceManifestPath -Raw | ConvertFrom-Json
 if ($sourceManifest.id -ne $TweakId) {
   throw "Source tweak id '$($sourceManifest.id)' does not match expected '$TweakId'."
+}
+
+$manifestRelativePath = "desktop/codex-plusplus/tweaks/$TweakFolderName/manifest.json"
+if (-not $InstalledVersion) {
+  $mainManifestText = git -C $repoFullPath show "origin/main:$manifestRelativePath"
+  if ($LASTEXITCODE -ne 0 -or -not $mainManifestText) {
+    throw "Could not read origin/main:$manifestRelativePath. Re-run with -InstalledVersion."
+  }
+
+  $mainManifest = $mainManifestText | ConvertFrom-Json
+  if ($mainManifest.id -ne $TweakId) {
+    throw "Main branch tweak id '$($mainManifest.id)' does not match expected '$TweakId'."
+  }
+
+  $versionParts = Parse-ThreePartVersion $mainManifest.version
+  $InstalledVersion = "$($versionParts[0]).$($versionParts[1]).$($versionParts[2] + 1)"
 }
 
 $targetPath = $null
@@ -85,7 +112,8 @@ if ($targetFullPath.StartsWith($repoFullPath, [System.StringComparison]::Ordinal
 
 Write-Host "Source: $sourceFullPath"
 Write-Host "Target: $targetFullPath"
-Write-Host "Version: $($targetManifest.version) -> $($sourceManifest.version)"
+Write-Host "Bundled source version: $($sourceManifest.version)"
+Write-Host "Installed version: $($targetManifest.version) -> $InstalledVersion"
 
 $filesToCopy = @("index.js", "manifest.json")
 foreach ($file in $filesToCopy) {
@@ -99,7 +127,13 @@ foreach ($file in $filesToCopy) {
   if ($WhatIf) {
     Write-Host "Would copy $file"
   } else {
-    Copy-Item -LiteralPath $from -Destination $to -Force
+    if ($file -eq "manifest.json") {
+      $installedManifest = Get-Content -LiteralPath $from -Raw | ConvertFrom-Json
+      $installedManifest.version = $InstalledVersion
+      $installedManifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $to
+    } else {
+      Copy-Item -LiteralPath $from -Destination $to -Force
+    }
     Write-Host "Copied $file"
   }
 }

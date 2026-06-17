@@ -14,7 +14,7 @@ description: Maintain Codex app bundled Codex++ tweaks in sliepie/codex-app. Use
 5. When changing an existing bundled tweak, bump that tweak's `manifest.json` version in the same change.
 6. Update focused assertions in `desktop/scripts/windows-package-resources.test.mjs`.
 7. Validate with the bundled Node runtime if default `node` is blocked: `C:\Users\sliepie\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe --test desktop/scripts/windows-package-resources.test.mjs`.
-8. After repo changes, if the user asks about the local installed copy or needs immediate app testing, sync the installed tweak copy too. Writes outside the repo require approval.
+8. After repo changes, if the user asks about the local installed copy or needs immediate app testing, sync the installed tweak copy too. Writes outside the repo require approval. The installed local manifest version must be the local-modified patch bump from `origin/main` (for example `0.18.1` from main `0.18.0`), not the bundled PR minor bump (for example `0.19.0`).
 
 ## Installed Tweak Sync
 
