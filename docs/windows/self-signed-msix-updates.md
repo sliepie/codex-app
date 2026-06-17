@@ -50,10 +50,11 @@ workflow runs against other branches build artifacts only and do not publish
 GitHub Release or Pages assets.
 
 The GitHub Release tag keeps the full upstream app version, for example
-`codex-app-26.519.81530.0`. The MSIX/App Installer package version is a
-separate Windows-valid four-part version: `major.minor.sparkleBuild.repoRevision`.
-That avoids invalid MSIX segments when the upstream app patch segment exceeds
-Windows' 65535 segment limit.
+`codex-app-26.519.81530.0`. The MSIX/App Installer package version stays
+compatible with already-installed packages by keeping the upstream
+`major.minor.patch.repoRevision` shape when the patch segment fits the Windows
+65535 limit, and falling back to `major.minor.sparkleBuild.repoRevision` only
+when the upstream patch segment is too large for MSIX.
 
 Set these repository variables:
 
