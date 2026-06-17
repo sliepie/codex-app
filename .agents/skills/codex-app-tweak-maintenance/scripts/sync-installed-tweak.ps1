@@ -34,6 +34,33 @@ function Format-ThreePartVersion([int[]]$Parts) {
   return "$($Parts[0]).$($Parts[1]).$($Parts[2])"
 }
 
+function Compare-ThreePartVersion([int[]]$Left, [int[]]$Right) {
+  for ($index = 0; $index -lt 3; $index++) {
+    if ($Left[$index] -lt $Right[$index]) {
+      return -1
+    }
+    if ($Left[$index] -gt $Right[$index]) {
+      return 1
+    }
+  }
+
+  return 0
+}
+
+function Read-MainManifestText([string]$RepoPath, [string]$ManifestPath) {
+  $manifestText = git -C $RepoPath show "origin/main:$ManifestPath" 2>$null
+  if ($LASTEXITCODE -eq 0 -and $manifestText) {
+    return $manifestText
+  }
+
+  $manifestText = git -C $RepoPath show "main:$ManifestPath" 2>$null
+  if ($LASTEXITCODE -eq 0 -and $manifestText) {
+    return $manifestText
+  }
+
+  throw "Could not read origin/main:$ManifestPath or main:$ManifestPath. Re-run with -InstalledVersion."
+}
+
 $repoFullPath = Resolve-FullPath $RepoRoot
 $sourcePath = Join-Path $repoFullPath "desktop\codex-plusplus\tweaks\$TweakFolderName"
 $sourceManifestPath = Join-Path $sourcePath "manifest.json"
@@ -48,19 +75,21 @@ if ($sourceManifest.id -ne $TweakId) {
 }
 
 $manifestRelativePath = "desktop/codex-plusplus/tweaks/$TweakFolderName/manifest.json"
-$mainManifestText = git -C $repoFullPath show "origin/main:$manifestRelativePath"
-if ($LASTEXITCODE -ne 0 -or -not $mainManifestText) {
-  throw "Could not read origin/main:$manifestRelativePath. Re-run with -InstalledVersion."
-}
-
-$mainManifest = $mainManifestText | ConvertFrom-Json
-if ($mainManifest.id -ne $TweakId) {
-  throw "Main branch tweak id '$($mainManifest.id)' does not match expected '$TweakId'."
-}
-
-$mainVersionParts = Parse-ThreePartVersion $mainManifest.version
 $sourceVersionParts = Parse-ThreePartVersion $sourceManifest.version
-$minimumInstalledVersionParts = @($mainVersionParts[0], $mainVersionParts[1], $mainVersionParts[2] + 1)
+$mainManifest = $null
+$mainVersionParts = $null
+$minimumInstalledVersionParts = $null
+
+if (-not $InstalledVersion) {
+  $mainManifestText = Read-MainManifestText $repoFullPath $manifestRelativePath
+  $mainManifest = $mainManifestText | ConvertFrom-Json
+  if ($mainManifest.id -ne $TweakId) {
+    throw "Main branch tweak id '$($mainManifest.id)' does not match expected '$TweakId'."
+  }
+
+  $mainVersionParts = Parse-ThreePartVersion $mainManifest.version
+  $minimumInstalledVersionParts = @($mainVersionParts[0], $mainVersionParts[1], $mainVersionParts[2] + 1)
+}
 
 $targetPath = $null
 if ($InstalledTweakPath) {
@@ -116,13 +145,15 @@ if (-not $InstalledVersion) {
 }
 
 $installedVersionParts = Parse-ThreePartVersion $InstalledVersion
-if ($installedVersionParts[0] -ne $mainVersionParts[0] -or $installedVersionParts[1] -ne $mainVersionParts[1]) {
-  throw "Installed test copy version '$InstalledVersion' must stay on main minor '$($mainVersionParts[0]).$($mainVersionParts[1])'."
+if ($mainVersionParts) {
+  if ($installedVersionParts[0] -ne $mainVersionParts[0] -or $installedVersionParts[1] -ne $mainVersionParts[1]) {
+    throw "Installed test copy version '$InstalledVersion' must stay on main minor '$($mainVersionParts[0]).$($mainVersionParts[1])'."
+  }
+  if ($installedVersionParts[2] -le $mainVersionParts[2]) {
+    throw "Installed test copy version '$InstalledVersion' must increment the main patch '$($mainManifest.version)'."
+  }
 }
-if ($installedVersionParts[2] -le $mainVersionParts[2]) {
-  throw "Installed test copy version '$InstalledVersion' must increment the main patch '$($mainManifest.version)'."
-}
-if ($sourceVersionParts[0] -eq $installedVersionParts[0] -and $sourceVersionParts[1] -eq $installedVersionParts[1] -and $sourceVersionParts[2] -le $installedVersionParts[2]) {
+if ((Compare-ThreePartVersion $installedVersionParts $sourceVersionParts) -ge 0) {
   throw "Installed test copy version '$InstalledVersion' must remain lower than bundled PR version '$($sourceManifest.version)'."
 }
 
