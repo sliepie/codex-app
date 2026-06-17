@@ -119,15 +119,12 @@ function msixPackageVersionForRelease(
   appBuildNumber: string,
   repoReleaseRevision: number,
 ): string {
-  const [appMajor = "", appMinor = "", appPatch = ""] = appVersion.split(".");
-  const thirdSegmentSource = parsePositiveInteger("Codex app patch version", appPatch) <= maxMsixVersionSegment
-    ? appPatch
-    : appBuildNumber;
+  const [appMajor = "", appMinor = ""] = appVersion.split(".");
 
   return [
     parseMsixVersionSegment("Codex app major version", appMajor),
     parseMsixVersionSegment("Codex app minor version", appMinor),
-    parseMsixVersionSegment("Codex app patch/build version", thirdSegmentSource),
+    parseMsixVersionSegment("Codex app build number", appBuildNumber),
     parseMsixVersionSegment("repo release revision", repoReleaseRevision),
   ].join(".");
 }
