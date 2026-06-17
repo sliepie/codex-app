@@ -40,6 +40,9 @@ A refresh path that installs or upgrades the official Microsoft Store Codex app,
 **Windows ARM64 package plan**:
 The single ordered script plan for ARM64 Windows packaging. It builds the updater, hydrates app resources, hydrates GitHub release assets, verifies browser runtime compatibility, runs Forge, and verifies resource-binary architecture policy.
 
+**Bundled UI tweak selector**:
+A CSS selector shipped by a bundled Codex++ tweak under `desktop/codex-plusplus/tweaks/`.
+
 ## Relationships
 
 - A **Windows ARM64 package** contains **Resource binaries**.
@@ -52,6 +55,7 @@ The single ordered script plan for ARM64 Windows packaging. It builds the update
 - The **Windows ARM64 package plan** is the only CI entry point for the ordered Windows ARM64 package flow.
 - A **Windows ARM64 package** follows the **Latest official app release** when no exact upstream version and build are requested; default packaging does not prefer a fixed app release feed.
 - Release artifacts identify the selected official app release by upstream version and build; release notes may include the selected feed as audit information.
+- A **Bundled UI tweak selector** must reuse existing stable app markers when scoping app surfaces. Do not add new direct `data-*` markers only to support tweak CSS; instead, bound selectors to existing app-owned markers and container roles.
 
 ## Example dialogue
 

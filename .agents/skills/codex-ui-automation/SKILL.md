@@ -1,11 +1,11 @@
 ---
 name: codex-ui-automation
-description: Inspect the running Windows Codex desktop UI through UI Automation. Use when validating Codex app UI tweaks, dropdown/menu row visibility, accessible names, live control classes, bounds, or CSS selector assumptions against the currently running packaged app.
+description: Inspect the running Windows Codex desktop UI through UI Automation. Use only when the user explicitly asks to inspect or validate the live running app with UI Automation; do not invoke automatically for ordinary UI tweak or selector work.
 ---
 
 # Codex UI Automation
 
-Use this skill to verify the live Windows Codex desktop UI before changing selectors or after reloading a tweak.
+Use this skill only when the user explicitly asks to inspect or validate the live Windows Codex desktop UI with UI Automation. Do not run it automatically before changing selectors or after reloading a tweak; prefer source inspection unless the user asks for live UIA evidence.
 
 ## Workflow
 
