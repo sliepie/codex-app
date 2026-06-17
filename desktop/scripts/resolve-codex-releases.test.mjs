@@ -377,8 +377,8 @@ test("rejects MSIX package version segments that exceed the schema range", async
   await assert.rejects(
     () => runResolver({
       releases: [],
-      appcastSource: appcastFor("26.519.81530", "65536"),
-      betaAppcastSource: appcastFor("26.519.81530", "65536"),
+      appcastSource: appcastFor("26.519.81530", "70000"),
+      betaAppcastSource: appcastFor("26.519.81530", "70000"),
     }),
     /Codex app build number must be between 0 and 65535 for MSIX package versions/,
   );

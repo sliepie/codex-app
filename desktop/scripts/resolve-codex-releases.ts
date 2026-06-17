@@ -120,6 +120,7 @@ function msixPackageVersionForRelease(
   repoReleaseRevision: number,
 ): string {
   const [appMajor = "", appMinor = ""] = appVersion.split(".");
+
   return [
     parseMsixVersionSegment("Codex app major version", appMajor),
     parseMsixVersionSegment("Codex app minor version", appMinor),
