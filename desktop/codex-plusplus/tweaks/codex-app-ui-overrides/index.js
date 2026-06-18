@@ -118,8 +118,6 @@ const USAGE_MENU_RATE_ROWS_SELECTOR =
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
   "padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;";
 const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
-const USAGE_MENU_RESET_ACTION_DECLARATIONS =
-  "position:relative!important;left:-1px!important;";
 const USAGE_MENU_RESET_ACTION_SELECTOR =
   `${USAGE_MENU_RATE_ROWS_SELECTOR}+*`;
 const PROFILE_DROPDOWN_CONTENT_SELECTOR =
@@ -379,12 +377,11 @@ const INVITE_FRIEND_STYLE_RULES = [
 
 const USAGE_MENU_STYLE_RULES = [
   cssRule(
-    USAGE_MENU_RATE_ROWS_SELECTOR,
+    [
+      USAGE_MENU_RATE_ROWS_SELECTOR,
+      USAGE_MENU_RESET_ACTION_SELECTOR,
+    ],
     USAGE_MENU_RATE_ROWS_DECLARATIONS,
-  ),
-  cssRule(
-    USAGE_MENU_RESET_ACTION_SELECTOR,
-    USAGE_MENU_RESET_ACTION_DECLARATIONS,
   ),
   cssRule(
     [
