@@ -121,7 +121,7 @@ The generated App Installer file uses both supported update checks:
 - `OnLaunch` checks when the app starts.
 - `AutomaticBackgroundTask` checks about every 8 hours without user launch.
 
-The workflow passes `HoursBetweenUpdateChecks=0` explicitly so launch checks happen every time. That is useful while validating the update channel.
+The workflow passes `HoursBetweenUpdateChecks=0` explicitly so launch checks happen every time. It also keeps `UpdateBlocksActivation=false` so App Installer does not block app launch while replacing an active self-signed package. That is useful while validating the update channel.
 
 The packaged desktop app includes a repo-built replacement for
 `resources/native/windows-updater.node`. The existing in-app Windows updater

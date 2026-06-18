@@ -2725,7 +2725,7 @@ test("non-official Windows packages do not enable the Windows Store updater", ()
   assert.doesNotMatch(source, /return Ok\("Codex"\.to_string\(\)\);/);
 });
 
-test("self-signed appinstaller updates immediately on launch", () => {
+test("self-signed appinstaller checks immediately without blocking activation", () => {
   const outputPath = path.join(
     fs.mkdtempSync(path.join(os.tmpdir(), "codex-appinstaller-")),
     "Codex.appinstaller",
@@ -2756,7 +2756,7 @@ test("self-signed appinstaller updates immediately on launch", () => {
   const appInstaller = fs.readFileSync(outputPath, "utf8");
   assert.match(
     appInstaller,
-    /<OnLaunch HoursBetweenUpdateChecks="0" ShowPrompt="true" UpdateBlocksActivation="true" \/>/,
+    /<OnLaunch HoursBetweenUpdateChecks="0" ShowPrompt="true" UpdateBlocksActivation="false" \/>/,
   );
 });
 
