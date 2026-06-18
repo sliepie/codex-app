@@ -2127,14 +2127,15 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1,.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1+*{padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1,.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1~:is(div,button,[role='menuitem']):not(a[href]):has(svg){padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1+*{padding-left:calc(var(--padding-row-x) + 1.25rem + 4px)!important;}`,
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1~:is(div,button,[role='menuitem']):not(a[href]):has(svg){padding-left:calc(var(--padding-row-x) + 1.25rem + 4px)!important;}`,
       ),
     );
+    assert.doesNotMatch(uiOverrideCss, /\.grid\.items-center\.gap-y-1\\\.5\.py-1\+\*/);
     assert.doesNotMatch(uiOverrideCss, /left:-?1px/);
     const uiCssRules = Array.from(uiOverrideCss.matchAll(/([^{}]+)\{([^{}]+)\}/g)).map(
       ([, selector, declarations]) => ({
