@@ -116,7 +116,7 @@ const USAGE_MENU_CONTENT_SELECTOR =
 const USAGE_MENU_RATE_ROWS_SELECTOR =
   `${USAGE_MENU_CONTENT_SELECTOR}>.grid.items-center.gap-y-1\\.5.py-1`;
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
-  "padding-left:calc(var(--padding-row-x) + 1.25rem)!important;padding-right:var(--padding-row-x)!important;";
+  "padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;";
 const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
 const USAGE_MENU_RESET_ACTION_SELECTOR =
   `${USAGE_MENU_RATE_ROWS_SELECTOR}+*`;

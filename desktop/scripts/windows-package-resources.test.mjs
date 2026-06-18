@@ -2127,7 +2127,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1,.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1+*{padding-left:calc(var(--padding-row-x) + 1.25rem)!important;padding-right:var(--padding-row-x)!important;}`,
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1,.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1+*{padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
       ),
     );
     assert.doesNotMatch(uiOverrideCss, /USAGE_MENU_RESET_ACTION_DECLARATIONS|left:-?1px/);
