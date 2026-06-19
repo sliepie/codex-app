@@ -97,6 +97,9 @@ New-Item -ItemType Directory -Path $assetRoot -Force | Out-Null
 
 Copy-Item -Path (Join-Path $sourceRoot '*') -Destination $stageRoot -Recurse -Force
 
+Get-ChildItem -Path $stageRoot -Directory -Recurse -Filter '_CodeSignature' |
+    Remove-Item -Recurse -Force
+
 if (-not (Test-Path -Path $manifestPath -PathType Leaf)) {
     throw "The staged payload does not contain AppxManifest.xml."
 }
