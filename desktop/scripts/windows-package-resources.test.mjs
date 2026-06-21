@@ -1332,6 +1332,38 @@ function runForgeAfterCopy(config, buildPath) {
   });
 }
 
+function runForgeAfterCopyExtraResources(config, buildPath) {
+  return new Promise((resolve, reject) => {
+    config.packagerConfig.afterCopyExtraResources[0](buildPath, null, null, null, (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+test("Forge package prunes macOS plugin resources before ZIP makers run", async (t) => {
+  const config = require(path.join(desktopRoot, "forge.config.js"));
+  const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-plugin-prune-"));
+  t.after(() => fs.rmSync(buildPath, { recursive: true, force: true }));
+
+  const pluginRoot = path.join(buildPath, "resources", "plugins", "openai-bundled", "plugins", "record-and-replay");
+  const appBundleRoot = path.join(pluginRoot, "Codex Computer Use.app");
+  const signatureRoot = path.join(pluginRoot, "_CodeSignature");
+  const keptRoot = path.join(pluginRoot, "windows");
+  writeFixture(path.join(appBundleRoot, "Contents", "Resources", "Helper.bundle", "marker.txt"), "dirty\n");
+  writeFixture(path.join(signatureRoot, "CodeResources"), "dirty\n");
+  writeFixture(path.join(keptRoot, "codex-computer-use.exe"), "clean\n");
+
+  await runForgeAfterCopyExtraResources(config, buildPath);
+
+  assert.equal(fs.existsSync(appBundleRoot), false);
+  assert.equal(fs.existsSync(signatureRoot), false);
+  assert.equal(fs.existsSync(path.join(keptRoot, "codex-computer-use.exe")), true);
+});
+
 test("Forge preflight fails when hydrated Codex++ runtime is missing", async (t) => {
   ensureRecoveredPackageForForgeTest(t);
   const config = require(path.join(desktopRoot, "forge.config.js"));
