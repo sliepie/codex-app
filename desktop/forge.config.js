@@ -325,6 +325,33 @@ function syncPackagedPackageJson(buildPath) {
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
 }
 
+function removeMacOSResourceDirectories(buildPath) {
+  const pluginsRoot = path.join(buildPath, 'resources', 'plugins');
+  if (!fs.existsSync(pluginsRoot)) {
+    return;
+  }
+
+  const directoriesToRemove = [];
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const entryPath = path.join(directory, entry.name);
+      visit(entryPath);
+      if (entry.name === '_CodeSignature' || entry.name.toLowerCase().endsWith('.app')) {
+        directoriesToRemove.push(entryPath);
+      }
+    }
+  };
+
+  visit(pluginsRoot);
+  for (const directory of directoriesToRemove) {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 function assertRequiredPackageFile(buildPath, relativePath) {
   const fullPath = path.join(buildPath, ...relativePath.split('/'));
   if (!fs.existsSync(fullPath)) {
@@ -375,6 +402,16 @@ const config = {
         try {
           syncPackagedPackageJson(buildPath);
           assertCodexPlusPlusPackageInputs(buildPath);
+          callback();
+        } catch (error) {
+          callback(error);
+        }
+      },
+    ],
+    afterCopyExtraResources: [
+      (buildPath, _electronVersion, _platform, _arch, callback) => {
+        try {
+          removeMacOSResourceDirectories(buildPath);
           callback();
         } catch (error) {
           callback(error);
