@@ -75,6 +75,16 @@ function Format-PeMachine {
     }
 }
 
+function Get-ResourceArchitecture {
+    param([uint16] $Machine)
+
+    switch ($Machine) {
+        0x8664 { "x64" }
+        0xaa64 { "arm64" }
+        default { throw "Unsupported Store helper architecture $(Format-PeMachine -Machine $Machine)." }
+    }
+}
+
 function Get-Sha256 {
     param([string] $Path)
 
@@ -91,34 +101,46 @@ function Get-Sha256 {
 function Resolve-NodeReplPath {
     param($Package)
 
-    $candidate = Join-Path $Package.InstallLocation "app\resources\cua_node\bin\node_repl.exe"
-    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-        return $candidate
-    }
-
-    throw "Could not find node_repl.exe under installed package: $($Package.InstallLocation)"
+    return Resolve-StoreBinaryPath -Package $Package -Label "node_repl.exe" -RelativePaths @(
+        "app/resources/cua_node/bin/node_repl.exe"
+    )
 }
 
 function Resolve-ExtensionHostPath {
     param($Package)
 
-    $candidate = Join-Path $Package.InstallLocation "app\resources\plugins\openai-bundled\plugins\chrome\extension-host\windows\x64\extension-host.exe"
-    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-        return $candidate
-    }
-
-    throw "Could not find Chrome extension-host.exe under installed package: $($Package.InstallLocation)"
+    return Resolve-StoreBinaryPath -Package $Package -Label "Chrome extension-host.exe" -RelativePaths @(
+        "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe",
+        "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/x64/extension-host.exe"
+    )
 }
 
 function Resolve-ComputerUsePath {
     param($Package)
 
-    $candidate = Join-Path $Package.InstallLocation "app\resources\cua_node\bin\node_modules\@oai\sky\bin\windows\codex-computer-use.exe"
-    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-        return $candidate
+    return Resolve-StoreBinaryPath -Package $Package -Label "codex-computer-use.exe" -RelativePaths @(
+        "app/resources/cua_node/bin/node_modules/@oai/sky/bin/windows/codex-computer-use.exe"
+    )
+}
+
+function Resolve-StoreBinaryPath {
+    param(
+        $Package,
+        [string] $Label,
+        [string[]] $RelativePaths
+    )
+
+    foreach ($relativePath in $RelativePaths) {
+        $candidate = Join-Path $Package.InstallLocation ($relativePath -replace "/", "\")
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return [pscustomobject]@{
+                Path = $candidate
+                RelativePath = $relativePath
+            }
+        }
     }
 
-    throw "Could not find codex-computer-use.exe under installed package: $($Package.InstallLocation)"
+    throw "Could not find $Label under installed package: $($Package.InstallLocation)"
 }
 
 function Update-StoreBinary {
@@ -127,12 +149,14 @@ function Update-StoreBinary {
         [string] $SourcePath,
         [string] $DestinationPath,
         [string] $SourceRelativePath,
+        [string] $ExpectedArchitecture,
         $Package
     )
 
     $machine = Get-PeMachine -Path $SourcePath
-    if ($machine -ne 0x8664) {
-        throw "Expected x64 $Label, found $(Format-PeMachine -Machine $machine)."
+    $architecture = Get-ResourceArchitecture -Machine $machine
+    if ($architecture -ne $ExpectedArchitecture) {
+        throw "Expected $ExpectedArchitecture $Label, found $(Format-PeMachine -Machine $machine)."
     }
 
     $outputDirectory = Split-Path -Parent $DestinationPath
@@ -147,7 +171,7 @@ function Update-StoreBinary {
         packageFamilyName = $Package.PackageFamilyName
         packageVersion = [string] $Package.Version
         sourceRelativePath = $SourceRelativePath
-        architecture = "x64"
+        architecture = $architecture
         sha256 = $hash
     }
 
@@ -171,7 +195,7 @@ try {
             "--source", "msstore",
             "--exact",
             "--scope", "user",
-            "--architecture", "x64",
+            "--architecture", "arm64",
             "--silent",
             "--accept-package-agreements",
             "--accept-source-agreements",
@@ -186,7 +210,7 @@ try {
             "--source", "msstore",
             "--exact",
             "--scope", "user",
-            "--architecture", "x64",
+            "--architecture", "arm64",
             "--silent",
             "--include-unknown",
             "--accept-package-agreements",
@@ -201,11 +225,14 @@ try {
         throw "Official Codex Store package family $PackageFamilyName was not found after winget completed."
     }
 
-    Update-StoreBinary -Label "node_repl.exe" -SourcePath (Resolve-NodeReplPath -Package $package) -DestinationPath $OutputPath -SourceRelativePath "app/resources/cua_node/bin/node_repl.exe" -Package $package
+    $nodeRepl = Resolve-NodeReplPath -Package $package
+    Update-StoreBinary -Label "node_repl.exe" -SourcePath $nodeRepl.Path -DestinationPath $OutputPath -SourceRelativePath $nodeRepl.RelativePath -ExpectedArchitecture "arm64" -Package $package
 
-    Update-StoreBinary -Label "extension-host.exe" -SourcePath (Resolve-ExtensionHostPath -Package $package) -DestinationPath $ExtensionHostOutputPath -SourceRelativePath "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/x64/extension-host.exe" -Package $package
+    $extensionHost = Resolve-ExtensionHostPath -Package $package
+    Update-StoreBinary -Label "extension-host.exe" -SourcePath $extensionHost.Path -DestinationPath $ExtensionHostOutputPath -SourceRelativePath $extensionHost.RelativePath -ExpectedArchitecture "arm64" -Package $package
 
-    Update-StoreBinary -Label "codex-computer-use.exe" -SourcePath (Resolve-ComputerUsePath -Package $package) -DestinationPath $ComputerUseOutputPath -SourceRelativePath "app/resources/cua_node/bin/node_modules/@oai/sky/bin/windows/codex-computer-use.exe" -Package $package
+    $computerUse = Resolve-ComputerUsePath -Package $package
+    Update-StoreBinary -Label "codex-computer-use.exe" -SourcePath $computerUse.Path -DestinationPath $ComputerUseOutputPath -SourceRelativePath $computerUse.RelativePath -ExpectedArchitecture "x64" -Package $package
 }
 finally {
     if ($installedByScript) {

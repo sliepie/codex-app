@@ -21,8 +21,11 @@ const {
   collectNativeNodeModuleTargets,
   findAppAsar,
   hasArm64RuntimePayload,
+  assertNoWorkLouderRuntimeReferences,
+  patchRecoveredCodexMicroServiceSource,
   patchCodexWindowServicesSource,
   patchMarkdownOperationDirectiveCrashSource,
+  pruneWorkLouderPackages,
   pruneUnusedNativePayloads,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
@@ -381,7 +384,7 @@ function createWindowsPluginPayloadFixture() {
   const payloadRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-windows-plugin-payloads-"));
   const extensionHostPath = path.join(payloadRoot, "extension-host.exe");
   const computerUsePath = path.join(payloadRoot, "codex-computer-use.exe");
-  writePeFixture(extensionHostPath, 0x8664);
+  writePeFixture(extensionHostPath, 0xaa64);
   writePeFixture(computerUsePath, 0x8664);
   return { computerUsePath, extensionHostPath };
 }
@@ -503,14 +506,14 @@ test("generates Windows bundled plugin resources with Windows helper payloads", 
   );
 });
 
-test("Windows ARM64 Resource binary policy lists the approved x64 exceptions", () => {
+test("Windows ARM64 Resource binary policy lists Store-vendored helpers and x64 exceptions", () => {
   assert.deepEqual(
     windowsArm64ResourceBinaryExceptions.map((exception) => exception.id).sort(),
     ["chrome-extension-host", "computer-use", "node-repl", "tectonic"],
   );
   assert.equal(
     matchWindowsArm64ResourceBinaryException("resources/node_repl.exe")?.expectedMachine,
-    peMachine.x64,
+    peMachine.arm64,
   );
   assert.equal(
     matchWindowsArm64ResourceBinaryException(
@@ -566,13 +569,13 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
   const nodeReplPath = path.join(fixtureRoot, "resources", "node_repl.exe");
   const extensionHostPath = path.join(fixtureRoot, "resources", "extension-host.exe");
   const computerUsePath = path.join(fixtureRoot, "resources", "codex-computer-use.exe");
-  writePeFixture(nodeReplPath, 0x8664);
-  writePeFixture(extensionHostPath, 0x8664);
+  writePeFixture(nodeReplPath, 0xaa64);
+  writePeFixture(extensionHostPath, 0xaa64);
   writePeFixture(computerUsePath, 0x8664);
   writeFixture(
     path.join(fixtureRoot, "resources", "node_repl.json"),
     JSON.stringify({
-      architecture: "x64",
+      architecture: "arm64",
       packageFamilyName: "OpenAI.Codex_2p2nqsd0c76g0",
       packageName: "OpenAI.Codex",
       productId: "9PLM9XGG6VKS",
@@ -583,12 +586,12 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
   writeFixture(
     path.join(fixtureRoot, "resources", "extension-host.json"),
     JSON.stringify({
-      architecture: "x64",
+      architecture: "arm64",
       packageFamilyName: "OpenAI.Codex_2p2nqsd0c76g0",
       packageName: "OpenAI.Codex",
       productId: "9PLM9XGG6VKS",
       sha256: sha256File(extensionHostPath),
-      sourceRelativePath: "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/x64/extension-host.exe",
+      sourceRelativePath: "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe",
     }),
   );
   writeFixture(
@@ -666,7 +669,7 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
   );
   writeFixture(tectonicMetadataPath, JSON.stringify(tectonicMetadata));
 
-  writePeFixture(packageNodeReplPath, 0x8664);
+  writePeFixture(packageNodeReplPath, 0xaa64);
   fs.appendFileSync(packageNodeReplPath, Buffer.from([1]));
   assert.throws(
     () => verifyWindowsArm64ResourceBinaries({ desktopRoot: fixtureRoot, packageRoot }),
@@ -817,6 +820,94 @@ test("patches recovered Codex window services source", () => {
   assert.equal(result?.changed, true);
   assert.equal(result?.strategy, "service-factory-fingerprint");
   assert.match(result?.source ?? "", /globalThis\.__codexpp_window_services__=services;startApp\(\);/);
+});
+
+test("stubs recovered Codex Micro Work Louder service", () => {
+  const tick = String.fromCharCode(96);
+  const source = [
+    "require(" + tick + "./src-a.js" + tick + ");const e=require(" + tick + "./src-b.js" + tick + ");let t=require(" + tick + "node:module" + tick + ");",
+    "var n=e.Kr(" + tick + "CodexMicroService" + tick + "),{WLDeviceDiscovery:r}=(0,t.createRequire)(__filename)(" + tick + "@worklouder/device-kit-oai" + tick + "),m=class{start(){return new r}};exports.CodexMicroService=m;",
+    "",
+  ].join("");
+
+  const patch = patchRecoveredCodexMicroServiceSource(source);
+  assert.equal(patch?.changed, true);
+  assert.equal(patch.source.includes("@worklouder/device-kit-oai"), false);
+  assert.match(patch.source, /exports\.CodexMicroService=m/);
+  assert.match(patch.source, /async updateLighting\(\)\{return!1\}/);
+
+  const secondPatch = patchRecoveredCodexMicroServiceSource(patch.source);
+  assert.equal(secondPatch?.changed, false);
+});
+
+test("skips recovered chunks that only reference Codex Micro service", () => {
+  const tick = String.fromCharCode(96);
+  const source =
+    "getCodexMicroService(){return Promise.resolve().then(()=>require(" +
+    tick +
+    "./codex-micro-service-Be7IyQJG.js" +
+    tick +
+    ")).then(({CodexMicroService:e})=>new e({}))}";
+
+  assert.equal(patchRecoveredCodexMicroServiceSource(source), undefined);
+});
+
+test("skips recovered chunks that only reference Work Louder package names", () => {
+  assert.equal(
+    patchRecoveredCodexMicroServiceSource(
+      "var packageName='@worklouder/device-kit-oai';exports.NotCodexMicroService=packageName;",
+    ),
+    undefined,
+  );
+});
+
+test("rejects unpatched Work Louder runtime references before pruning deps", () => {
+  const recoveredRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-worklouder-reference-"));
+  writeFixture(
+    path.join(recoveredRoot, ".vite", "build", "main.js"),
+    "var packageName='@worklouder/device-kit-oai';exports.NotCodexMicroService=packageName;\n",
+  );
+
+  assert.throws(
+    () => assertNoWorkLouderRuntimeReferences(recoveredRoot),
+    /Could not remove recovered Work Louder runtime reference/,
+  );
+});
+
+test("prunes Work Louder native hardware packages from recovered app", () => {
+  const recoveredRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-worklouder-prune-"));
+  writeFixture(
+    path.join(recoveredRoot, "package.json"),
+    JSON.stringify(
+      {
+        dependencies: {
+          "@worklouder/device-kit-oai": "file:node_modules/@worklouder/device-kit-oai",
+          "@worklouder/wl-device-kit": "file:node_modules/@worklouder/wl-device-kit",
+          "safe-package": "1.0.0",
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  writeFixture(
+    path.join(recoveredRoot, "node_modules", "@worklouder", "device-kit-oai", "package.json"),
+    "{}\n",
+  );
+  writeFixture(
+    path.join(recoveredRoot, "node_modules", "@worklouder", "wl-device-kit", "package.json"),
+    "{}\n",
+  );
+  writeFixture(path.join(recoveredRoot, "node_modules", "safe-package", "package.json"), "{}\n");
+
+  pruneWorkLouderPackages(recoveredRoot);
+
+  assert.equal(fs.existsSync(path.join(recoveredRoot, "node_modules", "@worklouder")), false);
+  assert.equal(fs.existsSync(path.join(recoveredRoot, "node_modules", "safe-package")), true);
+  const packageJson = JSON.parse(fs.readFileSync(path.join(recoveredRoot, "package.json"), "utf8"));
+  assert.equal(Object.hasOwn(packageJson.dependencies, "@worklouder/device-kit-oai"), false);
+  assert.equal(Object.hasOwn(packageJson.dependencies, "@worklouder/wl-device-kit"), false);
+  assert.equal(packageJson.dependencies["safe-package"], "1.0.0");
 });
 
 test("patches markdown operation directives before renderer parsing", () => {
@@ -2810,14 +2901,18 @@ test("Store binary updater only accepts the official Store package family", () =
   assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
   assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
   assert.match(source, /Where-Object \{ \$_\.PackageFamilyName -eq \$PackageFamilyName \}/);
-  assert.match(source, /app\\resources\\cua_node\\bin\\node_repl\.exe/);
+  assert.match(source, /app\/resources\/cua_node\/bin\/node_repl\.exe/);
   assert.match(
     source,
-    /app\\resources\\plugins\\openai-bundled\\plugins\\chrome\\extension-host\\windows\\x64\\extension-host\.exe/,
+    /app\/resources\/plugins\/openai-bundled\/plugins\/chrome\/extension-host\/windows\/arm64\/extension-host\.exe/,
   );
   assert.match(
     source,
-    /app\\resources\\cua_node\\bin\\node_modules\\@oai\\sky\\bin\\windows\\codex-computer-use\.exe/,
+    /app\/resources\/plugins\/openai-bundled\/plugins\/chrome\/extension-host\/windows\/x64\/extension-host\.exe/,
+  );
+  assert.match(
+    source,
+    /app\/resources\/cua_node\/bin\/node_modules\/@oai\/sky\/bin\/windows\/codex-computer-use\.exe/,
   );
 });
 
