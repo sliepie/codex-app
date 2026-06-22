@@ -2690,6 +2690,114 @@ function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
   );
 }
 
+const codexMicroServiceStub =
+  "var m=class{constructor(e){this.options=e;this.deviceState={status:\"not-detected\",error:null,battery:null}}getState(){return this.deviceState}start(){}async updateLighting(){return!1}async dispose(){}};exports.CodexMicroService=m;";
+
+const codexMicroServiceDefinitionPattern =
+  /var [^=]+=[^;]*?CodexMicroService[\s\S]*?@worklouder\/device-kit-oai[\s\S]*?exports\.CodexMicroService=[^;]+;/;
+
+export function patchRecoveredCodexMicroServiceSource(source: string): {
+  changed: boolean;
+  source: string;
+} | undefined {
+  if (source.includes(codexMicroServiceStub)) {
+    return { source, changed: false };
+  }
+  if (!codexMicroServiceDefinitionPattern.test(source)) {
+    return undefined;
+  }
+
+  const patched = source.replace(codexMicroServiceDefinitionPattern, codexMicroServiceStub);
+  if (patched === source || patched.includes("@worklouder/device-kit-oai")) {
+    throw new Error("Could not patch recovered Codex Micro Work Louder service.");
+  }
+
+  return { source: patched, changed: true };
+}
+
+function patchRecoveredCodexMicroService(recoveredRoot: string): void {
+  const viteBuildRoot = path.join(recoveredRoot, ".vite", "build");
+  if (!fs.existsSync(viteBuildRoot)) {
+    return;
+  }
+
+  let patchedCount = 0;
+  for (const entry of fs.readdirSync(viteBuildRoot, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".js")) {
+      continue;
+    }
+    const filePath = path.join(viteBuildRoot, entry.name);
+    const source = fs.readFileSync(filePath, "utf8");
+    const patch = patchRecoveredCodexMicroServiceSource(source);
+    if (!patch) {
+      continue;
+    }
+    if (patch.changed) {
+      fs.writeFileSync(filePath, patch.source, "utf8");
+    }
+    patchedCount++;
+  }
+
+  if (patchedCount > 0) {
+    console.log("Patched recovered Codex Micro Work Louder service.");
+  }
+  assertNoWorkLouderRuntimeReferences(recoveredRoot);
+}
+
+export function pruneWorkLouderPackages(recoveredRoot: string): void {
+  fs.rmSync(path.join(recoveredRoot, "node_modules", "@worklouder"), {
+    recursive: true,
+    force: true,
+  });
+
+  const packageJsonPath = path.join(recoveredRoot, "package.json");
+  if (!fs.existsSync(packageJsonPath)) {
+    return;
+  }
+
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as Record<string, unknown>;
+  let changed = false;
+  for (const dependencyField of [
+    "dependencies",
+    "devDependencies",
+    "optionalDependencies",
+    "peerDependencies",
+  ]) {
+    const dependencies = packageJson[dependencyField];
+    if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)) {
+      continue;
+    }
+    for (const dependencyName of ["@worklouder/device-kit-oai", "@worklouder/wl-device-kit"]) {
+      if (Object.prototype.hasOwnProperty.call(dependencies, dependencyName)) {
+        delete (dependencies as Record<string, unknown>)[dependencyName];
+        changed = true;
+      }
+    }
+  }
+
+  if (changed) {
+    fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+  }
+}
+
+export function assertNoWorkLouderRuntimeReferences(recoveredRoot: string): void {
+  const viteBuildRoot = path.join(recoveredRoot, ".vite", "build");
+  if (!fs.existsSync(viteBuildRoot)) {
+    return;
+  }
+
+  for (const entry of fs.readdirSync(viteBuildRoot, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".js")) {
+      continue;
+    }
+    const filePath = path.join(viteBuildRoot, entry.name);
+    const source = fs.readFileSync(filePath, "utf8");
+    if (source.includes("@worklouder/")) {
+      throw new Error(`Could not remove recovered Work Louder runtime reference from ${path.relative(recoveredRoot, filePath)}.`);
+    }
+  }
+}
+
 export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
   const options = parseOptions(argv);
   fs.mkdirSync(options.cacheRoot, { recursive: true });
@@ -2779,6 +2887,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   );
   patchWindowsSelfSignedBundle(recoveredRoot);
   patchRecoveredCodexWindowServices(recoveredRoot);
+  patchRecoveredCodexMicroService(recoveredRoot);
+  pruneWorkLouderPackages(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
   fs.writeFileSync(

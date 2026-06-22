@@ -83,19 +83,29 @@ export function verifyWindowsArm64ResourceBinaries(options: Options): ResourceBi
     checkedPeFiles += 1;
     const packageRelativePath = path.relative(options.packageRoot, filePath).replaceAll(path.sep, "/");
     const machine = readPeMachine(filePath);
+    const exception = matchWindowsArm64ResourceBinaryException(packageRelativePath);
+    if (exception) {
+      if (exception.expectedMachine !== machine) {
+        throw new Error(
+          exception.label + " has machine " + formatPeMachine(machine) + ", expected " +
+            formatPeMachine(exception.expectedMachine) + ".",
+        );
+      }
+      validatePackagedResourceBinaryException(options.desktopRoot, filePath, exception);
+      matchedExceptionIds.add(exception.id);
+      continue;
+    }
+
     if (machine === peMachine.arm64) {
       continue;
     }
 
-    const exception = matchWindowsArm64ResourceBinaryException(packageRelativePath);
-    if (!exception || exception.expectedMachine !== machine) {
+    if (!exception) {
       throw new Error(
         "Unexpected non-ARM64 Resource binary " + packageRelativePath + ": " +
           formatPeMachine(machine) + ".",
       );
     }
-    validatePackagedResourceBinaryException(options.desktopRoot, filePath, exception);
-    matchedExceptionIds.add(exception.id);
   }
 
   for (const exception of windowsArm64ResourceBinaryExceptions) {

@@ -14,13 +14,13 @@ An executable copied into the packaged app's `resources/` directory and launched
 A resource binary committed to this repo because it cannot be built or downloaded through the normal ARM64 hydration path.
 
 **Resource binary exception**:
-An explicit, validated x64 resource binary allowed in the Windows ARM64 package until a Windows ARM64 equivalent can be compiled, downloaded, or otherwise obtained.
+An explicit, validated resource binary with special provenance or architecture requirements in the Windows ARM64 package. Non-ARM64 exceptions are allowed only until a Windows ARM64 equivalent can be compiled, downloaded, or otherwise obtained.
 
 **`node_repl`**:
 The resource binary used by Codex Desktop to provide Node REPL tool support.
 
 **`extension-host`**:
-The Chrome plugin's Windows native messaging host. The ARM64 package uses the official x64 Store fallback at the plugin's ARM64 lookup path until an ARM64 host exists.
+The Chrome plugin's Windows native messaging host. The ARM64 package uses the official ARM64 Store helper at the plugin's ARM64 lookup path.
 
 **Computer Use helper**:
 The Windows helper executable used by the bundled Computer Use plugin to control desktop apps. The ARM64 package uses the official x64 Store fallback until an ARM64 helper exists.
@@ -48,8 +48,8 @@ A CSS selector shipped by a bundled Codex++ tweak under `desktop/codex-plusplus/
 - A **Windows ARM64 package** contains **Resource binaries**.
 - **Resource binaries** should be ARM64 unless they cannot be compiled, downloaded, or otherwise obtained for Windows ARM64.
 - Every **Resource binary exception** must live in `desktop/scripts/resource-binary-exceptions.ts` and be enforced by `npm run verify:windows-arm64-resource-binaries`.
-- **`node_repl`**, **`extension-host`**, and the **Computer Use helper** are **Vendored resource binaries** until Windows ARM64 binaries can be compiled, downloaded, or otherwise obtained.
-- **`node_repl`**, **`extension-host`**, and the **Computer Use helper** may use the latest official closed-source x64 binaries from the Microsoft Store package, even when that fallback version does not match the macOS appcast version exactly.
+- **`node_repl`**, **`extension-host`**, and the **Computer Use helper** are **Vendored resource binaries** until they no longer need to be copied from the Microsoft Store package.
+- **`node_repl`** and **`extension-host`** use ARM64 binaries from the Microsoft Store package when available; the **Computer Use helper** may use the latest official closed-source x64 binary until a Windows ARM64 equivalent exists.
 - A **Temporary Store-install scrape** refreshes the vendored `desktop/resources/node_repl.exe`, `desktop/resources/extension-host.exe`, and `desktop/resources/codex-computer-use.exe` binaries from the official Microsoft Store package for product ID `9PLM9XGG6VKS`; non-Store sources are not valid for these vendored fallback updates.
 - **Tectonic** is a public GitHub-release hydrated **Resource binary exception** from `tectonic-typesetting/tectonic` until a Windows ARM64 release asset exists.
 - The **Windows ARM64 package plan** is the only CI entry point for the ordered Windows ARM64 package flow.
@@ -64,5 +64,5 @@ A CSS selector shipped by a bundled Codex++ tweak under `desktop/codex-plusplus/
 
 ## Flagged ambiguities
 
-- "ARM64 package" does not mean every file is ARM64 when an executable cannot be compiled, downloaded, or otherwise obtained for Windows ARM64. Resolved: `node_repl.exe`, Chrome `extension-host.exe`, Computer Use `codex-computer-use.exe`, and LaTeX `tectonic.exe` are the accepted x64 exceptions for now.
+- "ARM64 package" does not mean every file is ARM64 when an executable cannot be compiled, downloaded, or otherwise obtained for Windows ARM64. Resolved: Computer Use `codex-computer-use.exe` and LaTeX `tectonic.exe` are the accepted x64 exceptions for now; `node_repl.exe` and Chrome `extension-host.exe` are ARM64 Store-vendored helpers.
 - "latest app release" means the highest Sparkle build number (`sparkle:version`) across official app release feeds, with the production feed winning ties.
