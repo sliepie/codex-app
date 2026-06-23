@@ -13,8 +13,6 @@ type PatchResult = {
 
 const desktopRoot = process.cwd();
 const identifierPattern = String.raw`[A-Za-z_$][\w$]*`;
-const workspaceDependencyFeatureMapAppliedPattern =
-  /return\{(?=[^{}]*workspace_dependencies:!0)(?=[^{}]*\[[^\]]+\]:[^{}]*?\.groupName===`Test`)[^{}]*\}/;
 const packageLocalCacheRelocationAppliedPattern =
   /process\.resourcesPath\?\.replace[\s\S]*?`Packages`[\s\S]*?`LocalCache`[\s\S]*?`Local`/;
 const inactiveWindowsMicaBackdropAppliedPattern =
@@ -24,19 +22,6 @@ const windowsArm64PrimaryRuntimeManifestUrl =
 const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
   escapeRegExp(windowsArm64PrimaryRuntimeManifestUrl),
 );
-const enabledDesktopFeatureGateIds = [
-  "533078438",
-  "3789238711",
-  "2798711298",
-  "2327881676",
-  "1488233300",
-  "1244621283",
-  "1372061905",
-  "4100906017",
-  "1848317837",
-  "2423536643",
-] as const;
-
 type SourcePatchResult = {
   source: string;
   status: PatchStatus;
@@ -693,49 +678,6 @@ function functionContainingAllPatch(
   };
 }
 
-function forceFeatureGateCalls(gateIds: readonly string[]): SourcePatcher {
-  const alternation = gateIds.map(escapeRegExp).join("|");
-  const markerPattern = new RegExp("`(" + alternation + ")`", "g");
-  const callPattern = new RegExp(
-    String.raw`\b${identifierPattern}\(` + "`(" + alternation + ")`" + String.raw`\)`,
-    "g",
-  );
-
-  return (source) => {
-    const markerMatches = Array.from(source.matchAll(markerPattern));
-    if (markerMatches.length === 0) {
-      return undefined;
-    }
-
-    const callMatches = Array.from(source.matchAll(callPattern));
-    if (callMatches.length === 0) {
-      throw new Error(
-        `Feature gate marker(s) were found without patchable gate call(s): ${[
-          ...new Set(markerMatches.map((match) => match[1])),
-        ].join(", ")}`,
-      );
-    }
-
-    callPattern.lastIndex = 0;
-    const nextSource = source.replace(callPattern, "true");
-    markerPattern.lastIndex = 0;
-    const remainingGateIds = [
-      ...new Set(Array.from(nextSource.matchAll(markerPattern)).map((match) => match[1])),
-    ];
-    if (remainingGateIds.length > 0) {
-      throw new Error(
-        `Feature gate marker(s) remain after patch: ${remainingGateIds.join(", ")}`,
-      );
-    }
-
-    return {
-      source: nextSource,
-      status: nextSource === source ? "already-applied" : "applied",
-      matcher: "semantic",
-    };
-  };
-}
-
 function replaceWithPatchers(
   recoveredRoot: string,
   filePath: string,
@@ -809,95 +751,25 @@ function replaceWithPatchers(
 }
 
 function patchSettingsPage(recoveredRoot: string): PatchResult[] {
-  const filePath = findFile(path.join(recoveredRoot, "webview", "assets"), /^settings-page-.*\.js$/);
+  findFile(path.join(recoveredRoot, "webview", "assets"), /^settings-page-.*\.js$/);
 
-  return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "enable keyboard shortcuts settings section",
-      [
-        exactPatch("h=E(`1981165915`)", "h=!0"),
-        regexPatch(
-          new RegExp(String.raw`\b(${identifierPattern}=)${identifierPattern}\(\`1981165915\`\)`, "g"),
-          "$1!0",
-        ),
-      ],
-      { missingTargetMarkers: ["1981165915"] },
-    ),
-  ];
+  return [];
 }
 
 function patchIndex(recoveredRoot: string): PatchResult[] {
-  const filePath = findFileContaining(
+  findFileContaining(
     path.join(recoveredRoot, "webview", "assets"),
     /^(?:app-main|index)-.*\.js$/,
     ["electron-desktop-features-changed"],
   );
 
-  return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "enable keyboard shortcuts command menu entries",
-      [
-        exactPatch("y=ms(`1981165915`)", "y=!0"),
-        regexPatch(
-          new RegExp(String.raw`\b(${identifierPattern}=)${identifierPattern}\(\`1981165915\`\)`, "g"),
-          "$1!0",
-        ),
-      ],
-      { missingTargetMarkers: ["1981165915"] },
-    ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "include workspace dependencies in default feature map",
-      [
-        exactPatch(
-          "return{...t,...n,[xE]:ps(e,SE)&&gs(e,bE).groupName===`Test`,...r}",
-          "return{...t,...n,workspace_dependencies:!0,[xE]:ps(e,SE)&&gs(e,bE).groupName===`Test`,...r}",
-        ),
-        alreadyAppliedPatch(workspaceDependencyFeatureMapAppliedPattern),
-        regexPatch(
-          /return\{([^{}]*?)(\[[^\]]+\]:[^{}]*?\.groupName===`Test`)(,\.\.\.[^{}]+?)\}/g,
-          (match) => `return{${match[1]}workspace_dependencies:!0,${match[2]}${match[3]}}`,
-          workspaceDependencyFeatureMapAppliedPattern,
-        ),
-      ],
-      { missingTargetMarkers: [".groupName===`Test`"] },
-    ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "enable selected desktop feature gates",
-      [forceFeatureGateCalls(enabledDesktopFeatureGateIds)],
-      { missingTargetMarkers: enabledDesktopFeatureGateIds.map((id) => `\`${id}\``) },
-    ),
-  ];
+  return [];
 }
 
 function patchAgentSettings(recoveredRoot: string): PatchResult[] {
-  const filePath = findFile(path.join(recoveredRoot, "webview", "assets"), /^agent-settings-.*\.js$/);
+  findFile(path.join(recoveredRoot, "webview", "assets"), /^agent-settings-.*\.js$/);
 
-  return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "show beta feature group and workspace dependencies section",
-      [
-        exactPatch("s=oe(W),c=oe(`2106641128`)", "s=!0,c=!0"),
-        regexPatch(
-          new RegExp(
-            String.raw`\b(${identifierPattern}=)${identifierPattern}\(${identifierPattern}\),(${identifierPattern}=)${identifierPattern}\(\`2106641128\`\)`,
-            "g",
-          ),
-          "$1!0,$2!0",
-        ),
-      ],
-      { missingTargetMarkers: ["2106641128"] },
-    ),
-  ];
+  return [];
 }
 
 function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult[] {
@@ -993,45 +865,6 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
           "isFocused",
           "`darwin`",
           "`win32`",
-        ],
-      },
-    ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "enable workspace dependencies static gate",
-      [
-        exactPatch(
-          "function ap(e){return typeof e!=`object`||!e?!1:Object.entries(e).some(([e,t])=>e===`workspace_dependencies`&&t===!0)}",
-          "function ap(e){return!0}",
-        ),
-        functionContainingAllPatch(
-          ["Object.entries", "workspace_dependencies"],
-          /\bfunction\s+[A-Za-z_$][\w$]*\([^)]*\)\{return!0\}/,
-          (range) => `function ${range.name}(${range.args}){return!0}`,
-        ),
-      ],
-      { missingTargetMarkers: ["Object.entries", "workspace_dependencies"] },
-    ),
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "enable workspace dependencies app-server feature check",
-      [
-        exactPatch(
-          "async function op(e){let t=async n=>{let r=await e.sendAppServerRequest(`experimentalFeature/list`,{cursor:n,limit:100});return r.data.some(e=>e.name===`workspace_dependencies`&&e.enabled===!0)?!0:r.nextCursor==null?!1:t(r.nextCursor)};return t(null)}",
-          "async function op(e){return!0}",
-        ),
-        functionContainingAllPatch(
-          ["sendAppServerRequest(`experimentalFeature/list`", "workspace_dependencies"],
-          /\basync\s+function\s+[A-Za-z_$][\w$]*\([^)]*\)\{return!0\}/,
-          (range) => `${range.asyncPrefix}function ${range.name}(${range.args}){return!0}`,
-        ),
-      ],
-      {
-        missingTargetMarkers: [
-          "sendAppServerRequest(`experimentalFeature/list`",
-          "workspace_dependencies",
         ],
       },
     ),

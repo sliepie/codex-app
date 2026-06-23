@@ -19,22 +19,6 @@ const indexFeatureTargets =
 const sidebarPixelTargets =
   "function Sidebar(){let A=C.formatMessage({id:`sidebarElectron.recentChats`,defaultMessage:`Chats`}),rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,className:`-translate-x-px`,itemClassName:`after:block after:h-px after:content-[''] last:after:hidden`,itemWrapper:ke?Tg:void 0,emptyState:(0,$.jsx)(Y,{id:`sidebarElectron.noRecentChats`,defaultMessage:`No chats`,description:`Empty state for projectless chats in the sidebar`}),emptyStateClassName:`text-token-description-foreground p-2 text-base opacity-50`,rowOptions:{hideRemoteHostEnvIcon:!1,showPinActionOnHover:!0,getSectionContextMenuItems:Kt}}),ar=bt?(0,$.jsx)(`div`,{className:`px-row-x`,...ne.sidebarSection({collapsed:At.chats,heading:`Chats`}),children:(0,$.jsx)(Zd,{title:rr})}):null;return[rr,ir,ar]}function Row(){return(0,$.jsx)(L_,{conversationId:N,isAutomationRun:i,hasPendingChildApproval:c,isActive:u,forceLoadingIndicator:t&&l,className:s?`opacity-50`:void 0,rowContentClassName:Dc(t&&(D?`ml-10`:`ml-5`),g&&`pr-3 group-focus-within:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)] group-hover:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)]`),envIconLocation:`end`,dataAttributes:ne.sidebarThreadRow({kind:`local`,title:H})})}function vy(){let C=(0,$.jsx)(`div`,{className:`min-w-0 flex-1`,children:(0,$.jsx)(cn,{triggerButton:(0,$.jsx)(Qd,{icon:b,label:x,onClick:yy,trailing:S,iconClassName:`icon-sm`})})});return C}let settingsLabel={id:`codex.profileFooter.signedInFallback`};";
 
-const enabledDesktopFeatureGateIds = [
-  "533078438",
-  "3789238711",
-  "2798711298",
-  "2327881676",
-  "1488233300",
-  "1244621283",
-  "1372061905",
-  "4100906017",
-  "1848317837",
-  "2423536643",
-];
-const enabledDesktopFeatureGateTargets = enabledDesktopFeatureGateIds
-  .map((id, index) => `selectedGate${index}=FeatureGate(\`${id}\`)`)
-  .join(",");
-
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, source, "utf8");
@@ -45,11 +29,11 @@ function createRecoveredFixture() {
 
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
-    "let shortcutGate=Gate(`1981165915`);export{shortcutGate};",
+    "export const settingsPageFixture=true;",
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    `let commandGate=FeatureGate(\`1981165915\`),${enabledDesktopFeatureGateTargets};function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${indexFeatureTargets}${sidebarPixelTargets}`,
+    `${indexFeatureTargets}${sidebarPixelTargets}`,
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
@@ -57,7 +41,7 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
-    "let showBeta=featureGate(betaFlag),workspaceDependencies=featureGate(`2106641128`);export{showBeta,workspaceDependencies};",
+    "export const agentSettingsFixture=true;",
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "use-model-settings-fixture.js"),
@@ -73,7 +57,7 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "var dM=`#00000000`,vM=36,yM=`#1f1f1f`,bM=`#ffffff`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===`win32`?{titleBarStyle:`hidden`,titleBarOverlay:xM()}:null}function w2(appearance){return appearance===`dark`}function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&(n===`darwin`||n===`win32`)}function applyWindowBackdrop(window,backgroundMaterial){window.setBackgroundMaterial(backgroundMaterial);return{backgroundMaterial}}function zx(config){return typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}",
+    "var dM=`#00000000`,vM=36,yM=`#1f1f1f`,bM=`#ffffff`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===`win32`?{titleBarStyle:`hidden`,titleBarOverlay:xM()}:null}function w2(appearance){return appearance===`dark`}function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&(n===`darwin`||n===`win32`)}function applyWindowBackdrop(window,backgroundMaterial){window.setBackgroundMaterial(backgroundMaterial);return{backgroundMaterial}}",
   );
 
   return recoveredRoot;
@@ -91,13 +75,6 @@ function runPatcher(recoveredRoot, reportPath) {
   });
 }
 
-function moveIndexFixtureToAppMain(recoveredRoot) {
-  const assetsRoot = path.join(recoveredRoot, "webview", "assets");
-  const appMainPath = path.join(assetsRoot, "app-main-fixture.js");
-  fs.renameSync(path.join(assetsRoot, "index-fixture.js"), appMainPath);
-  return appMainPath;
-}
-
 test("writes patch report file paths relative to the recovered app root", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -109,15 +86,8 @@ test("writes patch report file paths relative to the recovered app root", () => 
   assert.deepEqual(
     report.patches.map((patch) => patch.file),
     [
-      "webview/assets/settings-page-fixture.js",
-      "webview/assets/index-fixture.js",
-      "webview/assets/index-fixture.js",
-      "webview/assets/index-fixture.js",
-      "webview/assets/agent-settings-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/primary-runtime-installer-fixture.js",
-      ".vite/build/main-fixture.js",
-      ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
     ],
   );
@@ -273,183 +243,13 @@ test("keeps Mica enabled for inactive Windows windows", () => {
   assert.equal(patch?.status, "applied");
 });
 
-test("patches app main bundle when upstream moves index targets there", () => {
-  const recoveredRoot = createRecoveredFixture();
-  const appMainPath = moveIndexFixtureToAppMain(recoveredRoot);
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const appMainSource = fs.readFileSync(appMainPath, "utf8");
-  assert.match(appMainSource, /commandGate=!0/);
-  assert.match(appMainSource, /workspace_dependencies:!0/);
-
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(
-    report.patches.filter((patch) => patch.file === "webview/assets/app-main-fixture.js").length,
-    3,
-  );
-});
-
-test("reports a missing gate target as assumed enabled and continues", () => {
-  const recoveredRoot = createRecoveredFixture();
-  const indexPath = path.join(recoveredRoot, "webview", "assets", "index-fixture.js");
-  fs.writeFileSync(
-    indexPath,
-    `let unrelated=!0;function buildFlags(user,base,remote,rest){return{...base,...remote,workspace_dependencies:!0,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}${indexFeatureTargets}`,
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches[1].name, "enable keyboard shortcuts command menu entries");
-  assert.equal(report.patches[1].status, "assumed-enabled");
-  assert.equal(report.patches[1].file, "webview/assets/index-fixture.js");
-  assert.match(report.patches[1].reason, /Gate target was not found/);
-  assert.equal(report.patches.at(-1).name, "enable workspace dependencies app-server feature check");
-  assert.equal(report.patches.at(-1).status, "applied");
-});
-
-test("fails when a required gate marker remains but no patcher matches", () => {
-  const recoveredRoot = createRecoveredFixture();
-  fs.writeFileSync(
-    path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
-    "let h=!0,shortcutGate=Gate(\"1981165915\");export{shortcutGate};",
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.notEqual(result.status, 0);
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches[0].name, "enable keyboard shortcuts settings section");
-  assert.equal(report.patches[0].status, "failed-required");
-  assert.match(report.patches[0].reason, /required marker\(s\) are still present: 1981165915/);
-});
-
-test("patches function ranges when bundle literals contain braces", () => {
-  const recoveredRoot = createRecoveredFixture();
-  fs.writeFileSync(
-    path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "function zx(config){let text=\"{not code\";let pattern=/\\{not-code\\}/;return typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){let ignored=`literal ${\"{still string}\"}`;let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}",
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const mainBundle = fs.readFileSync(
-    path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "utf8",
-  );
-  assert.match(mainBundle, /function zx\(config\)\{return!0\}/);
-  assert.match(mainBundle, /async function qp\(client\)\{return!0\}/);
-});
-
-test("patches function ranges when regex literals follow keywords", () => {
-  const recoveredRoot = createRecoveredFixture();
-  fs.writeFileSync(
-    path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "function zx(config){return /}/.test(`}`)||typeof config!=`object`||!config?!1:Object.entries(config).some(([name,value])=>name===`workspace_dependencies`&&value===!0)}async function qp(client){return!0}",
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.at(-2).name, "enable workspace dependencies static gate");
-  assert.equal(report.patches.at(-2).status, "applied");
-  assert.equal(report.patches.at(-1).name, "enable workspace dependencies app-server feature check");
-  assert.equal(report.patches.at(-1).status, "already-applied");
-});
-
-test("does not let one main-bundle gate marker fail the other gate patch", () => {
-  const recoveredRoot = createRecoveredFixture();
-  fs.writeFileSync(
-    path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "function zx(config){return!0}async function qp(client){let load=async cursor=>{let response=await client.sendAppServerRequest(`experimentalFeature/list`,{cursor,limit:100});return response.data.some(feature=>feature.name===`workspace_dependencies`&&feature.enabled===!0)?!0:response.nextCursor==null?!1:load(response.nextCursor)};return load(null)}",
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.at(-2).name, "enable workspace dependencies static gate");
-  assert.equal(report.patches.at(-2).status, "already-applied");
-  assert.equal(report.patches.at(-1).name, "enable workspace dependencies app-server feature check");
-  assert.equal(report.patches.at(-1).status, "applied");
-});
-
-test("keeps workspace dependency feature-map already-applied evidence contextual", () => {
-  const recoveredRoot = createRecoveredFixture();
-  fs.writeFileSync(
-    path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    `let commandGate=FeatureGate(\`1981165915\`);const unrelated={workspace_dependencies:!0};${indexFeatureTargets}function buildFlags(user,base,remote,rest){return{...base,...remote,[workspaceKey]:isOn(user,flag)&&groupFor(user,group).groupName===\`Test\`,...rest}}`,
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  const featureMapPatch = report.patches.find(
-    (patch) => patch.name === "include workspace dependencies in default feature map",
-  );
-  assert.equal(featureMapPatch?.status, "applied");
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /return\{\.\.\.base,\.\.\.remote,workspace_dependencies:!0,\[workspaceKey\]:/,
-  );
-});
-
-test("patches self-signed Windows gates when upstream minifier names change", () => {
+test("patches non-feature self-signed Windows bundle changes", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
 
   const result = runPatcher(recoveredRoot, reportPath);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(
-    fs.readFileSync(
-      path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
-      "utf8",
-    ),
-    /shortcutGate=!0/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /commandGate=!0/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, "webview", "assets", "index-fixture.js"), "utf8"),
-    /workspace_dependencies:!0/,
-  );
-  const patchedIndexSource = fs.readFileSync(
-    path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
-    "utf8",
-  );
-  for (const [index, id] of enabledDesktopFeatureGateIds.entries()) {
-    assert.match(patchedIndexSource, new RegExp("selectedGate" + index + "=true"), id);
-    assert.doesNotMatch(patchedIndexSource, new RegExp("FeatureGate\\(\\`" + id + "\\`\\)"), id);
-  }
-  assert.match(
-    fs.readFileSync(
-      path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
-      "utf8",
-    ),
-    /showBeta=!0,workspaceDependencies=!0/,
-  );
   assert.match(
     fs.readFileSync(
       path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
@@ -479,17 +279,8 @@ test("patches self-signed Windows gates when upstream minifier names change", ()
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /function D2\(\{appearance:e,isFocused:t,platform:n\}\)\{return!t&&!w2\(e\)&&n===`darwin`\}/,
   );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
-    /function zx\(config\)\{return!0\}/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
-    /async function qp\(client\)\{return!0\}/,
-  );
-
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 10);
+  assert.equal(report.patches.length, 3);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -551,7 +342,7 @@ test("uses collision-free locals when relocation helper imports are minified", (
   assert.doesNotMatch(bundle, /function r\(e\)\{let [^}]*,n=process\.resourcesPath/);
 });
 
-test("does not fail or rewrite when self-signed Windows gate patches run again", () => {
+test("does not fail or rewrite when self-signed Windows patches run again", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
 
@@ -575,7 +366,7 @@ test("does not fail or rewrite when self-signed Windows gate patches run again",
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 10);
+  assert.equal(report.patches.length, 3);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),
