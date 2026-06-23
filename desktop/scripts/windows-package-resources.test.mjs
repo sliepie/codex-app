@@ -26,6 +26,7 @@ const {
   patchCodexWindowServicesSource,
   patchMarkdownOperationDirectiveCrashSource,
   pruneWorkLouderPackages,
+  patchOwlFeatureBindingSource,
   pruneUnusedNativePayloads,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
@@ -2635,6 +2636,37 @@ test("Codex app cache consumers allow beta app bundle names", () => {
   assert.doesNotMatch(appHydratorSource, /Codex\.app\/Contents\/Resources\/app\.asar/);
   assert.doesNotMatch(cliHydratorSource, /"Codex\.app", "Contents", "Resources", "node"/);
   assert.doesNotMatch(verifierSource, /"Codex\.app", "Contents", "Resources", "node"/);
+});
+
+test("Codex app hydration guards missing OWL Electron feature binding", () => {
+  const source =
+    'function rn(e){return Qe().isOwlFeatureEnabled(e)}function Qe(){let e=process._linkedBinding;if(typeof e!=`function`)throw Error(`Owl feature binding is unavailable`);return Ge.parse(e.call(process,`electron_common_owl_features`))}function $e(){return Qe()}';
+
+  const patch = patchOwlFeatureBindingSource(source);
+
+  assert.ok(patch);
+  assert.equal(patch.changed, true);
+  assert.match(patch.source, /if\(typeof e!="function"\)return \{isOwlFeatureEnabled:\(\)=>!1\}/);
+  assert.match(patch.source, /try\{return Ge\.parse\(e\.call\(process,"electron_common_owl_features"\)\)\}/);
+  assert.match(patch.source, /catch\{return \{isOwlFeatureEnabled:\(\)=>!1\}\}/);
+  assert.doesNotMatch(patch.source, /throw Error\(`Owl feature binding is unavailable`\)/);
+
+  const secondPatch = patchOwlFeatureBindingSource(patch.source);
+  assert.ok(secondPatch);
+  assert.equal(secondPatch.changed, false);
+});
+
+test("Codex app OWL feature binding patch preserves minified dollar identifiers", () => {
+  const source =
+    'function $1(){let $$=process._linkedBinding;if(typeof $$!=`function`)throw Error(`Owl feature binding is unavailable`);return $2.parse($$.call(process,`electron_common_owl_features`))}';
+
+  const patch = patchOwlFeatureBindingSource(source);
+
+  assert.ok(patch);
+  assert.equal(patch.changed, true);
+  assert.match(patch.source, /function \$1\(\)\{let \$\$=process\._linkedBinding/);
+  assert.match(patch.source, /typeof \$\$!="function"/);
+  assert.match(patch.source, /\$2\.parse\(\$\$\.call\(process,"electron_common_owl_features"\)\)/);
 });
 
 test("operational scripts resolve desktop root from script location", () => {

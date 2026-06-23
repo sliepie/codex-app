@@ -2647,6 +2647,93 @@ function findRecoveredViteMainBundles(recoveredRoot: string): string[] {
     .map((name) => path.posix.join(".vite", "build", name));
 }
 
+type OwlFeatureBindingPatch = {
+  changed: boolean;
+  source: string;
+};
+
+const owlFeatureBindingFallback = "{isOwlFeatureEnabled:()=>!1}";
+
+export function patchOwlFeatureBindingSource(source: string): OwlFeatureBindingPatch | null {
+  if (!source.includes("electron_common_owl_features")) {
+    return null;
+  }
+
+  if (
+    source.includes("catch{return " + owlFeatureBindingFallback + "}") ||
+    source.includes("catch{return{isOwlFeatureEnabled:()=>!1}}")
+  ) {
+    return { changed: false, source };
+  }
+
+  const pattern = new RegExp(
+    `function (${identifierPattern})\\(\\)\\{let (${identifierPattern})=process\\._linkedBinding;` +
+      `if\\(typeof \\2!=[\`'"]function[\`'"]\\)throw Error\\([\`'"]Owl feature binding is unavailable[\`'"]\\);` +
+      `return (${identifierPattern})\\.parse\\(\\2\\.call\\(process,[\`'"]electron_common_owl_features[\`'"]\\)\\)\\}`,
+  );
+  const match = pattern.exec(source);
+  if (!match?.[1] || !match[2] || !match[3]) {
+    return null;
+  }
+
+  const [, functionName, bindingName, parserName] = match;
+  return {
+    changed: true,
+    source: source.replace(
+      pattern,
+      () =>
+        `function ${functionName}(){let ${bindingName}=process._linkedBinding;if(typeof ${bindingName}!="function")return ${owlFeatureBindingFallback};try{return ${parserName}.parse(${bindingName}.call(process,"electron_common_owl_features"))}catch{return ${owlFeatureBindingFallback}}}`,
+    ),
+  };
+}
+
+function findRecoveredJavaScriptFiles(root: string): string[] {
+  const files: string[] = [];
+  const visit = (directory: string): void => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(entryPath);
+        continue;
+      }
+      if (entry.isFile() && entry.name.endsWith(".js")) {
+        files.push(entryPath);
+      }
+    }
+  };
+
+  visit(root);
+  return files.sort();
+}
+
+function patchRecoveredOwlFeatureBinding(recoveredRoot: string): void {
+  const diagnostics: string[] = [];
+  for (const filePath of findRecoveredJavaScriptFiles(recoveredRoot)) {
+    const source = fs.readFileSync(filePath, "utf8");
+    const patch = patchOwlFeatureBindingSource(source);
+    if (!patch) {
+      if (source.includes("electron_common_owl_features")) {
+        diagnostics.push(path.relative(recoveredRoot, filePath).replace(/\\/g, "/"));
+      }
+      continue;
+    }
+
+    if (patch.changed) {
+      fs.writeFileSync(filePath, patch.source, "utf8");
+    }
+
+    console.log(
+      "Patched OWL feature binding fallback in " +
+        path.relative(recoveredRoot, filePath).replace(/\\/g, "/"),
+    );
+    return;
+  }
+
+  if (diagnostics.length > 0) {
+    throw new Error("Could not patch OWL feature binding fallback. Checked: " + diagnostics.join(", "));
+  }
+}
+
 function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
   const candidates = [readRecoveredOriginalMain(recoveredRoot), ...findRecoveredViteMainBundles(recoveredRoot)];
   const seen = new Set<string>();
@@ -2886,6 +2973,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     { stdio: "inherit" },
   );
   patchWindowsSelfSignedBundle(recoveredRoot);
+  patchRecoveredOwlFeatureBinding(recoveredRoot);
   patchRecoveredCodexWindowServices(recoveredRoot);
   patchRecoveredCodexMicroService(recoveredRoot);
   pruneWorkLouderPackages(recoveredRoot);
