@@ -1738,7 +1738,7 @@ test("bundles repo-owned Codex++ UI tweaks without keyboard shortcut tweaks", ()
     if (tweakName === "codex-app-windows-menu-bar") {
       assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout/);
     } else {
-      assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+      assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
     }
     assert.doesNotThrow(() => {
       const module = { exports: {} };
@@ -1785,7 +1785,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   const uiTweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
   const uiManifest = JSON.parse(fs.readFileSync(path.join(uiTweakRoot, "manifest.json"), "utf8"));
   const uiSource = fs.readFileSync(path.join(uiTweakRoot, uiManifest.main), "utf8");
-  assert.doesNotMatch(uiSource, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+  assert.doesNotMatch(uiSource, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
   assert.doesNotMatch(uiSource, /hideWindowsMenuBar|codex-app-ui-hide-windows-menu-bar-setting/);
   assert.ok(uiSource.includes('cssRule(".group\\\\/application-menu-top-bar", "margin-inline-start:0.5rem;")'));
   assert.doesNotMatch(uiSource, /application-menu-top-bar[\s\S]{0,120}display:none!important/);
@@ -1798,8 +1798,8 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   assert.doesNotMatch(menuSource, /createTreeWalker|requestAnimationFrame|setTimeout/);
   const appendedStyles = [];
   const removedStyleIds = new Set();
-  let observerCallback = null;
-  let observerDisconnected = false;
+  const observerCallbacks = [];
+  let observerDisconnectCount = 0;
   const storageValues = new Map();
 
   const previousWindow = globalThis.window;
@@ -1807,13 +1807,35 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   const previousNodeFilter = globalThis.NodeFilter;
   const previousMutationObserver = globalThis.MutationObserver;
 
+  class FakeStyle {
+    constructor() {
+      this.properties = new Map();
+    }
+
+    setProperty(name, value, priority = "") {
+      this.properties.set(name, { value, priority });
+    }
+
+    removeProperty(name) {
+      this.properties.delete(name);
+    }
+
+    getPropertyValue(name) {
+      return this.properties.get(name)?.value ?? "";
+    }
+
+    getPropertyPriority(name) {
+      return this.properties.get(name)?.priority ?? "";
+    }
+  }
+
   class FakeElement {
     constructor(tagName = "div") {
       this.tagName = tagName.toUpperCase();
       this.className = "";
       this.children = [];
       this.parentElement = null;
-      this.style = {};
+      this.style = new FakeStyle();
       this.id = "";
       this.type = "";
       this._textContent = "";
@@ -1925,6 +1947,23 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
           element.attributes.has("data-codex-app-ui-menu-bar-toggle-thumb"),
         );
       }
+      if (
+        selector ===
+        ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])"
+      ) {
+        return descendants.filter(
+          (element) =>
+            element.tagName === "A" ||
+            element.tagName === "BUTTON" ||
+            element.getAttribute("role") === "menuitem" ||
+            element.getAttribute("role") === "button",
+        );
+      }
+      if (selector === "[data-codexpp-hidden-invite-friend]") {
+        return descendants.filter((element) =>
+          element.attributes.has("data-codexpp-hidden-invite-friend"),
+        );
+      }
 
       return [];
     }
@@ -1948,6 +1987,16 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   reduceMotionRow.textContent = "Reduce motion";
   settingsSurface.append(themeRow, pointerRow, reduceMotionRow);
   documentElement.appendChild(settingsSurface);
+  const profileMenu = new FakeElement("div");
+  profileMenu.setAttribute("role", "menu");
+  const profileItem = new FakeElement("div");
+  profileItem.setAttribute("role", "menuitem");
+  profileItem.textContent = "Profile";
+  const inviteFriendItem = new FakeElement("div");
+  inviteFriendItem.setAttribute("role", "menuitem");
+  inviteFriendItem.textContent = "Invite a friend";
+  profileMenu.append(profileItem, inviteFriendItem);
+  documentElement.appendChild(profileMenu);
 
   const findById = (root, id) => {
     if (root.id === id) {
@@ -1965,7 +2014,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   globalThis.NodeFilter = { SHOW_TEXT: 4 };
   globalThis.MutationObserver = class {
     constructor(callback) {
-      observerCallback = callback;
+      observerCallbacks.push(callback);
     }
 
     observe(target, options) {
@@ -1974,7 +2023,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     }
 
     disconnect() {
-      observerDisconnected = true;
+      observerDisconnectCount += 1;
     }
   };
   globalThis.window = {
@@ -1994,7 +2043,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     querySelectorAll: (selector) =>
       selector === ".main-surface .flex.flex-col.rounded-lg.border"
         ? [settingsSurface]
-        : [],
+        : documentElement.querySelectorAll(selector),
   };
 
   try {
@@ -2023,7 +2072,9 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
       "true",
     );
-    assert.equal(typeof observerCallback, "function");
+    assert.equal(observerCallbacks.length, 2);
+    const menuBarObserverCallback = observerCallbacks[1];
+    assert.equal(typeof menuBarObserverCallback, "function");
     assert.equal(appendedStyles.length, 2);
     assert.equal(appendedStyles[0].id, "codex-app-ui-overrides-style");
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
@@ -2104,13 +2155,19 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         .getAttribute("data-state"),
       "unchecked",
     );
-    observerCallback();
+    menuBarObserverCallback();
     assert.equal(
       settingsSurface.children.filter(
         (child) => child.id === "codex-app-ui-hide-windows-menu-bar-setting",
       ).length,
       1,
     );
+    assert.equal(
+      inviteFriendItem.getAttribute("data-codexpp-hidden-invite-friend"),
+      "true",
+    );
+    assert.equal(inviteFriendItem.style.getPropertyValue("display"), "none");
+    assert.equal(inviteFriendItem.style.getPropertyPriority("display"), "important");
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.group\/chats-section-header:is(:hover,:focus-within)>div:has(button:not([aria-hidden='true'])[aria-label])`,
@@ -2244,11 +2301,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is(a,button,[role='button'])[aria-label*='codex mobile' i],:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"]),:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V10.8477"]){display:none!important;}`,
       ),
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[aria-label*='invite' i],:where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[title*='invite' i],:where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[aria-label*='friend' i],:where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[title*='friend' i],:where([role='menu'],[data-radix-popper-content-wrapper]) a[href*='invite' i],:where([role='menu'],[data-radix-popper-content-wrapper]) a[href*='referral' i]{display:none!important;}",
-      ),
-    );
+    assert.doesNotMatch(uiOverrideCss, /aria-label\*='invite'|title\*='invite'|href\*='referral'/);
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1,.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1~:is(div,button,[role='menuitem']):not(a[href]):has(svg){padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
@@ -2274,15 +2327,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
     ]);
     assert.doesNotMatch(usageLinkHideRule.selector, /nth-last-child|\+\*\+\*|M16\.834/);
-    const inviteHideRule = uiCssRules.find(
-      ({ selector, declarations }) =>
-        declarations === "display:none!important;" &&
-        selector.includes('>:nth-last-child(2):has(svg path[d^="M16.834"])'),
-    );
-    assert.deepEqual(
-      inviteHideRule?.selector,
-      String.raw`.w-\[280px\]>.flex.w-full.min-w-0.flex-col.gap-0>:nth-last-child(2):has(svg path[d^="M16.834"])`,
-    );
+    assert.doesNotMatch(uiOverrideCss, /nth-last-child|M16\.834/);
     assert.equal(
       uiCssRules.some(
         ({ selector, declarations }) =>
@@ -2297,7 +2342,9 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
 
     menuModule.exports.stop();
     uiModule.exports.stop();
-    assert.equal(observerDisconnected, true);
+    assert.equal(observerDisconnectCount, 3);
+    assert.equal(inviteFriendItem.getAttribute("data-codexpp-hidden-invite-friend"), null);
+    assert.equal(inviteFriendItem.style.getPropertyValue("display"), "");
     assert.equal(
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
       null,
