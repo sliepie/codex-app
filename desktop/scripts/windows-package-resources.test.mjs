@@ -25,7 +25,6 @@ const {
   patchRecoveredCodexMicroServiceSource,
   patchCodexWindowServicesSource,
   patchMarkdownOperationDirectiveCrashSource,
-  patchRecoveredWindowsBooleanPlaceholdersSource,
   pruneWorkLouderPackages,
   pruneUnusedNativePayloads,
   syncCodexPlusPlusRuntimeAssets,
@@ -839,25 +838,6 @@ test("stubs recovered Codex Micro Work Louder service", () => {
 
   const secondPatch = patchRecoveredCodexMicroServiceSource(patch.source);
   assert.equal(secondPatch?.changed, false);
-});
-
-test("patches recovered Windows boolean placeholders", () => {
-  const source = [
-    "function ZH(){let enabled=$true;return enabled}",
-    "function QH(){let enabled=$false;return enabled}",
-    "const keep={value:'$true',other:foo$true};",
-  ].join("\n");
-
-  const result = patchRecoveredWindowsBooleanPlaceholdersSource(source);
-
-  assert.equal(result.changed, true);
-  assert.match(result.source, /let enabled=true/);
-  assert.match(result.source, /let enabled=false/);
-  assert.match(result.source, /value:'\$true'/);
-  assert.match(result.source, /foo\$true/);
-
-  const second = patchRecoveredWindowsBooleanPlaceholdersSource(result.source);
-  assert.equal(second.changed, false);
 });
 
 test("skips recovered chunks that only reference Codex Micro service", () => {

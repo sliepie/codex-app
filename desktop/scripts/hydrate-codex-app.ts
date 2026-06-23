@@ -2153,93 +2153,6 @@ function findRecoveredWebviewJavaScriptAssets(recoveredRoot: string): string[] {
   return assets.sort();
 }
 
-export function patchRecoveredWindowsBooleanPlaceholdersSource(source: string): {
-  source: string;
-  changed: boolean;
-} {
-  const isIdentifierPart = (character: string | undefined): boolean =>
-    character != null && /[$A-Za-z0-9_]/.test(character);
-  let patchedSource = "";
-  let index = 0;
-
-  while (index < source.length) {
-    const character = source[index];
-    const nextCharacter = source[index + 1];
-
-    if (character === "'" || character === '"' || character?.charCodeAt(0) === 96) {
-      const quote = character;
-      const start = index;
-      index += 1;
-      while (index < source.length) {
-        const stringCharacter = source[index];
-        index += stringCharacter === "\\" ? 2 : 1;
-        if (stringCharacter === quote) break;
-      }
-      patchedSource += source.slice(start, index);
-      continue;
-    }
-
-    if (character === "/" && nextCharacter === "/") {
-      const end = source.indexOf("\n", index + 2);
-      const commentEnd = end === -1 ? source.length : end;
-      patchedSource += source.slice(index, commentEnd);
-      index = commentEnd;
-      continue;
-    }
-
-    if (character === "/" && nextCharacter === "*") {
-      const end = source.indexOf("*/", index + 2);
-      const commentEnd = end === -1 ? source.length : end + 2;
-      patchedSource += source.slice(index, commentEnd);
-      index = commentEnd;
-      continue;
-    }
-
-    const previousCharacter = source[index - 1];
-    if (!isIdentifierPart(previousCharacter)) {
-      if (source.startsWith("$true", index) && !isIdentifierPart(source[index + 5])) {
-        patchedSource += "true";
-        index += 5;
-        continue;
-      }
-      if (source.startsWith("$false", index) && !isIdentifierPart(source[index + 6])) {
-        patchedSource += "false";
-        index += 6;
-        continue;
-      }
-    }
-
-    patchedSource += character;
-    index += 1;
-  }
-  return {
-    source: patchedSource,
-    changed: patchedSource !== source,
-  };
-}
-
-function patchRecoveredWindowsBooleanPlaceholders(recoveredRoot: string): void {
-  const patchedAssets: string[] = [];
-
-  for (const relativePath of findRecoveredWebviewJavaScriptAssets(recoveredRoot)) {
-    const filePath = path.join(recoveredRoot, relativePath);
-    const source = fs.readFileSync(filePath, "utf8");
-    const patch = patchRecoveredWindowsBooleanPlaceholdersSource(source);
-    if (!patch.changed) continue;
-
-    fs.writeFileSync(filePath, patch.source, "utf8");
-    patchedAssets.push(relativePath);
-  }
-
-  if (patchedAssets.length > 0) {
-    console.log(
-      "Patched recovered Windows boolean placeholders in " +
-        patchedAssets.join(", ") +
-        ".",
-    );
-  }
-}
-
 function patchRecoveredMarkdownOperationDirectives(recoveredRoot: string): void {
   const diagnostics: string[] = [];
   let matchedDirectiveBundle = false;
@@ -2973,7 +2886,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     { stdio: "inherit" },
   );
   patchWindowsSelfSignedBundle(recoveredRoot);
-  patchRecoveredWindowsBooleanPlaceholders(recoveredRoot);
   patchRecoveredCodexWindowServices(recoveredRoot);
   patchRecoveredCodexMicroService(recoveredRoot);
   pruneWorkLouderPackages(recoveredRoot);
