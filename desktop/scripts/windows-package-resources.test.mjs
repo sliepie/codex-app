@@ -2045,6 +2045,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M10.6391 1.67517"]) svg{margin-right:1px!important;}`,
       ),
     );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [role='list']>[role='listitem'].py-1>button.text-token-description-foreground{margin-left:0.55rem!important;}`,
+      ),
+    );
     assert.match(
       appendedStyles[0].textContent,
       /top:calc\(0\.75rem \+ 26px\)!important/,

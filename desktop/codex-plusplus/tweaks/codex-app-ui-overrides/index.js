@@ -129,6 +129,10 @@ const SIDEBAR_TRIGGER_SELECTOR =
 const SIDEBAR_TRIGGER_DECLARATIONS = "transform:translateX(2px);";
 const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
+const SIDEBAR_PROJECT_GROUP_OVERFLOW_BUTTON_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} [role='list']>[role='listitem'].py-1>button.text-token-description-foreground`;
+const SIDEBAR_PROJECT_GROUP_OVERFLOW_BUTTON_DECLARATIONS =
+  "margin-left:0.55rem!important;";
 const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
   `${SIDEBAR_ROOT_SELECTOR} :is(a,button,[role='button'])[aria-label*='codex mobile' i]`,
   `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"])`,
@@ -368,6 +372,10 @@ const SIDEBAR_FOOTER_STYLE_RULES = [
   cssRule(
     `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M10.6391 1.67517"]) svg`,
     "margin-right:1px!important;",
+  ),
+  cssRule(
+    SIDEBAR_PROJECT_GROUP_OVERFLOW_BUTTON_SELECTOR,
+    SIDEBAR_PROJECT_GROUP_OVERFLOW_BUTTON_DECLARATIONS,
   ),
 ];
 
