@@ -2197,7 +2197,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        "[data-codexpp-sidebar-show-more-button]{margin-left:8px!important;}",
+        "[data-codexpp-sidebar-show-more-button]{margin-left:0!important;}",
       ),
     );
     assert.doesNotMatch(

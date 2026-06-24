@@ -133,7 +133,7 @@ const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
 const SIDEBAR_SHOW_MORE_BUTTON_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading="Projects"] [role='list']>[role='listitem']>button`;
-const SIDEBAR_SHOW_MORE_BUTTON_DECLARATIONS = "margin-left:8px!important;";
+const SIDEBAR_SHOW_MORE_BUTTON_DECLARATIONS = "margin-left:0!important;";
 const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
   `${SIDEBAR_ROOT_SELECTOR} :is(a,button,[role='button'])[aria-label*='codex mobile' i]`,
   `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"])`,
