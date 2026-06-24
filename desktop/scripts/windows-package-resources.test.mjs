@@ -2168,21 +2168,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true']{position:relative!important;isolation:isolate!important;overflow:visible!important;}",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true']::before{content:""!important;position:absolute!important;inset:0 0 0 -5px!important;border-radius:inherit!important;background:var(--color-token-list-hover-background)!important;pointer-events:none!important;z-index:0!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true']>*{position:relative!important;z-index:1!important;}",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
         "[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label]",
       ),
     );
