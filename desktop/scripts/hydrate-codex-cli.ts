@@ -414,7 +414,7 @@ async function main(): Promise<void> {
   const tectonicAsset = await hydrateTectonicExe(options, resourcesRoot);
   hydratedAssets.push({
     assetName: tectonicAsset.asset.name,
-    outputName: "plugins/*/latex*/bin/tectonic.exe",
+    outputName: "plugins/openai-bundled/plugins/latex/bin/tectonic.exe",
     downloadUrl: tectonicAsset.asset.downloadUrl,
     releaseHtmlUrl: tectonicAsset.releaseHtmlUrl,
     releaseTagName: tectonicAsset.releaseTagName,

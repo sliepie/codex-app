@@ -524,7 +524,7 @@ test("Windows ARM64 Resource binary policy lists Store-vendored helpers and x64 
   );
   assert.equal(
     matchWindowsArm64ResourceBinaryException(
-      "resources/plugins/openai-bundled-beta/plugins/latex-tectonic/bin/tectonic.exe",
+      "resources/plugins/openai-bundled/plugins/latex/bin/tectonic.exe",
     )?.id,
     "tectonic",
   );
@@ -546,7 +546,6 @@ test("installs Tectonic Windows payload into bundled LaTeX plugin roots", () => 
   writePeFixture(tectonicPath, 0x8664);
   for (const pluginRoot of [
     path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex"),
-    path.join(resourcesRoot, "plugins", "openai-bundled-beta", "plugins", "latex-tectonic"),
   ]) {
     writeFixture(path.join(pluginRoot, "bin", "tectonic"), "mac");
   }
@@ -555,7 +554,6 @@ test("installs Tectonic Windows payload into bundled LaTeX plugin roots", () => 
 
   for (const pluginRoot of [
     path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex"),
-    path.join(resourcesRoot, "plugins", "openai-bundled-beta", "plugins", "latex-tectonic"),
   ]) {
     const installedPath = path.join(pluginRoot, "bin", "tectonic.exe");
     assert.equal(fs.existsSync(installedPath), true);
@@ -626,7 +624,7 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
       assetName: tectonicAssetName,
       downloadUrl: "https://github.com/" + tectonicRepo + "/releases/download/" +
         tectonicTag + "/" + tectonicAssetName,
-      outputName: "plugins/*/latex*/bin/tectonic.exe",
+      outputName: "plugins/openai-bundled/plugins/latex/bin/tectonic.exe",
       releaseAssetSha256: "131a24604785a9600989a3d91225f597df52ac06f00aeffe86fd529f99ee5cdd",
       releaseHtmlUrl: "https://github.com/" + tectonicRepo + "/releases/tag/" + tectonicTag,
       releaseTagName: tectonicTag,
@@ -685,35 +683,14 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
   );
 });
 
-test("preserves beta bundled plugin marketplace resources", () => {
+test("rejects beta-only bundled plugin marketplace resources", () => {
   const appResourcesRoot = createAppResourcesFixture({ marketplaceName: "openai-bundled-beta" });
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
   const windowsPayloads = createWindowsPluginPayloadFixture();
 
-  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, windowsPayloads);
-
-  const marketplace = JSON.parse(
-    fs.readFileSync(
-      path.join(
-        destinationPluginsRoot,
-        "openai-bundled-beta/.agents/plugins/marketplace.json",
-      ),
-      "utf8",
-    ),
-  );
-  assert.deepEqual(
-    marketplace.plugins.map((plugin) => plugin.name),
-    ["browser", "computer-use", "chrome", "latex"],
-  );
-  assert.equal(marketplace.name, "openai-bundled-beta");
-  assert.equal(
-    fs.existsSync(
-      path.join(
-        destinationPluginsRoot,
-        "openai-bundled-beta/plugins/browser/scripts/browser-client.mjs",
-      ),
-    ),
-    true,
+  assert.throws(
+    () => syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, windowsPayloads),
+    /Missing bundled plugin marketplace/,
   );
   assert.equal(fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled")), false);
 });
@@ -2390,11 +2367,10 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   );
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
-  assert.match(workflowSource, /CODEX_APPCAST_FEED: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_appcast_feed \}\}/);
+  assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_tag \}\}/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_sha \}\}/);
-  assert.match(workflowSource, /Upstream Codex appcast: \$env:CODEX_APPCAST_FEED/);
-  assert.doesNotMatch(workflowSource, /Upstream Codex appcast: \$env:CODEX_APPCAST_FEED \(\$env:CODEX_APPCAST_URL\)/);
+  assert.doesNotMatch(workflowSource, /Upstream Codex appcast/);
   assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
   assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
@@ -2414,10 +2390,9 @@ test("release workflow tracks Codex++ in package inputs and release metadata", (
 
   assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
-  assert.match(workflowSource, /CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}/);
+  assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_URL/);
-  assert.match(workflowSource, /Codex appcast: \$env:CODEX_APPCAST_FEED/);
-  assert.doesNotMatch(workflowSource, /Codex appcast: \$env:CODEX_APPCAST_FEED \(\$env:CODEX_APPCAST_URL\)/);
+  assert.doesNotMatch(workflowSource, /Codex appcast:/);
   assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
   assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);
@@ -2456,8 +2431,8 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.ok(releaseWorkflowSource.indexOf("name: Restore Electron cache") < releaseWorkflowSource.indexOf("name: Install dependencies"));
   assert.match(prWorkflowSource, /name: Build Windows ARM64 ZIP[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
   assert.match(releaseWorkflowSource, /name: Make Windows ARM64 ZIP[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
-  assert.match(prWorkflowSource, /name: Build Windows ARM64 ZIP[\s\S]*CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
-  assert.match(releaseWorkflowSource, /name: Make Windows ARM64 ZIP[\s\S]*CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
+  assert.match(prWorkflowSource, /name: Build Windows ARM64 ZIP[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
+  assert.match(releaseWorkflowSource, /name: Make Windows ARM64 ZIP[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
   assert.ok(
     releaseWorkflowSource.indexOf("name: Notice existing repo release") <
       releaseWorkflowSource.indexOf("name: Run targeted desktop tests"),

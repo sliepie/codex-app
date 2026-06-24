@@ -122,7 +122,7 @@ test("accepts browser client native payload metadata matching the bundled Node A
   assert.equal(result.classicLevelVersion, "3.0.0");
 });
 
-test("accepts beta app bundle and bundled plugin resource names", async () => {
+test("ignores beta bundled plugin resource names", async () => {
   const { classicLevelRoot, desktopRoot } = createDesktopFixture({
     appBundleName: "Codex (Beta).app",
     marketplaceName: "openai-bundled-beta",
@@ -150,8 +150,8 @@ test("accepts beta app bundle and bundled plugin resource names", async () => {
 
   assert.equal(result.nodeVersion, "v24.14.0");
   assert.equal(result.abi, "137");
-  assert.equal(result.browserPluginPresent, true);
-  assert.equal(result.classicLevelVersion, "3.0.0");
+  assert.equal(result.browserPluginPresent, false);
+  assert.equal(result.classicLevelVersion, undefined);
 });
 
 test("skips browser client ABI check when the browser plugin is not bundled", async () => {

@@ -8,11 +8,7 @@ import {
   prepareBetterSqlite3ElectronRebuild,
   prepareElectronHeadersForNativeRebuild,
 } from "./patch-better-sqlite3-electron";
-import {
-  codexAppcastUrlForFeed,
-  parseCodexAppcastFeed,
-  type CodexAppcastFeed,
-} from "./codex-appcast-feeds";
+import { codexAppcastUrlForFeed } from "./codex-appcast-feeds";
 import {
   type BundledPluginWindowsPayloadOptions,
   openAiBundledMarketplaceNames,
@@ -23,7 +19,6 @@ import { windowsArm64NativeModuleCacheInputPaths } from "./windows-arm64-package
 type Options = {
   version?: string;
   buildNumber?: string;
-  appcastFeed: CodexAppcastFeed;
   cacheRoot: string;
   codexPlusPlusRepo: string;
   codexPlusPlusSha?: string;
@@ -161,9 +156,6 @@ function parseOptions(argv: string[]): Options {
     buildNumber:
       readOption(argv, "--build-number", "-BuildNumber") ??
       process.env.CODEX_APP_BUILD,
-    appcastFeed: parseCodexAppcastFeed(
-      readOption(argv, "--appcast-feed", "-AppcastFeed") ?? process.env.CODEX_APPCAST_FEED,
-    ),
     cacheRoot,
     codexPlusPlusRepo:
       readOption(argv, "--codex-plusplus-repo", "-CodexPlusPlusRepo") ??
@@ -2889,10 +2881,10 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   const options = parseOptions(argv);
   fs.mkdirSync(options.cacheRoot, { recursive: true });
 
-  const appcastResponse = await fetch(codexAppcastUrlForFeed(options.appcastFeed));
+  const appcastResponse = await fetch(codexAppcastUrlForFeed("prod"));
   if (!appcastResponse.ok) {
     throw new Error(
-      `Failed to fetch ${options.appcastFeed} Codex appcast: ${appcastResponse.status} ${appcastResponse.statusText}`,
+      `Failed to fetch prod Codex appcast: ${appcastResponse.status} ${appcastResponse.statusText}`,
     );
   }
 

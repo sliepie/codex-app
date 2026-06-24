@@ -20,7 +20,6 @@ const {
 const scriptPath = fileURLToPath(new URL("../.cache/scripts/resolve-codex-releases.js", import.meta.url));
 const typescriptScriptPath = fileURLToPath(new URL("resolve-codex-releases.ts", import.meta.url));
 const officialProdAppcastUrl = "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
-const officialBetaAppcastUrl = "https://persistent.oaistatic.com/codex-app-beta/appcast.xml";
 
 const appcast = `<?xml version="1.0" encoding="utf-8"?>
 <rss>
@@ -63,8 +62,6 @@ function startServer(
   releases,
   {
     appcastSource = appcast,
-    betaAppcastSource = appcast,
-    betaAppcastStatus = 200,
     codexCliTag = "rust-v0.129.0",
     codexPlusPlusObjectType = "commit",
     codexPlusPlusRepo = "b-nnett/codex-plusplus",
@@ -81,12 +78,6 @@ function startServer(
     if (requestPath === "/codex-app-prod/appcast.xml") {
       response.writeHead(200, { "Content-Type": "application/xml" });
       response.end(appcastSource);
-      return;
-    }
-
-    if (requestPath === "/codex-app-beta/appcast.xml") {
-      response.writeHead(betaAppcastStatus, { "Content-Type": "application/xml" });
-      response.end(betaAppcastSource);
       return;
     }
 
@@ -191,8 +182,6 @@ async function expectedNativeModulesCacheKey({
 async function runResolver({
   releases,
   appcastSource,
-  betaAppcastSource,
-  betaAppcastStatus,
   codexCliTag,
   codexPlusPlusObjectType,
   codexPlusPlusRepo = "b-nnett/codex-plusplus",
@@ -206,8 +195,6 @@ async function runResolver({
 }) {
   const server = await startServer(releases, {
     appcastSource,
-    betaAppcastSource,
-    betaAppcastStatus,
     codexCliTag,
     codexPlusPlusObjectType,
     codexPlusPlusRepo,
@@ -227,7 +214,6 @@ async function runResolver({
       `globalThis.fetch = (input, init) => {\n` +
       `  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;\n` +
       `  if (url === ${JSON.stringify(officialProdAppcastUrl)}) return originalFetch(origin + "/codex-app-prod/appcast.xml", init);\n` +
-      `  if (url === ${JSON.stringify(officialBetaAppcastUrl)}) return originalFetch(origin + "/codex-app-beta/appcast.xml", init);\n` +
       `  return originalFetch(input, init);\n` +
       `};\n`,
     "utf8",
@@ -301,47 +287,31 @@ test("starts new Codex app releases at repo revision zero", async () => {
   );
 });
 
-test("selects the beta appcast when it has a higher Sparkle build", async () => {
+test("uses only the prod appcast for Codex app versions", async () => {
   const output = await runResolver({
     releases: [],
     appcastSource: appcastFor("26.513.31313", "2867"),
-    betaAppcastSource: appcastFor("26.513.40821", "2903"),
-  });
-
-  assert.equal(output.codex_app_version, "26.513.40821");
-  assert.equal(output.codex_app_build, "2903");
-  assert.equal(output.codex_appcast_feed, "beta");
-  assert.equal(output.codex_appcast_url, undefined);
-  assert.equal(
-    output.hydration_cache_key,
-    await expectedHydrationCacheKey({ appBuildNumber: "2903", appVersion: "26.513.40821" }),
-  );
-  assert.doesNotMatch(output.hydration_cache_key, /beta|prod/);
-});
-
-test("keeps prod when prod and beta have the same Sparkle build", async () => {
-  const output = await runResolver({
-    releases: [],
-    appcastSource: appcastFor("26.513.31313", "2903"),
-    betaAppcastSource: appcastFor("26.513.40821", "2903"),
-  });
-
-  assert.equal(output.codex_app_version, "26.513.31313");
-  assert.equal(output.codex_app_build, "2903");
-  assert.equal(output.codex_appcast_feed, "prod");
-  assert.equal(output.codex_appcast_url, undefined);
-});
-
-test("uses prod when the beta appcast is unavailable", async () => {
-  const output = await runResolver({
-    releases: [],
-    appcastSource: appcastFor("26.513.31313", "2867"),
-    betaAppcastSource: "unavailable",
-    betaAppcastStatus: 404,
   });
 
   assert.equal(output.codex_app_version, "26.513.31313");
   assert.equal(output.codex_app_build, "2867");
+  assert.equal(output.codex_appcast_feed, "prod");
+  assert.equal(output.codex_appcast_url, undefined);
+  assert.equal(
+    output.hydration_cache_key,
+    await expectedHydrationCacheKey({ appBuildNumber: "2867", appVersion: "26.513.31313" }),
+  );
+  assert.doesNotMatch(output.hydration_cache_key, /beta|prod/);
+});
+
+test("keeps prod appcast metadata in release outputs", async () => {
+  const output = await runResolver({
+    releases: [],
+    appcastSource: appcastFor("26.513.31313", "2903"),
+  });
+
+  assert.equal(output.codex_app_version, "26.513.31313");
+  assert.equal(output.codex_app_build, "2903");
   assert.equal(output.codex_appcast_feed, "prod");
   assert.equal(output.codex_appcast_url, undefined);
 });
@@ -365,7 +335,6 @@ test("uses Sparkle build number for MSIX package versions", async () => {
   const output = await runResolver({
     releases: [],
     appcastSource: appcastFor("26.519.81530", "3178"),
-    betaAppcastSource: appcastFor("26.519.81530", "3178"),
   });
 
   assert.equal(output.release_version, "26.519.81530.0");
@@ -378,7 +347,6 @@ test("rejects MSIX package version segments that exceed the schema range", async
     () => runResolver({
       releases: [],
       appcastSource: appcastFor("26.519.81530", "70000"),
-      betaAppcastSource: appcastFor("26.519.81530", "70000"),
     }),
     /Codex app build number must be between 0 and 65535 for MSIX package versions/,
   );

@@ -23,7 +23,7 @@ const defaultComputerUsePath = path.join(desktopRoot, "resources", "codex-comput
 const defaultExtensionHostPath = path.join(desktopRoot, "resources", "extension-host.exe");
 const defaultTargetArch = "arm64";
 
-export const openAiBundledMarketplaceNames = ["openai-bundled", "openai-bundled-beta"] as const;
+export const openAiBundledMarketplaceNames = ["openai-bundled"] as const;
 
 function requireWindowsPayload(payloadPath: string, label: string, command: string): void {
   if (!fs.existsSync(payloadPath)) {

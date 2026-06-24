@@ -36,7 +36,7 @@ export type VerifyBrowserClientRuntimeResult = {
 
 const targetPlatform = "win32";
 const targetArch = "arm64";
-const browserPluginMarketplaceNames = ["openai-bundled", "openai-bundled-beta"] as const;
+const browserPluginMarketplaceNames = ["openai-bundled"] as const;
 const classicLevelPackageName = "classic-level";
 const nodeAbiModule = require("node-abi") as NodeAbiModule;
 const getAbi = nodeAbiModule.getAbi ?? nodeAbiModule.default?.getAbi;

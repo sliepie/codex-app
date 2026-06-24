@@ -135,11 +135,7 @@ export function commandForWindowsArm64PlanStep(step: WindowsArm64PlanStep, env =
     case "build-windows-updater":
       return [npmCommand(), "run", "build:windows-oai-update-checker", "--", "-Architecture", "arm64"];
     case "hydrate-app": {
-      const command = [npmCommand(), "run", "hydrate:app:compiled"];
-      if (env.CODEX_APPCAST_FEED) {
-        command.push("--", "--appcast-feed", env.CODEX_APPCAST_FEED);
-      }
-      return command;
+      return [npmCommand(), "run", "hydrate:app:compiled"];
     }
     case "hydrate-cli":
       return [npmCommand(), "run", "hydrate:cli:compiled"];
