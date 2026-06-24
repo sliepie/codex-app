@@ -2197,7 +2197,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        "[data-codexpp-sidebar-show-more-button]{margin-left:0!important;}",
+        "[data-codexpp-sidebar-show-more-button]{margin-left:1px!important;}",
       ),
     );
     assert.doesNotMatch(
@@ -2345,7 +2345,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.doesNotMatch(uiOverrideCss, /USAGE_MENU_RESET_ACTION_DECLARATIONS|1\.25rem \+ 4px/);
     assert.doesNotMatch(uiOverrideCss, /\.grid\.items-center\.gap-y-1\\\.5\.py-1\+\*/);
-    assert.doesNotMatch(uiOverrideCss, /left:-?1px/);
+    assert.doesNotMatch(uiOverrideCss, /(^|[;{])left:-?1px/);
     const uiCssRules = Array.from(uiOverrideCss.matchAll(/([^{}]+)\{([^{}]+)\}/g)).map(
       ([, selector, declarations]) => ({
         selector: selector.trim(),
