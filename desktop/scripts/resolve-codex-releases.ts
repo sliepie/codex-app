@@ -76,10 +76,6 @@ function fail(message: string): never {
   throw new Error(message);
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function firstMatch(text: string, pattern: RegExp, message: string): string {
   const match = text.match(pattern);
   if (!match?.[1]) {
@@ -382,16 +378,6 @@ async function fetchAppcastRelease(feedName: CodexAppcastFeed): Promise<AppcastR
   return { buildNumber, feedName, version };
 }
 
-function chooseLatestAppcastRelease(prod: AppcastRelease, beta: AppcastRelease): AppcastRelease {
-  const prodBuild = parsePositiveInteger("prod Codex app build number", prod.buildNumber);
-  const betaBuild = parsePositiveInteger("beta Codex app build number", beta.buildNumber);
-  if (betaBuild > prodBuild) {
-    return beta;
-  }
-
-  return prod;
-}
-
 async function fetchGitTagCommitSha(repository: string, tagName: string, label: string): Promise<string> {
   const response = await fetchPublicGithubUrl(repositoryApiUrl(repository, `/git/ref/tags/${encodeURIComponent(tagName)}`), {
     headers: githubHeaders(),
@@ -431,16 +417,7 @@ async function fetchGitTagCommitSha(repository: string, tagName: string, label: 
 }
 
 async function main(): Promise<void> {
-  const prodAppcastRelease = await fetchAppcastRelease("prod");
-  let selectedAppcastRelease = prodAppcastRelease;
-  try {
-    selectedAppcastRelease = chooseLatestAppcastRelease(
-      prodAppcastRelease,
-      await fetchAppcastRelease("beta"),
-    );
-  } catch (error) {
-    console.warn(`Beta appcast unavailable; using prod appcast. ${errorMessage(error)}`);
-  }
+  const selectedAppcastRelease = await fetchAppcastRelease("prod");
   const appVersion = selectedAppcastRelease.version;
   const buildNumber = selectedAppcastRelease.buildNumber;
   const cliTag = assertMatches(

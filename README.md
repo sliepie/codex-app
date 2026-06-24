@@ -1,20 +1,19 @@
 # Codex App Windows ARM64 releases
 
 This repo tracks official Codex desktop app releases and publishes Windows
-ARM64 builds from them. It follows the latest release from the official upstream
-desktop release feeds, hydrates the matching app payload, adds the Windows
-ARM64 runtime resources, and builds release artifacts for direct ZIP use and
-self-signed MSIX/App Installer installation.
+ARM64 builds from them. It follows the latest release from the official
+upstream production desktop release feed, hydrates the matching app payload,
+adds the Windows ARM64 runtime resources, and builds release artifacts for
+direct ZIP use and self-signed MSIX/App Installer installation.
 
 The repo does not commit the extracted Codex app payload, Windows Store package
 resources, Electron output, or Codex CLI helper binaries. Those are release
 inputs or build outputs, so they are hydrated during the build instead of being
 tracked in git.
 
-The appcasts are the official Electron update feeds for the Codex desktop app.
-They are small metadata feeds that point at upstream desktop ZIPs; this repo
-selects the item with the highest Sparkle build number across official feeds,
-using the production feed for equal-build ties, and hydrates that app payload
+The production appcast is the official Electron update feed for the Codex
+desktop app. It is a small metadata feed that points at upstream desktop ZIPs;
+this repo selects the production appcast item and hydrates that app payload
 during a build instead of committing it to git.
 
 ## Install the self-signed Windows ARM64 build
@@ -88,8 +87,8 @@ assets:
   feed, downloads the latest upstream Codex app ZIP, and extracts `app.asar`.
 - `desktop/scripts/hydrate-codex-cli.ts`: downloads the latest Windows ARM64
   Codex CLI and helper binaries from `openai/codex`.
-- `desktop/scripts/update-node-repl.ps1`: refreshes the vendored x64
-  Store helper fallbacks from the official Microsoft Store Codex app.
+- `desktop/scripts/update-node-repl.ps1`: refreshes the vendored Store helper
+  fallbacks from the official Microsoft Store Codex app.
 - `desktop/scripts/refresh-recovered-from-dmg.ts`: extracts the app payload
   into `desktop/recovered/app-asar-extracted/`.
 - `desktop/forge.config.js`: packages the app and creates the Windows ARM64
@@ -146,13 +145,14 @@ list. Each exception must be listed in
 `desktop/scripts/resource-binary-exceptions.ts`, have provenance metadata, and
 pass packaged PE-machine and SHA-256 verification.
 
-- `desktop/resources/node_repl.exe`, `desktop/resources/extension-host.exe`,
+- `desktop/resources/cua_node/bin/node_repl.exe`, `desktop/resources/extension-host.exe`,
   and `desktop/resources/codex-computer-use.exe` are copied from the official
   Microsoft Store Codex app because no Windows ARM64 source or download path is
   available.
-- `plugins/*/latex*/bin/tectonic.exe` is installed during CLI hydration from
-  the public Tectonic x86_64 Windows GitHub release because upstream does not
-  publish a Windows ARM64 build.
+- `plugins/openai-bundled/plugins/latex/bin/tectonic.exe` or
+  `plugins/openai-bundled/plugins/latex-tectonic/bin/tectonic.exe` is installed
+  during CLI hydration from the public Tectonic x86_64 Windows GitHub release
+  because upstream does not publish a Windows ARM64 build.
 
 From `desktop/`, refresh the Store-sourced binaries with:
 

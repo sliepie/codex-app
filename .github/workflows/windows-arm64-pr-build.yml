@@ -23,7 +23,6 @@ jobs:
     outputs:
       codex_app_version: ${{ steps.upstream.outputs.codex_app_version }}
       codex_app_build: ${{ steps.upstream.outputs.codex_app_build }}
-      codex_appcast_feed: ${{ steps.upstream.outputs.codex_appcast_feed }}
       codex_cli_tag: ${{ steps.upstream.outputs.codex_cli_tag }}
       codex_plus_plus_tag: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
       codex_plus_plus_sha: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
@@ -101,7 +100,6 @@ jobs:
         env:
           CODEX_APP_VERSION: ${{ steps.upstream.outputs.codex_app_version }}
           CODEX_APP_BUILD: ${{ steps.upstream.outputs.codex_app_build }}
-          CODEX_APPCAST_FEED: ${{ steps.upstream.outputs.codex_appcast_feed }}
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
           CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
           CODEX_PLUS_PLUS_SHA: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
@@ -134,7 +132,6 @@ jobs:
       WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       CODEX_APP_VERSION: ${{ needs.build-windows-arm64.outputs.codex_app_version }}
       CODEX_APP_BUILD: ${{ needs.build-windows-arm64.outputs.codex_app_build }}
-      CODEX_APPCAST_FEED: ${{ needs.build-windows-arm64.outputs.codex_appcast_feed }}
       CODEX_CLI_TAG: ${{ needs.build-windows-arm64.outputs.codex_cli_tag }}
       CODEX_PLUS_PLUS_TAG: ${{ needs.build-windows-arm64.outputs.codex_plus_plus_tag }}
       CODEX_PLUS_PLUS_SHA: ${{ needs.build-windows-arm64.outputs.codex_plus_plus_sha }}
@@ -168,7 +165,6 @@ jobs:
           Commit: $targetSha
           Workflow run: $env:WORKFLOW_RUN_URL
           Upstream Codex app: $env:CODEX_APP_VERSION build $env:CODEX_APP_BUILD
-          Upstream Codex appcast: $env:CODEX_APPCAST_FEED
           Codex CLI: $env:CODEX_CLI_TAG
           Codex++: $env:CODEX_PLUS_PLUS_TAG
           Codex++ commit: $env:CODEX_PLUS_PLUS_SHA

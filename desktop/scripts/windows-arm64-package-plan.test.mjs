@@ -64,17 +64,17 @@ test("Windows ARM64 package plan scopes GitHub tokens to hydration steps", () =>
   }
 });
 
-test("Windows ARM64 package plan passes appcast feed only to app hydration", () => {
+test("Windows ARM64 package plan always hydrates the prod appcast", () => {
   const hydrateApp = expandWindowsArm64Plan("hydrate").find((step) => step.id === "hydrate-app");
   const hydrateCli = expandWindowsArm64Plan("hydrate").find((step) => step.id === "hydrate-cli");
 
   assert.ok(hydrateApp);
   assert.ok(hydrateCli);
   assert.deepEqual(
-    commandForWindowsArm64PlanStep(hydrateApp, { CODEX_APPCAST_FEED: "beta" }).slice(-3),
-    ["--", "--appcast-feed", "beta"],
+    commandForWindowsArm64PlanStep(hydrateApp),
+    ["npm", "run", "hydrate:app:compiled"],
   );
-  assert.doesNotMatch(commandForWindowsArm64PlanStep(hydrateCli, { CODEX_APPCAST_FEED: "beta" }).join(" "), /appcast-feed/);
+  assert.doesNotMatch(commandForWindowsArm64PlanStep(hydrateCli).join(" "), /appcast-feed/);
 });
 
 test("Windows ARM64 make target zips an already verified package root", () => {
@@ -91,11 +91,12 @@ test("Windows ARM64 package plan launches npm through a Windows-safe process ada
   assert.ok(hydrateApp);
 
   assert.equal(commandForWindowsArm64PlanStep(hydrateApp)[0], "npm");
-  const invocation = processInvocationForWindowsArm64PlanStep(hydrateApp, { CODEX_APPCAST_FEED: "beta" });
+  const invocation = processInvocationForWindowsArm64PlanStep(hydrateApp);
   if (process.platform === "win32") {
     assert.match(path.basename(invocation[0]), /^cmd(?:\.exe)?$/i);
     assert.deepEqual(invocation.slice(1, 4), ["/d", "/s", "/c"]);
-    assert.match(invocation[4], /npm run hydrate:app:compiled -- --appcast-feed beta/);
+    assert.match(invocation[4], /npm run hydrate:app:compiled/);
+    assert.doesNotMatch(invocation[4], /appcast-feed/);
   } else {
     assert.deepEqual(invocation.slice(0, 3), ["npm", "run", "hydrate:app:compiled"]);
   }
@@ -119,7 +120,7 @@ test("Windows ARM64 workflows use the package plan adapter", () => {
     assert.match(workflowSource, /npm run plan:win:arm64:compiled -- make/);
     assert.doesNotMatch(workflowSource, /npm run hydrate:app:compiled -- --appcast-feed/);
     assert.doesNotMatch(workflowSource, /npm run build:windows-oai-update-checker -- -Architecture arm64/);
-    assert.match(workflowSource, /CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}/);
+    assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
     assert.match(workflowSource, /GH_TOKEN: \$\{\{ github\.token \}\}/);
   }
 });
