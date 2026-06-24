@@ -64,6 +64,17 @@ const SIDEBAR_PROJECT_ACTION_OVERLAY_TARGETS = [
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} .group-hover\\/folder-row\\:hidden`,
 ];
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
+const SIDEBAR_THREAD_ROW_ACTIVE_SELECTOR =
+  `${SIDEBAR_THREAD_ROW_SELECTOR}[data-app-action-sidebar-thread-active='true']`;
+const SIDEBAR_THREAD_ROW_ACTIVE_HIGHLIGHT_DECLARATIONS =
+  "position:relative!important;isolation:isolate!important;overflow:visible!important;";
+const SIDEBAR_THREAD_ROW_ACTIVE_HIGHLIGHT_BEFORE_SELECTOR =
+  `${SIDEBAR_THREAD_ROW_ACTIVE_SELECTOR}::before`;
+const SIDEBAR_THREAD_ROW_ACTIVE_HIGHLIGHT_BEFORE_DECLARATIONS =
+  'content:""!important;position:absolute!important;inset:0 0 0 -5px!important;border-radius:inherit!important;background:var(--color-token-list-hover-background)!important;pointer-events:none!important;z-index:0!important;';
+const SIDEBAR_THREAD_ROW_ACTIVE_CONTENT_SELECTOR = `${SIDEBAR_THREAD_ROW_ACTIVE_SELECTOR}>*`;
+const SIDEBAR_THREAD_ROW_ACTIVE_CONTENT_DECLARATIONS =
+  "position:relative!important;z-index:1!important;";
 const SIDEBAR_THREAD_ROW_ACTION_WRAPPER_TARGETS = [
   " .w-4 span:has(>button:not([aria-hidden='true'])[aria-label])",
   " .w-4 span:has(>[role='button']:not([aria-hidden='true'])[aria-label])",
@@ -196,6 +207,18 @@ const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
   ),
 ];
 const SIDEBAR_HOVER_CONTROL_STYLE_RULES = [
+  cssRule(
+    SIDEBAR_THREAD_ROW_ACTIVE_SELECTOR,
+    SIDEBAR_THREAD_ROW_ACTIVE_HIGHLIGHT_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_THREAD_ROW_ACTIVE_HIGHLIGHT_BEFORE_SELECTOR,
+    SIDEBAR_THREAD_ROW_ACTIVE_HIGHLIGHT_BEFORE_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_THREAD_ROW_ACTIVE_CONTENT_SELECTOR,
+    SIDEBAR_THREAD_ROW_ACTIVE_CONTENT_DECLARATIONS,
+  ),
   cssRule(
     sectionHeaderStateSelectors(SIDEBAR_SECTION_HEADER_ACTION_RAIL_TARGETS),
     VISIBLE_CONTROL_DECLARATIONS,
