@@ -420,6 +420,10 @@ test("generates Windows bundled plugin resources with Windows helper payloads", 
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
   const windowsPayloads = createWindowsPluginPayloadFixture();
+  writeFixture(
+    path.join(destinationPluginsRoot, "openai-bundled-beta", "plugins", "browser", "stale.exe"),
+    "stale beta output\n",
+  );
 
   syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, windowsPayloads);
 
@@ -505,6 +509,7 @@ test("generates Windows bundled plugin resources with Windows helper payloads", 
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex/bin/tectonic")),
     false,
   );
+  assert.equal(fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled-beta")), false);
 });
 
 test("Windows ARM64 Resource binary policy lists Store-vendored helpers and x64 exceptions", () => {

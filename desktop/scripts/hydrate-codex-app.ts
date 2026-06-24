@@ -124,6 +124,7 @@ const electronNativeModuleCacheInputPaths = windowsArm64NativeModuleCacheInputPa
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
 const defaultCodexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
+const legacyBundledMarketplaceNames = ["openai-bundled-beta"] as const;
 const nodeAbi = require("node-abi") as {
   getAbi(target: string, runtime: "electron" | "node"): string;
 };
@@ -422,7 +423,7 @@ export function syncBundledPluginResources(
 
   const selectedPlugins = sourceMarketplace.plugins;
 
-  for (const marketplaceName of openAiBundledMarketplaceNames) {
+  for (const marketplaceName of [...openAiBundledMarketplaceNames, ...legacyBundledMarketplaceNames]) {
     fs.rmSync(path.join(destinationPluginsRoot, marketplaceName), { recursive: true, force: true });
   }
 
