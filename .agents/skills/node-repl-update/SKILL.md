@@ -1,6 +1,6 @@
 ---
 name: node-repl-update
-description: "Refreshes the vendored Store-sourced Windows helper binary dependencies for this repo, including `node_repl.exe`, Chrome `extension-host.exe`, and Computer Use `codex-computer-use.exe`. Use when updating `desktop/resources/node_repl.exe`, `desktop/resources/node_repl.json`, `desktop/resources/extension-host.exe`, `desktop/resources/extension-host.json`, `desktop/resources/codex-computer-use.exe`, `desktop/resources/codex-computer-use.json`, the Store-binary updater automation, or Store-vendored helper and x64 resource-binary exceptions in the Windows ARM64 Codex Desktop package."
+description: "Refreshes the vendored Store-sourced Windows helper binary dependencies for this repo, including `node_repl.exe`, Chrome `extension-host.exe`, and Computer Use `codex-computer-use.exe`. Use when updating `desktop/resources/cua_node/bin/node_repl.exe`, `desktop/resources/cua_node/bin/node_repl.json`, `desktop/resources/extension-host.exe`, `desktop/resources/extension-host.json`, `desktop/resources/codex-computer-use.exe`, `desktop/resources/codex-computer-use.json`, the Store-binary updater automation, or Store-vendored helper and x64 resource-binary exceptions in the Windows ARM64 Codex Desktop package."
 ---
 
 # Store Helper Binary Dependency Update
@@ -26,21 +26,21 @@ Despite the script name, this refreshes all three Store-sourced helper binary de
 - `docs/executable-inventory.md`
 - `desktop/scripts/update-node-repl.ps1`
 - `desktop/scripts/resource-binary-exceptions.ts`
-- `desktop/resources/node_repl.json`
+- `desktop/resources/cua_node/bin/node_repl.json`
 - `desktop/resources/extension-host.json`
 - `desktop/resources/codex-computer-use.json`
 
 ## Rules
 
 - Keep every resource binary ARM64 unless it cannot be compiled, downloaded, or otherwise obtained for Windows ARM64.
-- `desktop/resources/node_repl.exe` and `desktop/resources/extension-host.exe` are Store-vendored ARM64 helpers when available. `desktop/resources/codex-computer-use.exe` is an accepted x64 resource-binary exception until an ARM64 helper exists.
+- `desktop/resources/cua_node/bin/node_repl.exe` and `desktop/resources/extension-host.exe` are Store-vendored ARM64 helpers when available. `desktop/resources/codex-computer-use.exe` is an accepted x64 resource-binary exception until an ARM64 helper exists.
 - The authoritative exception list is `desktop/scripts/resource-binary-exceptions.ts`; keep it aligned with `CONTEXT.md`, `docs/adr/0001-use-official-x64-node-repl-fallback.md`, and `docs/executable-inventory.md`.
 - Refresh these helper binary dependencies only from the official Microsoft Store Codex package for product ID `9PLM9XGG6VKS` through `npm run update:node-repl`.
 - The package identity must be the official Store package `OpenAI.Codex`; do not use `OpenAI.Codex.Arm64Dev` or any local/dev-modified package identity.
 - Do not replace the vendored binary from an arbitrary local path, a copied WindowsApps path, the macOS appcast, GitHub release assets, npm packages, or any non-Store source.
 - The only acceptable source path is the installed package location resolved from the official Microsoft Store package that the updater installed or upgraded.
 - The updater may temporarily install or upgrade the Store Codex app. It must uninstall Codex only if it installed it into a previously missing state.
-- Keep `desktop/resources/node_repl.exe`, `desktop/resources/node_repl.json`, `desktop/resources/extension-host.exe`, `desktop/resources/extension-host.json`, `desktop/resources/codex-computer-use.exe`, and `desktop/resources/codex-computer-use.json` tracked. Keep the rest of `desktop/resources/*` ignored.
+- Keep `desktop/resources/cua_node/bin/node_repl.exe`, `desktop/resources/cua_node/bin/node_repl.json`, `desktop/resources/extension-host.exe`, `desktop/resources/extension-host.json`, `desktop/resources/codex-computer-use.exe`, and `desktop/resources/codex-computer-use.json` tracked. Keep the rest of `desktop/resources/*` ignored.
 - If the package identity, version, architecture, or SHA changes, update `docs/executable-inventory.md`.
 - Do not touch `out/`, generated files, `bin/`, or `obj/`.
 
@@ -49,8 +49,8 @@ Despite the script name, this refreshes all three Store-sourced helper binary de
 Run these before committing:
 
 ```powershell
-node -e "const fs=require('fs'); JSON.parse(fs.readFileSync('desktop/resources/node_repl.json','utf8')); JSON.parse(fs.readFileSync('desktop/resources/extension-host.json','utf8')); JSON.parse(fs.readFileSync('desktop/resources/codex-computer-use.json','utf8')); JSON.parse(fs.readFileSync('desktop/package.json','utf8')); console.log('json ok')"
-$bytes=[IO.File]::ReadAllBytes('desktop\resources\node_repl.exe'); $pe=[BitConverter]::ToInt32($bytes,0x3c); $machine=[BitConverter]::ToUInt16($bytes,$pe+4); if ($machine -ne 0xaa64) { throw "Expected ARM64 node_repl.exe" }; 'node_repl.exe ARM64 ok'
+node -e "const fs=require('fs'); JSON.parse(fs.readFileSync('desktop/resources/cua_node/bin/node_repl.json','utf8')); JSON.parse(fs.readFileSync('desktop/resources/extension-host.json','utf8')); JSON.parse(fs.readFileSync('desktop/resources/codex-computer-use.json','utf8')); JSON.parse(fs.readFileSync('desktop/package.json','utf8')); console.log('json ok')"
+$bytes=[IO.File]::ReadAllBytes('desktop\resources\cua_node\bin\node_repl.exe'); $pe=[BitConverter]::ToInt32($bytes,0x3c); $machine=[BitConverter]::ToUInt16($bytes,$pe+4); if ($machine -ne 0xaa64) { throw "Expected ARM64 node_repl.exe" }; 'node_repl.exe ARM64 ok'
 $bytes=[IO.File]::ReadAllBytes('desktop\resources\extension-host.exe'); $pe=[BitConverter]::ToInt32($bytes,0x3c); $machine=[BitConverter]::ToUInt16($bytes,$pe+4); if ($machine -ne 0xaa64) { throw "Expected ARM64 extension-host.exe" }; 'extension-host.exe ARM64 ok'
 $bytes=[IO.File]::ReadAllBytes('desktop\resources\codex-computer-use.exe'); $pe=[BitConverter]::ToInt32($bytes,0x3c); $machine=[BitConverter]::ToUInt16($bytes,$pe+4); if ($machine -ne 0x8664) { throw "Expected x64 codex-computer-use.exe" }; 'codex-computer-use.exe x64 ok'
 npm run verify:windows-arm64-resource-binaries

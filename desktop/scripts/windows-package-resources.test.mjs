@@ -420,6 +420,10 @@ test("generates Windows bundled plugin resources with Windows helper payloads", 
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
   const windowsPayloads = createWindowsPluginPayloadFixture();
+  writeFixture(
+    path.join(destinationPluginsRoot, "openai-bundled-beta", "plugins", "browser", "stale.exe"),
+    "stale beta output\n",
+  );
 
   syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, windowsPayloads);
 
@@ -505,6 +509,7 @@ test("generates Windows bundled plugin resources with Windows helper payloads", 
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/latex/bin/tectonic")),
     false,
   );
+  assert.equal(fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled-beta")), false);
 });
 
 test("Windows ARM64 Resource binary policy lists Store-vendored helpers and x64 exceptions", () => {
@@ -513,7 +518,7 @@ test("Windows ARM64 Resource binary policy lists Store-vendored helpers and x64 
     ["chrome-extension-host", "computer-use", "node-repl", "tectonic"],
   );
   assert.equal(
-    matchWindowsArm64ResourceBinaryException("resources/node_repl.exe")?.expectedMachine,
+    matchWindowsArm64ResourceBinaryException("resources/cua_node/bin/node_repl.exe")?.expectedMachine,
     peMachine.arm64,
   );
   assert.equal(
@@ -524,7 +529,13 @@ test("Windows ARM64 Resource binary policy lists Store-vendored helpers and x64 
   );
   assert.equal(
     matchWindowsArm64ResourceBinaryException(
-      "resources/plugins/openai-bundled-beta/plugins/latex-tectonic/bin/tectonic.exe",
+      "resources/plugins/openai-bundled/plugins/latex/bin/tectonic.exe",
+    )?.id,
+    "tectonic",
+  );
+  assert.equal(
+    matchWindowsArm64ResourceBinaryException(
+      "resources/plugins/openai-bundled/plugins/latex-tectonic/bin/tectonic.exe",
     )?.id,
     "tectonic",
   );
@@ -546,7 +557,7 @@ test("installs Tectonic Windows payload into bundled LaTeX plugin roots", () => 
   writePeFixture(tectonicPath, 0x8664);
   for (const pluginRoot of [
     path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex"),
-    path.join(resourcesRoot, "plugins", "openai-bundled-beta", "plugins", "latex-tectonic"),
+    path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex-tectonic"),
   ]) {
     writeFixture(path.join(pluginRoot, "bin", "tectonic"), "mac");
   }
@@ -555,7 +566,7 @@ test("installs Tectonic Windows payload into bundled LaTeX plugin roots", () => 
 
   for (const pluginRoot of [
     path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex"),
-    path.join(resourcesRoot, "plugins", "openai-bundled-beta", "plugins", "latex-tectonic"),
+    path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex-tectonic"),
   ]) {
     const installedPath = path.join(pluginRoot, "bin", "tectonic.exe");
     assert.equal(fs.existsSync(installedPath), true);
@@ -567,14 +578,14 @@ test("installs Tectonic Windows payload into bundled LaTeX plugin roots", () => 
 test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => {
   const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-resource-policy-"));
   const packageRoot = path.join(fixtureRoot, "out", "Codex-win32-arm64");
-  const nodeReplPath = path.join(fixtureRoot, "resources", "node_repl.exe");
+  const nodeReplPath = path.join(fixtureRoot, "resources", "cua_node", "bin", "node_repl.exe");
   const extensionHostPath = path.join(fixtureRoot, "resources", "extension-host.exe");
   const computerUsePath = path.join(fixtureRoot, "resources", "codex-computer-use.exe");
   writePeFixture(nodeReplPath, 0xaa64);
   writePeFixture(extensionHostPath, 0xaa64);
   writePeFixture(computerUsePath, 0x8664);
   writeFixture(
-    path.join(fixtureRoot, "resources", "node_repl.json"),
+    path.join(fixtureRoot, "resources", "cua_node", "bin", "node_repl.json"),
     JSON.stringify({
       architecture: "arm64",
       packageFamilyName: "OpenAI.Codex_2p2nqsd0c76g0",
@@ -607,7 +618,7 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
     }),
   );
 
-  const packageNodeReplPath = path.join(packageRoot, "resources", "node_repl.exe");
+  const packageNodeReplPath = path.join(packageRoot, "resources", "cua_node", "bin", "node_repl.exe");
   const packageExtensionHostPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "chrome", "extension-host", "windows", "arm64", "extension-host.exe");
   const packageComputerUsePath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "computer-use", "node_modules", "@oai", "sky", "bin", "windows", "codex-computer-use.exe");
   const packageTectonicPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "latex", "bin", "tectonic.exe");
@@ -626,7 +637,7 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
       assetName: tectonicAssetName,
       downloadUrl: "https://github.com/" + tectonicRepo + "/releases/download/" +
         tectonicTag + "/" + tectonicAssetName,
-      outputName: "plugins/*/latex*/bin/tectonic.exe",
+      outputName: "plugins/openai-bundled/plugins/latex/bin/tectonic.exe",
       releaseAssetSha256: "131a24604785a9600989a3d91225f597df52ac06f00aeffe86fd529f99ee5cdd",
       releaseHtmlUrl: "https://github.com/" + tectonicRepo + "/releases/tag/" + tectonicTag,
       releaseTagName: tectonicTag,
@@ -685,35 +696,14 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
   );
 });
 
-test("preserves beta bundled plugin marketplace resources", () => {
+test("rejects beta-only bundled plugin marketplace resources", () => {
   const appResourcesRoot = createAppResourcesFixture({ marketplaceName: "openai-bundled-beta" });
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
   const windowsPayloads = createWindowsPluginPayloadFixture();
 
-  syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, windowsPayloads);
-
-  const marketplace = JSON.parse(
-    fs.readFileSync(
-      path.join(
-        destinationPluginsRoot,
-        "openai-bundled-beta/.agents/plugins/marketplace.json",
-      ),
-      "utf8",
-    ),
-  );
-  assert.deepEqual(
-    marketplace.plugins.map((plugin) => plugin.name),
-    ["browser", "computer-use", "chrome", "latex"],
-  );
-  assert.equal(marketplace.name, "openai-bundled-beta");
-  assert.equal(
-    fs.existsSync(
-      path.join(
-        destinationPluginsRoot,
-        "openai-bundled-beta/plugins/browser/scripts/browser-client.mjs",
-      ),
-    ),
-    true,
+  assert.throws(
+    () => syncBundledPluginResources(appResourcesRoot, destinationPluginsRoot, windowsPayloads),
+    /Missing bundled plugin marketplace/,
   );
   assert.equal(fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled")), false);
 });
@@ -1738,7 +1728,7 @@ test("bundles repo-owned Codex++ UI tweaks without keyboard shortcut tweaks", ()
     if (tweakName === "codex-app-windows-menu-bar") {
       assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout/);
     } else {
-      assert.doesNotMatch(source, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+      assert.doesNotMatch(source, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
     }
     assert.doesNotThrow(() => {
       const module = { exports: {} };
@@ -1785,7 +1775,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   const uiTweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-ui-overrides");
   const uiManifest = JSON.parse(fs.readFileSync(path.join(uiTweakRoot, "manifest.json"), "utf8"));
   const uiSource = fs.readFileSync(path.join(uiTweakRoot, uiManifest.main), "utf8");
-  assert.doesNotMatch(uiSource, /MutationObserver|createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
+  assert.doesNotMatch(uiSource, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
   assert.doesNotMatch(uiSource, /hideWindowsMenuBar|codex-app-ui-hide-windows-menu-bar-setting/);
   assert.ok(uiSource.includes('cssRule(".group\\\\/application-menu-top-bar", "margin-inline-start:0.5rem;")'));
   assert.doesNotMatch(uiSource, /application-menu-top-bar[\s\S]{0,120}display:none!important/);
@@ -1798,8 +1788,8 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   assert.doesNotMatch(menuSource, /createTreeWalker|requestAnimationFrame|setTimeout/);
   const appendedStyles = [];
   const removedStyleIds = new Set();
-  let observerCallback = null;
-  let observerDisconnected = false;
+  const observerCallbacks = [];
+  let observerDisconnectCount = 0;
   const storageValues = new Map();
 
   const previousWindow = globalThis.window;
@@ -1807,13 +1797,35 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   const previousNodeFilter = globalThis.NodeFilter;
   const previousMutationObserver = globalThis.MutationObserver;
 
+  class FakeStyle {
+    constructor() {
+      this.properties = new Map();
+    }
+
+    setProperty(name, value, priority = "") {
+      this.properties.set(name, { value, priority });
+    }
+
+    removeProperty(name) {
+      this.properties.delete(name);
+    }
+
+    getPropertyValue(name) {
+      return this.properties.get(name)?.value ?? "";
+    }
+
+    getPropertyPriority(name) {
+      return this.properties.get(name)?.priority ?? "";
+    }
+  }
+
   class FakeElement {
     constructor(tagName = "div") {
       this.tagName = tagName.toUpperCase();
       this.className = "";
       this.children = [];
       this.parentElement = null;
-      this.style = {};
+      this.style = new FakeStyle();
       this.id = "";
       this.type = "";
       this._textContent = "";
@@ -1925,6 +1937,23 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
           element.attributes.has("data-codex-app-ui-menu-bar-toggle-thumb"),
         );
       }
+      if (
+        selector ===
+        ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])"
+      ) {
+        return descendants.filter(
+          (element) =>
+            element.tagName === "A" ||
+            element.tagName === "BUTTON" ||
+            element.getAttribute("role") === "menuitem" ||
+            element.getAttribute("role") === "button",
+        );
+      }
+      if (selector === "[data-codexpp-hidden-invite-friend]") {
+        return descendants.filter((element) =>
+          element.attributes.has("data-codexpp-hidden-invite-friend"),
+        );
+      }
 
       return [];
     }
@@ -1948,6 +1977,16 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   reduceMotionRow.textContent = "Reduce motion";
   settingsSurface.append(themeRow, pointerRow, reduceMotionRow);
   documentElement.appendChild(settingsSurface);
+  const profileMenu = new FakeElement("div");
+  profileMenu.setAttribute("role", "menu");
+  const profileItem = new FakeElement("div");
+  profileItem.setAttribute("role", "menuitem");
+  profileItem.textContent = "Profile";
+  const inviteFriendItem = new FakeElement("div");
+  inviteFriendItem.setAttribute("role", "menuitem");
+  inviteFriendItem.textContent = "Invite a friend";
+  profileMenu.append(profileItem, inviteFriendItem);
+  documentElement.appendChild(profileMenu);
 
   const findById = (root, id) => {
     if (root.id === id) {
@@ -1965,7 +2004,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   globalThis.NodeFilter = { SHOW_TEXT: 4 };
   globalThis.MutationObserver = class {
     constructor(callback) {
-      observerCallback = callback;
+      observerCallbacks.push(callback);
     }
 
     observe(target, options) {
@@ -1974,7 +2013,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     }
 
     disconnect() {
-      observerDisconnected = true;
+      observerDisconnectCount += 1;
     }
   };
   globalThis.window = {
@@ -1994,7 +2033,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     querySelectorAll: (selector) =>
       selector === ".main-surface .flex.flex-col.rounded-lg.border"
         ? [settingsSurface]
-        : [],
+        : documentElement.querySelectorAll(selector),
   };
 
   try {
@@ -2023,7 +2062,9 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
       "true",
     );
-    assert.equal(typeof observerCallback, "function");
+    assert.equal(observerCallbacks.length, 2);
+    const menuBarObserverCallback = observerCallbacks[1];
+    assert.equal(typeof menuBarObserverCallback, "function");
     assert.equal(appendedStyles.length, 2);
     assert.equal(appendedStyles[0].id, "codex-app-ui-overrides-style");
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
@@ -2104,13 +2145,19 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         .getAttribute("data-state"),
       "unchecked",
     );
-    observerCallback();
+    menuBarObserverCallback();
     assert.equal(
       settingsSurface.children.filter(
         (child) => child.id === "codex-app-ui-hide-windows-menu-bar-setting",
       ).length,
       1,
     );
+    assert.equal(
+      inviteFriendItem.getAttribute("data-codexpp-hidden-invite-friend"),
+      "true",
+    );
+    assert.equal(inviteFriendItem.style.getPropertyValue("display"), "none");
+    assert.equal(inviteFriendItem.style.getPropertyPriority("display"), "important");
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.group\/chats-section-header:is(:hover,:focus-within)>div:has(button:not([aria-hidden='true'])[aria-label])`,
@@ -2244,11 +2291,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is(a,button,[role='button'])[aria-label*='codex mobile' i],:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"]),:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V10.8477"]){display:none!important;}`,
       ),
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[aria-label*='invite' i],:where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[title*='invite' i],:where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[aria-label*='friend' i],:where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])[title*='friend' i],:where([role='menu'],[data-radix-popper-content-wrapper]) a[href*='invite' i],:where([role='menu'],[data-radix-popper-content-wrapper]) a[href*='referral' i]{display:none!important;}",
-      ),
-    );
+    assert.doesNotMatch(uiOverrideCss, /aria-label\*='invite'|title\*='invite'|href\*='referral'/);
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1,.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1~:is(div,button,[role='menuitem']):not(a[href]):has(svg){padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
@@ -2274,15 +2317,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
     ]);
     assert.doesNotMatch(usageLinkHideRule.selector, /nth-last-child|\+\*\+\*|M16\.834/);
-    const inviteHideRule = uiCssRules.find(
-      ({ selector, declarations }) =>
-        declarations === "display:none!important;" &&
-        selector.includes('>:nth-last-child(2):has(svg path[d^="M16.834"])'),
-    );
-    assert.deepEqual(
-      inviteHideRule?.selector,
-      String.raw`.w-\[280px\]>.flex.w-full.min-w-0.flex-col.gap-0>:nth-last-child(2):has(svg path[d^="M16.834"])`,
-    );
+    assert.doesNotMatch(uiOverrideCss, /nth-last-child|M16\.834/);
     assert.equal(
       uiCssRules.some(
         ({ selector, declarations }) =>
@@ -2297,7 +2332,9 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
 
     menuModule.exports.stop();
     uiModule.exports.stop();
-    assert.equal(observerDisconnected, true);
+    assert.equal(observerDisconnectCount, 3);
+    assert.equal(inviteFriendItem.getAttribute("data-codexpp-hidden-invite-friend"), null);
+    assert.equal(inviteFriendItem.style.getPropertyValue("display"), "");
     assert.equal(
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
       null,
@@ -2390,11 +2427,10 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   );
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
-  assert.match(workflowSource, /CODEX_APPCAST_FEED: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_appcast_feed \}\}/);
+  assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_tag \}\}/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_sha \}\}/);
-  assert.match(workflowSource, /Upstream Codex appcast: \$env:CODEX_APPCAST_FEED/);
-  assert.doesNotMatch(workflowSource, /Upstream Codex appcast: \$env:CODEX_APPCAST_FEED \(\$env:CODEX_APPCAST_URL\)/);
+  assert.doesNotMatch(workflowSource, /Upstream Codex appcast/);
   assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
   assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
@@ -2414,10 +2450,9 @@ test("release workflow tracks Codex++ in package inputs and release metadata", (
 
   assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
   assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
-  assert.match(workflowSource, /CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}/);
+  assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_URL/);
-  assert.match(workflowSource, /Codex appcast: \$env:CODEX_APPCAST_FEED/);
-  assert.doesNotMatch(workflowSource, /Codex appcast: \$env:CODEX_APPCAST_FEED \(\$env:CODEX_APPCAST_URL\)/);
+  assert.doesNotMatch(workflowSource, /Codex appcast:/);
   assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
   assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);
@@ -2456,8 +2491,8 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.ok(releaseWorkflowSource.indexOf("name: Restore Electron cache") < releaseWorkflowSource.indexOf("name: Install dependencies"));
   assert.match(prWorkflowSource, /name: Build Windows ARM64 ZIP[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
   assert.match(releaseWorkflowSource, /name: Make Windows ARM64 ZIP[\s\S]*CODEX_APP_VERSION: \$\{\{ steps\.upstream\.outputs\.codex_app_version \}\}[\s\S]*CODEX_APP_BUILD: \$\{\{ steps\.upstream\.outputs\.codex_app_build \}\}/);
-  assert.match(prWorkflowSource, /name: Build Windows ARM64 ZIP[\s\S]*CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
-  assert.match(releaseWorkflowSource, /name: Make Windows ARM64 ZIP[\s\S]*CODEX_APPCAST_FEED: \$\{\{ steps\.upstream\.outputs\.codex_appcast_feed \}\}[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
+  assert.match(prWorkflowSource, /name: Build Windows ARM64 ZIP[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
+  assert.match(releaseWorkflowSource, /name: Make Windows ARM64 ZIP[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: npm run plan:win:arm64:compiled -- make/);
   assert.ok(
     releaseWorkflowSource.indexOf("name: Notice existing repo release") <
       releaseWorkflowSource.indexOf("name: Run targeted desktop tests"),

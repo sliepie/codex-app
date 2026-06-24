@@ -36,7 +36,7 @@ export type VerifyBrowserClientRuntimeResult = {
 
 const targetPlatform = "win32";
 const targetArch = "arm64";
-const browserPluginMarketplaceNames = ["openai-bundled", "openai-bundled-beta"] as const;
+const browserPluginMarketplaceNames = ["openai-bundled"] as const;
 const classicLevelPackageName = "classic-level";
 const nodeAbiModule = require("node-abi") as NodeAbiModule;
 const getAbi = nodeAbiModule.getAbi ?? nodeAbiModule.default?.getAbi;
@@ -386,7 +386,7 @@ export async function verifyBrowserClientRuntime({
   desktopRoot = process.cwd(),
 }: VerifyBrowserClientRuntimeOptions = {}): Promise<VerifyBrowserClientRuntimeResult> {
   const bundledNodeVersion = readBundledNodeVersion(desktopRoot);
-  const windowsNodePath = path.join(desktopRoot, "resources", "node.exe");
+  const windowsNodePath = path.join(desktopRoot, "resources", "cua_node", "bin", "node.exe");
   assertArm64Pe(windowsNodePath, "Hydrated Windows Node runtime");
 
   const windowsNodeVersion = detectNodeVersionFromBinary(

@@ -12,8 +12,12 @@ desktop/resources/*
 !desktop/resources/extension-host.json
 !desktop/resources/codex-computer-use.exe
 !desktop/resources/codex-computer-use.json
-!desktop/resources/node_repl.exe
-!desktop/resources/node_repl.json
+!desktop/resources/cua_node/
+desktop/resources/cua_node/*
+!desktop/resources/cua_node/bin/
+desktop/resources/cua_node/bin/*
+!desktop/resources/cua_node/bin/node_repl.exe
+!desktop/resources/cua_node/bin/node_repl.json
 desktop/.cache/
 
 # Node / Electron build outputs

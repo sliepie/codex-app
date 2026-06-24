@@ -31,7 +31,7 @@ export const windowsArm64HydratedCacheInputPaths = [
   "scripts/windows-arm64-package-plan.ts",
   "resources/codex-computer-use.json",
   "resources/extension-host.json",
-  "resources/node_repl.json",
+  "resources/cua_node/bin/node_repl.json",
 ] as const;
 
 export const windowsArm64NativeModuleCacheInputPaths = [
@@ -135,11 +135,7 @@ export function commandForWindowsArm64PlanStep(step: WindowsArm64PlanStep, env =
     case "build-windows-updater":
       return [npmCommand(), "run", "build:windows-oai-update-checker", "--", "-Architecture", "arm64"];
     case "hydrate-app": {
-      const command = [npmCommand(), "run", "hydrate:app:compiled"];
-      if (env.CODEX_APPCAST_FEED) {
-        command.push("--", "--appcast-feed", env.CODEX_APPCAST_FEED);
-      }
-      return command;
+      return [npmCommand(), "run", "hydrate:app:compiled"];
     }
     case "hydrate-cli":
       return [npmCommand(), "run", "hydrate:cli:compiled"];
