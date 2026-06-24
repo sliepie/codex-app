@@ -232,6 +232,23 @@ function readBundledNodeVersion(): string {
   return version;
 }
 
+function writeCuaNodeManifest(resourcesRoot: string, nodeVersion: string): void {
+  const normalizedNodeVersion = nodeVersion.replace(/^v/, "");
+  const manifestPath = path.join(resourcesRoot, "cua_node", "manifest.json");
+  const manifest = {
+    platform: "windows",
+    arch: "arm64",
+    target: "windows-arm64",
+    node_version: normalizedNodeVersion,
+    node_archive_path: `${nodeVersion}/node-${nodeVersion}-win-arm64.zip`,
+    node_path: "bin/node.exe",
+    node_modules: "bin/node_modules",
+    node_repl_path: "bin/node_repl.exe",
+  };
+  fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+}
+
 async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<ReleaseAsset> {
   const nodeVersion = readBundledNodeVersion();
   const archiveName = `node-${nodeVersion}-win-arm64.zip`;
@@ -262,6 +279,7 @@ async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.copyFileSync(findSingleFile(extractRoot, "node.exe"), outputPath);
+  writeCuaNodeManifest(resourcesRoot, nodeVersion);
   return {
     downloadUrl: archiveUrl,
     name: archiveName,
@@ -398,7 +416,7 @@ async function main(): Promise<void> {
   const nodeAsset = await hydrateNodeExe(options, resourcesRoot);
   hydratedAssets.push({
     assetName: nodeAsset.name,
-    outputName: "node.exe",
+    outputName: "cua_node/bin/node.exe",
     downloadUrl: nodeAsset.downloadUrl,
     size: nodeAsset.size,
   });
