@@ -149,9 +149,10 @@ pass packaged PE-machine and SHA-256 verification.
   and `desktop/resources/codex-computer-use.exe` are copied from the official
   Microsoft Store Codex app because no Windows ARM64 source or download path is
   available.
-- `plugins/openai-bundled/plugins/latex/bin/tectonic.exe` is installed during CLI hydration from
-  the public Tectonic x86_64 Windows GitHub release because upstream does not
-  publish a Windows ARM64 build.
+- `plugins/openai-bundled/plugins/latex/bin/tectonic.exe` or
+  `plugins/openai-bundled/plugins/latex-tectonic/bin/tectonic.exe` is installed
+  during CLI hydration from the public Tectonic x86_64 Windows GitHub release
+  because upstream does not publish a Windows ARM64 build.
 
 From `desktop/`, refresh the Store-sourced binaries with:
 

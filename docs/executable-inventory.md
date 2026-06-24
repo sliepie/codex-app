@@ -101,7 +101,7 @@ The Windows ARM64 package is ARM64 by default. Any x64 PE payload must match the
 | `resources/cua_node/bin/node_repl.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0`; SHA-256 `3e2fb244544c834730108caeea4fdafe3e8c3353fb611b71832b2c5897cfaac6` |
 | `resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0`; copied to the ARM64 plugin lookup path because the bundled installer uses `os.arch()`; SHA-256 `ba91ec2e59b190f646d48ca0a9ddf98ccc65cba9253b866dcb33f2e347f3a8a8` |
 | `resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe` | `x64` | Vendored from `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0`; SHA-256 `f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03` |
-| `resources/plugins/openai-bundled/plugins/latex/bin/tectonic.exe` | `x64` | Downloaded by `hydrate:cli` from `tectonic-typesetting/tectonic` release `tectonic@0.16.9`; SHA-256 `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb` |
+| `resources/plugins/openai-bundled/plugins/latex/bin/tectonic.exe` or `resources/plugins/openai-bundled/plugins/latex-tectonic/bin/tectonic.exe` | `x64` | Downloaded by `hydrate:cli` from `tectonic-typesetting/tectonic` release `tectonic@0.16.9`; SHA-256 `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb` |
 | `vk_swiftshader.dll` | `ARM64` | `5.0.0` |
 | `vulkan-1.dll` | `ARM64` | Vulkan Loader |
 

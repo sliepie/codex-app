@@ -530,6 +530,12 @@ test("Windows ARM64 Resource binary policy lists Store-vendored helpers and x64 
   );
   assert.equal(
     matchWindowsArm64ResourceBinaryException(
+      "resources/plugins/openai-bundled/plugins/latex-tectonic/bin/tectonic.exe",
+    )?.id,
+    "tectonic",
+  );
+  assert.equal(
+    matchWindowsArm64ResourceBinaryException(
       "resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe",
     )?.id,
     "computer-use",
@@ -546,6 +552,7 @@ test("installs Tectonic Windows payload into bundled LaTeX plugin roots", () => 
   writePeFixture(tectonicPath, 0x8664);
   for (const pluginRoot of [
     path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex"),
+    path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex-tectonic"),
   ]) {
     writeFixture(path.join(pluginRoot, "bin", "tectonic"), "mac");
   }
@@ -554,6 +561,7 @@ test("installs Tectonic Windows payload into bundled LaTeX plugin roots", () => 
 
   for (const pluginRoot of [
     path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex"),
+    path.join(resourcesRoot, "plugins", "openai-bundled", "plugins", "latex-tectonic"),
   ]) {
     const installedPath = path.join(pluginRoot, "bin", "tectonic.exe");
     assert.equal(fs.existsSync(installedPath), true);

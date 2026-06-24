@@ -311,7 +311,7 @@ export const windowsArm64ResourceBinaryExceptions: WindowsArm64ResourceBinaryExc
     hydratedOutputName: "plugins/openai-bundled/plugins/latex/bin/tectonic.exe",
     id: "tectonic",
     label: "Tectonic",
-    packageRelativePathPattern: /^resources\/plugins\/openai-bundled\/plugins\/latex\/bin\/tectonic\.exe$/,
+    packageRelativePathPattern: /^resources\/plugins\/openai-bundled\/plugins\/latex(?:-tectonic)?\/bin\/tectonic\.exe$/,
     removalCondition: "Remove when a Windows ARM64 Tectonic build is available for the bundled LaTeX plugin.",
     requiredInPackage: true,
     sourceKind: "github-release",

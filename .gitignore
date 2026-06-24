@@ -13,7 +13,9 @@ desktop/resources/*
 !desktop/resources/codex-computer-use.exe
 !desktop/resources/codex-computer-use.json
 !desktop/resources/cua_node/
+desktop/resources/cua_node/*
 !desktop/resources/cua_node/bin/
+desktop/resources/cua_node/bin/*
 !desktop/resources/cua_node/bin/node_repl.exe
 !desktop/resources/cua_node/bin/node_repl.json
 desktop/.cache/
