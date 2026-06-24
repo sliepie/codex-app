@@ -132,7 +132,7 @@ const SIDEBAR_ROOT_SELECTOR =
 const SIDEBAR_PROJECT_GROUP_OVERFLOW_BUTTON_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [role='list']>[role='listitem'].py-1>button.text-token-description-foreground`;
 const SIDEBAR_PROJECT_GROUP_OVERFLOW_BUTTON_DECLARATIONS =
-  "margin-left:-0.125rem!important;";
+  "margin-left:-0.0625rem!important;";
 const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
   `${SIDEBAR_ROOT_SELECTOR} :is(a,button,[role='button'])[aria-label*='codex mobile' i]`,
   `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"])`,
