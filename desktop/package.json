@@ -11,7 +11,7 @@
   },
   "codexBuildFlavor": "prod",
   "scripts": {
-    "build:scripts": "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json",
+    "build:scripts": "npx -y -p typescript@rc tsc -p tsconfig.scripts.json",
     "build:windows-oai-update-checker": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-windows-oai-update-checker.ps1",
     "test:patch-windows-self-signed-bundle": "npm run build:scripts && node --test scripts/patch-windows-self-signed-bundle.test.mjs",
     "test:patch-windows-self-signed-bundle:compiled": "node --test scripts/patch-windows-self-signed-bundle.test.mjs",

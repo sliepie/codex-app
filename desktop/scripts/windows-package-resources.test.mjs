@@ -2374,7 +2374,7 @@ test("Windows ARM64 package commands delegate ordering to the package plan", () 
   assert.equal(packageJson.scripts["make:win:arm64:ci"], "npm run build:scripts && npm run plan:win:arm64:compiled -- make");
 });
 
-test("keeps the TypeScript beta script compiler floating", () => {
+test("keeps the TypeScript RC script compiler floating", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
@@ -2382,7 +2382,7 @@ test("keeps the TypeScript beta script compiler floating", () => {
   assert.equal(packageJson.devDependencies?.["@typescript/native-preview"], undefined);
   assert.equal(
     packageJson.scripts["build:scripts"],
-    "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json",
+    "npx -y -p typescript@rc tsc -p tsconfig.scripts.json",
   );
 });
 
@@ -2501,7 +2501,7 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
   assert.match(prWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache\/restore@/);
   assert.match(releaseWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache@/);
-  assert.equal(packageJson.scripts["build:scripts"], "npx -y -p @typescript/native-preview@beta tsgo -p tsconfig.scripts.json");
+  assert.equal(packageJson.scripts["build:scripts"], "npx -y -p typescript@rc tsc -p tsconfig.scripts.json");
   assert.equal(packageJson.scripts["verify:browser-client-runtime"], "npm run build:scripts && npm run verify:browser-client-runtime:compiled");
   assert.equal(packageJson.scripts["verify:browser-client-runtime:compiled"], "node ./.cache/scripts/verify-browser-client-runtime.js");
   assert.equal(packageJson.scripts["test:resolve-codex-releases:compiled"], "node --test scripts/resolve-codex-releases.test.mjs");
