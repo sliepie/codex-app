@@ -10,12 +10,12 @@ Date: 2026-06-22
 | Windows ARM64 output | `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64-v26.429.30905.zip` |
 | Windows package directory | `desktop/out/Codex-win32-arm64` |
 | macOS extracted app | `desktop/.cache/codex-app/extract-26.429.30905/Codex.app` |
-| Vendored Node REPL helper | `desktop/resources/cua_node/bin/node_repl.exe` from `OpenAI.Codex_26.616.6631.0_arm64__2p2nqsd0c76g0` |
-| Vendored Chrome extension host helper | `desktop/resources/extension-host.exe` from `OpenAI.Codex_26.616.6631.0_arm64__2p2nqsd0c76g0` |
-| Vendored Computer Use helper fallback | `desktop/resources/codex-computer-use.exe` from `OpenAI.Codex_26.616.6631.0_arm64__2p2nqsd0c76g0` |
+| Vendored Node REPL helper | `desktop/resources/cua_node/bin/node_repl.exe` from `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0` |
+| Vendored Chrome extension host helper | `desktop/resources/extension-host.exe` from `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0` |
+| Vendored Computer Use helper fallback | `desktop/resources/codex-computer-use.exe` from `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0` |
 | GitHub-release hydrated Tectonic fallback | `tectonic-0.16.9-x86_64-pc-windows-msvc.zip` from `tectonic-typesetting/tectonic` |
 | Resource binary exception policy | `desktop/scripts/resource-binary-exceptions.ts` enforced by `npm run verify:windows-arm64-resource-binaries` |
-| Store architecture check | Microsoft Store package `9PLM9XGG6VKS` installed `OpenAI.Codex_26.616.6631.0_arm64__2p2nqsd0c76g0`; Node REPL and Chrome extension-host are ARM64, while Computer Use remains x64 |
+| Store architecture check | Microsoft Store package `9PLM9XGG6VKS` installed `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0`; Node REPL and Chrome extension-host are ARM64, while Computer Use remains x64 |
 
 ## Version Match
 
@@ -26,9 +26,9 @@ Date: 2026-06-22
 | Electron | refresh manifest = `41.2.0` | `desktop/package.json` dependency = `41.2.0` | Match |
 | Codex CLI | release payload = `rust-v0.128.0` | `resources/codex.exe --version` = `codex-cli 0.128.0` | Match |
 | CLI helper binaries | release payload = `rust-v0.128.0` | Windows helper `FileVersion` = `0.128.0` | Match |
-| Node REPL helper | Store package `OpenAI.Codex_26.616.6631.0_arm64__2p2nqsd0c76g0` | `resources/cua_node/bin/node_repl.exe` SHA-256 = `3e2fb244544c834730108caeea4fdafe3e8c3353fb611b71832b2c5897cfaac6` | Store-vendored ARM64 helper |
-| Chrome extension host helper | Store package `OpenAI.Codex_26.616.6631.0_arm64__2p2nqsd0c76g0` | `resources/extension-host.exe` SHA-256 = `6a0a4529db1c3bbca79a549af4e4b32a71a98917ac498dfa8054ff54f272af2c` | Store-vendored ARM64 helper |
-| Computer Use helper fallback | Store package `OpenAI.Codex_26.616.6631.0_arm64__2p2nqsd0c76g0` | `resources/codex-computer-use.exe` SHA-256 = `f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03` | Explicit x64 exception |
+| Node REPL helper | Store package `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0` | `resources/cua_node/bin/node_repl.exe` SHA-256 = `3e2fb244544c834730108caeea4fdafe3e8c3353fb611b71832b2c5897cfaac6` | Store-vendored ARM64 helper |
+| Chrome extension host helper | Store package `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0` | `resources/extension-host.exe` SHA-256 = `ba91ec2e59b190f646d48ca0a9ddf98ccc65cba9253b866dcb33f2e347f3a8a8` | Store-vendored ARM64 helper |
+| Computer Use helper fallback | Store package `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0` | `resources/codex-computer-use.exe` SHA-256 = `f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03` | Explicit x64 exception |
 | Tectonic fallback | Public release `tectonic@0.16.9` | `tectonic.exe` SHA-256 = `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb`; asset digest = `sha256:131a24604785a9600989a3d91225f597df52ac06f00aeffe86fd529f99ee5cdd` | `hydrate:cli` x64 exception |
 
 ## Architecture Summary
@@ -98,9 +98,9 @@ The Windows ARM64 package is ARM64 by default. Any x64 PE payload must match the
 | `resources/codex-command-runner.exe` | `ARM64` | `0.128.0` |
 | `resources/codex-windows-sandbox-setup.exe` | `ARM64` | `0.128.0` |
 | `resources/codex.exe` | `ARM64` | `0.128.0`; CLI reports `codex-cli 0.128.0` |
-| `resources/cua_node/bin/node_repl.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.616.6631.0_arm64__2p2nqsd0c76g0`; SHA-256 `3e2fb244544c834730108caeea4fdafe3e8c3353fb611b71832b2c5897cfaac6` |
-| `resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.616.6631.0_arm64__2p2nqsd0c76g0`; copied to the ARM64 plugin lookup path because the bundled installer uses `os.arch()`; SHA-256 `6a0a4529db1c3bbca79a549af4e4b32a71a98917ac498dfa8054ff54f272af2c` |
-| `resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe` | `x64` | Vendored from `OpenAI.Codex_26.616.6631.0_arm64__2p2nqsd0c76g0`; SHA-256 `f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03` |
+| `resources/cua_node/bin/node_repl.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0`; SHA-256 `3e2fb244544c834730108caeea4fdafe3e8c3353fb611b71832b2c5897cfaac6` |
+| `resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0`; copied to the ARM64 plugin lookup path because the bundled installer uses `os.arch()`; SHA-256 `ba91ec2e59b190f646d48ca0a9ddf98ccc65cba9253b866dcb33f2e347f3a8a8` |
+| `resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe` | `x64` | Vendored from `OpenAI.Codex_26.616.10790.0_arm64__2p2nqsd0c76g0`; SHA-256 `f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03` |
 | `resources/plugins/openai-bundled*/plugins/latex*/bin/tectonic.exe` | `x64` | Downloaded by `hydrate:cli` from `tectonic-typesetting/tectonic` release `tectonic@0.16.9`; SHA-256 `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb` |
 | `vk_swiftshader.dll` | `ARM64` | `5.0.0` |
 | `vulkan-1.dll` | `ARM64` | Vulkan Loader |
