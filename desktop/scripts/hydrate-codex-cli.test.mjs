@@ -206,6 +206,11 @@ test("CLI hydrator uses shared GitHub and bundled plugin payload modules", () =>
   assert.match(source, /ensureExtractedZip/);
   assert.match(source, /findReleaseAsset\(release, assetName, "ripgrep"\)/);
   assert.match(source, /findReleaseAsset\(release, assetName, "Tectonic"\)/);
+  assert.match(source, /function writeCuaNodeManifest/);
+  assert.match(source, /"cua_node", "manifest\.json"/);
+  assert.match(source, /node_repl_path: "bin\/node_repl\.exe"/);
+  assert.match(source, /writeCuaNodeManifest\(resourcesRoot, nodeVersion\)/);
+  assert.match(source, /outputName: "cua_node\/bin\/node\.exe"/);
   assert.match(source, /installTectonicWindowsPayload\(resourcesRoot, tectonicPath\)/);
   assert.match(source, /readPeMachine\(tectonicPath\)/);
   assert.doesNotMatch(source, /execFileSync\(\s*"gh"/);
