@@ -64,7 +64,7 @@ function createDesktopFixture({ appBundleName = "Codex.app", marketplaceName = "
     "fake mac node v24.14.0 v24.14.0\n",
   );
   writePeFixture(
-    path.join(desktopRoot, "resources", "node.exe"),
+    path.join(desktopRoot, "resources", "cua_node", "bin", "node.exe"),
     "fake windows node v24.14.0 v24.14.0",
   );
   writeFixture(path.join(browserPluginRoot, "scripts", "browser-client.mjs"), "export {};\n");

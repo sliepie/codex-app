@@ -146,7 +146,7 @@ list. Each exception must be listed in
 `desktop/scripts/resource-binary-exceptions.ts`, have provenance metadata, and
 pass packaged PE-machine and SHA-256 verification.
 
-- `desktop/resources/node_repl.exe`, `desktop/resources/extension-host.exe`,
+- `desktop/resources/cua_node/bin/node_repl.exe`, `desktop/resources/extension-host.exe`,
   and `desktop/resources/codex-computer-use.exe` are copied from the official
   Microsoft Store Codex app because no Windows ARM64 source or download path is
   available.

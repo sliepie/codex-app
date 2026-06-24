@@ -386,7 +386,7 @@ export async function verifyBrowserClientRuntime({
   desktopRoot = process.cwd(),
 }: VerifyBrowserClientRuntimeOptions = {}): Promise<VerifyBrowserClientRuntimeResult> {
   const bundledNodeVersion = readBundledNodeVersion(desktopRoot);
-  const windowsNodePath = path.join(desktopRoot, "resources", "node.exe");
+  const windowsNodePath = path.join(desktopRoot, "resources", "cua_node", "bin", "node.exe");
   assertArm64Pe(windowsNodePath, "Hydrated Windows Node runtime");
 
   const windowsNodeVersion = detectNodeVersionFromBinary(

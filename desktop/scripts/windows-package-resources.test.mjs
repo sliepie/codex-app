@@ -513,7 +513,7 @@ test("Windows ARM64 Resource binary policy lists Store-vendored helpers and x64 
     ["chrome-extension-host", "computer-use", "node-repl", "tectonic"],
   );
   assert.equal(
-    matchWindowsArm64ResourceBinaryException("resources/node_repl.exe")?.expectedMachine,
+    matchWindowsArm64ResourceBinaryException("resources/cua_node/bin/node_repl.exe")?.expectedMachine,
     peMachine.arm64,
   );
   assert.equal(
@@ -567,14 +567,14 @@ test("installs Tectonic Windows payload into bundled LaTeX plugin roots", () => 
 test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => {
   const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-resource-policy-"));
   const packageRoot = path.join(fixtureRoot, "out", "Codex-win32-arm64");
-  const nodeReplPath = path.join(fixtureRoot, "resources", "node_repl.exe");
+  const nodeReplPath = path.join(fixtureRoot, "resources", "cua_node", "bin", "node_repl.exe");
   const extensionHostPath = path.join(fixtureRoot, "resources", "extension-host.exe");
   const computerUsePath = path.join(fixtureRoot, "resources", "codex-computer-use.exe");
   writePeFixture(nodeReplPath, 0xaa64);
   writePeFixture(extensionHostPath, 0xaa64);
   writePeFixture(computerUsePath, 0x8664);
   writeFixture(
-    path.join(fixtureRoot, "resources", "node_repl.json"),
+    path.join(fixtureRoot, "resources", "cua_node", "bin", "node_repl.json"),
     JSON.stringify({
       architecture: "arm64",
       packageFamilyName: "OpenAI.Codex_2p2nqsd0c76g0",
@@ -607,7 +607,7 @@ test("Windows ARM64 Resource binary verifier rejects unlisted x64 files", () => 
     }),
   );
 
-  const packageNodeReplPath = path.join(packageRoot, "resources", "node_repl.exe");
+  const packageNodeReplPath = path.join(packageRoot, "resources", "cua_node", "bin", "node_repl.exe");
   const packageExtensionHostPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "chrome", "extension-host", "windows", "arm64", "extension-host.exe");
   const packageComputerUsePath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "computer-use", "node_modules", "@oai", "sky", "bin", "windows", "codex-computer-use.exe");
   const packageTectonicPath = path.join(packageRoot, "resources", "plugins", "openai-bundled", "plugins", "latex", "bin", "tectonic.exe");

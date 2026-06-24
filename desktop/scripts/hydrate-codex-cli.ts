@@ -238,7 +238,7 @@ async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<
   const archiveUrl = `${options.nodeDistBaseUrl}/${nodeVersion}/${archiveName}`;
   const archivePath = path.join(options.cacheRoot, archiveName);
   const extractRoot = path.join(options.cacheRoot, `node-${nodeVersion}-win-arm64`);
-  const outputPath = path.join(resourcesRoot, "node.exe");
+  const outputPath = path.join(resourcesRoot, "cua_node", "bin", "node.exe");
 
   if (options.force) {
     fs.rmSync(archivePath, { force: true });
@@ -260,6 +260,7 @@ async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<
 
   await ensureExtractedZip({ archivePath, extractRoot, force: options.force });
 
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.copyFileSync(findSingleFile(extractRoot, "node.exe"), outputPath);
   return {
     downloadUrl: archiveUrl,

@@ -31,7 +31,7 @@ export const windowsArm64HydratedCacheInputPaths = [
   "scripts/windows-arm64-package-plan.ts",
   "resources/codex-computer-use.json",
   "resources/extension-host.json",
-  "resources/node_repl.json",
+  "resources/cua_node/bin/node_repl.json",
 ] as const;
 
 export const windowsArm64NativeModuleCacheInputPaths = [

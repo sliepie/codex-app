@@ -11,7 +11,7 @@ $PackageName = "OpenAI.Codex"
 $PackageFamilyName = "OpenAI.Codex_2p2nqsd0c76g0"
 
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
-    $OutputPath = Join-Path $PSScriptRoot "..\resources\node_repl.exe"
+    $OutputPath = Join-Path $PSScriptRoot "..\resources\cua_node\bin\node_repl.exe"
 }
 if ([string]::IsNullOrWhiteSpace($ExtensionHostOutputPath)) {
     $ExtensionHostOutputPath = Join-Path $PSScriptRoot "..\resources\extension-host.exe"
