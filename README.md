@@ -87,8 +87,8 @@ assets:
   feed, downloads the latest upstream Codex app ZIP, and extracts `app.asar`.
 - `desktop/scripts/hydrate-codex-cli.ts`: downloads the latest Windows ARM64
   Codex CLI and helper binaries from `openai/codex`.
-- `desktop/scripts/update-node-repl.ps1`: refreshes the vendored x64
-  Store helper fallbacks from the official Microsoft Store Codex app.
+- `desktop/scripts/update-node-repl.ps1`: refreshes the vendored Store helper
+  fallbacks from the official Microsoft Store Codex app.
 - `desktop/scripts/refresh-recovered-from-dmg.ts`: extracts the app payload
   into `desktop/recovered/app-asar-extracted/`.
 - `desktop/forge.config.js`: packages the app and creates the Windows ARM64
