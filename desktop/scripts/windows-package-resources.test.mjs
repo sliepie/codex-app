@@ -2708,14 +2708,15 @@ test("Codex app hydration enables all OWL Electron features", () => {
 
 test("Codex app hydration enables the message rail Statsig gate", () => {
   const source =
-    "var rail=async()=>{let{ThreadUserMessageNavigationRail:e}=await import(`./thread-user-message-navigation-rail.js`);return e};function Bo(){let c=Pt(`2551582477`)&&client.checkGate(`2551582477`)&&client . checkGate(`2551582477`)&&enabled;return c}";
+    "var rail=async()=>{let{ThreadUserMessageNavigationRail:e}=await import(`./thread-user-message-navigation-rail.js`);return e};function Bo(){return Pt(\"2551582477\")&&At('2551582477')&&client.checkGate(`2551582477`)&&client . checkGate(`2551582477`)&&enabled}";
 
   const patch = patchRecoveredMessageRailStatsigGateSource(source);
 
   assert.ok(patch);
   assert.equal(patch.changed, true);
   assert.match(patch.source, /true\/\* Codex\+\+ enable message rail \*\//);
-  assert.doesNotMatch(patch.source, /Pt\(`2551582477`\)/);
+  assert.doesNotMatch(patch.source, /Pt\("2551582477"\)/);
+  assert.doesNotMatch(patch.source, /At\('2551582477'\)/);
   assert.match(patch.source, /client\.checkGate\(`2551582477`\)/);
   assert.match(patch.source, /client \. checkGate\(`2551582477`\)/);
   assert.doesNotMatch(patch.source, /client\.true/);

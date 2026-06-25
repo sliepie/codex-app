@@ -2874,6 +2874,15 @@ function isBareJavaScriptCall(source: string, startIndex: number): boolean {
     if (/\s/.test(char)) {
       continue;
     }
+    if (/[\w$]/.test(char)) {
+      let tokenStart = index;
+      while (tokenStart > 0 && /[\w$]/.test(source[tokenStart - 1] ?? "")) {
+        tokenStart--;
+      }
+      return ["return", "throw", "yield", "await", "typeof", "void", "delete", "case"].includes(
+        source.slice(tokenStart, index + 1),
+      );
+    }
     return char !== "." && char !== "?" && !/[\w$]/.test(char);
   }
 
@@ -2957,7 +2966,7 @@ export function patchRecoveredMessageRailStatsigGateSource(source: string): OwlF
     return null;
   }
 
-  const pattern = new RegExp(`${identifierPattern}\\(\\\`${messageRailStatsigGate}\\\`\\)`, "g");
+  const pattern = new RegExp(`${identifierPattern}\\([\\\`'"]${messageRailStatsigGate}[\\\`'"]\\)`, "g");
   if (!pattern.test(source)) {
     return null;
   }
