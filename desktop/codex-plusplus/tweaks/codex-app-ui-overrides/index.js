@@ -141,10 +141,10 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
 ];
-const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTORS = [
-  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}.scrollbar-stable`,
-  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>.scrollbar-stable`,
-];
+const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTOR =
+  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR} .min-h-0.flex-1.overflow-y-auto.pb-2`;
+const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_DECLARATIONS =
+  "margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;";
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -359,8 +359,8 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES = [
     "flex:0 0 auto!important;margin-top:0!important;",
   ),
   cssRule(
-    CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTORS,
-    "padding-right:0!important;",
+    CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTOR,
+    CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_DECLARATIONS,
   ),
 ];
 
