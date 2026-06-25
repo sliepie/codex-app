@@ -2751,16 +2751,16 @@ export function patchRecoveredOwlFeatureSwitchSource(source: string): OwlFeature
   }
 
   const requirePattern = new RegExp(
-    `let (${identifierPattern})=require\\([\`'"]electron[\`'"]\\)([,;])`,
+    `let (${identifierPattern})=require\\([\`'"]electron[\`'"]\\)([^;]*;)`,
   );
   const match = requirePattern.exec(source);
   if (!match?.[1] || !match[2]) {
     return null;
   }
 
-  const [, electronIdentifier, terminator] = match;
+  const [, electronIdentifier, declarationRest] = match;
   const replacement =
-    `let ${electronIdentifier}=require(\`electron\`)${terminator}` +
+    `let ${electronIdentifier}=require(\`electron\`)${declarationRest}` +
     `try{let __codexOwlFeatures="${enabledOwlFeaturesSwitchValue}",__codexExistingFeatures=${electronIdentifier}.app.commandLine.getSwitchValue("enable-features");` +
     `${electronIdentifier}.app.commandLine.appendSwitch("enable-features",__codexExistingFeatures?__codexExistingFeatures+","+__codexOwlFeatures:__codexOwlFeatures)}` +
     `catch{}` +
@@ -2804,12 +2804,12 @@ function patchRecoveredOwlFeatureSwitch(recoveredRoot: string): void {
 }
 
 export function patchRecoveredMessageRailStatsigGateSource(source: string): OwlFeatureBindingPatch | null {
-  if (!source.includes("ThreadUserMessageNavigationRail") || !source.includes(messageRailStatsigGate)) {
-    return null;
-  }
-
   if (source.includes(messageRailStatsigGateMarker)) {
     return { changed: false, source };
+  }
+
+  if (!source.includes("ThreadUserMessageNavigationRail") || !source.includes(messageRailStatsigGate)) {
+    return null;
   }
 
   const pattern = new RegExp(`${identifierPattern}\\(\\\`${messageRailStatsigGate}\\\`\\)`, "g");
