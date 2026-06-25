@@ -144,7 +144,7 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
 const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTOR =
   "nav:has(input[role='searchbox']) .min-h-0.flex-1.overflow-y-auto.pb-2";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_DECLARATIONS =
-  "margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;";
+  "margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;";
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
