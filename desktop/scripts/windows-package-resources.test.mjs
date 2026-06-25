@@ -1954,6 +1954,25 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
           element.attributes.has("data-codexpp-hidden-invite-friend"),
         );
       }
+      if (selector === "[data-codexpp-sidebar-show-more-button]") {
+        return descendants.filter((element) =>
+          element.attributes.has("data-codexpp-sidebar-show-more-button"),
+        );
+      }
+      if (
+        selector ===
+        `:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-section-heading="Projects"] [role='list']>[role='listitem']>button`
+      ) {
+        return descendants.filter(
+          (element) =>
+            element.tagName === "BUTTON" &&
+            element.parentElement?.getAttribute("role") === "listitem" &&
+            element.parentElement?.parentElement?.getAttribute("role") === "list" &&
+            element.parentElement?.parentElement?.parentElement?.getAttribute(
+              "data-app-action-sidebar-section-heading",
+            ) === "Projects",
+        );
+      }
 
       return [];
     }
@@ -1987,6 +2006,20 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   inviteFriendItem.textContent = "Invite a friend";
   profileMenu.append(profileItem, inviteFriendItem);
   documentElement.appendChild(profileMenu);
+  const sidebar = new FakeElement("aside");
+  const projectsSection = new FakeElement("div");
+  projectsSection.setAttribute("data-app-action-sidebar-section-heading", "Projects");
+  const projectsList = new FakeElement("div");
+  projectsList.setAttribute("role", "list");
+  const showMoreListItem = new FakeElement("div");
+  showMoreListItem.setAttribute("role", "listitem");
+  const showMoreButton = new FakeElement("button");
+  showMoreButton.textContent = "Show more";
+  showMoreListItem.appendChild(showMoreButton);
+  projectsList.appendChild(showMoreListItem);
+  projectsSection.appendChild(projectsList);
+  sidebar.appendChild(projectsSection);
+  documentElement.appendChild(sidebar);
 
   const findById = (root, id) => {
     if (root.id === id) {
@@ -2158,6 +2191,19 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.equal(inviteFriendItem.style.getPropertyValue("display"), "none");
     assert.equal(inviteFriendItem.style.getPropertyPriority("display"), "important");
+    assert.equal(
+      showMoreButton.getAttribute("data-codexpp-sidebar-show-more-button"),
+      "true",
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        "[data-codexpp-sidebar-show-more-button]{margin-left:1px!important;}",
+      ),
+    );
+    assert.doesNotMatch(
+      uiOverrideCss,
+      /role=['"]listitem['"][^{}]*class~=['"]py-1['"][^{}]*margin-left|text-token-description-foreground[^{}]*margin-left/,
+    );
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.group\/chats-section-header:is(:hover,:focus-within)>div:has(button:not([aria-hidden='true'])[aria-label])`,
@@ -2299,7 +2345,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.doesNotMatch(uiOverrideCss, /USAGE_MENU_RESET_ACTION_DECLARATIONS|1\.25rem \+ 4px/);
     assert.doesNotMatch(uiOverrideCss, /\.grid\.items-center\.gap-y-1\\\.5\.py-1\+\*/);
-    assert.doesNotMatch(uiOverrideCss, /left:-?1px/);
+    assert.doesNotMatch(uiOverrideCss, /(^|[;{])left:-?1px/);
     const uiCssRules = Array.from(uiOverrideCss.matchAll(/([^{}]+)\{([^{}]+)\}/g)).map(
       ([, selector, declarations]) => ({
         selector: selector.trim(),
@@ -2334,6 +2380,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     uiModule.exports.stop();
     assert.equal(observerDisconnectCount, 3);
     assert.equal(inviteFriendItem.getAttribute("data-codexpp-hidden-invite-friend"), null);
+    assert.equal(showMoreButton.getAttribute("data-codexpp-sidebar-show-more-button"), null);
     assert.equal(inviteFriendItem.style.getPropertyValue("display"), "");
     assert.equal(
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
