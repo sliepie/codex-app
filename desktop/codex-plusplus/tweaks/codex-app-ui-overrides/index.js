@@ -141,6 +141,10 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
 ];
+const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTORS = [
+  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}.scrollbar-stable`,
+  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>.scrollbar-stable`,
+];
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -353,6 +357,10 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES = [
   cssRule(
     '[data-codexpp="nav-group"],[data-codexpp="pages-group"]',
     "flex:0 0 auto!important;margin-top:0!important;",
+  ),
+  cssRule(
+    CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTORS,
+    "padding-right:0!important;",
   ),
 ];
 
