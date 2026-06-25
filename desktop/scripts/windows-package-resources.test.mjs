@@ -27,6 +27,8 @@ const {
   patchMarkdownOperationDirectiveCrashSource,
   pruneWorkLouderPackages,
   patchOwlFeatureBindingSource,
+  patchRecoveredMessageRailStatsigGateSource,
+  patchRecoveredOwlFeatureSwitchSource,
   pruneUnusedNativePayloads,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
@@ -2665,6 +2667,61 @@ test("Codex app hydration guards missing OWL Electron feature binding", () => {
   assert.doesNotMatch(patch.source, /throw Error\(`Owl feature binding is unavailable`\)/);
 
   const secondPatch = patchOwlFeatureBindingSource(patch.source);
+  assert.ok(secondPatch);
+  assert.equal(secondPatch.changed, false);
+});
+
+test("Codex app hydration enables all OWL Electron features", () => {
+  const source =
+    "let i=require(`electron`),a=`;`,r=/;/,f=function(){return/;/;},g=()=>/;/.test(x),p=require(`node:path`);i.app.commandLine;a=e.o(a);";
+
+  const patch = patchRecoveredOwlFeatureSwitchSource(source);
+
+  assert.ok(patch);
+  assert.equal(patch.changed, true);
+  assert.match(
+    patch.source,
+    /__codexExistingFeatures=i\.app\.commandLine\.getSwitchValue\("enable-features"\)/,
+  );
+  assert.match(
+    patch.source,
+    /i\.app\.commandLine\.appendSwitch\("enable-features",__codexExistingFeatures\?__codexExistingFeatures\+","\+__codexOwlFeatures:__codexOwlFeatures\)/,
+  );
+  assert.match(
+    patch.source,
+    /__codexOwlFeatures="OwlAutofillAndPasswords,OwlAuth,OwlDownloads,OwlExtensions,OwlOpenAIGoLinks,OwlPermissions,OwlPrinting,OwlWebViewEnhancements"/,
+  );
+  assert.match(
+    patch.source,
+    /let i=require\(`electron`\),a=`;`,r=\/;\/,f=function\(\)\{return\/;\/;\},g=\(\)=>\/;\/\.test\(x\),p=require\(`node:path`\);try\{/,
+  );
+  assert.doesNotMatch(patch.source, /,try\{/);
+  assert.doesNotMatch(patch.source, /a=`;try\{/);
+  assert.doesNotMatch(patch.source, /return\/;try\{/);
+  assert.doesNotMatch(patch.source, /=>\/;try\{/);
+  assert.match(patch.source, /Codex\+\+ enable Owl Electron features/);
+
+  const secondPatch = patchRecoveredOwlFeatureSwitchSource(patch.source);
+  assert.ok(secondPatch);
+  assert.equal(secondPatch.changed, false);
+});
+
+test("Codex app hydration enables the message rail Statsig gate", () => {
+  const source =
+    "var rail=async()=>{let{ThreadUserMessageNavigationRail:e}=await import(`./thread-user-message-navigation-rail.js`);return e};function Bo(){return Pt(\"2551582477\")&&At('2551582477')&&client.checkGate(`2551582477`)&&client . checkGate(`2551582477`)&&enabled}";
+
+  const patch = patchRecoveredMessageRailStatsigGateSource(source);
+
+  assert.ok(patch);
+  assert.equal(patch.changed, true);
+  assert.match(patch.source, /true\/\* Codex\+\+ enable message rail \*\//);
+  assert.doesNotMatch(patch.source, /Pt\("2551582477"\)/);
+  assert.doesNotMatch(patch.source, /At\('2551582477'\)/);
+  assert.match(patch.source, /client\.checkGate\(`2551582477`\)/);
+  assert.match(patch.source, /client \. checkGate\(`2551582477`\)/);
+  assert.doesNotMatch(patch.source, /client\.true/);
+
+  const secondPatch = patchRecoveredMessageRailStatsigGateSource(patch.source);
   assert.ok(secondPatch);
   assert.equal(secondPatch.changed, false);
 });

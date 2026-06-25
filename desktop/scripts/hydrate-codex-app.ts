@@ -2646,6 +2646,20 @@ type OwlFeatureBindingPatch = {
 };
 
 const owlFeatureBindingFallback = "{isOwlFeatureEnabled:()=>!1}";
+const enabledOwlFeatures = [
+  "OwlAutofillAndPasswords",
+  "OwlAuth",
+  "OwlDownloads",
+  "OwlExtensions",
+  "OwlOpenAIGoLinks",
+  "OwlPermissions",
+  "OwlPrinting",
+  "OwlWebViewEnhancements",
+];
+const enabledOwlFeaturesSwitchValue = enabledOwlFeatures.join(",");
+const enabledOwlFeaturesMarker = "Codex++ enable Owl Electron features";
+const messageRailStatsigGate = "2551582477";
+const messageRailStatsigGateMarker = "Codex++ enable message rail";
 
 export function patchOwlFeatureBindingSource(source: string): OwlFeatureBindingPatch | null {
   if (!source.includes("electron_common_owl_features")) {
@@ -2724,6 +2738,278 @@ function patchRecoveredOwlFeatureBinding(recoveredRoot: string): void {
 
   if (diagnostics.length > 0) {
     throw new Error("Could not patch OWL feature binding fallback. Checked: " + diagnostics.join(", "));
+  }
+}
+
+function findJavaScriptStatementEnd(source: string, startIndex: number): number {
+  let quote: string | null = null;
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+  let inRegex = false;
+  let regexCharacterClass = false;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+  let previousSignificantChar: string | null = null;
+
+  for (let index = startIndex; index < source.length; index++) {
+    const char = source[index];
+    const nextChar = source[index + 1];
+
+    if (inLineComment) {
+      if (char === "\n" || char === "\r") {
+        inLineComment = false;
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (char === "*" && nextChar === "/") {
+        inBlockComment = false;
+        index++;
+      }
+      continue;
+    }
+
+    if (inRegex) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === "[") {
+        regexCharacterClass = true;
+        continue;
+      }
+      if (char === "]") {
+        regexCharacterClass = false;
+        continue;
+      }
+      if (char === "/" && !regexCharacterClass) {
+        inRegex = false;
+        while (/[A-Za-z]/.test(source[index + 1] ?? "")) {
+          index++;
+        }
+      }
+      continue;
+    }
+
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "/" && nextChar === "/") {
+      inLineComment = true;
+      index++;
+      continue;
+    }
+    if (char === "/" && nextChar === "*") {
+      inBlockComment = true;
+      index++;
+      continue;
+    }
+    if (
+      char === "/" &&
+      previousSignificantChar !== null &&
+      (/[=(:,!&|?{}\[]/.test(previousSignificantChar) || followsArrowToken(source, index))
+    ) {
+      inRegex = true;
+      continue;
+    }
+    if (char === "'" || char === '"' || char === "`") {
+      quote = char;
+      continue;
+    }
+    if (char === "(") {
+      parenDepth++;
+    } else if (char === ")") {
+      parenDepth = Math.max(0, parenDepth - 1);
+    } else if (char === "[") {
+      bracketDepth++;
+    } else if (char === "]") {
+      bracketDepth = Math.max(0, bracketDepth - 1);
+    } else if (char === "{") {
+      braceDepth++;
+    } else if (char === "}") {
+      braceDepth = Math.max(0, braceDepth - 1);
+    } else if (char === ";" && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+      return index;
+    }
+
+    if (!/\s/.test(char)) {
+      previousSignificantChar = char;
+    }
+  }
+
+  return -1;
+}
+
+function followsArrowToken(source: string, index: number): boolean {
+  let previousIndex = index - 1;
+  while (previousIndex >= 0 && /\s/.test(source[previousIndex] ?? "")) {
+    previousIndex--;
+  }
+
+  return source[previousIndex] === ">" && source[previousIndex - 1] === "=";
+}
+
+function isBareJavaScriptCall(source: string, startIndex: number): boolean {
+  for (let index = startIndex - 1; index >= 0; index--) {
+    const char = source[index];
+    if (/\s/.test(char)) {
+      continue;
+    }
+    if (/[\w$]/.test(char)) {
+      let tokenStart = index;
+      while (tokenStart > 0 && /[\w$]/.test(source[tokenStart - 1] ?? "")) {
+        tokenStart--;
+      }
+      return ["return", "throw", "yield", "await", "typeof", "void", "delete", "case"].includes(
+        source.slice(tokenStart, index + 1),
+      );
+    }
+    return char !== "." && char !== "?" && !/[\w$]/.test(char);
+  }
+
+  return true;
+}
+
+export function patchRecoveredOwlFeatureSwitchSource(source: string): OwlFeatureBindingPatch | null {
+  if (!source.includes("electron") || !source.includes("app")) {
+    return null;
+  }
+
+  if (source.includes(enabledOwlFeaturesMarker)) {
+    return { changed: false, source };
+  }
+
+  const requirePattern = new RegExp(
+    `let (${identifierPattern})=require\\([\`'"]electron[\`'"]\\)`,
+  );
+  const match = requirePattern.exec(source);
+  if (!match?.[1]) {
+    return null;
+  }
+
+  const declarationEnd = findJavaScriptStatementEnd(source, match.index + match[0].length);
+  if (declarationEnd < 0) {
+    return null;
+  }
+
+  const [, electronIdentifier] = match;
+  const declaration = source.slice(match.index, declarationEnd + 1);
+  const replacement =
+    declaration +
+    `try{let __codexOwlFeatures="${enabledOwlFeaturesSwitchValue}",__codexExistingFeatures=${electronIdentifier}.app.commandLine.getSwitchValue("enable-features");` +
+    `${electronIdentifier}.app.commandLine.appendSwitch("enable-features",__codexExistingFeatures?__codexExistingFeatures+","+__codexOwlFeatures:__codexOwlFeatures)}` +
+    `catch{}` +
+    `/* ${enabledOwlFeaturesMarker} */`;
+
+  return {
+    changed: true,
+    source: source.slice(0, match.index) + replacement + source.slice(declarationEnd + 1),
+  };
+}
+
+function patchRecoveredOwlFeatureSwitch(recoveredRoot: string): void {
+  const candidates = [readRecoveredOriginalMain(recoveredRoot), ...findRecoveredViteMainBundles(recoveredRoot)];
+  const seen = new Set<string>();
+  const diagnostics: string[] = [];
+
+  for (const relativePath of candidates) {
+    const normalized = relativePath.replace(/\\/g, "/").replace(/^\.\//, "");
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+
+    const filePath = path.join(recoveredRoot, normalized);
+    if (!fs.existsSync(filePath)) continue;
+
+    const source = fs.readFileSync(filePath, "utf8");
+    const patch = patchRecoveredOwlFeatureSwitchSource(source);
+    if (!patch) {
+      diagnostics.push(normalized);
+      continue;
+    }
+
+    if (patch.changed) {
+      fs.writeFileSync(filePath, patch.source, "utf8");
+    }
+
+    console.log("Patched OWL feature enable switch in " + normalized);
+    return;
+  }
+
+  throw new Error("Could not patch OWL feature enable switch. Checked: " + diagnostics.join(", "));
+}
+
+export function patchRecoveredMessageRailStatsigGateSource(source: string): OwlFeatureBindingPatch | null {
+  if (source.includes(messageRailStatsigGateMarker)) {
+    return { changed: false, source };
+  }
+
+  if (!source.includes("ThreadUserMessageNavigationRail") || !source.includes(messageRailStatsigGate)) {
+    return null;
+  }
+
+  const pattern = new RegExp(`${identifierPattern}\\([\\\`'"]${messageRailStatsigGate}[\\\`'"]\\)`, "g");
+  if (!pattern.test(source)) {
+    return null;
+  }
+
+  pattern.lastIndex = 0;
+  const patchedSource = source.replace(pattern, (match, offset: number) =>
+    isBareJavaScriptCall(source, offset) ? `true/* ${messageRailStatsigGateMarker} */` : match,
+  );
+  if (patchedSource === source) {
+    return null;
+  }
+
+  return {
+    changed: true,
+    source: patchedSource + (source.endsWith("\n") ? "" : "\n"),
+  };
+}
+
+function patchRecoveredMessageRailStatsigGate(recoveredRoot: string): void {
+  const diagnostics: string[] = [];
+  for (const filePath of findRecoveredJavaScriptFiles(recoveredRoot)) {
+    const source = fs.readFileSync(filePath, "utf8");
+    const patch = patchRecoveredMessageRailStatsigGateSource(source);
+    if (!patch) {
+      if (source.includes("ThreadUserMessageNavigationRail") || source.includes(messageRailStatsigGate)) {
+        diagnostics.push(path.relative(recoveredRoot, filePath).replace(/\\/g, "/"));
+      }
+      continue;
+    }
+
+    if (patch.changed) {
+      fs.writeFileSync(filePath, patch.source, "utf8");
+    }
+
+    console.log(
+      "Patched message rail Statsig gate in " +
+        path.relative(recoveredRoot, filePath).replace(/\\/g, "/"),
+    );
+    return;
+  }
+
+  if (diagnostics.length > 0) {
+    throw new Error("Could not patch message rail Statsig gate. Checked: " + diagnostics.join(", "));
   }
 }
 
@@ -2967,6 +3253,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   );
   patchWindowsSelfSignedBundle(recoveredRoot);
   patchRecoveredOwlFeatureBinding(recoveredRoot);
+  patchRecoveredOwlFeatureSwitch(recoveredRoot);
+  patchRecoveredMessageRailStatsigGate(recoveredRoot);
   patchRecoveredCodexWindowServices(recoveredRoot);
   patchRecoveredCodexMicroService(recoveredRoot);
   pruneWorkLouderPackages(recoveredRoot);
