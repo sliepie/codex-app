@@ -121,11 +121,7 @@ const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
 const USAGE_MENU_RESET_ACTION_SELECTOR =
   `${USAGE_MENU_RATE_ROWS_SELECTOR}~:is(div,button,[role='menuitem']):not(a[href]):has(svg)`;
 const INVITE_FRIEND_MENU_ITEM_SELECTOR =
-  ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])";
-const INVITE_FRIEND_MENU_ITEM_TEXT = "Invite a friend";
-const HIDDEN_INVITE_FRIEND_MENU_ITEM_ATTRIBUTE = "data-codexpp-hidden-invite-friend";
-const SIDEBAR_SHOW_MORE_BUTTON_TEXTS = new Set(["Show more", "Show less"]);
-const SIDEBAR_SHOW_MORE_BUTTON_ATTRIBUTE = "data-codexpp-sidebar-show-more-button";
+  ":where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.0368 1.69459'])";
 const SIDEBAR_TRIGGER_SELECTOR =
   '[style*="view-transition-name: sidebar-trigger"]';
 const SIDEBAR_TRIGGER_DECLARATIONS = "transform:translateX(2px);";
@@ -133,7 +129,7 @@ const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
 const SIDEBAR_SHOW_MORE_BUTTON_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading="Projects"] [role='list']>[role='listitem']>button`;
-const SIDEBAR_SHOW_MORE_BUTTON_DECLARATIONS = "margin-left:1px!important;";
+const SIDEBAR_SHOW_MORE_BUTTON_DECLARATIONS = "margin-left:-1px!important;";
 const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
   `${SIDEBAR_ROOT_SELECTOR} :is(a,button,[role='button'])[aria-label*='codex mobile' i]`,
   `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"])`,
@@ -145,8 +141,6 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
 ];
-let dynamicUiObserver = null;
-
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -181,6 +175,7 @@ const BASE_STYLE_RULES = [
   cssRule(".group\\/application-menu-top-bar", "margin-inline-start:0.5rem;"),
   cssRule(SIDEBAR_TRIGGER_SELECTOR, SIDEBAR_TRIGGER_DECLARATIONS),
   cssRule(CODEX_MOBILE_NAV_ITEM_SELECTORS, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(INVITE_FRIEND_MENU_ITEM_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
 ];
 
 const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
@@ -367,7 +362,7 @@ const SIDEBAR_FOOTER_STYLE_RULES = [
     "margin-right:1px!important;",
   ),
   cssRule(
-    `[${SIDEBAR_SHOW_MORE_BUTTON_ATTRIBUTE}]`,
+    SIDEBAR_SHOW_MORE_BUTTON_SELECTOR,
     SIDEBAR_SHOW_MORE_BUTTON_DECLARATIONS,
   ),
 ];
@@ -414,83 +409,12 @@ function installStyle() {
   document.head.appendChild(style);
 }
 
-function normalizeMenuItemText(element) {
-  return (element.textContent ?? "").replace(/\s+/g, " ").trim();
-}
-
-function hideInviteFriendMenuItems() {
-  for (const item of document.querySelectorAll(INVITE_FRIEND_MENU_ITEM_SELECTOR)) {
-    if (normalizeMenuItemText(item) !== INVITE_FRIEND_MENU_ITEM_TEXT) {
-      continue;
-    }
-
-    item.setAttribute(HIDDEN_INVITE_FRIEND_MENU_ITEM_ATTRIBUTE, "true");
-    item.style.setProperty("display", "none", "important");
-  }
-}
-
-function annotateSidebarShowMoreButtons() {
-  const matchedButtons = new Set();
-  for (const button of document.querySelectorAll(SIDEBAR_SHOW_MORE_BUTTON_SELECTOR)) {
-    if (!SIDEBAR_SHOW_MORE_BUTTON_TEXTS.has(normalizeMenuItemText(button))) {
-      continue;
-    }
-
-    button.setAttribute(SIDEBAR_SHOW_MORE_BUTTON_ATTRIBUTE, "true");
-    matchedButtons.add(button);
-  }
-
-  for (const button of document.querySelectorAll(`[${SIDEBAR_SHOW_MORE_BUTTON_ATTRIBUTE}]`)) {
-    if (!matchedButtons.has(button)) {
-      button.removeAttribute(SIDEBAR_SHOW_MORE_BUTTON_ATTRIBUTE);
-    }
-  }
-}
-
-function restoreSidebarShowMoreButtons() {
-  for (const button of document.querySelectorAll(`[${SIDEBAR_SHOW_MORE_BUTTON_ATTRIBUTE}]`)) {
-    button.removeAttribute(SIDEBAR_SHOW_MORE_BUTTON_ATTRIBUTE);
-  }
-}
-
-function restoreInviteFriendMenuItems() {
-  for (const item of document.querySelectorAll(`[${HIDDEN_INVITE_FRIEND_MENU_ITEM_ATTRIBUTE}]`)) {
-    item.style.removeProperty("display");
-    item.removeAttribute(HIDDEN_INVITE_FRIEND_MENU_ITEM_ATTRIBUTE);
-  }
-}
-
-function syncDynamicUiElements() {
-  hideInviteFriendMenuItems();
-  annotateSidebarShowMoreButtons();
-}
-
-function installDynamicUiObserver() {
-  syncDynamicUiElements();
-
-  if (dynamicUiObserver) {
-    return;
-  }
-
-  dynamicUiObserver = new MutationObserver(syncDynamicUiElements);
-  dynamicUiObserver.observe(document.documentElement, { childList: true, subtree: true });
-}
-
-function removeDynamicUiObserver() {
-  dynamicUiObserver?.disconnect();
-  dynamicUiObserver = null;
-  restoreInviteFriendMenuItems();
-  restoreSidebarShowMoreButtons();
-}
-
 module.exports = {
   start() {
     installStyle();
-    installDynamicUiObserver();
   },
 
   stop() {
-    removeDynamicUiObserver();
     document.getElementById(STYLE_ID)?.remove();
   },
 };
