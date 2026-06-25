@@ -2673,7 +2673,7 @@ test("Codex app hydration guards missing OWL Electron feature binding", () => {
 
 test("Codex app hydration enables all OWL Electron features", () => {
   const source =
-    "let i=require(`electron`),a=`;`,r=/;/,f=function(){return/;/;},p=require(`node:path`);i.app.commandLine;a=e.o(a);";
+    "let i=require(`electron`),a=`;`,r=/;/,f=function(){return/;/;},g=()=>/;/.test(x),p=require(`node:path`);i.app.commandLine;a=e.o(a);";
 
   const patch = patchRecoveredOwlFeatureSwitchSource(source);
 
@@ -2693,11 +2693,12 @@ test("Codex app hydration enables all OWL Electron features", () => {
   );
   assert.match(
     patch.source,
-    /let i=require\(`electron`\),a=`;`,r=\/;\/,f=function\(\)\{return\/;\/;\},p=require\(`node:path`\);try\{/,
+    /let i=require\(`electron`\),a=`;`,r=\/;\/,f=function\(\)\{return\/;\/;\},g=\(\)=>\/;\/\.test\(x\),p=require\(`node:path`\);try\{/,
   );
   assert.doesNotMatch(patch.source, /,try\{/);
   assert.doesNotMatch(patch.source, /a=`;try\{/);
   assert.doesNotMatch(patch.source, /return\/;try\{/);
+  assert.doesNotMatch(patch.source, /=>\/;try\{/);
   assert.match(patch.source, /Codex\+\+ enable Owl Electron features/);
 
   const secondPatch = patchRecoveredOwlFeatureSwitchSource(patch.source);

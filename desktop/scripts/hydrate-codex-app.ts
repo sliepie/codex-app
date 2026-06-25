@@ -2826,7 +2826,7 @@ function findJavaScriptStatementEnd(source: string, startIndex: number): number 
     if (
       char === "/" &&
       previousSignificantChar !== null &&
-      /[=(:,!&|?{}\[]/.test(previousSignificantChar)
+      (/[=(:,!&|?{}\[]/.test(previousSignificantChar) || followsArrowToken(source, index))
     ) {
       inRegex = true;
       continue;
@@ -2857,6 +2857,15 @@ function findJavaScriptStatementEnd(source: string, startIndex: number): number 
   }
 
   return -1;
+}
+
+function followsArrowToken(source: string, index: number): boolean {
+  let previousIndex = index - 1;
+  while (previousIndex >= 0 && /\s/.test(source[previousIndex] ?? "")) {
+    previousIndex--;
+  }
+
+  return source[previousIndex] === ">" && source[previousIndex - 1] === "=";
 }
 
 function isBareJavaScriptCall(source: string, startIndex: number): boolean {
