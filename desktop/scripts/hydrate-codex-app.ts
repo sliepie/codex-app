@@ -2741,6 +2741,68 @@ function patchRecoveredOwlFeatureBinding(recoveredRoot: string): void {
   }
 }
 
+function findJavaScriptStatementEnd(source: string, startIndex: number): number {
+  let quote: string | null = null;
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let index = startIndex; index < source.length; index++) {
+    const char = source[index];
+    const nextChar = source[index + 1];
+
+    if (inLineComment) {
+      if (char === "\n" || char === "\r") {
+        inLineComment = false;
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (char === "*" && nextChar === "/") {
+        inBlockComment = false;
+        index++;
+      }
+      continue;
+    }
+
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "/" && nextChar === "/") {
+      inLineComment = true;
+      index++;
+      continue;
+    }
+    if (char === "/" && nextChar === "*") {
+      inBlockComment = true;
+      index++;
+      continue;
+    }
+    if (char === "'" || char === '"' || char === "`") {
+      quote = char;
+      continue;
+    }
+    if (char === ";") {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
 export function patchRecoveredOwlFeatureSwitchSource(source: string): OwlFeatureBindingPatch | null {
   if (!source.includes("electron") || !source.includes("app")) {
     return null;
@@ -2751,16 +2813,22 @@ export function patchRecoveredOwlFeatureSwitchSource(source: string): OwlFeature
   }
 
   const requirePattern = new RegExp(
-    `let (${identifierPattern})=require\\([\`'"]electron[\`'"]\\)([^;]*;)`,
+    `let (${identifierPattern})=require\\([\`'"]electron[\`'"]\\)`,
   );
   const match = requirePattern.exec(source);
-  if (!match?.[1] || !match[2]) {
+  if (!match?.[1]) {
     return null;
   }
 
-  const [, electronIdentifier, declarationRest] = match;
+  const declarationEnd = findJavaScriptStatementEnd(source, match.index + match[0].length);
+  if (declarationEnd < 0) {
+    return null;
+  }
+
+  const [, electronIdentifier] = match;
+  const declaration = source.slice(match.index, declarationEnd + 1);
   const replacement =
-    `let ${electronIdentifier}=require(\`electron\`)${declarationRest}` +
+    declaration +
     `try{let __codexOwlFeatures="${enabledOwlFeaturesSwitchValue}",__codexExistingFeatures=${electronIdentifier}.app.commandLine.getSwitchValue("enable-features");` +
     `${electronIdentifier}.app.commandLine.appendSwitch("enable-features",__codexExistingFeatures?__codexExistingFeatures+","+__codexOwlFeatures:__codexOwlFeatures)}` +
     `catch{}` +
@@ -2768,7 +2836,7 @@ export function patchRecoveredOwlFeatureSwitchSource(source: string): OwlFeature
 
   return {
     changed: true,
-    source: source.replace(requirePattern, replacement),
+    source: source.slice(0, match.index) + replacement + source.slice(declarationEnd + 1),
   };
 }
 

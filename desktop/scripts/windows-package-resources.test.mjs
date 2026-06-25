@@ -2672,7 +2672,8 @@ test("Codex app hydration guards missing OWL Electron feature binding", () => {
 });
 
 test("Codex app hydration enables all OWL Electron features", () => {
-  const source = "let i=require(`electron`),a=require(`node:path`);i.app.commandLine;a=e.o(a);";
+  const source =
+    "let i=require(`electron`),a=`;`,p=require(`node:path`);i.app.commandLine;a=e.o(a);";
 
   const patch = patchRecoveredOwlFeatureSwitchSource(source);
 
@@ -2690,8 +2691,9 @@ test("Codex app hydration enables all OWL Electron features", () => {
     patch.source,
     /__codexOwlFeatures="OwlAutofillAndPasswords,OwlAuth,OwlDownloads,OwlExtensions,OwlOpenAIGoLinks,OwlPermissions,OwlPrinting,OwlWebViewEnhancements"/,
   );
-  assert.match(patch.source, /let i=require\(`electron`\),a=require\(`node:path`\);try\{/);
+  assert.match(patch.source, /let i=require\(`electron`\),a=`;`,p=require\(`node:path`\);try\{/);
   assert.doesNotMatch(patch.source, /,try\{/);
+  assert.doesNotMatch(patch.source, /a=`;try\{/);
   assert.match(patch.source, /Codex\+\+ enable Owl Electron features/);
 
   const secondPatch = patchRecoveredOwlFeatureSwitchSource(patch.source);
