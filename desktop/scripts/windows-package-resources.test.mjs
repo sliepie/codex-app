@@ -1937,23 +1937,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
           element.attributes.has("data-codex-app-ui-menu-bar-toggle-thumb"),
         );
       }
-      if (
-        selector ===
-        ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])"
-      ) {
-        return descendants.filter(
-          (element) =>
-            element.tagName === "A" ||
-            element.tagName === "BUTTON" ||
-            element.getAttribute("role") === "menuitem" ||
-            element.getAttribute("role") === "button",
-        );
-      }
-      if (selector === "[data-codexpp-hidden-invite-friend]") {
-        return descendants.filter((element) =>
-          element.attributes.has("data-codexpp-hidden-invite-friend"),
-        );
-      }
       return [];
     }
   }
@@ -1976,17 +1959,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   reduceMotionRow.textContent = "Reduce motion";
   settingsSurface.append(themeRow, pointerRow, reduceMotionRow);
   documentElement.appendChild(settingsSurface);
-  const profileMenu = new FakeElement("div");
-  profileMenu.setAttribute("role", "menu");
-  const profileItem = new FakeElement("div");
-  profileItem.setAttribute("role", "menuitem");
-  profileItem.textContent = "Profile";
-  const inviteFriendItem = new FakeElement("div");
-  inviteFriendItem.setAttribute("role", "menuitem");
-  inviteFriendItem.textContent = "Invite a friend";
-  profileMenu.append(profileItem, inviteFriendItem);
-  documentElement.appendChild(profileMenu);
-
   const findById = (root, id) => {
     if (root.id === id) {
       return root;
@@ -2061,8 +2033,8 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
       "true",
     );
-    assert.equal(observerCallbacks.length, 2);
-    const menuBarObserverCallback = observerCallbacks[1];
+    assert.equal(observerCallbacks.length, 1);
+    const menuBarObserverCallback = observerCallbacks[0];
     assert.equal(typeof menuBarObserverCallback, "function");
     assert.equal(appendedStyles.length, 2);
     assert.equal(appendedStyles[0].id, "codex-app-ui-overrides-style");
@@ -2151,18 +2123,17 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       ).length,
       1,
     );
-    assert.equal(
-      inviteFriendItem.getAttribute("data-codexpp-hidden-invite-friend"),
-      "true",
-    );
-    assert.equal(inviteFriendItem.style.getPropertyValue("display"), "none");
-    assert.equal(inviteFriendItem.style.getPropertyPriority("display"), "important");
     assert.ok(
       uiOverrideCss.includes(
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-section-heading="Projects"] [role='list']>[role='listitem']>button{margin-left:-1px!important;}`,
       ),
     );
-    assert.doesNotMatch(uiSource, /data-codexpp-sidebar-show-more-button|annotateSidebarShowMore/);
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.0368 1.69459']){display:none!important;}`,
+      ),
+    );
+    assert.doesNotMatch(uiSource, /data-codexpp-sidebar-show-more-button|annotateSidebarShowMore|MutationObserver|data-codexpp-hidden-invite-friend/);
     assert.doesNotMatch(
       uiOverrideCss,
       /role=['"]listitem['"][^{}]*class~=['"]py-1['"][^{}]*margin-left|text-token-description-foreground[^{}]*margin-left/,
@@ -2300,7 +2271,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is(a,button,[role='button'])[aria-label*='codex mobile' i],:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"]),:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V10.8477"]){display:none!important;}`,
       ),
     );
-    assert.doesNotMatch(uiOverrideCss, /aria-label\*='invite'|title\*='invite'|href\*='referral'/);
+    assert.doesNotMatch(uiOverrideCss, /aria-label\*='invite'|title\*='invite'|href\*='referral'|Invite a friend/);
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1,.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1~:is(div,button,[role='menuitem']):not(a[href]):has(svg){padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
@@ -2341,9 +2312,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
 
     menuModule.exports.stop();
     uiModule.exports.stop();
-    assert.equal(observerDisconnectCount, 3);
-    assert.equal(inviteFriendItem.getAttribute("data-codexpp-hidden-invite-friend"), null);
-    assert.equal(inviteFriendItem.style.getPropertyValue("display"), "");
+    assert.equal(observerDisconnectCount, 2);
     assert.equal(
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
       null,

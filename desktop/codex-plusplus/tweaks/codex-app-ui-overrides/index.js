@@ -121,9 +121,7 @@ const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
 const USAGE_MENU_RESET_ACTION_SELECTOR =
   `${USAGE_MENU_RATE_ROWS_SELECTOR}~:is(div,button,[role='menuitem']):not(a[href]):has(svg)`;
 const INVITE_FRIEND_MENU_ITEM_SELECTOR =
-  ":where([role='menu'],[data-radix-popper-content-wrapper]) :is(a,button,[role='menuitem'],[role='button'])";
-const INVITE_FRIEND_MENU_ITEM_TEXT = "Invite a friend";
-const HIDDEN_INVITE_FRIEND_MENU_ITEM_ATTRIBUTE = "data-codexpp-hidden-invite-friend";
+  ":where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.0368 1.69459'])";
 const SIDEBAR_TRIGGER_SELECTOR =
   '[style*="view-transition-name: sidebar-trigger"]';
 const SIDEBAR_TRIGGER_DECLARATIONS = "transform:translateX(2px);";
@@ -143,8 +141,6 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
 ];
-let dynamicUiObserver = null;
-
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -179,6 +175,7 @@ const BASE_STYLE_RULES = [
   cssRule(".group\\/application-menu-top-bar", "margin-inline-start:0.5rem;"),
   cssRule(SIDEBAR_TRIGGER_SELECTOR, SIDEBAR_TRIGGER_DECLARATIONS),
   cssRule(CODEX_MOBILE_NAV_ITEM_SELECTORS, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(INVITE_FRIEND_MENU_ITEM_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
 ];
 
 const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
@@ -412,58 +409,12 @@ function installStyle() {
   document.head.appendChild(style);
 }
 
-function normalizeMenuItemText(element) {
-  return (element.textContent ?? "").replace(/\s+/g, " ").trim();
-}
-
-function hideInviteFriendMenuItems() {
-  for (const item of document.querySelectorAll(INVITE_FRIEND_MENU_ITEM_SELECTOR)) {
-    if (normalizeMenuItemText(item) !== INVITE_FRIEND_MENU_ITEM_TEXT) {
-      continue;
-    }
-
-    item.setAttribute(HIDDEN_INVITE_FRIEND_MENU_ITEM_ATTRIBUTE, "true");
-    item.style.setProperty("display", "none", "important");
-  }
-}
-
-
-function restoreInviteFriendMenuItems() {
-  for (const item of document.querySelectorAll(`[${HIDDEN_INVITE_FRIEND_MENU_ITEM_ATTRIBUTE}]`)) {
-    item.style.removeProperty("display");
-    item.removeAttribute(HIDDEN_INVITE_FRIEND_MENU_ITEM_ATTRIBUTE);
-  }
-}
-
-function syncDynamicUiElements() {
-  hideInviteFriendMenuItems();
-}
-
-function installDynamicUiObserver() {
-  syncDynamicUiElements();
-
-  if (dynamicUiObserver) {
-    return;
-  }
-
-  dynamicUiObserver = new MutationObserver(syncDynamicUiElements);
-  dynamicUiObserver.observe(document.documentElement, { childList: true, subtree: true });
-}
-
-function removeDynamicUiObserver() {
-  dynamicUiObserver?.disconnect();
-  dynamicUiObserver = null;
-  restoreInviteFriendMenuItems();
-}
-
 module.exports = {
   start() {
     installStyle();
-    installDynamicUiObserver();
   },
 
   stop() {
-    removeDynamicUiObserver();
     document.getElementById(STYLE_ID)?.remove();
   },
 };
