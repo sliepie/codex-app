@@ -336,6 +336,10 @@ const IMAGE_PREVIEW_STYLE_RULES = [
 
 const SETTINGS_STYLE_RULES = [
   cssRule(
+    "body:has(nav input[role='searchbox']) .app-header-tint.draggable.h-toolbar",
+    "display:none!important;",
+  ),
+  cssRule(
     ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*))",
     "display:none!important;",
   ),
