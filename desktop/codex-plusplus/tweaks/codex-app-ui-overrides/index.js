@@ -336,6 +336,10 @@ const IMAGE_PREVIEW_STYLE_RULES = [
 
 const SETTINGS_STYLE_RULES = [
   cssRule(
+    ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*))",
+    "display:none!important;",
+  ),
+  cssRule(
     ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*))+.scrollbar-stable.flex-1.overflow-y-auto.p-panel",
     "padding-top:0.5rem!important;padding-bottom:4rem!important;",
   ),
