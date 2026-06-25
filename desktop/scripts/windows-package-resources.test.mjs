@@ -2673,7 +2673,7 @@ test("Codex app hydration guards missing OWL Electron feature binding", () => {
 
 test("Codex app hydration enables all OWL Electron features", () => {
   const source =
-    "let i=require(`electron`),a=`;`,p=require(`node:path`);i.app.commandLine;a=e.o(a);";
+    "let i=require(`electron`),a=`;`,r=/;/,f=function(){return/;/;},p=require(`node:path`);i.app.commandLine;a=e.o(a);";
 
   const patch = patchRecoveredOwlFeatureSwitchSource(source);
 
@@ -2691,9 +2691,13 @@ test("Codex app hydration enables all OWL Electron features", () => {
     patch.source,
     /__codexOwlFeatures="OwlAutofillAndPasswords,OwlAuth,OwlDownloads,OwlExtensions,OwlOpenAIGoLinks,OwlPermissions,OwlPrinting,OwlWebViewEnhancements"/,
   );
-  assert.match(patch.source, /let i=require\(`electron`\),a=`;`,p=require\(`node:path`\);try\{/);
+  assert.match(
+    patch.source,
+    /let i=require\(`electron`\),a=`;`,r=\/;\/,f=function\(\)\{return\/;\/;\},p=require\(`node:path`\);try\{/,
+  );
   assert.doesNotMatch(patch.source, /,try\{/);
   assert.doesNotMatch(patch.source, /a=`;try\{/);
+  assert.doesNotMatch(patch.source, /return\/;try\{/);
   assert.match(patch.source, /Codex\+\+ enable Owl Electron features/);
 
   const secondPatch = patchRecoveredOwlFeatureSwitchSource(patch.source);
@@ -2703,7 +2707,7 @@ test("Codex app hydration enables all OWL Electron features", () => {
 
 test("Codex app hydration enables the message rail Statsig gate", () => {
   const source =
-    "var rail=async()=>{let{ThreadUserMessageNavigationRail:e}=await import(`./thread-user-message-navigation-rail.js`);return e};function Bo(){let c=Pt(`2551582477`)&&enabled;return c}";
+    "var rail=async()=>{let{ThreadUserMessageNavigationRail:e}=await import(`./thread-user-message-navigation-rail.js`);return e};function Bo(){let c=Pt(`2551582477`)&&client.checkGate(`2551582477`)&&client . checkGate(`2551582477`)&&enabled;return c}";
 
   const patch = patchRecoveredMessageRailStatsigGateSource(source);
 
@@ -2711,6 +2715,9 @@ test("Codex app hydration enables the message rail Statsig gate", () => {
   assert.equal(patch.changed, true);
   assert.match(patch.source, /true\/\* Codex\+\+ enable message rail \*\//);
   assert.doesNotMatch(patch.source, /Pt\(`2551582477`\)/);
+  assert.match(patch.source, /client\.checkGate\(`2551582477`\)/);
+  assert.match(patch.source, /client \. checkGate\(`2551582477`\)/);
+  assert.doesNotMatch(patch.source, /client\.true/);
 
   const secondPatch = patchRecoveredMessageRailStatsigGateSource(patch.source);
   assert.ok(secondPatch);

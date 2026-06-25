@@ -2746,6 +2746,12 @@ function findJavaScriptStatementEnd(source: string, startIndex: number): number 
   let escaped = false;
   let inLineComment = false;
   let inBlockComment = false;
+  let inRegex = false;
+  let regexCharacterClass = false;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+  let previousSignificantChar: string | null = null;
 
   for (let index = startIndex; index < source.length; index++) {
     const char = source[index];
@@ -2762,6 +2768,32 @@ function findJavaScriptStatementEnd(source: string, startIndex: number): number 
       if (char === "*" && nextChar === "/") {
         inBlockComment = false;
         index++;
+      }
+      continue;
+    }
+
+    if (inRegex) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === "[") {
+        regexCharacterClass = true;
+        continue;
+      }
+      if (char === "]") {
+        regexCharacterClass = false;
+        continue;
+      }
+      if (char === "/" && !regexCharacterClass) {
+        inRegex = false;
+        while (/[A-Za-z]/.test(source[index + 1] ?? "")) {
+          index++;
+        }
       }
       continue;
     }
@@ -2791,16 +2823,52 @@ function findJavaScriptStatementEnd(source: string, startIndex: number): number 
       index++;
       continue;
     }
+    if (
+      char === "/" &&
+      previousSignificantChar !== null &&
+      /[=(:,!&|?{}\[]/.test(previousSignificantChar)
+    ) {
+      inRegex = true;
+      continue;
+    }
     if (char === "'" || char === '"' || char === "`") {
       quote = char;
       continue;
     }
-    if (char === ";") {
+    if (char === "(") {
+      parenDepth++;
+    } else if (char === ")") {
+      parenDepth = Math.max(0, parenDepth - 1);
+    } else if (char === "[") {
+      bracketDepth++;
+    } else if (char === "]") {
+      bracketDepth = Math.max(0, bracketDepth - 1);
+    } else if (char === "{") {
+      braceDepth++;
+    } else if (char === "}") {
+      braceDepth = Math.max(0, braceDepth - 1);
+    } else if (char === ";" && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
       return index;
+    }
+
+    if (!/\s/.test(char)) {
+      previousSignificantChar = char;
     }
   }
 
   return -1;
+}
+
+function isBareJavaScriptCall(source: string, startIndex: number): boolean {
+  for (let index = startIndex - 1; index >= 0; index--) {
+    const char = source[index];
+    if (/\s/.test(char)) {
+      continue;
+    }
+    return char !== "." && char !== "?" && !/[\w$]/.test(char);
+  }
+
+  return true;
 }
 
 export function patchRecoveredOwlFeatureSwitchSource(source: string): OwlFeatureBindingPatch | null {
@@ -2885,11 +2953,17 @@ export function patchRecoveredMessageRailStatsigGateSource(source: string): OwlF
     return null;
   }
 
+  pattern.lastIndex = 0;
+  const patchedSource = source.replace(pattern, (match, offset: number) =>
+    isBareJavaScriptCall(source, offset) ? `true/* ${messageRailStatsigGateMarker} */` : match,
+  );
+  if (patchedSource === source) {
+    return null;
+  }
+
   return {
     changed: true,
-    source:
-      source.replace(pattern, `true/* ${messageRailStatsigGateMarker} */`) +
-      (source.endsWith("\n") ? "" : "\n"),
+    source: patchedSource + (source.endsWith("\n") ? "" : "\n"),
   };
 }
 
