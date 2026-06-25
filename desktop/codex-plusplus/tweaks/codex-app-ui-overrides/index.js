@@ -142,7 +142,7 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
 ];
 const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTOR =
-  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR} .min-h-0.flex-1.overflow-y-auto.pb-2`;
+  "nav:has(input[role='searchbox']) .min-h-0.flex-1.overflow-y-auto.pb-2";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_DECLARATIONS =
   "margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;";
 function cssRule(selectors, declarations) {
