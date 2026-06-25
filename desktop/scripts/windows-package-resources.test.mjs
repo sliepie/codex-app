@@ -27,6 +27,7 @@ const {
   patchMarkdownOperationDirectiveCrashSource,
   pruneWorkLouderPackages,
   patchOwlFeatureBindingSource,
+  patchRecoveredOwlFeatureSwitchSource,
   pruneUnusedNativePayloads,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
@@ -2665,6 +2666,32 @@ test("Codex app hydration guards missing OWL Electron feature binding", () => {
   assert.doesNotMatch(patch.source, /throw Error\(`Owl feature binding is unavailable`\)/);
 
   const secondPatch = patchOwlFeatureBindingSource(patch.source);
+  assert.ok(secondPatch);
+  assert.equal(secondPatch.changed, false);
+});
+
+test("Codex app hydration enables all OWL Electron features", () => {
+  const source = "let i=require(`electron`),a=require(`node:path`);a=e.o(a);";
+
+  const patch = patchRecoveredOwlFeatureSwitchSource(source);
+
+  assert.ok(patch);
+  assert.equal(patch.changed, true);
+  assert.match(
+    patch.source,
+    /__codexExistingFeatures=i\.app\.commandLine\.getSwitchValue\("enable-features"\)/,
+  );
+  assert.match(
+    patch.source,
+    /i\.app\.commandLine\.appendSwitch\("enable-features",__codexExistingFeatures\?__codexExistingFeatures\+","\+__codexOwlFeatures:__codexOwlFeatures\)/,
+  );
+  assert.match(
+    patch.source,
+    /__codexOwlFeatures="OwlAutofillAndPasswords,OwlAuth,OwlDownloads,OwlExtensions,OwlOpenAIGoLinks,OwlPermissions,OwlPrinting,OwlWebViewEnhancements"/,
+  );
+  assert.match(patch.source, /Codex\+\+ enable Owl Electron features/);
+
+  const secondPatch = patchRecoveredOwlFeatureSwitchSource(patch.source);
   assert.ok(secondPatch);
   assert.equal(secondPatch.changed, false);
 });

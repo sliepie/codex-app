@@ -2646,6 +2646,18 @@ type OwlFeatureBindingPatch = {
 };
 
 const owlFeatureBindingFallback = "{isOwlFeatureEnabled:()=>!1}";
+const enabledOwlFeatures = [
+  "OwlAutofillAndPasswords",
+  "OwlAuth",
+  "OwlDownloads",
+  "OwlExtensions",
+  "OwlOpenAIGoLinks",
+  "OwlPermissions",
+  "OwlPrinting",
+  "OwlWebViewEnhancements",
+];
+const enabledOwlFeaturesSwitchValue = enabledOwlFeatures.join(",");
+const enabledOwlFeaturesMarker = "Codex++ enable Owl Electron features";
 
 export function patchOwlFeatureBindingSource(source: string): OwlFeatureBindingPatch | null {
   if (!source.includes("electron_common_owl_features")) {
@@ -2725,6 +2737,68 @@ function patchRecoveredOwlFeatureBinding(recoveredRoot: string): void {
   if (diagnostics.length > 0) {
     throw new Error("Could not patch OWL feature binding fallback. Checked: " + diagnostics.join(", "));
   }
+}
+
+export function patchRecoveredOwlFeatureSwitchSource(source: string): OwlFeatureBindingPatch | null {
+  if (!source.includes("electron") || !source.includes("app")) {
+    return null;
+  }
+
+  if (source.includes(enabledOwlFeaturesMarker)) {
+    return { changed: false, source };
+  }
+
+  const requirePattern = new RegExp(
+    `let (${identifierPattern})=require\\([\`'"]electron[\`'"]\\)([,;])`,
+  );
+  const match = requirePattern.exec(source);
+  if (!match?.[1] || !match[2]) {
+    return null;
+  }
+
+  const [, electronIdentifier, terminator] = match;
+  const replacement =
+    `let ${electronIdentifier}=require(\`electron\`)${terminator}` +
+    `try{let __codexOwlFeatures="${enabledOwlFeaturesSwitchValue}",__codexExistingFeatures=${electronIdentifier}.app.commandLine.getSwitchValue("enable-features");` +
+    `${electronIdentifier}.app.commandLine.appendSwitch("enable-features",__codexExistingFeatures?__codexExistingFeatures+","+__codexOwlFeatures:__codexOwlFeatures)}` +
+    `catch{}` +
+    `/* ${enabledOwlFeaturesMarker} */`;
+
+  return {
+    changed: true,
+    source: source.replace(requirePattern, replacement),
+  };
+}
+
+function patchRecoveredOwlFeatureSwitch(recoveredRoot: string): void {
+  const candidates = [readRecoveredOriginalMain(recoveredRoot), ...findRecoveredViteMainBundles(recoveredRoot)];
+  const seen = new Set<string>();
+  const diagnostics: string[] = [];
+
+  for (const relativePath of candidates) {
+    const normalized = relativePath.replace(/\\/g, "/").replace(/^\.\//, "");
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+
+    const filePath = path.join(recoveredRoot, normalized);
+    if (!fs.existsSync(filePath)) continue;
+
+    const source = fs.readFileSync(filePath, "utf8");
+    const patch = patchRecoveredOwlFeatureSwitchSource(source);
+    if (!patch) {
+      diagnostics.push(normalized);
+      continue;
+    }
+
+    if (patch.changed) {
+      fs.writeFileSync(filePath, patch.source, "utf8");
+    }
+
+    console.log("Patched OWL feature enable switch in " + normalized);
+    return;
+  }
+
+  throw new Error("Could not patch OWL feature enable switch. Checked: " + diagnostics.join(", "));
 }
 
 function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
@@ -2967,6 +3041,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   );
   patchWindowsSelfSignedBundle(recoveredRoot);
   patchRecoveredOwlFeatureBinding(recoveredRoot);
+  patchRecoveredOwlFeatureSwitch(recoveredRoot);
   patchRecoveredCodexWindowServices(recoveredRoot);
   patchRecoveredCodexMicroService(recoveredRoot);
   pruneWorkLouderPackages(recoveredRoot);
