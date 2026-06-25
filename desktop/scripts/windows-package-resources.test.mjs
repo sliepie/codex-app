@@ -27,6 +27,7 @@ const {
   patchMarkdownOperationDirectiveCrashSource,
   pruneWorkLouderPackages,
   patchOwlFeatureBindingSource,
+  patchRecoveredMessageRailStatsigGateSource,
   patchRecoveredOwlFeatureSwitchSource,
   pruneUnusedNativePayloads,
   syncCodexPlusPlusRuntimeAssets,
@@ -2692,6 +2693,22 @@ test("Codex app hydration enables all OWL Electron features", () => {
   assert.match(patch.source, /Codex\+\+ enable Owl Electron features/);
 
   const secondPatch = patchRecoveredOwlFeatureSwitchSource(patch.source);
+  assert.ok(secondPatch);
+  assert.equal(secondPatch.changed, false);
+});
+
+test("Codex app hydration enables the message rail Statsig gate", () => {
+  const source =
+    "var rail=async()=>{let{ThreadUserMessageNavigationRail:e}=await import(`./thread-user-message-navigation-rail.js`);return e};function Bo(){let c=Pt(`2551582477`)&&enabled;return c}";
+
+  const patch = patchRecoveredMessageRailStatsigGateSource(source);
+
+  assert.ok(patch);
+  assert.equal(patch.changed, true);
+  assert.match(patch.source, /true\/\* Codex\+\+ enable message rail \*\//);
+  assert.doesNotMatch(patch.source, /Pt\(`2551582477`\)/);
+
+  const secondPatch = patchRecoveredMessageRailStatsigGateSource(patch.source);
   assert.ok(secondPatch);
   assert.equal(secondPatch.changed, false);
 });

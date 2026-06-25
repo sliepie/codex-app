@@ -2658,6 +2658,8 @@ const enabledOwlFeatures = [
 ];
 const enabledOwlFeaturesSwitchValue = enabledOwlFeatures.join(",");
 const enabledOwlFeaturesMarker = "Codex++ enable Owl Electron features";
+const messageRailStatsigGate = "2551582477";
+const messageRailStatsigGateMarker = "Codex++ enable message rail";
 
 export function patchOwlFeatureBindingSource(source: string): OwlFeatureBindingPatch | null {
   if (!source.includes("electron_common_owl_features")) {
@@ -2799,6 +2801,56 @@ function patchRecoveredOwlFeatureSwitch(recoveredRoot: string): void {
   }
 
   throw new Error("Could not patch OWL feature enable switch. Checked: " + diagnostics.join(", "));
+}
+
+export function patchRecoveredMessageRailStatsigGateSource(source: string): OwlFeatureBindingPatch | null {
+  if (!source.includes("ThreadUserMessageNavigationRail") || !source.includes(messageRailStatsigGate)) {
+    return null;
+  }
+
+  if (source.includes(messageRailStatsigGateMarker)) {
+    return { changed: false, source };
+  }
+
+  const pattern = new RegExp(`${identifierPattern}\\(\\\`${messageRailStatsigGate}\\\`\\)`, "g");
+  if (!pattern.test(source)) {
+    return null;
+  }
+
+  return {
+    changed: true,
+    source:
+      source.replace(pattern, `true/* ${messageRailStatsigGateMarker} */`) +
+      (source.endsWith("\n") ? "" : "\n"),
+  };
+}
+
+function patchRecoveredMessageRailStatsigGate(recoveredRoot: string): void {
+  const diagnostics: string[] = [];
+  for (const filePath of findRecoveredJavaScriptFiles(recoveredRoot)) {
+    const source = fs.readFileSync(filePath, "utf8");
+    const patch = patchRecoveredMessageRailStatsigGateSource(source);
+    if (!patch) {
+      if (source.includes("ThreadUserMessageNavigationRail") || source.includes(messageRailStatsigGate)) {
+        diagnostics.push(path.relative(recoveredRoot, filePath).replace(/\\/g, "/"));
+      }
+      continue;
+    }
+
+    if (patch.changed) {
+      fs.writeFileSync(filePath, patch.source, "utf8");
+    }
+
+    console.log(
+      "Patched message rail Statsig gate in " +
+        path.relative(recoveredRoot, filePath).replace(/\\/g, "/"),
+    );
+    return;
+  }
+
+  if (diagnostics.length > 0) {
+    throw new Error("Could not patch message rail Statsig gate. Checked: " + diagnostics.join(", "));
+  }
 }
 
 function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
@@ -3042,6 +3094,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   patchWindowsSelfSignedBundle(recoveredRoot);
   patchRecoveredOwlFeatureBinding(recoveredRoot);
   patchRecoveredOwlFeatureSwitch(recoveredRoot);
+  patchRecoveredMessageRailStatsigGate(recoveredRoot);
   patchRecoveredCodexWindowServices(recoveredRoot);
   patchRecoveredCodexMicroService(recoveredRoot);
   pruneWorkLouderPackages(recoveredRoot);
