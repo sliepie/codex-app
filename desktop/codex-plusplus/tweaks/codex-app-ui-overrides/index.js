@@ -336,7 +336,15 @@ const IMAGE_PREVIEW_STYLE_RULES = [
 
 const SETTINGS_STYLE_RULES = [
   cssRule(
-    ".app-shell-main-content-frame:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*)))",
+    "main.main-surface:has(.app-shell-main-content-frame .main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)>.app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center",
+    "display:none!important;",
+  ),
+  cssRule(
+    ".app-shell-main-content-viewport:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)",
+    "--app-shell-main-content-frame-top-offset:0px!important;",
+  ),
+  cssRule(
+    ".app-shell-main-content-frame:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)",
     "border-top-width:0!important;",
   ),
   cssRule(
