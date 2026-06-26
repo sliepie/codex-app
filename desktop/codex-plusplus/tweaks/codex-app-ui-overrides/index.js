@@ -336,6 +336,10 @@ const IMAGE_PREVIEW_STYLE_RULES = [
 
 const SETTINGS_STYLE_RULES = [
   cssRule(
+    ".app-shell-main-content-frame:has(nav input[role='searchbox'])",
+    "border-top-color:transparent!important;",
+  ),
+  cssRule(
     ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*))",
     "display:none!important;",
   ),
