@@ -2668,7 +2668,8 @@ export function patchOwlFeatureBindingSource(source: string): OwlFeatureBindingP
 
   if (
     source.includes("catch{return " + owlFeatureBindingFallback + "}") ||
-    source.includes("catch{return{isOwlFeatureEnabled:()=>!1}}")
+    source.includes("catch{return{isOwlFeatureEnabled:()=>!1}}") ||
+    /process\._linkedBinding;if\(typeof [\w$]+!=[`'"]function[`'"]\)return null;/.test(source)
   ) {
     return { changed: false, source };
   }

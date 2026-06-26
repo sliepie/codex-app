@@ -757,11 +757,24 @@ function patchSettingsPage(recoveredRoot: string): PatchResult[] {
 }
 
 function patchIndex(recoveredRoot: string): PatchResult[] {
-  findFileContaining(
+  const markers = ["electron-desktop-features-changed"];
+  const webviewMatches = findFilesContaining(
     path.join(recoveredRoot, "webview", "assets"),
     /^(?:app-main|index)-.*\.js$/,
-    ["electron-desktop-features-changed"],
+    markers,
   );
+
+  if (webviewMatches.length > 1) {
+    throw new Error(
+      `Expected at most one recovered webview app feature bundle containing ${markers.join(", ")}, found ${webviewMatches.length}.`,
+    );
+  }
+
+  if (webviewMatches.length === 1) {
+    return [];
+  }
+
+  findFileContaining(path.join(recoveredRoot, ".vite", "build"), /^main-.*\.js$/, markers);
 
   return [];
 }

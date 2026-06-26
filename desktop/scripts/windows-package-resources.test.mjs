@@ -2245,13 +2245,29 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         "[data-app-action-sidebar-thread-row] button[aria-label*='stop' i],[data-app-action-sidebar-thread-row] button[title*='stop' i],[data-app-action-sidebar-thread-row] button[aria-label*='terminate' i],[data-app-action-sidebar-thread-row] button[title*='terminate' i],[data-app-action-sidebar-thread-row] [role='button'][aria-label*='stop' i],[data-app-action-sidebar-thread-row] [role='button'][title*='stop' i],[data-app-action-sidebar-thread-row] [role='button'][aria-label*='terminate' i],[data-app-action-sidebar-thread-row] [role='button'][title*='terminate' i]{display:none!important;}",
       ),
     );
-    assert.doesNotMatch(
-      uiOverrideCss,
-      /:has\(\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\)\{display:none!important;\}/,
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`main.main-surface:has(.main-surface>.draggable.flex.items-center.px-panel.electron\:h-toolbar.extension\:h-toolbar-sm)>.app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center{display:none!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.app-shell-main-content-viewport:has(.main-surface>.draggable.flex.items-center.px-panel.electron\:h-toolbar.extension\:h-toolbar-sm){--app-shell-main-content-frame-top-offset:0px!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.app-shell-main-content-frame:has(.main-surface>.draggable.flex.items-center.px-panel.electron\:h-toolbar.extension\:h-toolbar-sm){border-top-width:0!important;}`,
+      ),
+    );
+
+    assert.match(
+      appendedStyles[0].textContent,
+      /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\)\{display:none!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
-      /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\)\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\{padding-top:0\.5rem!important;padding-bottom:4rem!important;\}/,
+      /\.main-surface>\.draggable\.flex\.items-center\.px-panel\.electron\\:h-toolbar\.extension\\:h-toolbar-sm:not\(:has\(\*\)\)\+\.scrollbar-stable\.flex-1\.overflow-y-auto\.p-panel\{padding-top:var\(--height-toolbar\)!important;padding-bottom:4rem!important;\}/,
     );
     assert.ok(
       uiOverrideCss.includes(
@@ -2266,6 +2282,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(
       uiOverrideCss.includes(
         String.raw`[data-codexpp="nav-group"],[data-codexpp="pages-group"]{flex:0 0 auto!important;margin-top:0!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`nav:has(input[role='searchbox']) .min-h-0.flex-1.overflow-y-auto.pb-2{margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;}`,
       ),
     );
     assert.ok(
@@ -2669,6 +2690,16 @@ test("Codex app hydration guards missing OWL Electron feature binding", () => {
   const secondPatch = patchOwlFeatureBindingSource(patch.source);
   assert.ok(secondPatch);
   assert.equal(secondPatch.changed, false);
+});
+
+test("Codex app hydration accepts upstream OWL binding fallback", () => {
+  const source =
+    "var Ve=`electron_common_owl_features`,Ge=t.Yc({isOwlFeatureEnabled:t.Wc(e=>typeof e==`function`)});function Qe(){let e=process._linkedBinding;if(typeof e!=`function`)return null;let t;try{t=e.call(process,Ve)}catch(e){if(st(e))return null;throw e}return Ge.parse(t)}";
+
+  const patch = patchOwlFeatureBindingSource(source);
+
+  assert.ok(patch);
+  assert.equal(patch.changed, false);
 });
 
 test("Codex app hydration enables all OWL Electron features", () => {

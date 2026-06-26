@@ -141,6 +141,10 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"flex-1\"]`,
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
 ];
+const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTOR =
+  "nav:has(input[role='searchbox']) .min-h-0.flex-1.overflow-y-auto.pb-2";
+const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_DECLARATIONS =
+  "margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;";
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -332,8 +336,25 @@ const IMAGE_PREVIEW_STYLE_RULES = [
 
 const SETTINGS_STYLE_RULES = [
   cssRule(
+    "main.main-surface:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)>.app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center",
+    "display:none!important;",
+  ),
+  cssRule(
+    ".app-shell-main-content-viewport:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)",
+    "--app-shell-main-content-frame-top-offset:0px!important;",
+  ),
+  cssRule(
+    ".app-shell-main-content-frame:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)",
+    "border-top-width:0!important;",
+  ),
+
+  cssRule(
+    ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*))",
+    "display:none!important;",
+  ),
+  cssRule(
     ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*))+.scrollbar-stable.flex-1.overflow-y-auto.p-panel",
-    "padding-top:0.5rem!important;padding-bottom:4rem!important;",
+    "padding-top:var(--height-toolbar)!important;padding-bottom:4rem!important;",
   ),
 ];
 
@@ -353,6 +374,10 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES = [
   cssRule(
     '[data-codexpp="nav-group"],[data-codexpp="pages-group"]',
     "flex:0 0 auto!important;margin-top:0!important;",
+  ),
+  cssRule(
+    CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTOR,
+    CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_DECLARATIONS,
   ),
 ];
 

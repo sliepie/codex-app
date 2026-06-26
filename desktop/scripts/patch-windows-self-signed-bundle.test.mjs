@@ -342,6 +342,25 @@ test("uses collision-free locals when relocation helper imports are minified", (
   assert.doesNotMatch(bundle, /function r\(e\)\{let [^}]*,n=process\.resourcesPath/);
 });
 
+test("accepts desktop feature markers in the recovered main bundle", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  fs.writeFileSync(
+    path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
+    sidebarPixelTargets,
+    "utf8",
+  );
+  fs.writeFileSync(
+    path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
+    `${indexFeatureTargets}var dM=\`#00000000\`,vM=36,yM=\`#1f1f1f\`,bM=\`#ffffff\`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===\`win32\`?{titleBarStyle:\`hidden\`,titleBarOverlay:xM()}:null}function w2(appearance){return appearance===\`dark\`}function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&(n===\`darwin\`||n===\`win32\`)}function applyWindowBackdrop(window,backgroundMaterial){window.setBackgroundMaterial(backgroundMaterial);return{backgroundMaterial}}`,
+    "utf8",
+  );
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
 test("does not fail or rewrite when self-signed Windows patches run again", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
