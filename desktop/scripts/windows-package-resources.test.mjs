@@ -2692,6 +2692,16 @@ test("Codex app hydration guards missing OWL Electron feature binding", () => {
   assert.equal(secondPatch.changed, false);
 });
 
+test("Codex app hydration accepts upstream OWL binding fallback", () => {
+  const source =
+    "var Ve=`electron_common_owl_features`,Ge=t.Yc({isOwlFeatureEnabled:t.Wc(e=>typeof e==`function`)});function Qe(){let e=process._linkedBinding;if(typeof e!=`function`)return null;let t;try{t=e.call(process,Ve)}catch(e){if(st(e))return null;throw e}return Ge.parse(t)}";
+
+  const patch = patchOwlFeatureBindingSource(source);
+
+  assert.ok(patch);
+  assert.equal(patch.changed, false);
+});
+
 test("Codex app hydration enables all OWL Electron features", () => {
   const source =
     "let i=require(`electron`),a=`;`,r=/;/,f=function(){return/;/;},g=()=>/;/.test(x),p=require(`node:path`);i.app.commandLine;a=e.o(a);";
