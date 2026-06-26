@@ -122,9 +122,6 @@ const USAGE_MENU_RESET_ACTION_SELECTOR =
   `${USAGE_MENU_RATE_ROWS_SELECTOR}~:is(div,button,[role='menuitem']):not(a[href]):has(svg)`;
 const INVITE_FRIEND_MENU_ITEM_SELECTOR =
   ":where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.0368 1.69459'])";
-const SIDEBAR_TRIGGER_SELECTOR =
-  '[style*="view-transition-name: sidebar-trigger"]';
-const SIDEBAR_TRIGGER_DECLARATIONS = "transform:translateX(2px);";
 const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
 const SIDEBAR_SHOW_MORE_BUTTON_SELECTOR =
@@ -132,8 +129,6 @@ const SIDEBAR_SHOW_MORE_BUTTON_SELECTOR =
 const SIDEBAR_SHOW_MORE_BUTTON_DECLARATIONS = "margin-left:-1px!important;";
 const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
   `${SIDEBAR_ROOT_SELECTOR} :is(a,button,[role='button'])[aria-label*='codex mobile' i]`,
-  `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"])`,
-  `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V10.8477"])`,
 ];
 const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
   ":where(aside,nav,[role='navigation'],div):has(>[data-codexpp=\"nav-group\"])";
@@ -142,7 +137,7 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
   `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~=\"grow\"]`,
 ];
 const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTOR =
-  "nav:has(input[role='searchbox']) .min-h-0.flex-1.overflow-y-auto.pb-2";
+  "nav:has([data-settings-panel-slug]) .min-h-0.flex-1.overflow-y-auto.pb-2";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_DECLARATIONS =
   "margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;";
 function cssRule(selectors, declarations) {
@@ -177,7 +172,6 @@ function sectionHeaderStateSelectors(targets) {
 
 const BASE_STYLE_RULES = [
   cssRule(".group\\/application-menu-top-bar", "margin-inline-start:0.5rem;"),
-  cssRule(SIDEBAR_TRIGGER_SELECTOR, SIDEBAR_TRIGGER_DECLARATIONS),
   cssRule(CODEX_MOBILE_NAV_ITEM_SELECTORS, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(INVITE_FRIEND_MENU_ITEM_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
 ];

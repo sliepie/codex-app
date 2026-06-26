@@ -2043,17 +2043,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
     const uiOverrideCss = appendedStyles[0].textContent;
     const menuBarCss = appendedStyles[1].textContent;
-    assert.ok(
-      uiOverrideCss.includes(
-        '[style*="view-transition-name: sidebar-trigger"]{transform:translateX(2px);}',
-      ),
-    );
-    assert.equal(
-      uiOverrideCss.includes(
-        '[style*="view-transition-name: sidebar-trigger"]{display:none!important;}',
-      ),
-      false,
-    );
+    assert.doesNotMatch(uiOverrideCss, /sidebar-trigger/);
     assert.ok(
       uiOverrideCss.includes(
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M10.6391 1.67517"]) svg{margin-right:1px!important;}`,
@@ -2286,12 +2276,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`nav:has(input[role='searchbox']) .min-h-0.flex-1.overflow-y-auto.pb-2{margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;}`,
+        String.raw`nav:has([data-settings-panel-slug]) .min-h-0.flex-1.overflow-y-auto.pb-2{margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;}`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is(a,button,[role='button'])[aria-label*='codex mobile' i],:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"]),:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V10.8477"]){display:none!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is(a,button,[role='button'])[aria-label*='codex mobile' i]{display:none!important;}`,
       ),
     );
     assert.doesNotMatch(uiOverrideCss, /aria-label\*='invite'|title\*='invite'|href\*='referral'|Invite a friend/);
