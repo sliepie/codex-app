@@ -343,6 +343,10 @@ const SETTINGS_STYLE_RULES = [
     ".app-shell-main-content-viewport:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)",
     "--app-shell-main-content-frame-top-offset:0px!important;",
   ),
+  cssRule(
+    ".app-shell-main-content-frame:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)",
+    "border-top-width:0!important;",
+  ),
 
   cssRule(
     ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*))",

@@ -2255,6 +2255,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`.app-shell-main-content-viewport:has(.main-surface>.draggable.flex.items-center.px-panel.electron\:h-toolbar.extension\:h-toolbar-sm){--app-shell-main-content-frame-top-offset:0px!important;}`,
       ),
     );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.app-shell-main-content-frame:has(.main-surface>.draggable.flex.items-center.px-panel.electron\:h-toolbar.extension\:h-toolbar-sm){border-top-width:0!important;}`,
+      ),
+    );
 
     assert.match(
       appendedStyles[0].textContent,
