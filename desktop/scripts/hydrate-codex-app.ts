@@ -894,7 +894,8 @@ export function rewriteCodexPlusPlusRuntimePreload(source: string): string {
     return replaceRequired(
       body,
       /\bconst\s+labels\s*=\s*codexPpSettingsLabelsFrom\(el\)\s*;/,
-      (match) => `if (el.querySelector("[data-settings-panel-slug]")) return true;\n  ${match}`,
+      (match) =>
+        `if (el.querySelector("[data-settings-panel-slug]") && codexPpVisibleBox(el)) return true;\n  ${match}`,
       "Codex++ settings panel slug candidate check",
     );
   });

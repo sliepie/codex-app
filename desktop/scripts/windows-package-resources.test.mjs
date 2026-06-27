@@ -2780,7 +2780,10 @@ function isSettingsSidebarCandidate(el) {
   assert.match(updated, /const settingsPanelSlug = document\.querySelector\("\[data-settings-panel-slug\]"\)/);
   assert.match(updated, /const settingsPanelNav = settingsPanelSlug\?\.closest\("nav"\)/);
   assert.match(updated, /return settingsPanelNav;/);
-  assert.match(updated, /if \(el\.querySelector\("\[data-settings-panel-slug\]"\)\) return true;/);
+  assert.match(
+    updated,
+    /if \(el\.querySelector\("\[data-settings-panel-slug\]"\) && codexPpVisibleBox\(el\)\) return true;/,
+  );
   assert.equal(rewriteCodexPlusPlusRuntimePreload(updated), updated);
 });
 
