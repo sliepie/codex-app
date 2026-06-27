@@ -826,8 +826,8 @@ function patchCodexPlusPlusRuntimePreload(preloadPath: string): void {
   }
 }
 
-function rewriteCodexPlusPlusRuntimePreload(source: string): string {
-  return rewriteFunctionBody(source, "tryInject", (body) => {
+export function rewriteCodexPlusPlusRuntimePreload(source: string): string {
+  let updated = rewriteFunctionBody(source, "tryInject", (body) => {
     if (body.includes("const sidebarRoot = itemsGroup;")) {
       return body;
     }
@@ -871,6 +871,35 @@ function rewriteCodexPlusPlusRuntimePreload(source: string): string {
 
     return updated;
   });
+
+  updated = rewriteFunctionBody(updated, "findSidebarItemsGroup", (body) => {
+    if (body.includes("[data-settings-panel-slug]")) {
+      return body;
+    }
+
+    return replaceRequired(
+      body,
+      /\bconst\s+candidates\s*=\s*Array\.from\(\s*document\.querySelectorAll\("aside,nav,\[role='navigation'\],div"\)\s*\)\s*;/,
+      (match) =>
+        `const settingsPanelSlug = document.querySelector("[data-settings-panel-slug]");\n  const settingsPanelNav = settingsPanelSlug?.closest("nav");\n  if (settingsPanelNav instanceof HTMLElement && isSettingsSidebarCandidate(settingsPanelNav)) {\n    return settingsPanelNav;\n  }\n  ${match}`,
+      "Codex++ settings panel slug nav lookup",
+    );
+  });
+
+  updated = rewriteFunctionBody(updated, "isSettingsSidebarCandidate", (body) => {
+    if (body.includes("[data-settings-panel-slug]")) {
+      return body;
+    }
+
+    return replaceRequired(
+      body,
+      /\bconst\s+labels\s*=\s*codexPpSettingsLabelsFrom\(el\)\s*;/,
+      (match) => `if (el.querySelector("[data-settings-panel-slug]")) return true;\n  ${match}`,
+      "Codex++ settings panel slug candidate check",
+    );
+  });
+
+  return updated;
 }
 
 function rewriteFunctionBody(

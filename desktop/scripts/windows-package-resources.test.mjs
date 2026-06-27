@@ -30,6 +30,7 @@ const {
   patchRecoveredMessageRailStatsigGateSource,
   patchRecoveredOwlFeatureSwitchSource,
   pruneUnusedNativePayloads,
+  rewriteCodexPlusPlusRuntimePreload,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
 } = require(
@@ -723,6 +724,8 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
       "window.__codexppSettingsSurfaceVisible = true;",
       "window.dispatchEvent(new CustomEvent('codexpp:settings-surface', { detail: { visible: true } }));",
       `function tryInject(itemsGroup,state){const outer=itemsGroup.parentElement??itemsGroup;state.sidebarRoot=outer;if(state.navGroup&&outer.contains(state.navGroup)){return;}const existingCodexPpNavGroup=outer.querySelector(':scope > [data-codexpp="nav-group"]')??outer.querySelector('[data-codexpp="nav-group"]');if(existingCodexPpNavGroup){state.sidebarRoot=outer;return;}const group=document.createElement('div');outer.appendChild(group);plog("nav group injected",{outerTag:outer.tagName});}`,
+      `function findSidebarItemsGroup(){const candidates=Array.from(document.querySelectorAll("aside,nav,[role='navigation'],div"));return candidates[0]??null;}`,
+      `function isSettingsSidebarCandidate(el){const labels=codexPpSettingsLabelsFrom(el);return isCodexPpSettingsLabelSet(labels);}`,
       "",
     ].join("\n"),
   );
@@ -763,6 +766,7 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   );
   assert.match(syncedPreload, /const sidebarRoot = itemsGroup/);
   assert.match(syncedPreload, /sidebarRoot\.appendChild\(group\)/);
+  assert.match(syncedPreload, /\[data-settings-panel-slug\]/);
   assert.equal(
     fs.existsSync(path.join(destinationRoot, "runtime", "native", "codexpp_native_host.node")),
     false,
@@ -2745,6 +2749,39 @@ test("Codex app hydration enables the message rail Statsig gate", () => {
   const secondPatch = patchRecoveredMessageRailStatsigGateSource(patch.source);
   assert.ok(secondPatch);
   assert.equal(secondPatch.changed, false);
+});
+
+test("Codex++ runtime preload patch prefers Store settings panel slug nav", () => {
+  const source = `
+function tryInject() {
+  const itemsGroup = findSidebarItemsGroup();
+  const outer = itemsGroup.parentElement ?? itemsGroup;
+  state.sidebarRoot = outer;
+  if (state.navGroup && outer.contains(state.navGroup)) return;
+  const existingCodexPpNavGroup = outer.querySelector('[data-codexpp="nav-group"]');
+  outer.appendChild(group);
+  plog("nav group injected", { outerTag: outer.tagName });
+}
+function findSidebarItemsGroup() {
+  const candidates = Array.from(document.querySelectorAll("aside,nav,[role='navigation'],div"));
+  return candidates[0] ?? null;
+}
+function isSettingsSidebarCandidate(el) {
+  if (!codexPpVisibleBox(el)) return false;
+  const labels = codexPpSettingsLabelsFrom(el);
+  return isCodexPpSettingsLabelSet(labels);
+}
+`;
+
+  const updated = rewriteCodexPlusPlusRuntimePreload(source);
+
+  assert.match(updated, /const sidebarRoot = itemsGroup;/);
+  assert.match(updated, /state\.sidebarRoot = sidebarRoot/);
+  assert.match(updated, /const settingsPanelSlug = document\.querySelector\("\[data-settings-panel-slug\]"\)/);
+  assert.match(updated, /const settingsPanelNav = settingsPanelSlug\?\.closest\("nav"\)/);
+  assert.match(updated, /return settingsPanelNav;/);
+  assert.match(updated, /if \(el\.querySelector\("\[data-settings-panel-slug\]"\)\) return true;/);
+  assert.equal(rewriteCodexPlusPlusRuntimePreload(updated), updated);
 });
 
 test("Codex app OWL feature binding patch preserves minified dollar identifiers", () => {
