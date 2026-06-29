@@ -18,7 +18,7 @@ const bundledTweakRelativeRoots = new Map([
 const newBundledTweaks = new Set();
 const require = createRequire(import.meta.url);
 const {
-  assertPackagingElectronMatchesRecovered,
+  ensurePackagingElectronMatchesRecovered,
   collectNativeNodeModuleTargets,
   findAppAsar,
   hasArm64RuntimePayload,
@@ -2912,33 +2912,56 @@ test("verifies hydrated upstream artifact integrity metadata", () => {
   assert.match(cliHydratorSource, /ensureExtractedZip/);
 });
 
-test("hydration fails when packaging Electron drifts from recovered upstream", () => {
+test("hydration installs recovered upstream Electron when packaging drifts", () => {
   const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-electron-parity-"));
   const packagingRoot = path.join(fixtureRoot, "packaging");
   const recoveredRoot = path.join(fixtureRoot, "recovered");
+  const installedElectronPackageJson = path.join(
+    packagingRoot,
+    "node_modules",
+    "electron",
+    "package.json",
+  );
+  const installedVersions = [];
 
   writeFixture(
     path.join(packagingRoot, "package.json"),
     `${JSON.stringify({ devDependencies: { electron: "42.1.0" } }, null, 2)}\n`,
   );
   writeFixture(
+    installedElectronPackageJson,
+    `${JSON.stringify({ version: "42.1.0" }, null, 2)}\n`,
+  );
+  writeFixture(
     path.join(recoveredRoot, "package.json"),
     `${JSON.stringify({ devDependencies: { electron: "42.2.0" } }, null, 2)}\n`,
   );
 
-  assert.throws(
-    () => assertPackagingElectronMatchesRecovered({ packagingRoot, recoveredRoot }),
-    /Packaging Electron 42\.1\.0 must match hydrated app Electron 42\.2\.0/,
-  );
-
-  writeFixture(
-    path.join(recoveredRoot, "package.json"),
-    `${JSON.stringify({ devDependencies: { electron: "42.1.0" } }, null, 2)}\n`,
-  );
   assert.equal(
-    assertPackagingElectronMatchesRecovered({ packagingRoot, recoveredRoot }),
-    "42.1.0",
+    ensurePackagingElectronMatchesRecovered({
+      packagingRoot,
+      recoveredRoot,
+      installElectron: (electronVersion) => {
+        installedVersions.push(electronVersion);
+        writeFixture(
+          installedElectronPackageJson,
+          `${JSON.stringify({ version: electronVersion }, null, 2)}\n`,
+        );
+      },
+    }),
+    "42.2.0",
   );
+  assert.deepEqual(installedVersions, ["42.2.0"]);
+
+  assert.equal(
+    ensurePackagingElectronMatchesRecovered({
+      packagingRoot,
+      recoveredRoot,
+      installElectron: (electronVersion) => installedVersions.push(electronVersion),
+    }),
+    "42.2.0",
+  );
+  assert.deepEqual(installedVersions, ["42.2.0"]);
 });
 
 test("repo Node toolchain matches the Electron runtime Node major", () => {

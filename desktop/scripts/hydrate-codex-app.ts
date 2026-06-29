@@ -1232,21 +1232,65 @@ function readPackageElectronVersion(packageRoot: string, label: string): string 
   return electronVersion;
 }
 
-export function assertPackagingElectronMatchesRecovered({
+function readInstalledElectronVersion(packagingRoot: string): string | null {
+  const packageJsonPath = path.join(packagingRoot, "node_modules", "electron", "package.json");
+  if (!fs.existsSync(packageJsonPath)) {
+    return null;
+  }
+
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as PackageJson;
+  return typeof packageJson.version === "string" ? packageJson.version : null;
+}
+
+function installPackagingElectron(electronVersion: string, packagingRoot: string): void {
+  runNpm(
+    [
+      "install",
+      "--no-save",
+      "--package-lock=false",
+      "--no-audit",
+      "--fund=false",
+      `electron@${electronVersion}`,
+    ],
+    packagingRoot,
+  );
+}
+
+export function ensurePackagingElectronMatchesRecovered({
   packagingRoot = desktopRoot,
   recoveredRoot,
+  installElectron = (electronVersion) => installPackagingElectron(electronVersion, packagingRoot),
 }: {
   packagingRoot?: string;
   recoveredRoot: string;
+  installElectron?: (electronVersion: string) => void;
 }): string {
-  const electronVersion = readPackageElectronVersion(packagingRoot, "Packaging workspace");
+  const declaredElectronVersion = readPackageElectronVersion(packagingRoot, "Packaging workspace");
   const recoveredElectronVersion = readPackageElectronVersion(recoveredRoot, "Hydrated app");
-  if (normalizeRuntimeVersion(electronVersion) !== normalizeRuntimeVersion(recoveredElectronVersion)) {
+  const installedElectronVersion = readInstalledElectronVersion(packagingRoot);
+  if (
+    installedElectronVersion != null &&
+    normalizeRuntimeVersion(installedElectronVersion) === normalizeRuntimeVersion(recoveredElectronVersion)
+  ) {
+    return recoveredElectronVersion;
+  }
+
+  console.log(
+    `Installing packaging Electron ${normalizeRuntimeVersion(recoveredElectronVersion)} to match hydrated app; package declares ${normalizeRuntimeVersion(declaredElectronVersion)}${installedElectronVersion == null ? "" : ` and node_modules has ${normalizeRuntimeVersion(installedElectronVersion)}`}.`,
+  );
+  installElectron(recoveredElectronVersion);
+
+  const updatedInstalledElectronVersion = readInstalledElectronVersion(packagingRoot);
+  if (
+    updatedInstalledElectronVersion == null ||
+    normalizeRuntimeVersion(updatedInstalledElectronVersion) !== normalizeRuntimeVersion(recoveredElectronVersion)
+  ) {
     throw new Error(
-      `Packaging Electron ${normalizeRuntimeVersion(electronVersion)} must match hydrated app Electron ${normalizeRuntimeVersion(recoveredElectronVersion)} for Windows ARM64 packaging.`,
+      `Installed packaging Electron ${updatedInstalledElectronVersion == null ? "missing" : normalizeRuntimeVersion(updatedInstalledElectronVersion)} must match hydrated app Electron ${normalizeRuntimeVersion(recoveredElectronVersion)} for Windows ARM64 packaging.`,
     );
   }
-  return electronVersion;
+
+  return recoveredElectronVersion;
 }
 function readBundledNodeVersion(appResourcesRoot: string): string {
   const nodePath = findAppResourceFile(appResourcesRoot, "node");
@@ -2145,7 +2189,7 @@ function syncNativeNodeModulesTarget(
 }
 
 function syncNativeNodeModules(recoveredRoot: string, nodeVersion: string): void {
-  const electronVersion = assertPackagingElectronMatchesRecovered({ recoveredRoot });
+  const electronVersion = ensurePackagingElectronMatchesRecovered({ recoveredRoot });
   const targets = collectNativeNodeModuleTargets(recoveredRoot);
   if (targets.length === 0) {
     console.log("Hydrated app and bundled plugins have no native Node modules.");
