@@ -30,6 +30,7 @@ const {
   patchRecoveredMessageRailStatsigGateSource,
   patchRecoveredOwlFeatureSwitchSource,
   pruneUnusedNativePayloads,
+  rewriteCodexPlusPlusRuntimePreload,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
 } = require(
@@ -723,6 +724,8 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
       "window.__codexppSettingsSurfaceVisible = true;",
       "window.dispatchEvent(new CustomEvent('codexpp:settings-surface', { detail: { visible: true } }));",
       `function tryInject(itemsGroup,state){const outer=itemsGroup.parentElement??itemsGroup;state.sidebarRoot=outer;if(state.navGroup&&outer.contains(state.navGroup)){return;}const existingCodexPpNavGroup=outer.querySelector(':scope > [data-codexpp="nav-group"]')??outer.querySelector('[data-codexpp="nav-group"]');if(existingCodexPpNavGroup){state.sidebarRoot=outer;return;}const group=document.createElement('div');outer.appendChild(group);plog("nav group injected",{outerTag:outer.tagName});}`,
+      `function findSidebarItemsGroup(){const candidates=Array.from(document.querySelectorAll("aside,nav,[role='navigation'],div"));return candidates[0]??null;}`,
+      `function isSettingsSidebarCandidate(el){const labels=codexPpSettingsLabelsFrom(el);return isCodexPpSettingsLabelSet(labels);}`,
       "",
     ].join("\n"),
   );
@@ -763,6 +766,7 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   );
   assert.match(syncedPreload, /const sidebarRoot = itemsGroup/);
   assert.match(syncedPreload, /sidebarRoot\.appendChild\(group\)/);
+  assert.match(syncedPreload, /\[data-settings-panel-slug\]/);
   assert.equal(
     fs.existsSync(path.join(destinationRoot, "runtime", "native", "codexpp_native_host.node")),
     false,
@@ -2043,17 +2047,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
     const uiOverrideCss = appendedStyles[0].textContent;
     const menuBarCss = appendedStyles[1].textContent;
-    assert.ok(
-      uiOverrideCss.includes(
-        '[style*="view-transition-name: sidebar-trigger"]{transform:translateX(2px);}',
-      ),
-    );
-    assert.equal(
-      uiOverrideCss.includes(
-        '[style*="view-transition-name: sidebar-trigger"]{display:none!important;}',
-      ),
-      false,
-    );
+    assert.doesNotMatch(uiOverrideCss, /sidebar-trigger/);
     assert.ok(
       uiOverrideCss.includes(
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M10.6391 1.67517"]) svg{margin-right:1px!important;}`,
@@ -2286,12 +2280,12 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`nav:has(input[role='searchbox']) .min-h-0.flex-1.overflow-y-auto.pb-2{margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;}`,
+        String.raw`nav:has([data-settings-panel-slug]) .min-h-0.flex-1.overflow-y-auto.pb-2{margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;}`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is(a,button,[role='button'])[aria-label*='codex mobile' i],:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V15.5"]),:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M12.75 1.83496C14.2218 1.83496 15.415 3.02816 15.415 4.5V10.8477"]){display:none!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is(a,button,[role='button'])[aria-label*='codex mobile' i]{display:none!important;}`,
       ),
     );
     assert.doesNotMatch(uiOverrideCss, /aria-label\*='invite'|title\*='invite'|href\*='referral'|Invite a friend/);
@@ -2755,6 +2749,81 @@ test("Codex app hydration enables the message rail Statsig gate", () => {
   const secondPatch = patchRecoveredMessageRailStatsigGateSource(patch.source);
   assert.ok(secondPatch);
   assert.equal(secondPatch.changed, false);
+});
+
+test("Codex++ runtime preload patch prefers Store settings panel items container", () => {
+  const source = `
+function tryInject() {
+  const itemsGroup = findSidebarItemsGroup();
+  const outer = itemsGroup.parentElement ?? itemsGroup;
+  state.sidebarRoot = outer;
+  if (state.navGroup && outer.contains(state.navGroup)) return;
+  const existingCodexPpNavGroup = outer.querySelector('[data-codexpp="nav-group"]');
+  outer.appendChild(group);
+  plog("nav group injected", { outerTag: outer.tagName });
+}
+function findSidebarItemsGroup() {
+  const candidates = Array.from(document.querySelectorAll("aside,nav,[role='navigation'],div"));
+  return candidates[0] ?? null;
+}
+function isSettingsSidebarCandidate(el) {
+  if (!codexPpVisibleBox(el)) return false;
+  const labels = codexPpSettingsLabelsFrom(el);
+  return isCodexPpSettingsLabelSet(labels);
+}
+`;
+
+  const updated = rewriteCodexPlusPlusRuntimePreload(source);
+
+  assert.match(updated, /const sidebarRoot = itemsGroup;/);
+  assert.match(updated, /state\.sidebarRoot = sidebarRoot/);
+  assert.match(updated, /const settingsPanelSlug = document\.querySelector\("\[data-settings-panel-slug\]"\)/);
+  assert.match(updated, /const settingsPanelNav = settingsPanelSlug\?\.closest\("nav"\)/);
+  assert.match(updated, /const settingsItemsGroup = settingsPanelSlug\?\.closest\("\.min-h-0\.flex-1\.overflow-y-auto\.pb-2"\)/);
+  assert.match(updated, /const settingsItemsOuter = settingsItemsGroup\?\.parentElement \?\? settingsItemsGroup;/);
+  assert.match(updated, /settingsPanelNav\.contains\(settingsItemsGroup\)/);
+  assert.match(updated, /isSettingsSidebarCandidate\(settingsItemsOuter\)/);
+  assert.match(updated, /return settingsItemsGroup;/);
+  assert.doesNotMatch(
+    updated,
+    /if \(el\.querySelector\("\[data-settings-panel-slug\]"\) && codexPpVisibleBox\(el\)\) return true;/,
+  );
+  assert.equal(rewriteCodexPlusPlusRuntimePreload(updated), updated);
+});
+
+test("Codex++ runtime preload patch upgrades old Store settings slug nav fast path", () => {
+  const source = `
+function tryInject() {
+  const itemsGroup = findSidebarItemsGroup();
+  const outer = itemsGroup.parentElement ?? itemsGroup;
+  state.sidebarRoot = outer;
+  if (state.navGroup && outer.contains(state.navGroup)) return;
+  const existingCodexPpNavGroup = outer.querySelector('[data-codexpp="nav-group"]');
+  outer.appendChild(group);
+  plog("nav group injected", { outerTag: outer.tagName });
+}
+function findSidebarItemsGroup() {
+  const settingsPanelSlug = document.querySelector("[data-settings-panel-slug]");
+  const settingsPanelNav = settingsPanelSlug?.closest("nav");
+  if (settingsPanelNav instanceof HTMLElement && isSettingsSidebarCandidate(settingsPanelNav)) {
+    return settingsPanelNav;
+  }
+  const candidates = Array.from(document.querySelectorAll("aside,nav,[role='navigation'],div"));
+  return candidates[0] ?? null;
+}
+function isSettingsSidebarCandidate(el) {
+  if (!codexPpVisibleBox(el)) return false;
+  if (el.querySelector("[data-settings-panel-slug]") && codexPpVisibleBox(el)) return true;
+  const labels = codexPpSettingsLabelsFrom(el);
+  return isCodexPpSettingsLabelSet(labels);
+}
+`;
+
+  const updated = rewriteCodexPlusPlusRuntimePreload(source);
+
+  assert.doesNotMatch(updated, /return settingsPanelNav;/);
+  assert.match(updated, /return settingsItemsGroup;/);
+  assert.equal(rewriteCodexPlusPlusRuntimePreload(updated), updated);
 });
 
 test("Codex app OWL feature binding patch preserves minified dollar identifiers", () => {
