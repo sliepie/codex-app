@@ -2784,7 +2784,7 @@ function isSettingsSidebarCandidate(el) {
   assert.match(updated, /settingsPanelNav\.contains\(settingsItemsGroup\)/);
   assert.match(updated, /isSettingsSidebarCandidate\(settingsItemsOuter\)/);
   assert.match(updated, /return settingsItemsGroup;/);
-  assert.match(
+  assert.doesNotMatch(
     updated,
     /if \(el\.querySelector\("\[data-settings-panel-slug\]"\) && codexPpVisibleBox\(el\)\) return true;/,
   );

@@ -898,17 +898,13 @@ export function rewriteCodexPlusPlusRuntimePreload(source: string): string {
   });
 
   updated = rewriteFunctionBody(updated, "isSettingsSidebarCandidate", (body) => {
-    if (body.includes("[data-settings-panel-slug]")) {
+    const settingsPanelSlugCandidateShortcutPattern =
+      /\s*if\s*\(\s*el\.querySelector\("\[data-settings-panel-slug\]"\)\s*&&\s*codexPpVisibleBox\(el\)\s*\)\s*return\s+true\s*;\s*/;
+    if (!settingsPanelSlugCandidateShortcutPattern.test(body)) {
       return body;
     }
 
-    return replaceRequired(
-      body,
-      /\bconst\s+labels\s*=\s*codexPpSettingsLabelsFrom\(el\)\s*;/,
-      (match) =>
-        `if (el.querySelector("[data-settings-panel-slug]") && codexPpVisibleBox(el)) return true;\n  ${match}`,
-      "Codex++ settings panel slug candidate check",
-    );
+    return body.replace(settingsPanelSlugCandidateShortcutPattern, "\n  ");
   });
 
   return updated;
