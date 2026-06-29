@@ -2126,6 +2126,36 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]){--padding-row-x:0px!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`[data-app-action-sidebar-project-row]>div.flex.min-w-0.flex-1.items-center.gap-1.pl-0\.5>span.relative.flex.h-6.w-6.items-center.justify-center{position:relative!important;color:var(--color-token-description-foreground)!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`[data-app-action-sidebar-project-row]>div.flex.min-w-0.flex-1.items-center.gap-1.pl-0\.5>span.relative.flex.h-6.w-6.items-center.justify-center>:is(svg,.icon-2xs,.icon-xs,.icon-sm){display:none!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`[data-app-action-sidebar-project-row]>div.flex.min-w-0.flex-1.items-center.gap-1.pl-0\.5>span.relative.flex.h-6.w-6.items-center.justify-center::before{content:""!important;position:absolute!important;left:4px!important;top:7px!important;width:15px!important;height:10px!important;border:1.4px solid currentColor!important;border-radius:2.5px!important;box-sizing:border-box!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-scroll]{padding-bottom:calc(var(--sidebar-footer-height) + var(--padding-row-x) + 0.75rem)!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])>.relative.w-full.shrink-0>.pointer-events-none.absolute.inset-x-0.top-0.z-10.h-\[0\.5px\].bg-token-foreground\/10{display:none!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
         String.raw`:where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.0368 1.69459']){display:none!important;}`,
       ),
     );
@@ -2161,27 +2191,27 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0)>div:has(button[aria-haspopup='menu'][aria-label])`,
+        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\.5.grid.h-6.min-w-6.shrink)>div:has(button[aria-haspopup='menu'][aria-label])`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) span:has(>[role='button']:not([aria-hidden='true'])[aria-label])`,
+        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\.5.grid.h-6.min-w-6.shrink) span:has(>[role='button']:not([aria-hidden='true'])[aria-label])`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label]`,
+        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\.5.grid.h-6.min-w-6.shrink) button:not([aria-hidden='true'])[aria-label]`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label]{color:var(--color-token-description-foreground)!important;}`,
+        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\.5.grid.h-6.min-w-6.shrink) button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row][aria-current='page']>:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\.5.grid.h-6.min-w-6.shrink) button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\.5.grid.h-6.min-w-6.shrink) [role='button']:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row][aria-current='page']>:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\.5.grid.h-6.min-w-6.shrink) [role='button']:not([aria-hidden='true'])[aria-label]{color:var(--color-token-description-foreground)!important;}`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible){color:var(--color-token-foreground)!important;}`,
+        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\.5.grid.h-6.min-w-6.shrink) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row][aria-current='page']>:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\.5.grid.h-6.min-w-6.shrink) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\.5.grid.h-6.min-w-6.shrink) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row][aria-current='page']>:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\.5.grid.h-6.min-w-6.shrink) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible){color:var(--color-token-foreground)!important;}`,
       ),
     );
     assert.ok(
@@ -2784,6 +2814,17 @@ function isSettingsSidebarCandidate(el) {
   assert.match(updated, /settingsPanelNav\.contains\(settingsItemsGroup\)/);
   assert.match(updated, /isSettingsSidebarCandidate\(settingsItemsOuter\)/);
   assert.match(updated, /return settingsItemsGroup;/);
+  assert.ok(
+    updated.includes(
+      'const mainAppSidebarMarker = document.querySelector("[data-app-action-sidebar-section-heading], [data-app-action-sidebar-thread-row], [data-app-action-sidebar-project-row]");',
+    ),
+  );
+  assert.ok(updated.includes('if (!settingsPanelSlug && mainAppSidebarMarker) {\n    return null;\n  }'));
+  assert.ok(
+    updated.includes(
+      'el.querySelector("[data-app-action-sidebar-section-heading], [data-app-action-sidebar-thread-row], [data-app-action-sidebar-project-row]")',
+    ),
+  );
   assert.doesNotMatch(
     updated,
     /if \(el\.querySelector\("\[data-settings-panel-slug\]"\) && codexPpVisibleBox\(el\)\) return true;/,

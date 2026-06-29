@@ -57,7 +57,7 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    "var dM=`#00000000`,vM=36,yM=`#1f1f1f`,bM=`#ffffff`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===`win32`?{titleBarStyle:`hidden`,titleBarOverlay:xM()}:null}function w2(appearance){return appearance===`dark`}function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&(n===`darwin`||n===`win32`)}function applyWindowBackdrop(window,backgroundMaterial){window.setBackgroundMaterial(backgroundMaterial);return{backgroundMaterial}}",
+    "var dM=`#00000000`,vM=36,yM=`#1f1f1f`,bM=`#ffffff`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===`win32`?{titleBarStyle:`hidden`,titleBarOverlay:xM()}:null}function w2(appearance){return appearance===`dark`}function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&(n===`darwin`||n===`win32`)}function applyWindowBackdrop(window,backgroundMaterial){window.setBackgroundMaterial(backgroundMaterial);return{backgroundMaterial}}function createMainWindow(){let M=new n.BrowserWindow({width:b,height:x,...S===void 0||C===void 0?{}:{x:S,y:C},title:q??n.app.getName(),backgroundColor:A,show:l,parent:p,focusable:m,modal:p!=null?E:!1,skipTaskbar:F,transparent:o,trafficLightPosition:v,visualEffectState:_,...process.platform===`win32`||process.platform===`linux`?{autoHideMenuBar:!0}:{},backgroundMaterial:j??void 0,...D,minWidth:T?.width,minHeight:T?.height,webPreferences:k});return M}",
   );
 
   return recoveredRoot;
@@ -88,6 +88,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
     [
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/primary-runtime-installer-fixture.js",
+      ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
     ],
   );
@@ -279,8 +280,12 @@ test("patches non-feature self-signed Windows bundle changes", () => {
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
     /function D2\(\{appearance:e,isFocused:t,platform:n\}\)\{return!t&&!w2\(e\)&&n===`darwin`\}/,
   );
+  assert.match(
+    fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
+    /BrowserWindow\(\{icon:process\.platform===`win32`\?require\("node:path"\)\.join\(process\.resourcesPath,`assets`,`windows`,`icon\.ico`\):void 0,width:b/,
+  );
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 3);
+  assert.equal(report.patches.length, 4);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -385,7 +390,7 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 3);
+  assert.equal(report.patches.length, 4);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),
