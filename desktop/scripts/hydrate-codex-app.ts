@@ -1232,6 +1232,22 @@ function readPackageElectronVersion(packageRoot: string, label: string): string 
   return electronVersion;
 }
 
+export function assertPackagingElectronMatchesRecovered({
+  packagingRoot = desktopRoot,
+  recoveredRoot,
+}: {
+  packagingRoot?: string;
+  recoveredRoot: string;
+}): string {
+  const electronVersion = readPackageElectronVersion(packagingRoot, "Packaging workspace");
+  const recoveredElectronVersion = readPackageElectronVersion(recoveredRoot, "Hydrated app");
+  if (normalizeRuntimeVersion(electronVersion) !== normalizeRuntimeVersion(recoveredElectronVersion)) {
+    throw new Error(
+      `Packaging Electron ${normalizeRuntimeVersion(electronVersion)} must match hydrated app Electron ${normalizeRuntimeVersion(recoveredElectronVersion)} for Windows ARM64 packaging.`,
+    );
+  }
+  return electronVersion;
+}
 function readBundledNodeVersion(appResourcesRoot: string): string {
   const nodePath = findAppResourceFile(appResourcesRoot, "node");
   if (!nodePath) {
@@ -2129,18 +2145,11 @@ function syncNativeNodeModulesTarget(
 }
 
 function syncNativeNodeModules(recoveredRoot: string, nodeVersion: string): void {
+  const electronVersion = assertPackagingElectronMatchesRecovered({ recoveredRoot });
   const targets = collectNativeNodeModuleTargets(recoveredRoot);
   if (targets.length === 0) {
     console.log("Hydrated app and bundled plugins have no native Node modules.");
     return;
-  }
-
-  const electronVersion = readPackageElectronVersion(desktopRoot, "Packaging workspace");
-  const recoveredElectronVersion = readPackageElectronVersion(recoveredRoot, "Hydrated app");
-  if (normalizeRuntimeVersion(electronVersion) !== normalizeRuntimeVersion(recoveredElectronVersion)) {
-    throw new Error(
-      `Packaging Electron ${normalizeRuntimeVersion(electronVersion)} must match hydrated app Electron ${normalizeRuntimeVersion(recoveredElectronVersion)} for Windows ARM64 native modules.`,
-    );
   }
 
   for (const target of targets) {
