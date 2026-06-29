@@ -873,15 +873,26 @@ export function rewriteCodexPlusPlusRuntimePreload(source: string): string {
   });
 
   updated = rewriteFunctionBody(updated, "findSidebarItemsGroup", (body) => {
-    if (body.includes("[data-settings-panel-slug]")) {
+    if (body.includes("const settingsItemsGroup = settingsPanelSlug?.closest")) {
       return body;
+    }
+
+    const settingsPanelSlugItemsLookup =
+      `const settingsPanelSlug = document.querySelector("[data-settings-panel-slug]");\n  const settingsPanelNav = settingsPanelSlug?.closest("nav");\n  const settingsItemsGroup = settingsPanelSlug?.closest(".min-h-0.flex-1.overflow-y-auto.pb-2");\n  const settingsItemsOuter = settingsItemsGroup?.parentElement ?? settingsItemsGroup;\n  if (settingsPanelNav instanceof HTMLElement && settingsItemsGroup instanceof HTMLElement && settingsItemsOuter instanceof HTMLElement && settingsPanelNav.contains(settingsItemsGroup) && isSettingsSidebarCandidate(settingsItemsGroup) && isSettingsSidebarCandidate(settingsItemsOuter)) {\n    return settingsItemsGroup;\n  }\n  `;
+
+    if (body.includes("[data-settings-panel-slug]")) {
+      return replaceRequired(
+        body,
+        /\bconst\s+settingsPanelSlug\s*=\s*document\.querySelector\("\[data-settings-panel-slug\]"\)\s*;\s*const\s+settingsPanelNav\s*=\s*settingsPanelSlug\?\.closest\("nav"\)\s*;\s*if\s*\(\s*settingsPanelNav\s+instanceof\s+HTMLElement\s*&&\s*isSettingsSidebarCandidate\(settingsPanelNav\)\s*\)\s*\{\s*return\s+settingsPanelNav\s*;\s*\}\s*/,
+        settingsPanelSlugItemsLookup,
+        "Codex++ settings panel slug items lookup",
+      );
     }
 
     return replaceRequired(
       body,
       /\bconst\s+candidates\s*=\s*Array\.from\(\s*document\.querySelectorAll\("aside,nav,\[role='navigation'\],div"\)\s*\)\s*;/,
-      (match) =>
-        `const settingsPanelSlug = document.querySelector("[data-settings-panel-slug]");\n  const settingsPanelNav = settingsPanelSlug?.closest("nav");\n  if (settingsPanelNav instanceof HTMLElement && isSettingsSidebarCandidate(settingsPanelNav)) {\n    return settingsPanelNav;\n  }\n  ${match}`,
+      (match) => `${settingsPanelSlugItemsLookup}${match}`,
       "Codex++ settings panel slug nav lookup",
     );
   });

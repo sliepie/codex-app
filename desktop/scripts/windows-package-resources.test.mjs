@@ -2751,7 +2751,7 @@ test("Codex app hydration enables the message rail Statsig gate", () => {
   assert.equal(secondPatch.changed, false);
 });
 
-test("Codex++ runtime preload patch prefers Store settings panel slug nav", () => {
+test("Codex++ runtime preload patch prefers Store settings panel items container", () => {
   const source = `
 function tryInject() {
   const itemsGroup = findSidebarItemsGroup();
@@ -2779,11 +2779,50 @@ function isSettingsSidebarCandidate(el) {
   assert.match(updated, /state\.sidebarRoot = sidebarRoot/);
   assert.match(updated, /const settingsPanelSlug = document\.querySelector\("\[data-settings-panel-slug\]"\)/);
   assert.match(updated, /const settingsPanelNav = settingsPanelSlug\?\.closest\("nav"\)/);
-  assert.match(updated, /return settingsPanelNav;/);
+  assert.match(updated, /const settingsItemsGroup = settingsPanelSlug\?\.closest\("\.min-h-0\.flex-1\.overflow-y-auto\.pb-2"\)/);
+  assert.match(updated, /const settingsItemsOuter = settingsItemsGroup\?\.parentElement \?\? settingsItemsGroup;/);
+  assert.match(updated, /settingsPanelNav\.contains\(settingsItemsGroup\)/);
+  assert.match(updated, /isSettingsSidebarCandidate\(settingsItemsOuter\)/);
+  assert.match(updated, /return settingsItemsGroup;/);
   assert.match(
     updated,
     /if \(el\.querySelector\("\[data-settings-panel-slug\]"\) && codexPpVisibleBox\(el\)\) return true;/,
   );
+  assert.equal(rewriteCodexPlusPlusRuntimePreload(updated), updated);
+});
+
+test("Codex++ runtime preload patch upgrades old Store settings slug nav fast path", () => {
+  const source = `
+function tryInject() {
+  const itemsGroup = findSidebarItemsGroup();
+  const outer = itemsGroup.parentElement ?? itemsGroup;
+  state.sidebarRoot = outer;
+  if (state.navGroup && outer.contains(state.navGroup)) return;
+  const existingCodexPpNavGroup = outer.querySelector('[data-codexpp="nav-group"]');
+  outer.appendChild(group);
+  plog("nav group injected", { outerTag: outer.tagName });
+}
+function findSidebarItemsGroup() {
+  const settingsPanelSlug = document.querySelector("[data-settings-panel-slug]");
+  const settingsPanelNav = settingsPanelSlug?.closest("nav");
+  if (settingsPanelNav instanceof HTMLElement && isSettingsSidebarCandidate(settingsPanelNav)) {
+    return settingsPanelNav;
+  }
+  const candidates = Array.from(document.querySelectorAll("aside,nav,[role='navigation'],div"));
+  return candidates[0] ?? null;
+}
+function isSettingsSidebarCandidate(el) {
+  if (!codexPpVisibleBox(el)) return false;
+  if (el.querySelector("[data-settings-panel-slug]") && codexPpVisibleBox(el)) return true;
+  const labels = codexPpSettingsLabelsFrom(el);
+  return isCodexPpSettingsLabelSet(labels);
+}
+`;
+
+  const updated = rewriteCodexPlusPlusRuntimePreload(source);
+
+  assert.doesNotMatch(updated, /return settingsPanelNav;/);
+  assert.match(updated, /return settingsItemsGroup;/);
   assert.equal(rewriteCodexPlusPlusRuntimePreload(updated), updated);
 });
 
