@@ -2911,6 +2911,19 @@ test("verifies hydrated upstream artifact integrity metadata", () => {
   assert.match(cliHydratorSource, /ensureExtractedZip/);
 });
 
+test("hydration fails when packaging Electron drifts from recovered upstream", () => {
+  const hydrateSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
+    "utf8",
+  );
+
+  assert.match(
+    hydrateSource,
+    /Packaging Electron \$\{normalizeRuntimeVersion\(electronVersion\)\} must match hydrated app Electron \$\{normalizeRuntimeVersion\(recoveredElectronVersion\)\}/,
+  );
+  assert.doesNotMatch(hydrateSource, /Using packaging Electron \$\{normalizeRuntimeVersion\(electronVersion\)\}/);
+});
+
 test("repo Node toolchain matches the Electron runtime Node major", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),

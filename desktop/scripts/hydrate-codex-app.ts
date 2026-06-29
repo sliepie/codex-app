@@ -2138,8 +2138,8 @@ function syncNativeNodeModules(recoveredRoot: string, nodeVersion: string): void
   const electronVersion = readPackageElectronVersion(desktopRoot, "Packaging workspace");
   const recoveredElectronVersion = readPackageElectronVersion(recoveredRoot, "Hydrated app");
   if (normalizeRuntimeVersion(electronVersion) !== normalizeRuntimeVersion(recoveredElectronVersion)) {
-    console.log(
-      `Using packaging Electron ${normalizeRuntimeVersion(electronVersion)} for Windows ARM64 native modules; hydrated app declares ${normalizeRuntimeVersion(recoveredElectronVersion)}.`,
+    throw new Error(
+      `Packaging Electron ${normalizeRuntimeVersion(electronVersion)} must match hydrated app Electron ${normalizeRuntimeVersion(recoveredElectronVersion)} for Windows ARM64 native modules.`,
     );
   }
 
