@@ -18,7 +18,6 @@ const targetRuntimeArch = 'arm64';
 const targetRuntimePlatform = 'win32';
 const codexWindowsPackageIdentity = 'Sliepie.Codex.SelfSigned';
 const requiredInstalledRuntimePackageNames = new Set(['tslib']);
-const disableCodexPlusPlus = process.env.CODEX_DISABLE_CODEXPP === '1';
 
 function listPackageRoots(nodeModulesRoot) {
   if (!fs.existsSync(nodeModulesRoot)) {
@@ -79,14 +78,6 @@ function readRecoveredPackageJson() {
 }
 
 const configuredRecoveredOriginalMain = recoveredOriginalMain(readRecoveredPackageJson() ?? {});
-const requiredCodexPlusPlusPackageFiles = [
-  'codex-plusplus/loader.cjs',
-  'codex-plusplus/runtime/main.js',
-  'codex-plusplus/runtime/preload.js',
-  'codex-plusplus/LICENSE',
-  'codex-plusplus/release.json',
-];
-
 function packageListAllowsTarget(value, target) {
   if (!value) {
     return true;
@@ -284,7 +275,6 @@ function isPackageFile(file) {
     '/recovered/app-asar-extracted/webview',
     '/recovered/app-asar-extracted/skills',
     '/recovered/app-asar-extracted/package.json',
-    '/codex-plusplus',
     '/package.json',
   ].some((allowedPath) => matchesPath(file, allowedPath)) ||
     isRecoveredNodeModule(file) ||
@@ -315,15 +305,8 @@ function syncPackagedPackageJson(buildPath) {
   packageJson.codexBuildNumber =
     releaseInfo?.buildNumber ?? upstreamPackageJson.codexBuildNumber ?? packageJson.codexBuildNumber;
   packageJson.codexWindowsPackageIdentity = codexWindowsPackageIdentity;
-  packageJson.__codexpp = {
-    ...(packageJson.__codexpp && typeof packageJson.__codexpp === 'object'
-      ? packageJson.__codexpp
-      : {}),
-    originalMain: recoveredOriginalMain(upstreamPackageJson),
-  };
-  packageJson.main = disableCodexPlusPlus
-    ? packageJson.__codexpp.originalMain
-    : 'codex-plusplus/loader.cjs';
+  delete packageJson.__codexpp;
+  packageJson.main = recoveredOriginalMain(upstreamPackageJson);
 
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
 }
@@ -355,33 +338,6 @@ function removeMacOSResourceDirectories(buildPath) {
   }
 }
 
-function assertRequiredPackageFile(buildPath, relativePath) {
-  const fullPath = path.join(buildPath, ...relativePath.split('/'));
-  if (!fs.existsSync(fullPath)) {
-    throw new Error('Missing required packaged file: ' + relativePath);
-  }
-}
-
-function assertCodexPlusPlusPackageInputs(buildPath) {
-  if (disableCodexPlusPlus) {
-    return;
-  }
-  for (const relativePath of requiredCodexPlusPlusPackageFiles) {
-    assertRequiredPackageFile(buildPath, relativePath);
-  }
-
-  const packageJson = readPackageJson(buildPath);
-  const originalMain = packageJson.__codexpp?.originalMain;
-  if (typeof originalMain !== 'string' || !originalMain.trim()) {
-    throw new Error('Missing packaged Codex++ originalMain metadata.');
-  }
-  const normalizedOriginalMain = originalMain.trim().replace(/\\/g, '/').replace(/^\.\//, '');
-  if (!isPackageFile('/' + normalizedOriginalMain)) {
-    throw new Error('Packaged original main is not allowed by Forge ignore rules: ' + normalizedOriginalMain);
-  }
-  assertRequiredPackageFile(buildPath, normalizedOriginalMain);
-}
-
 const config = {
   packagerConfig: {
     asar: true,
@@ -406,7 +362,6 @@ const config = {
       (buildPath, _electronVersion, _platform, _arch, callback) => {
         try {
           syncPackagedPackageJson(buildPath);
-          assertCodexPlusPlusPackageInputs(buildPath);
           callback();
         } catch (error) {
           callback(error);

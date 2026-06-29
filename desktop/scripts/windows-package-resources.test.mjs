@@ -1337,13 +1337,14 @@ test("allows the upstream bundle to omit the browser plugin", () => {
   );
 });
 
-test("includes generated plugin resources and Codex++ integration in the Windows package", () => {
+test("includes generated plugin resources without Codex++ integration in the Windows package", async (t) => {
+  ensureRecoveredPackageForForgeTest(t);
   const config = require(path.join(desktopRoot, "forge.config.js"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/plugins"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
-  assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), true);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus-old/loader.cjs"), true);
-  assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), true);
   assert.equal(config.packagerConfig.ignore("/package.json.bak"), true);
   assert.equal(
     config.packagerConfig.ignore(
@@ -1353,40 +1354,36 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   );
   assert.equal(
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json"),
-    false,
+    true,
   );
   assert.equal(
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-windows-menu-bar/manifest.json"),
-    false,
+    true,
   );
 
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
-  assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
+  assert.equal(packageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
 
-  const loaderSource = fs.readFileSync(
-    path.join(desktopRoot, "codex-plusplus", "loader.cjs"),
-    "utf8",
+  const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-barebones-"));
+  t.after(() => fs.rmSync(buildPath, { recursive: true, force: true }));
+  writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
+  await runForgeAfterCopy(config, buildPath);
+
+  const packagedPackageJson = JSON.parse(
+    fs.readFileSync(path.join(buildPath, "package.json"), "utf8"),
   );
-  assert.match(loaderSource, /config\.json/);
-  assert.match(loaderSource, /autoUpdate: false/);
-  assert.match(loaderSource, /readInstalledTweakVersion\(targetDir, manifest\.id\)/);
-  assert.match(loaderSource, /bundledVersionIsNewer\(manifest\.version, installedVersion\)/);
-  assert.match(loaderSource, /__codexpp\.originalMain/);
-  assert.match(loaderSource, /registerEarlyPreloadHooks\(\);[\s\S]*require\(path\.join\(packagedRoot, originalMain\)\)/);
-  assert.match(loaderSource, /maxLogBytes = 10 \* 1024 \* 1024/);
-  assert.match(loaderSource, /if \(size > maxLogBytes\)/);
-  assert.match(loaderSource, /function trimLogToRetainedBytes/);
-  assert.match(loaderSource, /fs\.readSync\(/);
+  assert.equal(packagedPackageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
+  assert.equal(Object.hasOwn(packagedPackageJson, "__codexpp"), false);
 
   const forgeSource = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
-  assert.match(forgeSource, /originalMain: recoveredOriginalMain\(upstreamPackageJson\)/);
+  assert.match(forgeSource, /packageJson\.main = recoveredOriginalMain\(upstreamPackageJson\)/);
   assert.match(forgeSource, /path\.posix\.isAbsolute\(normalizedMain\)/);
   assert.match(forgeSource, /normalizedMain\.startsWith\('\.\.\/'\)/);
-  assert.match(forgeSource, /assertCodexPlusPlusPackageInputs\(buildPath\)/);
+  assert.doesNotMatch(forgeSource, /codex-plusplus\/loader\.cjs/);
+  assert.doesNotMatch(forgeSource, /assertCodexPlusPlusPackageInputs/);
 });
-
 function ensureRecoveredPackageForForgeTest(t) {
   const recoveredRoot = path.join(desktopRoot, "recovered");
   const recoveredPackageRoot = path.join(recoveredRoot, "app-asar-extracted");
@@ -1453,21 +1450,19 @@ test("Forge package prunes macOS plugin resources before ZIP makers run", async 
   assert.equal(fs.existsSync(path.join(keptRoot, "codex-computer-use.exe")), true);
 });
 
-test("Forge preflight fails when hydrated Codex++ runtime is missing", async (t) => {
+test("Forge afterCopy does not require Codex++ runtime for barebones package", async (t) => {
   ensureRecoveredPackageForForgeTest(t);
   const config = require(path.join(desktopRoot, "forge.config.js"));
   const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-preflight-"));
   t.after(() => fs.rmSync(buildPath, { recursive: true, force: true }));
 
   writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
-  writeFixture(path.join(buildPath, "codex-plusplus", "loader.cjs"), "module.exports = {};\n");
 
-  await assert.rejects(
-    () => runForgeAfterCopy(config, buildPath),
-    /Missing required packaged file: codex-plusplus\/runtime\/main\.js/,
-  );
+  await runForgeAfterCopy(config, buildPath);
+  const packageJson = JSON.parse(fs.readFileSync(path.join(buildPath, "package.json"), "utf8"));
+  assert.equal(packageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
+  assert.equal(Object.hasOwn(packageJson, "__codexpp"), false);
 });
-
 function createCodexPlusPlusLoaderFixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plusplus-loader-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
