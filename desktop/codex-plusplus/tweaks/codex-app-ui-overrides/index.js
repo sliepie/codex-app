@@ -42,7 +42,7 @@ const SIDEBAR_SECTION_TOGGLE_ICON_TARGETS = [
 ];
 const SIDEBAR_PROJECT_ROW_SELECTOR = "[data-app-action-sidebar-project-row]";
 const SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR =
-  ">div.flex.gap-1:has(>.relative.mr-0\\.5.h-6.min-w-6.shrink-0)";
+  ">:is(div,span).flex.min-w-0.gap-1:has(>.mr-0\\.5.grid.h-6.min-w-6.shrink)";
 const SIDEBAR_PROJECT_ACTION_WRAPPER_TARGETS = [
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR}>div:has(button[aria-haspopup='menu'][aria-label])`,
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} span:has(>button:not([aria-hidden='true'])[aria-label])`,
@@ -62,6 +62,7 @@ const SIDEBAR_PROJECT_ACTION_ICON_TARGETS = [
 ];
 const SIDEBAR_PROJECT_ACTION_OVERLAY_TARGETS = [
   `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} .group-hover\\/folder-row\\:hidden`,
+  `${SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR} .group-hover\\/folder-row\\:invisible`,
 ];
 const SIDEBAR_THREAD_ROW_SELECTOR = "[data-app-action-sidebar-thread-row]";
 const SIDEBAR_THREAD_ROW_ACTION_WRAPPER_TARGETS = [
@@ -124,9 +125,29 @@ const INVITE_FRIEND_MENU_ITEM_SELECTOR =
   ":where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.0368 1.69459'])";
 const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
+const SIDEBAR_ROOT_COMPACT_PADDING_DECLARATIONS = "--padding-row-x:0px!important;";
 const SIDEBAR_SHOW_MORE_BUTTON_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading="Projects"] [role='list']>[role='listitem']>button`;
 const SIDEBAR_SHOW_MORE_BUTTON_DECLARATIONS = "margin-left:-1px!important;";
+const SIDEBAR_PROJECT_ICON_SELECTOR =
+  `${SIDEBAR_PROJECT_ROW_SELECTOR}>div.flex.min-w-0.flex-1.items-center.gap-1.pl-0\\.5>span.relative.flex.h-6.w-6.items-center.justify-center`;
+const SIDEBAR_PROJECT_ICON_GLYPH_SELECTOR =
+  `${SIDEBAR_PROJECT_ICON_SELECTOR}>:is(svg,.icon-2xs,.icon-xs,.icon-sm)`;
+const SIDEBAR_PROJECT_ICON_WRAPPER_DECLARATIONS =
+  "position:relative!important;color:var(--color-token-description-foreground)!important;";
+const SIDEBAR_PROJECT_ICON_GLYPH_DECLARATIONS = "display:none!important;";
+const SIDEBAR_PROJECT_FOLDER_BODY_DECLARATIONS =
+  'content:""!important;position:absolute!important;left:4px!important;top:7px!important;width:15px!important;height:10px!important;border:1.4px solid currentColor!important;border-radius:2.5px!important;box-sizing:border-box!important;';
+const SIDEBAR_PROJECT_FOLDER_TAB_DECLARATIONS =
+  'content:""!important;position:absolute!important;left:5px!important;top:5px!important;width:7px!important;height:3.5px!important;border:1.4px solid currentColor!important;border-bottom:0!important;border-radius:2.5px 2.5px 0 0!important;box-sizing:border-box!important;';
+const SIDEBAR_SCROLL_SELECTOR = `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-scroll]`;
+const SIDEBAR_SCROLL_BOTTOM_CLEARANCE_DECLARATIONS =
+  "padding-bottom:calc(var(--sidebar-footer-height) + var(--padding-row-x) + 0.75rem)!important;";
+const SIDEBAR_PROFILE_FOOTER_SELECTOR = `${SIDEBAR_ROOT_SELECTOR}>.relative.w-full.shrink-0`;
+const SIDEBAR_PROFILE_FOOTER_DECLARATIONS =
+  "z-index:2!important;background:var(--color-token-bg-primary,var(--color-token-main-surface-primary))!important;";
+const SIDEBAR_PROFILE_FOOTER_BORDER_SELECTOR =
+  `${SIDEBAR_PROFILE_FOOTER_SELECTOR}>.pointer-events-none.absolute.inset-x-0.top-0.z-10.h-\\[0\\.5px\\].bg-token-foreground\\/10`;
 const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
   `${SIDEBAR_ROOT_SELECTOR} :is(a,button,[role='button'])[aria-label*='codex mobile' i]`,
 ];
@@ -376,6 +397,38 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES = [
 ];
 
 const SIDEBAR_FOOTER_STYLE_RULES = [
+  cssRule(
+    SIDEBAR_ROOT_SELECTOR,
+    SIDEBAR_ROOT_COMPACT_PADDING_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_PROJECT_ICON_SELECTOR,
+    SIDEBAR_PROJECT_ICON_WRAPPER_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_PROJECT_ICON_GLYPH_SELECTOR,
+    SIDEBAR_PROJECT_ICON_GLYPH_DECLARATIONS,
+  ),
+  cssRule(
+    `${SIDEBAR_PROJECT_ICON_SELECTOR}::before`,
+    SIDEBAR_PROJECT_FOLDER_BODY_DECLARATIONS,
+  ),
+  cssRule(
+    `${SIDEBAR_PROJECT_ICON_SELECTOR}::after`,
+    SIDEBAR_PROJECT_FOLDER_TAB_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_SCROLL_SELECTOR,
+    SIDEBAR_SCROLL_BOTTOM_CLEARANCE_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_PROFILE_FOOTER_SELECTOR,
+    SIDEBAR_PROFILE_FOOTER_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_PROFILE_FOOTER_BORDER_SELECTOR,
+    HIDDEN_DISPLAY_DECLARATIONS,
+  ),
   cssRule(
     `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M10.6391 1.67517"]) svg`,
     "margin-right:1px!important;",

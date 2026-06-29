@@ -873,12 +873,24 @@ export function rewriteCodexPlusPlusRuntimePreload(source: string): string {
   });
 
   updated = rewriteFunctionBody(updated, "findSidebarItemsGroup", (body) => {
+    const mainAppSidebarMarkerLookup =
+      `const mainAppSidebarMarker = document.querySelector("[data-app-action-sidebar-section-heading], [data-app-action-sidebar-thread-row], [data-app-action-sidebar-project-row]");\n  if (!settingsPanelSlug && mainAppSidebarMarker) {\n    return null;\n  }\n  `;
+
     if (body.includes("const settingsItemsGroup = settingsPanelSlug?.closest")) {
-      return body;
+      if (body.includes("const mainAppSidebarMarker = document.querySelector")) {
+        return body;
+      }
+
+      return replaceRequired(
+        body,
+        /\bconst\s+candidates\s*=\s*Array\.from\(\s*document\.querySelectorAll\("aside,nav,\[role='navigation'\],div"\)\s*\)\s*;/,
+        (match) => `${mainAppSidebarMarkerLookup}${match}`,
+        "Codex++ settings panel main app sidebar guard",
+      );
     }
 
     const settingsPanelSlugItemsLookup =
-      `const settingsPanelSlug = document.querySelector("[data-settings-panel-slug]");\n  const settingsPanelNav = settingsPanelSlug?.closest("nav");\n  const settingsItemsGroup = settingsPanelSlug?.closest(".min-h-0.flex-1.overflow-y-auto.pb-2");\n  const settingsItemsOuter = settingsItemsGroup?.parentElement ?? settingsItemsGroup;\n  if (settingsPanelNav instanceof HTMLElement && settingsItemsGroup instanceof HTMLElement && settingsItemsOuter instanceof HTMLElement && settingsPanelNav.contains(settingsItemsGroup) && isSettingsSidebarCandidate(settingsItemsGroup) && isSettingsSidebarCandidate(settingsItemsOuter)) {\n    return settingsItemsGroup;\n  }\n  `;
+      `const settingsPanelSlug = document.querySelector("[data-settings-panel-slug]");\n  const settingsPanelNav = settingsPanelSlug?.closest("nav");\n  const settingsItemsGroup = settingsPanelSlug?.closest(".min-h-0.flex-1.overflow-y-auto.pb-2");\n  const settingsItemsOuter = settingsItemsGroup?.parentElement ?? settingsItemsGroup;\n  if (settingsPanelNav instanceof HTMLElement && settingsItemsGroup instanceof HTMLElement && settingsItemsOuter instanceof HTMLElement && settingsPanelNav.contains(settingsItemsGroup) && isSettingsSidebarCandidate(settingsItemsGroup) && isSettingsSidebarCandidate(settingsItemsOuter)) {\n    return settingsItemsGroup;\n  }\n  ${mainAppSidebarMarkerLookup}`;
 
     if (body.includes("[data-settings-panel-slug]")) {
       return replaceRequired(
@@ -900,11 +912,33 @@ export function rewriteCodexPlusPlusRuntimePreload(source: string): string {
   updated = rewriteFunctionBody(updated, "isSettingsSidebarCandidate", (body) => {
     const settingsPanelSlugCandidateShortcutPattern =
       /\s*if\s*\(\s*el\.querySelector\("\[data-settings-panel-slug\]"\)\s*&&\s*codexPpVisibleBox\(el\)\s*\)\s*return\s+true\s*;\s*/;
-    if (!settingsPanelSlugCandidateShortcutPattern.test(body)) {
-      return body;
+    let updatedBody = settingsPanelSlugCandidateShortcutPattern.test(body)
+      ? body.replace(settingsPanelSlugCandidateShortcutPattern, "\n  ")
+      : body;
+
+    if (updatedBody.includes("[data-app-action-sidebar-section-heading]")) {
+      return updatedBody;
     }
 
-    return body.replace(settingsPanelSlugCandidateShortcutPattern, "\n  ");
+    const mainAppSidebarCandidateRejection =
+      `if (el.querySelector("[data-app-action-sidebar-section-heading], [data-app-action-sidebar-thread-row], [data-app-action-sidebar-project-row]")) {\n    return false;\n  }`;
+    const visibleBoxCheckPattern =
+      /\bif\s*\(\s*!codexPpVisibleBox\(el\)\s*\)\s*return\s+false\s*;/;
+    if (visibleBoxCheckPattern.test(updatedBody)) {
+      return replaceRequired(
+        updatedBody,
+        visibleBoxCheckPattern,
+        (match) => `${match}\n  ${mainAppSidebarCandidateRejection}`,
+        "Codex++ settings candidate main app sidebar rejection",
+      );
+    }
+
+    return replaceRequired(
+      updatedBody,
+      /\bconst\s+labels\s*=\s*codexPpSettingsLabelsFrom\(el\)\s*;/,
+      (match) => `${mainAppSidebarCandidateRejection}\n  ${match}`,
+      "Codex++ settings candidate main app sidebar rejection",
+    );
   });
 
   return updated;

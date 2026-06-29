@@ -2723,8 +2723,18 @@ function isSettingsSidebarCandidate(el) {
   assert.match(updated, /settingsPanelNav\.contains\(settingsItemsGroup\)/);
   assert.match(updated, /isSettingsSidebarCandidate\(settingsItemsOuter\)/);
   assert.match(updated, /return settingsItemsGroup;/);
-  assert.doesNotMatch(
-    updated,
+  assert.ok(
+    updated.includes(
+      'const mainAppSidebarMarker = document.querySelector("[data-app-action-sidebar-section-heading], [data-app-action-sidebar-thread-row], [data-app-action-sidebar-project-row]");',
+    ),
+  );
+  assert.ok(updated.includes('if (!settingsPanelSlug && mainAppSidebarMarker) {\n    return null;\n  }'));
+  assert.ok(
+    updated.includes(
+      'el.querySelector("[data-app-action-sidebar-section-heading], [data-app-action-sidebar-thread-row], [data-app-action-sidebar-project-row]")',
+    ),
+  );
+  assert.doesNotMatch(    updated,
     /if \(el\.querySelector\("\[data-settings-panel-slug\]"\) && codexPpVisibleBox\(el\)\) return true;/,
   );
   assert.equal(rewriteCodexPlusPlusRuntimePreload(updated), updated);
