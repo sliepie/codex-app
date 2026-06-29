@@ -124,6 +124,7 @@ const electronNativeModuleCacheInputPaths = windowsArm64NativeModuleCacheInputPa
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
 const defaultCodexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
+const disableCodexPlusPlus = process.env.CODEX_DISABLE_CODEXPP === "1";
 const legacyBundledMarketplaceNames = ["openai-bundled-beta"] as const;
 const nodeAbi = require("node-abi") as {
   getAbi(target: string, runtime: "electron" | "node"): string;
@@ -3270,13 +3271,15 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   const appResourcesRoot = path.dirname(appAsar);
   const nodeVersion = readBundledNodeVersion(appResourcesRoot);
   syncBundledPluginResources(appResourcesRoot);
-  await hydrateCodexPlusPlusRuntime(
-    options.cacheRoot,
-    options.codexPlusPlusRepo,
-    options.force,
-    options.codexPlusPlusTag,
-    options.codexPlusPlusSha,
-  );
+  if (!disableCodexPlusPlus) {
+    await hydrateCodexPlusPlusRuntime(
+      options.cacheRoot,
+      options.codexPlusPlusRepo,
+      options.force,
+      options.codexPlusPlusTag,
+      options.codexPlusPlusSha,
+    );
+  }
 
   execFileSync(
     process.execPath,
@@ -3289,13 +3292,15 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     ],
     { stdio: "inherit" },
   );
-  patchWindowsSelfSignedBundle(recoveredRoot);
-  patchRecoveredOwlFeatureBinding(recoveredRoot);
-  patchRecoveredOwlFeatureSwitch(recoveredRoot);
-  patchRecoveredMessageRailStatsigGate(recoveredRoot);
-  patchRecoveredCodexWindowServices(recoveredRoot);
-  patchRecoveredCodexMicroService(recoveredRoot);
-  pruneWorkLouderPackages(recoveredRoot);
+  if (!disableCodexPlusPlus) {
+    patchWindowsSelfSignedBundle(recoveredRoot);
+    patchRecoveredOwlFeatureBinding(recoveredRoot);
+    patchRecoveredOwlFeatureSwitch(recoveredRoot);
+    patchRecoveredMessageRailStatsigGate(recoveredRoot);
+    patchRecoveredCodexWindowServices(recoveredRoot);
+    patchRecoveredCodexMicroService(recoveredRoot);
+    pruneWorkLouderPackages(recoveredRoot);
+  }
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
   fs.writeFileSync(

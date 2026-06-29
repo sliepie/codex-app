@@ -103,6 +103,7 @@ jobs:
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
           CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
           CODEX_PLUS_PLUS_SHA: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
+          CODEX_DISABLE_CODEXPP: '1'
           GH_TOKEN: ${{ github.token }}
         run: npm run plan:win:arm64:compiled -- make
 

@@ -18,6 +18,7 @@ const targetRuntimeArch = 'arm64';
 const targetRuntimePlatform = 'win32';
 const codexWindowsPackageIdentity = 'Sliepie.Codex.SelfSigned';
 const requiredInstalledRuntimePackageNames = new Set(['tslib']);
+const disableCodexPlusPlus = process.env.CODEX_DISABLE_CODEXPP === '1';
 
 function listPackageRoots(nodeModulesRoot) {
   if (!fs.existsSync(nodeModulesRoot)) {
@@ -320,7 +321,9 @@ function syncPackagedPackageJson(buildPath) {
       : {}),
     originalMain: recoveredOriginalMain(upstreamPackageJson),
   };
-  packageJson.main = 'codex-plusplus/loader.cjs';
+  packageJson.main = disableCodexPlusPlus
+    ? packageJson.__codexpp.originalMain
+    : 'codex-plusplus/loader.cjs';
 
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
 }
@@ -360,6 +363,9 @@ function assertRequiredPackageFile(buildPath, relativePath) {
 }
 
 function assertCodexPlusPlusPackageInputs(buildPath) {
+  if (disableCodexPlusPlus) {
+    return;
+  }
   for (const relativePath of requiredCodexPlusPlusPackageFiles) {
     assertRequiredPackageFile(buildPath, relativePath);
   }
