@@ -16,7 +16,7 @@ description: "Maintain Store-sourced Windows package dependencies for codex-app.
 
 - **Always**: `AGENTS.md`, `CONTEXT.md`, `docs/executable-inventory.md`.
 - **Helper refresh**: `docs/adr/0001-use-official-x64-node-repl-fallback.md`, `desktop/scripts/update-node-repl.ps1`, `desktop/scripts/resource-binary-exceptions.ts`, and the three helper metadata JSON files under `desktop/resources/`.
-- **Shell parity**: `desktop/forge.config.js`, `desktop/scripts/prepare-self-signed-msix-payload.ts`, `desktop/scripts/windows-package-resources.test.mjs`, and any package/resource tests touched by the change.
+- **Shell parity**: `desktop/forge.config.js`, `desktop/scripts/prepare-self-signed-msix-payload.ts`, `desktop/scripts/windows-package-resources.test.mjs`, `desktop/resources/store-owl-shell.json` when present, and `desktop/scripts/assert-windows-primary-window-flags.ps1` when present.
 
 ## Store Source Rules
 
@@ -31,20 +31,20 @@ description: "Maintain Store-sourced Windows package dependencies for codex-app.
 - Do not copy only `chrome.dll`, only `Codex.exe`, or only icon assets.
 - Prefer Store/Owl package parity over stock Electron taskbar/focus patches. Stock Electron compatibility patches are fallback-only and need a failing smoke check first.
 - Prefer MSIX/AppX validation for shell parity. ZIP or unpacked launches are acceptable for file inspection, but not as the final taskbar/focus signal.
-- Store source provenance must live in a committed metadata file or manifest. If none exists for shell parity yet, creating it is part of the shell parity change.
-- Package-resource tests must cover the matched set: `Codex.exe`, `chrome_elf.dll`, `chrome.dll`, `.pak` resources, snapshots, locales, `owl-shell-runtime.json`, AppX manifest/assets, and app resources touched by the package flow.
-- If no reusable window-flag smoke check exists, add one under `desktop/scripts/` or the package tests before claiming shell parity complete. Ad hoc Win32 snippets are diagnosis only.
+- Store source provenance must live in `desktop/resources/store-owl-shell.json`. If that file does not exist yet, creating it is part of the shell parity change.
+- `desktop/scripts/windows-package-resources.test.mjs` must cover the matched set: `Codex.exe`, `chrome_elf.dll`, `chrome.dll`, `.pak` resources, snapshots, locales, `owl-shell-runtime.json`, AppX manifest/assets, and app resources touched by the package flow.
+- If no reusable window-flag smoke check exists, add `desktop/scripts/assert-windows-primary-window-flags.ps1` before claiming shell parity complete. Ad hoc Win32 snippets are diagnosis only.
 - Completion criterion: the package records Store source identity, version, source-relative paths, architectures, and SHA values; package-resource tests cover the matched set; a launched Windows build passes a reusable smoke check showing a visible primary window with `WS_EX_APPWINDOW` and without `WS_EX_NOACTIVATE`.
 
 ## Helper Binary Branch
 
-- Run `npm run update:node-repl` from `desktop` to refresh Store-vendored `node_repl.exe`, Chrome `extension-host.exe`, and Computer Use `codex-computer-use.exe`.
+- Run `npm --prefix desktop run update:node-repl` from the repo root to refresh Store-vendored `node_repl.exe`, Chrome `extension-host.exe`, and Computer Use `codex-computer-use.exe`.
 - Keep every resource binary ARM64 unless it cannot be compiled, downloaded, or otherwise obtained for Windows ARM64.
 - Keep `desktop/resources/cua_node/bin/node_repl.exe` and `desktop/resources/extension-host.exe` ARM64 when the Store package provides ARM64 binaries.
 - Keep `desktop/resources/codex-computer-use.exe` as an accepted x64 exception until an ARM64 helper exists.
 - Keep `desktop/scripts/resource-binary-exceptions.ts` aligned with `CONTEXT.md`, `docs/adr/0001-use-official-x64-node-repl-fallback.md`, and `docs/executable-inventory.md`.
 - Keep the tracked helper files limited to the three `.exe` files and their `.json` metadata unless Store/Owl shell packaging explicitly changes that rule.
-- Completion criterion: helper metadata records the official Store package identity, version, source-relative path, architecture, and SHA; changed provenance is reflected in `docs/executable-inventory.md`; `npm run verify:windows-arm64-resource-binaries` passes.
+- Completion criterion: helper metadata records the official Store package identity, version, source-relative path, architecture, and SHA; changed provenance is reflected in `docs/executable-inventory.md`; `npm --prefix desktop run verify:windows-arm64-resource-binaries` passes.
 
 ## Validation
 
@@ -55,11 +55,19 @@ node -e "const fs=require('fs'); JSON.parse(fs.readFileSync('desktop/resources/c
 $bytes=[IO.File]::ReadAllBytes('desktop\resources\cua_node\bin\node_repl.exe'); $pe=[BitConverter]::ToInt32($bytes,0x3c); $machine=[BitConverter]::ToUInt16($bytes,$pe+4); if ($machine -ne 0xaa64) { throw "Expected ARM64 node_repl.exe" }; 'node_repl.exe ARM64 ok'
 $bytes=[IO.File]::ReadAllBytes('desktop\resources\extension-host.exe'); $pe=[BitConverter]::ToInt32($bytes,0x3c); $machine=[BitConverter]::ToUInt16($bytes,$pe+4); if ($machine -ne 0xaa64) { throw "Expected ARM64 extension-host.exe" }; 'extension-host.exe ARM64 ok'
 $bytes=[IO.File]::ReadAllBytes('desktop\resources\codex-computer-use.exe'); $pe=[BitConverter]::ToInt32($bytes,0x3c); $machine=[BitConverter]::ToUInt16($bytes,$pe+4); if ($machine -ne 0x8664) { throw "Expected x64 codex-computer-use.exe" }; 'codex-computer-use.exe x64 ok'
-npm run verify:windows-arm64-resource-binaries
+npm --prefix desktop run verify:windows-arm64-resource-binaries
 git diff --check
 ```
 
-For Store/Owl shell changes, also install or launch the built Windows package from its package identity path and assert the primary window flags from the shell branch completion criterion.
+Run those helper validation commands from the repo root. For Store/Owl shell changes, also run:
+
+```powershell
+npm --prefix desktop run test:windows-package-resources:compiled
+powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\scripts\assert-windows-primary-window-flags.ps1 -PackageName Sliepie.Codex.SelfSigned
+git diff --check
+```
+
+Install or launch the built Windows package from its package identity path before running the window-flag smoke check.
 
 Confirm `Get-AppxPackage -Name OpenAI.Codex` is empty after a temporary install run unless Codex was already installed before the update.
 
