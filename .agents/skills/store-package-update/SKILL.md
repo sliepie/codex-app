@@ -48,26 +48,11 @@ description: "Maintain Store-sourced Windows package dependencies for codex-app.
 
 ## Validation
 
-For helper binary refreshes, run:
+Validation script bodies live under `.agents/skills/store-package-update/scripts/`; update those files instead of adding inline script blocks to this skill.
 
-```powershell
-node -e "const fs=require('fs'); JSON.parse(fs.readFileSync('desktop/resources/cua_node/bin/node_repl.json','utf8')); JSON.parse(fs.readFileSync('desktop/resources/extension-host.json','utf8')); JSON.parse(fs.readFileSync('desktop/resources/codex-computer-use.json','utf8')); JSON.parse(fs.readFileSync('desktop/package.json','utf8')); console.log('json ok')"
-$bytes=[IO.File]::ReadAllBytes('desktop\resources\cua_node\bin\node_repl.exe'); $pe=[BitConverter]::ToInt32($bytes,0x3c); $machine=[BitConverter]::ToUInt16($bytes,$pe+4); if ($machine -ne 0xaa64) { throw "Expected ARM64 node_repl.exe" }; 'node_repl.exe ARM64 ok'
-$bytes=[IO.File]::ReadAllBytes('desktop\resources\extension-host.exe'); $pe=[BitConverter]::ToInt32($bytes,0x3c); $machine=[BitConverter]::ToUInt16($bytes,$pe+4); if ($machine -ne 0xaa64) { throw "Expected ARM64 extension-host.exe" }; 'extension-host.exe ARM64 ok'
-$bytes=[IO.File]::ReadAllBytes('desktop\resources\codex-computer-use.exe'); $pe=[BitConverter]::ToInt32($bytes,0x3c); $machine=[BitConverter]::ToUInt16($bytes,$pe+4); if ($machine -ne 0x8664) { throw "Expected x64 codex-computer-use.exe" }; 'codex-computer-use.exe x64 ok'
-npm --prefix desktop run verify:windows-arm64-resource-binaries
-git diff --check
-```
-
-Run those helper validation commands from the repo root. For Store/Owl shell changes, also run:
-
-```powershell
-npm --prefix desktop run test:windows-package-resources:compiled
-powershell -NoProfile -ExecutionPolicy Bypass -File .\desktop\scripts\assert-windows-primary-window-flags.ps1 -PackageName Sliepie.Codex.SelfSigned
-git diff --check
-```
-
-Install or launch the built Windows package from its package identity path before running the window-flag smoke check.
+- For helper binary refreshes, run `.agents/skills/store-package-update/scripts/validate-helper-refresh.ps1` from the repo root.
+- For helper binary refreshes without `desktop/out/Codex-win32-arm64`, pass `-PackageRoot` only when validating an already-built or temporary package tree.
+- For Store/Owl shell changes, install or launch the built Windows package from its package identity path, then run `.agents/skills/store-package-update/scripts/validate-store-owl-shell.ps1 -PackageName <package identity>` from the repo root.
 
 Confirm `Get-AppxPackage -Name OpenAI.Codex` is empty after a temporary install run unless Codex was already installed before the update.
 
