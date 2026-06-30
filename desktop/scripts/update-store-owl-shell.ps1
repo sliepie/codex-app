@@ -168,12 +168,27 @@ function Copy-StorePath {
 
     if ($Kind -eq "directory") {
         $digest = Get-DirectoryDigest -Path $destinationPath
-        return [ordered]@{
+        $directoryEntry = [ordered]@{
             sourceRelativePath = $RelativePath
             kind = "directory"
             fileCount = $digest.fileCount
             sha256 = $digest.sha256
         }
+        $nestedExecutableEntries = Get-ChildItem -LiteralPath $destinationPath -Recurse -File |
+            Where-Object { [System.IO.Path]::GetExtension($_.FullName).ToLowerInvariant() -in @(".exe", ".dll") } |
+            Sort-Object -Property FullName |
+            ForEach-Object {
+                $nestedRelativePath = (Get-RelativePath -BasePath $DestinationRoot -Path $_.FullName).Replace("\", "/")
+                [ordered]@{
+                    sourceRelativePath = $nestedRelativePath
+                    kind = "nestedExecutable"
+                    size = $_.Length
+                    sha256 = Get-Sha256 -Path $_.FullName
+                    architecture = Format-PeMachine -Machine (Get-PeMachine -Path $_.FullName)
+                    containedIn = $RelativePath
+                }
+            }
+        return @($directoryEntry) + @($nestedExecutableEntries)
     }
 
     $entry = [ordered]@{

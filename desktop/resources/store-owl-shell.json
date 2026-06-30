@@ -33,6 +33,102 @@
                         "sha256":  "a15526bd66433da70dd3e298f2304e94a24fa6c454852f7aabecd140aa523caa"
                     },
                     {
+                        "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/winpty.dll",
+                        "kind":  "nestedExecutable",
+                        "size":  1096704,
+                        "sha256":  "eeb4f4654906f6d776c201a0b4c8426b9dee38d375c0da39ef6bfe12b390f9a4",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/winpty-agent.exe",
+                        "kind":  "nestedExecutable",
+                        "size":  1231872,
+                        "sha256":  "61b5b91198e52d9c5baaf58ae9b585142f2a5f971b4974a80cf14ce8534689f2",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/codex.exe",
+                        "kind":  "nestedExecutable",
+                        "size":  278803248,
+                        "sha256":  "3be08fd1e93c821702c36ca446d18f64e128fdadfca6c2fb409d7a52b9ce79a2",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/codex-command-runner.exe",
+                        "kind":  "nestedExecutable",
+                        "size":  1111856,
+                        "sha256":  "00fbbc26ee689f226b0e32b51eb4d5831d6efad33f7609ead90a46311e0b657f",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/codex-windows-sandbox-setup.exe",
+                        "kind":  "nestedExecutable",
+                        "size":  7772976,
+                        "sha256":  "cbf5538d880ebd255ede54a9abb7dfed199ed9c3a9b94d7e086ac85f9ee1d46b",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/cua_node/bin/node.exe",
+                        "kind":  "nestedExecutable",
+                        "size":  80470176,
+                        "sha256":  "8c5fd45a4a1fd3cc4a6f07da8803b05194108906cb6fb7d962448a12582a5922",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/cua_node/bin/node_modules/@img/sharp-win32-arm64/lib/libvips-42.dll",
+                        "kind":  "nestedExecutable",
+                        "size":  15422976,
+                        "sha256":  "4adfb118ddf43fd413b7bbe8f5dcc34132e1898e15d024524060efe771b03081",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/cua_node/bin/node_modules/@img/sharp-win32-arm64/lib/libvips-cpp-8.17.3.dll",
+                        "kind":  "nestedExecutable",
+                        "size":  440832,
+                        "sha256":  "68c2302bc894351dd62531fc1e2f2dc1dfef0c0da4be1f6b65e2495f717614ac",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/cua_node/bin/node_modules/@oai/sky/bin/windows/codex-computer-use.exe",
+                        "kind":  "nestedExecutable",
+                        "size":  1691648,
+                        "sha256":  "f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03",
+                        "architecture":  "x64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/cua_node/bin/node_repl.exe",
+                        "kind":  "nestedExecutable",
+                        "size":  12359168,
+                        "sha256":  "3e2fb244544c834730108caeea4fdafe3e8c3353fb611b71832b2c5897cfaac6",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe",
+                        "kind":  "nestedExecutable",
+                        "size":  940544,
+                        "sha256":  "7143abfec3b744260a17a422bcb9fb76666edcad5e1a0101a29942e9086ad8dd",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/rg.exe",
+                        "kind":  "nestedExecutable",
+                        "size":  3930112,
+                        "sha256":  "f7799d737b520e00b10dfa72def23904fe66fb03315636a7b78549845ee9609c",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
                         "sourceRelativePath":  "app/149.0.7827.197.manifest",
                         "kind":  "file",
                         "size":  228,
