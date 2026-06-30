@@ -3139,6 +3139,8 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   assert.match(source, /function Assert-Arm64Package/);
   assert.match(source, /\$Package\.Architecture/);
   assert.match(source, /expected \$RequiredArchitecture for the Windows ARM64 payload/);
+  assert.match(source, /\$NativePayloadExtensions = @\("\.exe", "\.dll", "\.node"\)/);
+  assert.match(source, /function Test-NativePayloadCandidate/);
   assert.match(source, /function Copy-StoreDirectoryFiles/);
   assert.match(source, /kind = "nestedExecutable"/);
   assert.match(source, /containedIn = \$RelativePath/);
@@ -3231,6 +3233,14 @@ test("tracks Store Owl shell provenance metadata", () => {
   assert.doesNotMatch(metadataSource, /[A-Z]:[\\/]/);
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/Codex.exe"));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/chrome.dll"));
+  assert.ok(
+    metadata.entries.some(
+      (entry) =>
+        entry.kind === "nestedExecutable" &&
+        entry.sourceRelativePath.endsWith(".node") &&
+        ["arm64", "x64", "x86"].includes(entry.architecture),
+    ),
+  );
   assert.ok(
     metadata.entries.some(
       (entry) =>

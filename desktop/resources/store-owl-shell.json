@@ -33,6 +33,54 @@
                         "sha256":  "a15526bd66433da70dd3e298f2304e94a24fa6c454852f7aabecd140aa523caa"
                     },
                     {
+                        "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/@worklouder/device-kit-oai/node_modules/@worklouder/wl-device-kit/node_modules/node-hid/build/Release/HID.node",
+                        "kind":  "nestedExecutable",
+                        "size":  653312,
+                        "sha256":  "f828702f8079540d7ee9e576ca1d7461424302e2064b425a3118cbbe3a9d2c7e",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/@worklouder/device-kit-oai/node_modules/@worklouder/wl-device-kit/node_modules/serialport/node_modules/@serialport/bindings-cpp/prebuilds/win32-arm64/node.napi.node",
+                        "kind":  "nestedExecutable",
+                        "size":  239104,
+                        "sha256":  "09c05c8ce1913cb034a38a18e9ca67b0a3fc47f9c3307d2333888467ce5bd6bd",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/better-sqlite3/build/Release/better_sqlite3.node",
+                        "kind":  "nestedExecutable",
+                        "size":  3352576,
+                        "sha256":  "412e02c7b759b407a3d21ac1bb437aa9c5f0cc1dc0033f78e50e7624c91e8028",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/conpty.node",
+                        "kind":  "nestedExecutable",
+                        "size":  1676288,
+                        "sha256":  "0f591e4fa1079e9b219a8cd5ae05b583a76340b1571223d76ef47130995da3fb",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/conpty_console_list.node",
+                        "kind":  "nestedExecutable",
+                        "size":  947712,
+                        "sha256":  "02ae9aa026203c9175d344f5c6109cd2d8f47408a8e1e3111f329eeea4a708c0",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/pty.node",
+                        "kind":  "nestedExecutable",
+                        "size":  1646080,
+                        "sha256":  "2d639478f55ca8685f8bdb492f3d6861b892bd6bc08534423994d42d2bf02459",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
                         "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/winpty.dll",
                         "kind":  "nestedExecutable",
                         "size":  1096704,
@@ -97,6 +145,38 @@
                         "containedIn":  "app/resources"
                     },
                     {
+                        "sourceRelativePath":  "app/resources/cua_node/bin/node_modules/@img/sharp-win32-arm64/lib/sharp-win32-arm64.node",
+                        "kind":  "nestedExecutable",
+                        "size":  435712,
+                        "sha256":  "6f6b57f56f0198a479bc382f97287c2a864d3715b700e05ada2d1db5cc32ce94",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/cua_node/bin/node_modules/@napi-rs/canvas-win32-arm64-msvc/skia.win32-arm64-msvc.node",
+                        "kind":  "nestedExecutable",
+                        "size":  19948544,
+                        "sha256":  "b1f4c906fddf91fcac13e4209a1a29cff7892c33a3c182692ca88680cea03686",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/cua_node/bin/node_modules/@oai/cdp-browser-backend/dist/skill/scripts/node_modules/classic-level/prebuilds/win32-ia32/classic-level.node",
+                        "kind":  "nestedExecutable",
+                        "size":  473600,
+                        "sha256":  "f18a79fd5fa7ca38047385f617949bffafce0f0a523f7381744ec9446a226f13",
+                        "architecture":  "x86",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/cua_node/bin/node_modules/@oai/cdp-browser-backend/dist/skill/scripts/node_modules/classic-level/prebuilds/win32-x64/classic-level.node",
+                        "kind":  "nestedExecutable",
+                        "size":  541696,
+                        "sha256":  "3537a4724d84912b85ff873d0e4f2665580ba7bc917d4f19aa2ed164a76ea7cf",
+                        "architecture":  "x64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
                         "sourceRelativePath":  "app/resources/cua_node/bin/node_modules/@oai/sky/bin/windows/codex-computer-use.exe",
                         "kind":  "nestedExecutable",
                         "size":  1691648,
@@ -113,11 +193,83 @@
                         "containedIn":  "app/resources"
                     },
                     {
+                        "sourceRelativePath":  "app/resources/native/computer-use-app-icons.node",
+                        "kind":  "nestedExecutable",
+                        "size":  157184,
+                        "sha256":  "83ca6c0e371b0df778d65244665d7cb3d68f99af1083701be316a54618cdd3ae",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/native/windows-account.node",
+                        "kind":  "nestedExecutable",
+                        "size":  914944,
+                        "sha256":  "7c8cb9b14c1b834ce3cd227c054318e957d90ee47d15b581f7d18cab7affee98",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/native/windows-updater.node",
+                        "kind":  "nestedExecutable",
+                        "size":  1158656,
+                        "sha256":  "e6ac84716e65b4e0b3632864300530a78f88588bd2c4e71c6e3e4972e9960b37",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/plugins/openai-bundled/plugins/browser/scripts/node_modules/classic-level/build/Release/classic_level.node",
+                        "kind":  "nestedExecutable",
+                        "size":  588800,
+                        "sha256":  "80e80efb8951519e02a034f3488725094e05a422518ac5eb2cadcc6bb06457b7",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/plugins/openai-bundled/plugins/browser/scripts/node_modules/classic-level/prebuilds/win32-ia32/classic-level.node",
+                        "kind":  "nestedExecutable",
+                        "size":  473600,
+                        "sha256":  "f18a79fd5fa7ca38047385f617949bffafce0f0a523f7381744ec9446a226f13",
+                        "architecture":  "x86",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/plugins/openai-bundled/plugins/browser/scripts/node_modules/classic-level/prebuilds/win32-x64/classic-level.node",
+                        "kind":  "nestedExecutable",
+                        "size":  541696,
+                        "sha256":  "3537a4724d84912b85ff873d0e4f2665580ba7bc917d4f19aa2ed164a76ea7cf",
+                        "architecture":  "x64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
                         "sourceRelativePath":  "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe",
                         "kind":  "nestedExecutable",
                         "size":  940544,
                         "sha256":  "7143abfec3b744260a17a422bcb9fb76666edcad5e1a0101a29942e9086ad8dd",
                         "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/plugins/openai-bundled/plugins/chrome/scripts/node_modules/classic-level/build/Release/classic_level.node",
+                        "kind":  "nestedExecutable",
+                        "size":  588800,
+                        "sha256":  "80e80efb8951519e02a034f3488725094e05a422518ac5eb2cadcc6bb06457b7",
+                        "architecture":  "arm64",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/plugins/openai-bundled/plugins/chrome/scripts/node_modules/classic-level/prebuilds/win32-ia32/classic-level.node",
+                        "kind":  "nestedExecutable",
+                        "size":  473600,
+                        "sha256":  "f18a79fd5fa7ca38047385f617949bffafce0f0a523f7381744ec9446a226f13",
+                        "architecture":  "x86",
+                        "containedIn":  "app/resources"
+                    },
+                    {
+                        "sourceRelativePath":  "app/resources/plugins/openai-bundled/plugins/chrome/scripts/node_modules/classic-level/prebuilds/win32-x64/classic-level.node",
+                        "kind":  "nestedExecutable",
+                        "size":  541696,
+                        "sha256":  "3537a4724d84912b85ff873d0e4f2665580ba7bc917d4f19aa2ed164a76ea7cf",
+                        "architecture":  "x64",
                         "containedIn":  "app/resources"
                     },
                     {

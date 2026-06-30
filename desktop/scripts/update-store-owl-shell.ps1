@@ -9,6 +9,7 @@ $ProductId = "9PLM9XGG6VKS"
 $PackageName = "OpenAI.Codex"
 $PackageFamilyName = "OpenAI.Codex_2p2nqsd0c76g0"
 $RequiredArchitecture = "Arm64"
+$NativePayloadExtensions = @(".exe", ".dll", ".node")
 
 if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
     $OutputRoot = Join-Path $PSScriptRoot "..\.cache\store-owl-shell\package"
@@ -108,6 +109,37 @@ function Format-PeMachine {
     }
 }
 
+function Test-PeFile {
+    param([string] $Path)
+
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        if ($stream.Length -lt 2) {
+            return $false
+        }
+
+        return $stream.ReadByte() -eq 0x4d -and $stream.ReadByte() -eq 0x5a
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+function Test-NativePayloadCandidate {
+    param([string] $Path)
+
+    $extension = [System.IO.Path]::GetExtension($Path).ToLowerInvariant()
+    if ($extension -notin $NativePayloadExtensions) {
+        return $false
+    }
+
+    if ($extension -eq ".node") {
+        return Test-PeFile -Path $Path
+    }
+
+    return $true
+}
+
 function Get-DirectoryDigest {
     param([string] $Path)
 
@@ -175,7 +207,7 @@ function Copy-StorePath {
             sha256 = $digest.sha256
         }
         $nestedExecutableEntries = Get-ChildItem -LiteralPath $destinationPath -Recurse -File |
-            Where-Object { [System.IO.Path]::GetExtension($_.FullName).ToLowerInvariant() -in @(".exe", ".dll") } |
+            Where-Object { Test-NativePayloadCandidate -Path $_.FullName } |
             Sort-Object -Property FullName |
             ForEach-Object {
                 $nestedRelativePath = (Get-RelativePath -BasePath $DestinationRoot -Path $_.FullName).Replace("\", "/")
@@ -197,7 +229,7 @@ function Copy-StorePath {
         size = (Get-Item -LiteralPath $destinationPath).Length
         sha256 = Get-Sha256 -Path $destinationPath
     }
-    if ([System.IO.Path]::GetExtension($destinationPath).ToLowerInvariant() -in @(".exe", ".dll")) {
+    if (Test-NativePayloadCandidate -Path $destinationPath) {
         $entry.architecture = Format-PeMachine -Machine (Get-PeMachine -Path $destinationPath)
     }
     return $entry
