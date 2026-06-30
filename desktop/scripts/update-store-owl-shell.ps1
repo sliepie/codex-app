@@ -190,17 +190,29 @@ function Copy-StorePattern {
         }
 }
 
+function Copy-StoreDirectoryFiles {
+    param(
+        [string] $SourceRoot,
+        [string] $DestinationRoot,
+        [string] $RelativeDirectory,
+        [string] $Pattern
+    )
+
+    $sourceDirectory = Join-Path $SourceRoot ($RelativeDirectory -replace "/", "\")
+    if (-not (Test-Path -LiteralPath $sourceDirectory)) {
+        throw "Missing Store/Owl shell payload directory: $RelativeDirectory"
+    }
+
+    Get-ChildItem -LiteralPath $sourceDirectory -Filter $Pattern -File |
+        Sort-Object -Property Name |
+        ForEach-Object {
+            Copy-StorePath -SourceRoot $SourceRoot -DestinationRoot $DestinationRoot -RelativePath "$RelativeDirectory/$($_.Name)" -Kind "file"
+        }
+}
+
 $payloadPaths = @(
     @{ RelativePath = "AppxManifest.xml"; Kind = "file" },
     @{ RelativePath = "assets"; Kind = "directory" },
-    @{ RelativePath = "app/Codex.exe"; Kind = "file" },
-    @{ RelativePath = "app/chrome_elf.dll"; Kind = "file" },
-    @{ RelativePath = "app/chrome.dll"; Kind = "file" },
-    @{ RelativePath = "app/chrome_100_percent.pak"; Kind = "file" },
-    @{ RelativePath = "app/chrome_200_percent.pak"; Kind = "file" },
-    @{ RelativePath = "app/resources.pak"; Kind = "file" },
-    @{ RelativePath = "app/snapshot_blob.bin"; Kind = "file" },
-    @{ RelativePath = "app/v8_context_snapshot.bin"; Kind = "file" },
     @{ RelativePath = "app/locales"; Kind = "directory" },
     @{ RelativePath = "app/resources"; Kind = "directory" }
 )
@@ -258,6 +270,7 @@ try {
     foreach ($payloadPath in $payloadPaths) {
         $entries += Copy-StorePath -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -RelativePath $payloadPath.RelativePath -Kind $payloadPath.Kind
     }
+    $entries += Copy-StoreDirectoryFiles -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -RelativeDirectory "app" -Pattern "*"
     $entries += Copy-StorePattern -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -Pattern "resources*.pri"
     if (Test-Path -LiteralPath (Join-Path $package.InstallLocation "priconfig.xml")) {
         $entries += Copy-StorePath -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -RelativePath "priconfig.xml" -Kind "file"
