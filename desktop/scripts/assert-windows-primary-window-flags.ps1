@@ -133,21 +133,25 @@ function Get-PackageWindows {
     return $windows
 }
 
+$existingWindowHandles = New-Object System.Collections.Generic.HashSet[string]
+foreach ($existingWindow in @(Get-PackageWindows -Package $package)) {
+    [void] $existingWindowHandles.Add([string] $existingWindow.Handle)
+}
+
 $appUserModelId = "$($package.PackageFamilyName)!App"
 Start-Process -FilePath "explorer.exe" -ArgumentList "shell:AppsFolder\$appUserModelId" -WindowStyle Hidden
-
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 $windows = @()
 do {
     Start-Sleep -Milliseconds 500
-    $windows = @(Get-PackageWindows -Package $package)
+    $windows = @(Get-PackageWindows -Package $package | Where-Object { -not $existingWindowHandles.Contains([string] $_.Handle) })
     if ($windows.Count -gt 0) {
         break
     }
 } while ((Get-Date) -lt $deadline)
 
 if ($windows.Count -eq 0) {
-    throw "No visible primary window found for package $($package.PackageFullName)."
+    throw "No new visible primary window found for package $($package.PackageFullName)."
 }
 
 $wsExAppWindow = 0x00040000

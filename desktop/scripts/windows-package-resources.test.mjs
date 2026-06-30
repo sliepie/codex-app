@@ -3179,6 +3179,8 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(smokeSource, /WS_EX_NOACTIVATE|wsExNoActivate/);
   assert.match(smokeSource, /shell:AppsFolder/);
   assert.match(smokeSource, /GetWindowLongPtr/);
+  assert.match(smokeSource, /existingWindowHandles/);
+  assert.match(smokeSource, /No new visible primary window/);
   assert.match(smokeSource, /\$PackageFamilyName/);
   assert.match(smokeSource, /\$PackageFullName/);
   assert.match(smokeSource, /matched multiple packages/);
@@ -3215,4 +3217,17 @@ test("tracks Store Owl shell provenance metadata", () => {
   const gitignoreSource = fs.readFileSync(path.join(repoRoot, ".gitignore"), "utf8");
   assert.match(gitignoreSource, /^desktop\/resources\/\*$/m);
   assert.match(gitignoreSource, /^!desktop\/resources\/store-owl-shell\.json$/m);
+
+  const metadataPath = path.join(desktopRoot, "resources", "store-owl-shell.json");
+  assert.equal(fs.existsSync(metadataPath), true);
+  const metadataSource = fs.readFileSync(metadataPath, "utf8");
+  const metadata = JSON.parse(metadataSource);
+  assert.equal(metadata.productId, "9PLM9XGG6VKS");
+  assert.equal(metadata.packageName, "OpenAI.Codex");
+  assert.equal(metadata.packageFamilyName, "OpenAI.Codex_2p2nqsd0c76g0");
+  assert.equal(metadata.architecture, "Arm64");
+  assert.equal(metadata.payloadRoot, "desktop/.cache/store-owl-shell/package");
+  assert.doesNotMatch(metadataSource, /[A-Z]:[\\/]/);
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/Codex.exe"));
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/chrome.dll"));
 });
