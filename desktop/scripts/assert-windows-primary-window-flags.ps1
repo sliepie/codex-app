@@ -1,6 +1,5 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
     [string] $PackageName,
     [string] $PackageFamilyName,
     [string] $PackageFullName,
@@ -10,7 +9,17 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Resolve-TargetPackage {
-    $packages = @(Get-AppxPackage -Name $PackageName -ErrorAction Stop)
+    if ([string]::IsNullOrWhiteSpace($PackageName) -and [string]::IsNullOrWhiteSpace($PackageFamilyName) -and [string]::IsNullOrWhiteSpace($PackageFullName)) {
+        throw "Pass -PackageName, -PackageFamilyName, or -PackageFullName."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($PackageName)) {
+        $packages = @(Get-AppxPackage -ErrorAction Stop)
+    }
+    else {
+        $packages = @(Get-AppxPackage -Name $PackageName -ErrorAction Stop)
+    }
+
     if (-not [string]::IsNullOrWhiteSpace($PackageFullName)) {
         $packages = @($packages | Where-Object { $_.PackageFullName -eq $PackageFullName })
     }

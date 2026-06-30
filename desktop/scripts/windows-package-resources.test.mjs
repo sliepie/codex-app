@@ -3164,8 +3164,10 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.equal(fs.existsSync(smokeScriptPath), true);
 
   const smokeSource = fs.readFileSync(smokeScriptPath, "utf8");
+  assert.doesNotMatch(validationSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\]\$PackageName/);
   assert.match(validationSource, /\$PackageFamilyName/);
   assert.match(validationSource, /\$PackageFullName/);
+  assert.doesNotMatch(smokeSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\] \$PackageName/);
   assert.match(smokeSource, /WS_EX_APPWINDOW|wsExAppWindow/);
   assert.match(smokeSource, /WS_EX_NOACTIVATE|wsExNoActivate/);
   assert.match(smokeSource, /shell:AppsFolder/);
@@ -3173,6 +3175,7 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(smokeSource, /\$PackageFamilyName/);
   assert.match(smokeSource, /\$PackageFullName/);
   assert.match(smokeSource, /matched multiple packages/);
+  assert.match(smokeSource, /Get-AppxPackage -ErrorAction Stop/);
 });
 
 test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () => {

@@ -1,6 +1,5 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
     [string]$PackageName,
     [string]$PackageFamilyName,
     [string]$PackageFullName
@@ -28,9 +27,11 @@ $repoRoot = Resolve-RepoRoot
 $windowFlagArgs = @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
-    "-File", ".\desktop\scripts\assert-windows-primary-window-flags.ps1",
-    "-PackageName", $PackageName
+    "-File", ".\desktop\scripts\assert-windows-primary-window-flags.ps1"
 )
+if (-not [string]::IsNullOrWhiteSpace($PackageName)) {
+    $windowFlagArgs += @("-PackageName", $PackageName)
+}
 if (-not [string]::IsNullOrWhiteSpace($PackageFamilyName)) {
     $windowFlagArgs += @("-PackageFamilyName", $PackageFamilyName)
 }
