@@ -3118,6 +3118,44 @@ test("Store binary updater only accepts the official Store package family", () =
   );
 });
 
+test("Store Owl shell updater copies the matched package payload set", () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"));
+  assert.equal(
+    packageJson.scripts["update:store-owl-shell"],
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-store-owl-shell.ps1",
+  );
+
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "update-store-owl-shell.ps1"),
+    "utf8",
+  );
+
+  const paramBlock = source.match(/param\([\s\S]*?\)/)?.[0] ?? "";
+  assert.doesNotMatch(paramBlock, /\$ProductId|\$PackageName|\$PackageFamilyName/);
+  assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
+  assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
+  assert.match(source, /Where-Object \{ \$_\.PackageFamilyName -eq \$PackageFamilyName \}/);
+  for (const expectedPath of [
+    "AppxManifest.xml",
+    "assets",
+    "app/Codex.exe",
+    "app/chrome_elf.dll",
+    "app/chrome.dll",
+    "app/chrome_100_percent.pak",
+    "app/chrome_200_percent.pak",
+    "app/resources.pak",
+    "app/snapshot_blob.bin",
+    "app/v8_context_snapshot.bin",
+    "app/locales",
+    "app/resources",
+  ]) {
+    assert.match(source, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.match(source, /owl-shell-runtime\.json/);
+  assert.match(source, /store-owl-shell\.json/);
+  assert.match(source, /resources\*\.pri/);
+});
+
 test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () => {
   const source = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
