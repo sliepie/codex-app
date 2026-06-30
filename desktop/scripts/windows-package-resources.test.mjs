@@ -3135,10 +3135,7 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
   assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
   assert.match(source, /\$RequiredArchitecture = "Arm64"/);
-  assert.match(
-    source,
-    /Where-Object \{ \$_\.PackageFamilyName -eq \$PackageFamilyName -and \[string\] \$_\.Architecture -eq \$RequiredArchitecture \}/,
-  );
+  assert.match(source, /\$_\.PackageFamilyName -eq \$PackageFamilyName -and\s+\[string\] \$_\.Architecture -eq \$RequiredArchitecture/);
   assert.match(source, /function Assert-Arm64Package/);
   assert.match(source, /\$Package\.Architecture/);
   assert.match(source, /expected \$RequiredArchitecture for the Windows ARM64 payload/);
@@ -3179,6 +3176,8 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(smokeSource, /WS_EX_NOACTIVATE|wsExNoActivate/);
   assert.match(smokeSource, /shell:AppsFolder/);
   assert.match(smokeSource, /GetWindowLongPtr/);
+  assert.match(smokeSource, /function Stop-PackageProcesses/);
+  assert.match(smokeSource, /Stop-Process -Id \$_.Id -Force/);
   assert.match(smokeSource, /existingWindowHandles/);
   assert.match(smokeSource, /No new visible primary window/);
   assert.match(smokeSource, /\$PackageFamilyName/);

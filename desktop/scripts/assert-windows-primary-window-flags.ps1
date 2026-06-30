@@ -133,6 +133,28 @@ function Get-PackageWindows {
     return $windows
 }
 
+function Stop-PackageProcesses {
+    param($Package)
+
+    $installLocation = [System.IO.Path]::GetFullPath($Package.InstallLocation)
+    Get-Process |
+        Where-Object {
+            try {
+                $processPath = [System.IO.Path]::GetFullPath($_.Path)
+                return $processPath.StartsWith($installLocation, [System.StringComparison]::OrdinalIgnoreCase)
+            }
+            catch {
+                return $false
+            }
+        } |
+        ForEach-Object {
+            Stop-Process -Id $_.Id -Force -ErrorAction Stop
+        }
+}
+
+Stop-PackageProcesses -Package $package
+Start-Sleep -Milliseconds 500
+
 $existingWindowHandles = New-Object System.Collections.Generic.HashSet[string]
 foreach ($existingWindow in @(Get-PackageWindows -Package $package)) {
     [void] $existingWindowHandles.Add([string] $existingWindow.Handle)

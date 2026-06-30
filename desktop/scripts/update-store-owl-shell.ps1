@@ -38,7 +38,10 @@ function Invoke-Winget {
 
 function Get-CodexAppPackage {
     Get-AppxPackage -Name $PackageName -ErrorAction SilentlyContinue |
-        Where-Object { $_.PackageFamilyName -eq $PackageFamilyName -and [string] $_.Architecture -eq $RequiredArchitecture } |
+        Where-Object {
+            $_.PackageFamilyName -eq $PackageFamilyName -and
+            [string] $_.Architecture -eq $RequiredArchitecture
+        } |
         Sort-Object -Property Version -Descending |
         Select-Object -First 1
 }
