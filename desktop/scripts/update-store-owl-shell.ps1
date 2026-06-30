@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 $ProductId = "9PLM9XGG6VKS"
 $PackageName = "OpenAI.Codex"
 $PackageFamilyName = "OpenAI.Codex_2p2nqsd0c76g0"
+$RequiredArchitecture = "Arm64"
 
 if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
     $OutputRoot = Join-Path $PSScriptRoot "..\.cache\store-owl-shell\package"
@@ -40,6 +41,14 @@ function Get-CodexAppPackage {
         Where-Object { $_.PackageFamilyName -eq $PackageFamilyName } |
         Sort-Object -Property Version -Descending |
         Select-Object -First 1
+}
+
+function Assert-Arm64Package {
+    param($Package)
+
+    if ([string] $Package.Architecture -ne $RequiredArchitecture) {
+        throw "Official Codex Store package $($Package.PackageFullName) is $($Package.Architecture); expected $RequiredArchitecture for the Windows ARM64 payload."
+    }
 }
 
 function Get-Sha256 {
@@ -257,6 +266,7 @@ try {
     if ($null -eq $package) {
         throw "Official Codex Store package family $PackageFamilyName was not found after winget completed."
     }
+    Assert-Arm64Package -Package $package
 
     $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
     $resolvedOutputRoot = [System.IO.Path]::GetFullPath($OutputRoot)

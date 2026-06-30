@@ -3134,7 +3134,11 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   assert.doesNotMatch(paramBlock, /\$ProductId|\$PackageName|\$PackageFamilyName/);
   assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
   assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
+  assert.match(source, /\$RequiredArchitecture = "Arm64"/);
   assert.match(source, /Where-Object \{ \$_\.PackageFamilyName -eq \$PackageFamilyName \}/);
+  assert.match(source, /function Assert-Arm64Package/);
+  assert.match(source, /\$Package\.Architecture/);
+  assert.match(source, /expected \$RequiredArchitecture for the Windows ARM64 payload/);
   assert.match(source, /function Copy-StoreDirectoryFiles/);
   assert.match(source, /RelativeDirectory "app" -Pattern "\*"/);
   for (const expectedPath of [
