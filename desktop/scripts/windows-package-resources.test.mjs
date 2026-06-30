@@ -3181,3 +3181,9 @@ test("ignores generated signing-secret base64 exports", () => {
   const gitignoreSource = fs.readFileSync(path.join(repoRoot, ".gitignore"), "utf8");
   assert.match(gitignoreSource, /^\*\.pfx\.base64\.txt$/m);
 });
+
+test("tracks Store Owl shell provenance metadata", () => {
+  const gitignoreSource = fs.readFileSync(path.join(repoRoot, ".gitignore"), "utf8");
+  assert.match(gitignoreSource, /^desktop\/resources\/\*$/m);
+  assert.match(gitignoreSource, /^!desktop\/resources\/store-owl-shell\.json$/m);
+});
