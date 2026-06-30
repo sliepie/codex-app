@@ -13,7 +13,8 @@ if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
     $OutputRoot = Join-Path $PSScriptRoot "..\.cache\store-owl-shell\package"
 }
 if ([string]::IsNullOrWhiteSpace($MetadataOutputPath)) {
-    $MetadataOutputPath = Join-Path $PSScriptRoot "..\resources\store-owl-shell.json"
+    $defaultMetadataOutputPath = Join-Path $PSScriptRoot "..\resources\store-owl-shell.json"
+    $MetadataOutputPath = $defaultMetadataOutputPath
 }
 
 function Invoke-Winget {

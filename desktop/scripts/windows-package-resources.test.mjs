@@ -3156,6 +3156,22 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   assert.match(source, /resources\*\.pri/);
 });
 
+test("Store Owl shell validation has a reusable window flag smoke check", () => {
+  const validationSource = fs.readFileSync(
+    path.join(repoRoot, ".agents", "skills", "store-package-update", "scripts", "validate-store-owl-shell.ps1"),
+    "utf8",
+  );
+  const smokeScriptPath = path.join(desktopRoot, "scripts", "assert-windows-primary-window-flags.ps1");
+  assert.match(validationSource, /assert-windows-primary-window-flags\.ps1/);
+  assert.equal(fs.existsSync(smokeScriptPath), true);
+
+  const smokeSource = fs.readFileSync(smokeScriptPath, "utf8");
+  assert.match(smokeSource, /WS_EX_APPWINDOW|wsExAppWindow/);
+  assert.match(smokeSource, /WS_EX_NOACTIVATE|wsExNoActivate/);
+  assert.match(smokeSource, /shell:AppsFolder/);
+  assert.match(smokeSource, /GetWindowLongPtr/);
+});
+
 test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () => {
   const source = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
