@@ -51,6 +51,16 @@ function Test-PeMachine {
 }
 
 $repoRoot = Resolve-RepoRoot
+$resolvedPackageRoot = $null
+if ($PackageRoot) {
+    if ([IO.Path]::IsPathRooted($PackageRoot)) {
+        $resolvedPackageRoot = [IO.Path]::GetFullPath($PackageRoot)
+    }
+    else {
+        $resolvedPackageRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot $PackageRoot))
+    }
+}
+
 Push-Location $repoRoot
 try {
     Test-JsonFile -Path "desktop\resources\cua_node\bin\node_repl.json"
@@ -62,9 +72,9 @@ try {
     Test-PeMachine -Path "desktop\resources\extension-host.exe" -ExpectedMachine 0xaa64 -Label "extension-host.exe ARM64"
     Test-PeMachine -Path "desktop\resources\codex-computer-use.exe" -ExpectedMachine 0x8664 -Label "codex-computer-use.exe x64"
 
-    if ($PackageRoot) {
+    if ($resolvedPackageRoot) {
         Invoke-Checked { npm --prefix desktop run build:scripts }
-        Invoke-Checked { npm --prefix desktop run verify:windows-arm64-resource-binaries:compiled -- --package-root $PackageRoot }
+        Invoke-Checked { npm --prefix desktop run verify:windows-arm64-resource-binaries:compiled -- --package-root $resolvedPackageRoot }
     }
     else {
         Invoke-Checked { npm --prefix desktop run verify:windows-arm64-resource-binaries }

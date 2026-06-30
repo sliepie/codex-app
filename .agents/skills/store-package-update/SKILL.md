@@ -29,6 +29,7 @@ description: "Maintain Store-sourced Windows package dependencies for codex-app.
 
 - Treat the Store/Owl shell as a matched set: `Codex.exe`, `chrome_elf.dll`, `chrome.dll`, `.pak` resources, snapshots, locales, `owl-shell-runtime.json`, app resources, AppX manifest identity, and AppX assets stay in version lockstep.
 - Do not copy only `chrome.dll`, only `Codex.exe`, or only icon assets.
+- Do not commit Store/Owl shell payload binaries such as `Codex.exe`, `chrome_elf.dll`, `chrome.dll`, `.pak` resources, snapshots, locales, or AppX image assets unless the repo intentionally adds a tracked allowlist for that branch. Commit provenance metadata, package automation, and tests; hydrate or package the payload from the official Store source.
 - Prefer Store/Owl package parity over stock Electron taskbar/focus patches. Stock Electron compatibility patches are fallback-only and need a failing smoke check first.
 - Prefer MSIX/AppX validation for shell parity. ZIP or unpacked launches are acceptable for file inspection, but not as the final taskbar/focus signal.
 - Store source provenance must live in `desktop/resources/store-owl-shell.json`. If that file does not exist yet, creating it is part of the shell parity change.
