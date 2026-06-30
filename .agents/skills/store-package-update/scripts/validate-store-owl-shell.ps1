@@ -25,6 +25,7 @@ function Invoke-Checked {
 $repoRoot = Resolve-RepoRoot
 Push-Location $repoRoot
 try {
+    Invoke-Checked { npm --prefix desktop run build:scripts }
     Invoke-Checked { npm --prefix desktop run test:windows-package-resources:compiled }
     Invoke-Checked {
         powershell -NoProfile -ExecutionPolicy Bypass -File ".\desktop\scripts\assert-windows-primary-window-flags.ps1" -PackageName $PackageName
