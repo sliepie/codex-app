@@ -119,6 +119,24 @@ function Get-DirectoryDigest {
     }
 }
 
+function Get-RepoRelativePathOrNull {
+    param(
+        [string] $RepoRoot,
+        [string] $Path
+    )
+
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    $repoRootWithSeparator = $resolvedRepoRoot + [System.IO.Path]::DirectorySeparatorChar
+
+    if ($resolvedPath.Equals($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $resolvedPath.StartsWith($repoRootWithSeparator, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return (Get-RelativePath -BasePath $resolvedRepoRoot -Path $resolvedPath).Replace("\", "/")
+    }
+
+    return $null
+}
+
 function Copy-StorePath {
     param(
         [string] $SourceRoot,
@@ -228,7 +246,9 @@ try {
         throw "Official Codex Store package family $PackageFamilyName was not found after winget completed."
     }
 
+    $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
     $resolvedOutputRoot = [System.IO.Path]::GetFullPath($OutputRoot)
+    $metadataPayloadRoot = Get-RepoRelativePathOrNull -RepoRoot $repoRoot -Path $resolvedOutputRoot
     if (Test-Path -LiteralPath $resolvedOutputRoot) {
         Remove-Item -LiteralPath $resolvedOutputRoot -Recurse -Force
     }
@@ -265,7 +285,7 @@ try {
         packageFamilyName = $package.PackageFamilyName
         packageVersion = [string] $package.Version
         architecture = [string] $package.Architecture
-        outputRoot = $resolvedOutputRoot
+        payloadRoot = $metadataPayloadRoot
         runtimeMetadataRelativePath = "owl-shell-runtime.json"
         entries = $entries
     }

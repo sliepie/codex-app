@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [string]$PackageName
+    [string]$PackageName,
+    [string]$PackageFamilyName,
+    [string]$PackageFullName
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,12 +25,23 @@ function Invoke-Checked {
 }
 
 $repoRoot = Resolve-RepoRoot
+$windowFlagArgs = @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", ".\desktop\scripts\assert-windows-primary-window-flags.ps1",
+    "-PackageName", $PackageName
+)
+if (-not [string]::IsNullOrWhiteSpace($PackageFamilyName)) {
+    $windowFlagArgs += @("-PackageFamilyName", $PackageFamilyName)
+}
+if (-not [string]::IsNullOrWhiteSpace($PackageFullName)) {
+    $windowFlagArgs += @("-PackageFullName", $PackageFullName)
+}
+
 Push-Location $repoRoot
 try {
     Invoke-Checked { npm --prefix desktop run test:windows-package-resources }
-    Invoke-Checked {
-        powershell -NoProfile -ExecutionPolicy Bypass -File ".\desktop\scripts\assert-windows-primary-window-flags.ps1" -PackageName $PackageName
-    }
+    Invoke-Checked { powershell @windowFlagArgs }
     Invoke-Checked { git diff --check }
 }
 finally {

@@ -55,7 +55,7 @@ Validation script bodies live under `.agents/skills/store-package-update/scripts
 
 - For helper binary refreshes, run `.agents/skills/store-package-update/scripts/validate-helper-refresh.ps1` from the repo root.
 - For helper binary refreshes without `desktop/out/Codex-win32-arm64`, pass `-PackageRoot` only when validating an already-built or temporary package tree.
-- For Store/Owl shell changes, install or launch the built Windows package from its package identity path, then run `.agents/skills/store-package-update/scripts/validate-store-owl-shell.ps1 -PackageName <package identity>` from the repo root.
+- For Store/Owl shell changes, install or launch the built Windows package from its package identity path, then run `.agents/skills/store-package-update/scripts/validate-store-owl-shell.ps1 -PackageName <package identity> -PackageFamilyName <package family>` from the repo root; pass `-PackageFullName` instead when that is the precise target you have.
 
 Confirm `Get-AppxPackage -Name OpenAI.Codex` is empty after a temporary install run unless Codex was already installed before the update.
 

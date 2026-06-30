@@ -2,14 +2,36 @@
 param(
     [Parameter(Mandatory = $true)]
     [string] $PackageName,
+    [string] $PackageFamilyName,
+    [string] $PackageFullName,
     [int] $TimeoutSeconds = 30
 )
 
 $ErrorActionPreference = "Stop"
 
-$package = Get-AppxPackage -Name $PackageName -ErrorAction Stop |
-    Sort-Object -Property Version -Descending |
-    Select-Object -First 1
+function Resolve-TargetPackage {
+    $packages = @(Get-AppxPackage -Name $PackageName -ErrorAction Stop)
+    if (-not [string]::IsNullOrWhiteSpace($PackageFullName)) {
+        $packages = @($packages | Where-Object { $_.PackageFullName -eq $PackageFullName })
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PackageFamilyName)) {
+        $packages = @($packages | Where-Object { $_.PackageFamilyName -eq $PackageFamilyName })
+    }
+
+    if ($packages.Count -eq 0) {
+        throw "Package not found: name=$PackageName family=$PackageFamilyName fullName=$PackageFullName"
+    }
+    if ($packages.Count -gt 1 -and [string]::IsNullOrWhiteSpace($PackageFamilyName) -and [string]::IsNullOrWhiteSpace($PackageFullName)) {
+        $matches = $packages | ForEach-Object { "$($_.PackageFullName) [$($_.PackageFamilyName)]" }
+        throw "Package name $PackageName matched multiple packages; pass -PackageFamilyName or -PackageFullName.`n$($matches -join [Environment]::NewLine)"
+    }
+
+    return $packages |
+        Sort-Object -Property Version -Descending |
+        Select-Object -First 1
+}
+
+$package = Resolve-TargetPackage
 if ($null -eq $package) {
     throw "Package not found: $PackageName"
 }
