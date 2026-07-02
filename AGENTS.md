@@ -58,6 +58,6 @@ This repo uses a single-context domain-doc layout. See `docs/agents/domain.md`.
 
 ### Repo-local skills
 
-Use `.agents/skills/node-repl-update/SKILL.md` when refreshing the vendored `node_repl.exe` fallback.
+Use `.agents/skills/store-package-update/SKILL.md` when refreshing Store-sourced Windows helper binaries or working on Store/Owl shell package parity.
 
 Use `.agents/skills/codex-app-tweak-maintenance/SKILL.md` when changing bundled Codex++ tweaks, fixing tweak selectors, bumping tweak manifests, updating focused tweak tests, or syncing an installed local tweak copy.

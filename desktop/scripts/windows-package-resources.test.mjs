@@ -3118,6 +3118,104 @@ test("Store binary updater only accepts the official Store package family", () =
   );
 });
 
+test("Store Owl shell updater copies the matched package payload set", () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"));
+  assert.equal(
+    packageJson.scripts["update:store-owl-shell"],
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-store-owl-shell.ps1",
+  );
+
+  const source = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "update-store-owl-shell.ps1"),
+    "utf8",
+  );
+
+  const paramBlock = source.match(/param\([\s\S]*?\)/)?.[0] ?? "";
+  assert.doesNotMatch(paramBlock, /\$ProductId|\$PackageName|\$PackageFamilyName/);
+  assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
+  assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
+  assert.match(source, /\$RequiredArchitecture = "Arm64"/);
+  assert.match(source, /function Get-CodexAppPackages/);
+  assert.match(source, /\$_\.PackageFamilyName -eq \$PackageFamilyName/);
+  assert.match(source, /\[string\] \$_\.Architecture -eq \$RequiredArchitecture/);
+  assert.match(source, /\$hadOfficialPackageBeforeRun = \$existingOfficialPackages\.Count -gt 0/);
+  assert.match(source, /\$needsArm64Install = \$null -eq \$existingPackage/);
+  assert.match(source, /if \(\$needsArm64Install\)/);
+  assert.match(source, /if \(-not \$hadOfficialPackageBeforeRun\)/);
+  assert.match(source, /foreach \(\$packageToRemove in @\(Get-CodexAppPackages\)\)/);
+  assert.doesNotMatch(source, /\$installedByScript/);
+  assert.match(source, /function Assert-Arm64Package/);
+  assert.match(source, /\$Package\.Architecture/);
+  assert.match(source, /expected \$RequiredArchitecture for the Windows ARM64 payload/);
+  assert.match(source, /\$NativePayloadExtensions = @\("\.exe", "\.dll", "\.node"\)/);
+  assert.match(source, /function Test-NativePayloadCandidate/);
+  assert.match(source, /function Get-NestedNativePayloadEntries/);
+  assert.match(source, /function Copy-StoreDirectoryFiles/);
+  assert.match(source, /kind = "nestedExecutable"/);
+  assert.match(source, /containedIn = \$ContainedIn/);
+  assert.match(source, /SelfSignedMutable = \$true/);
+  assert.match(source, /selfSignedMutable = \$true/);
+  assert.match(source, /RelativePath "resources\.pri" -Kind "file" -SelfSignedMutable \$true/);
+  assert.match(source, /resources\.language-\*\.pri/);
+  assert.doesNotMatch(source, /resources\*\.pri/);
+  assert.match(source, /RelativeDirectory "app" -Pattern "\*"/);
+  for (const expectedPath of [
+    "AppxManifest.xml",
+    "assets",
+    "app/locales",
+    "app/resources",
+  ]) {
+    assert.match(source, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.doesNotMatch(source, /RelativePath = "app\/Codex\.exe"/);
+  assert.match(source, /owl-shell-runtime\.json/);
+  assert.match(source, /store-owl-shell\.json/);
+  assert.match(source, /Get-RepoRelativePathOrNull/);
+  assert.match(source, /payloadRoot = \$metadataPayloadRoot/);
+  assert.doesNotMatch(source, /outputRoot = \$resolvedOutputRoot/);
+});
+
+test("Store Owl shell validation has a reusable window flag smoke check", () => {
+  const validationSource = fs.readFileSync(
+    path.join(repoRoot, ".agents", "skills", "store-package-update", "scripts", "validate-store-owl-shell.ps1"),
+    "utf8",
+  );
+  const smokeScriptPath = path.join(desktopRoot, "scripts", "assert-windows-primary-window-flags.ps1");
+  const payloadScriptPath = path.join(desktopRoot, "scripts", "assert-store-owl-shell-package-payload.ps1");
+  assert.match(validationSource, /assert-store-owl-shell-package-payload\.ps1/);
+  assert.match(validationSource, /assert-windows-primary-window-flags\.ps1/);
+  assert.match(validationSource, /powershell @payloadArgs[\s\S]*powershell @windowFlagArgs/);
+  assert.equal(fs.existsSync(payloadScriptPath), true);
+  assert.equal(fs.existsSync(smokeScriptPath), true);
+
+  const smokeSource = fs.readFileSync(smokeScriptPath, "utf8");
+  const payloadSource = fs.readFileSync(payloadScriptPath, "utf8");
+  assert.doesNotMatch(validationSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\]\$PackageName/);
+  assert.match(validationSource, /\$PackageFamilyName/);
+  assert.match(validationSource, /\$PackageFullName/);
+  assert.match(payloadSource, /store-owl-shell\.json/);
+  assert.match(payloadSource, /sourceRelativePath/);
+  assert.match(payloadSource, /Get-DirectoryDigest/);
+  assert.match(payloadSource, /\$Entry\.selfSignedMutable -eq \$true/);
+  assert.match(payloadSource, /Store\/Owl payload SHA-256 mismatch/);
+  assert.match(payloadSource, /\$PackageFamilyName/);
+  assert.match(payloadSource, /\$PackageFullName/);
+  assert.doesNotMatch(payloadSource, /package family mismatch/);
+  assert.doesNotMatch(smokeSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\] \$PackageName/);
+  assert.match(smokeSource, /WS_EX_APPWINDOW|wsExAppWindow/);
+  assert.match(smokeSource, /WS_EX_NOACTIVATE|wsExNoActivate/);
+  assert.match(smokeSource, /shell:AppsFolder/);
+  assert.match(smokeSource, /GetWindowLongPtr/);
+  assert.match(smokeSource, /function Stop-PackageProcesses/);
+  assert.match(smokeSource, /Stop-Process -Id \$_.Id -Force/);
+  assert.doesNotMatch(smokeSource, /existingWindowHandles/);
+  assert.match(smokeSource, /No visible primary window/);
+  assert.match(smokeSource, /\$PackageFamilyName/);
+  assert.match(smokeSource, /\$PackageFullName/);
+  assert.match(smokeSource, /matched multiple packages/);
+  assert.match(smokeSource, /Get-AppxPackage -ErrorAction Stop/);
+});
+
 test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () => {
   const source = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
@@ -3142,4 +3240,42 @@ test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () 
 test("ignores generated signing-secret base64 exports", () => {
   const gitignoreSource = fs.readFileSync(path.join(repoRoot, ".gitignore"), "utf8");
   assert.match(gitignoreSource, /^\*\.pfx\.base64\.txt$/m);
+});
+
+test("tracks Store Owl shell provenance metadata", () => {
+  const gitignoreSource = fs.readFileSync(path.join(repoRoot, ".gitignore"), "utf8");
+  assert.match(gitignoreSource, /^desktop\/resources\/\*$/m);
+  assert.match(gitignoreSource, /^!desktop\/resources\/store-owl-shell\.json$/m);
+
+  const metadataPath = path.join(desktopRoot, "resources", "store-owl-shell.json");
+  assert.equal(fs.existsSync(metadataPath), true);
+  const metadataSource = fs.readFileSync(metadataPath, "utf8");
+  const metadata = JSON.parse(metadataSource);
+  assert.equal(metadata.productId, "9PLM9XGG6VKS");
+  assert.equal(metadata.packageName, "OpenAI.Codex");
+  assert.equal(metadata.packageFamilyName, "OpenAI.Codex_2p2nqsd0c76g0");
+  assert.equal(metadata.architecture, "Arm64");
+  assert.equal(metadata.payloadRoot, "desktop/.cache/store-owl-shell/package");
+  assert.doesNotMatch(metadataSource, /[A-Z]:[\\/]/);
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/Codex.exe"));
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/chrome.dll"));
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "AppxManifest.xml" && entry.selfSignedMutable === true));
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "resources.pri" && entry.selfSignedMutable === true));
+  assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.language-") && entry.selfSignedMutable === true), false);
+  assert.ok(
+    metadata.entries.some(
+      (entry) =>
+        entry.kind === "nestedExecutable" &&
+        entry.sourceRelativePath.endsWith(".node") &&
+        ["arm64", "x64", "x86"].includes(entry.architecture),
+    ),
+  );
+  assert.ok(
+    metadata.entries.some(
+      (entry) =>
+        entry.kind === "nestedExecutable" &&
+        entry.sourceRelativePath.endsWith("/codex-computer-use.exe") &&
+        entry.architecture === "x64",
+    ),
+  );
 });
