@@ -486,29 +486,25 @@
                         "sourceRelativePath":  "resources.language-is.pri",
                         "kind":  "file",
                         "size":  358848,
-                        "sha256":  "748630c0799c3f2c8607f0919ed3b530dbad64305cf5258ca1e52e627e8829ce",
-                        "selfSignedMutable":  true
+                        "sha256":  "748630c0799c3f2c8607f0919ed3b530dbad64305cf5258ca1e52e627e8829ce"
                     },
                     {
                         "sourceRelativePath":  "resources.language-is-url.pri",
                         "kind":  "file",
                         "size":  357576,
-                        "sha256":  "06365cf4f753f1e9bd26c3cc11f3eb73521085ec9e42b3d985d806ce1f693fb6",
-                        "selfSignedMutable":  true
+                        "sha256":  "06365cf4f753f1e9bd26c3cc11f3eb73521085ec9e42b3d985d806ce1f693fb6"
                     },
                     {
                         "sourceRelativePath":  "resources.language-ms.pri",
                         "kind":  "file",
                         "size":  357304,
-                        "sha256":  "7606d435bb14c6068209f9d9684b90cd35b741052c83092256d480cdfb8281d8",
-                        "selfSignedMutable":  true
+                        "sha256":  "7606d435bb14c6068209f9d9684b90cd35b741052c83092256d480cdfb8281d8"
                     },
                     {
                         "sourceRelativePath":  "resources.language-no.pri",
                         "kind":  "file",
                         "size":  357152,
-                        "sha256":  "c98a084cfc8b2f78bb0285937c7de412c6c065e436c086152662cd90c8cdb2ce",
-                        "selfSignedMutable":  true
+                        "sha256":  "c98a084cfc8b2f78bb0285937c7de412c6c065e436c086152662cd90c8cdb2ce"
                     },
                     {
                         "sourceRelativePath":  "resources.pri",
@@ -521,8 +517,7 @@
                         "sourceRelativePath":  "resources.scale-200.pri",
                         "kind":  "file",
                         "size":  357304,
-                        "sha256":  "0e19dd68e2af93a096e4b02fae79fb277a935ef0f45b812a47324db1c7076b03",
-                        "selfSignedMutable":  true
+                        "sha256":  "0e19dd68e2af93a096e4b02fae79fb277a935ef0f45b812a47324db1c7076b03"
                     },
                     {
                         "sourceRelativePath":  "priconfig.xml",

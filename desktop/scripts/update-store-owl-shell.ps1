@@ -255,7 +255,7 @@ function Copy-StorePattern {
     Get-ChildItem -LiteralPath $SourceRoot -Filter $Pattern -File |
         Sort-Object -Property Name |
         ForEach-Object {
-            Copy-StorePath -SourceRoot $SourceRoot -DestinationRoot $DestinationRoot -RelativePath $_.Name -Kind "file" -SelfSignedMutable $SelfSignedMutable
+            Copy-StorePath -SourceRoot $SourceRoot -DestinationRoot $DestinationRoot -RelativePath $_.Name -Kind "file" -SelfSignedMutable ($SelfSignedMutable -and $_.Name -eq "resources.pri")
         }
 }
 
