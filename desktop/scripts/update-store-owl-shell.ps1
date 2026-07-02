@@ -343,7 +343,8 @@ try {
         $entries += Copy-StorePath -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -RelativePath $payloadPath.RelativePath -Kind $payloadPath.Kind -SelfSignedMutable ([bool] $payloadPath.SelfSignedMutable)
     }
     $entries += Copy-StoreDirectoryFiles -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -RelativeDirectory "app" -Pattern "*"
-    $entries += Copy-StorePattern -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -Pattern "resources*.pri" -SelfSignedMutable $true
+    $entries += Copy-StorePath -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -RelativePath "resources.pri" -Kind "file" -SelfSignedMutable $true
+    $entries += Copy-StorePattern -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -Pattern "resources.language-*.pri"
     if (Test-Path -LiteralPath (Join-Path $package.InstallLocation "priconfig.xml")) {
         $entries += Copy-StorePath -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -RelativePath "priconfig.xml" -Kind "file"
     }

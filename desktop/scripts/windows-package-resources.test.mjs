@@ -3154,7 +3154,9 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   assert.match(source, /containedIn = \$RelativePath/);
   assert.match(source, /SelfSignedMutable = \$true/);
   assert.match(source, /selfSignedMutable = \$true/);
-  assert.match(source, /\$SelfSignedMutable -and \$_.Name -eq "resources\.pri"/);
+  assert.match(source, /RelativePath "resources\.pri" -Kind "file" -SelfSignedMutable \$true/);
+  assert.match(source, /resources\.language-\*\.pri/);
+  assert.doesNotMatch(source, /resources\*\.pri/);
   assert.match(source, /RelativeDirectory "app" -Pattern "\*"/);
   for (const expectedPath of [
     "AppxManifest.xml",
@@ -3167,7 +3169,6 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   assert.doesNotMatch(source, /RelativePath = "app\/Codex\.exe"/);
   assert.match(source, /owl-shell-runtime\.json/);
   assert.match(source, /store-owl-shell\.json/);
-  assert.match(source, /resources\*\.pri/);
   assert.match(source, /Get-RepoRelativePathOrNull/);
   assert.match(source, /payloadRoot = \$metadataPayloadRoot/);
   assert.doesNotMatch(source, /outputRoot = \$resolvedOutputRoot/);
