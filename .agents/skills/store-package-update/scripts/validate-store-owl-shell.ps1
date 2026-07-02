@@ -29,19 +29,28 @@ $windowFlagArgs = @(
     "-ExecutionPolicy", "Bypass",
     "-File", ".\desktop\scripts\assert-windows-primary-window-flags.ps1"
 )
+$payloadArgs = @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", ".\desktop\scripts\assert-store-owl-shell-package-payload.ps1"
+)
 if (-not [string]::IsNullOrWhiteSpace($PackageName)) {
     $windowFlagArgs += @("-PackageName", $PackageName)
+    $payloadArgs += @("-PackageName", $PackageName)
 }
 if (-not [string]::IsNullOrWhiteSpace($PackageFamilyName)) {
     $windowFlagArgs += @("-PackageFamilyName", $PackageFamilyName)
+    $payloadArgs += @("-PackageFamilyName", $PackageFamilyName)
 }
 if (-not [string]::IsNullOrWhiteSpace($PackageFullName)) {
     $windowFlagArgs += @("-PackageFullName", $PackageFullName)
+    $payloadArgs += @("-PackageFullName", $PackageFullName)
 }
 
 Push-Location $repoRoot
 try {
     Invoke-Checked { npm --prefix desktop run test:windows-package-resources }
+    Invoke-Checked { powershell @payloadArgs }
     Invoke-Checked { powershell @windowFlagArgs }
     Invoke-Checked { git diff --check }
 }

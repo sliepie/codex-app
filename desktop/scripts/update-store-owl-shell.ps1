@@ -37,10 +37,15 @@ function Invoke-Winget {
     }
 }
 
-function Get-CodexAppPackage {
+function Get-CodexAppPackages {
     Get-AppxPackage -Name $PackageName -ErrorAction SilentlyContinue |
+        Where-Object { $_.PackageFamilyName -eq $PackageFamilyName } |
+        Sort-Object -Property Version -Descending
+}
+
+function Get-CodexAppPackage {
+    Get-CodexAppPackages |
         Where-Object {
-            $_.PackageFamilyName -eq $PackageFamilyName -and
             [string] $_.Architecture -eq $RequiredArchitecture
         } |
         Sort-Object -Property Version -Descending |
@@ -276,11 +281,13 @@ $payloadPaths = @(
     @{ RelativePath = "app/resources"; Kind = "directory" }
 )
 
+$existingOfficialPackages = @(Get-CodexAppPackages)
 $existingPackage = Get-CodexAppPackage
-$installedByScript = $null -eq $existingPackage
+$hadOfficialPackageBeforeRun = $existingOfficialPackages.Count -gt 0
+$needsArm64Install = $null -eq $existingPackage
 
 try {
-    if ($installedByScript) {
+    if ($needsArm64Install) {
         Invoke-Winget @(
             "install",
             "--id", $ProductId,
@@ -371,9 +378,8 @@ try {
     Write-Output "Wrote Store/Owl shell metadata to $resolvedMetadataOutputPath."
 }
 finally {
-    if ($installedByScript) {
-        $packageToRemove = Get-CodexAppPackage
-        if ($null -ne $packageToRemove) {
+    if (-not $hadOfficialPackageBeforeRun) {
+        foreach ($packageToRemove in @(Get-CodexAppPackages)) {
             Remove-AppxPackage -Package $packageToRemove.PackageFullName -ErrorAction Stop
             Write-Output "Uninstalled temporary Codex package $($packageToRemove.PackageFullName)."
         }
