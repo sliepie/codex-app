@@ -3149,9 +3149,10 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   assert.match(source, /expected \$RequiredArchitecture for the Windows ARM64 payload/);
   assert.match(source, /\$NativePayloadExtensions = @\("\.exe", "\.dll", "\.node"\)/);
   assert.match(source, /function Test-NativePayloadCandidate/);
+  assert.match(source, /function Get-NestedNativePayloadEntries/);
   assert.match(source, /function Copy-StoreDirectoryFiles/);
   assert.match(source, /kind = "nestedExecutable"/);
-  assert.match(source, /containedIn = \$RelativePath/);
+  assert.match(source, /containedIn = \$ContainedIn/);
   assert.match(source, /SelfSignedMutable = \$true/);
   assert.match(source, /selfSignedMutable = \$true/);
   assert.match(source, /RelativePath "resources\.pri" -Kind "file" -SelfSignedMutable \$true/);
@@ -3207,8 +3208,8 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(smokeSource, /GetWindowLongPtr/);
   assert.match(smokeSource, /function Stop-PackageProcesses/);
   assert.match(smokeSource, /Stop-Process -Id \$_.Id -Force/);
-  assert.match(smokeSource, /existingWindowHandles/);
-  assert.match(smokeSource, /No new visible primary window/);
+  assert.doesNotMatch(smokeSource, /existingWindowHandles/);
+  assert.match(smokeSource, /No visible primary window/);
   assert.match(smokeSource, /\$PackageFamilyName/);
   assert.match(smokeSource, /\$PackageFullName/);
   assert.match(smokeSource, /matched multiple packages/);

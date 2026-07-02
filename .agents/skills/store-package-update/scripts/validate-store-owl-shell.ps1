@@ -34,18 +34,18 @@ $payloadArgs = @(
     "-ExecutionPolicy", "Bypass",
     "-File", ".\desktop\scripts\assert-store-owl-shell-package-payload.ps1"
 )
+$packageIdentityArgs = @()
 if (-not [string]::IsNullOrWhiteSpace($PackageName)) {
-    $windowFlagArgs += @("-PackageName", $PackageName)
-    $payloadArgs += @("-PackageName", $PackageName)
+    $packageIdentityArgs += @("-PackageName", $PackageName)
 }
 if (-not [string]::IsNullOrWhiteSpace($PackageFamilyName)) {
-    $windowFlagArgs += @("-PackageFamilyName", $PackageFamilyName)
-    $payloadArgs += @("-PackageFamilyName", $PackageFamilyName)
+    $packageIdentityArgs += @("-PackageFamilyName", $PackageFamilyName)
 }
 if (-not [string]::IsNullOrWhiteSpace($PackageFullName)) {
-    $windowFlagArgs += @("-PackageFullName", $PackageFullName)
-    $payloadArgs += @("-PackageFullName", $PackageFullName)
+    $packageIdentityArgs += @("-PackageFullName", $PackageFullName)
 }
+$windowFlagArgs += $packageIdentityArgs
+$payloadArgs += $packageIdentityArgs
 
 Push-Location $repoRoot
 try {

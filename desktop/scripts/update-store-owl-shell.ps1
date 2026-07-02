@@ -44,10 +44,12 @@ function Get-CodexAppPackages {
 }
 
 function Get-CodexAppPackage {
-    Get-CodexAppPackages |
+    $arm64Packages = @(Get-CodexAppPackages |
         Where-Object {
             [string] $_.Architecture -eq $RequiredArchitecture
-        } |
+        })
+
+    $arm64Packages |
         Sort-Object -Property Version -Descending |
         Select-Object -First 1
 }
@@ -212,20 +214,7 @@ function Copy-StorePath {
             fileCount = $digest.fileCount
             sha256 = $digest.sha256
         }
-        $nestedExecutableEntries = Get-ChildItem -LiteralPath $destinationPath -Recurse -File |
-            Where-Object { Test-NativePayloadCandidate -Path $_.FullName } |
-            Sort-Object -Property FullName |
-            ForEach-Object {
-                $nestedRelativePath = (Get-RelativePath -BasePath $DestinationRoot -Path $_.FullName).Replace("\", "/")
-                [ordered]@{
-                    sourceRelativePath = $nestedRelativePath
-                    kind = "nestedExecutable"
-                    size = $_.Length
-                    sha256 = Get-Sha256 -Path $_.FullName
-                    architecture = Format-PeMachine -Machine (Get-PeMachine -Path $_.FullName)
-                    containedIn = $RelativePath
-                }
-            }
+        $nestedExecutableEntries = Get-NestedNativePayloadEntries -DestinationRoot $DestinationRoot -DirectoryPath $destinationPath -ContainedIn $RelativePath
         return @($directoryEntry) + @($nestedExecutableEntries)
     }
 
@@ -242,6 +231,29 @@ function Copy-StorePath {
         $entry.architecture = Format-PeMachine -Machine (Get-PeMachine -Path $destinationPath)
     }
     return $entry
+}
+
+function Get-NestedNativePayloadEntries {
+    param(
+        [string] $DestinationRoot,
+        [string] $DirectoryPath,
+        [string] $ContainedIn
+    )
+
+    Get-ChildItem -LiteralPath $DirectoryPath -Recurse -File |
+        Where-Object { Test-NativePayloadCandidate -Path $_.FullName } |
+        Sort-Object -Property FullName |
+        ForEach-Object {
+            $nestedRelativePath = (Get-RelativePath -BasePath $DestinationRoot -Path $_.FullName).Replace("\", "/")
+            [ordered]@{
+                sourceRelativePath = $nestedRelativePath
+                kind = "nestedExecutable"
+                size = $_.Length
+                sha256 = Get-Sha256 -Path $_.FullName
+                architecture = Format-PeMachine -Machine (Get-PeMachine -Path $_.FullName)
+                containedIn = $ContainedIn
+            }
+        }
 }
 
 function Copy-StorePattern {
