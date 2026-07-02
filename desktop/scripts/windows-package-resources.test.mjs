@@ -3152,6 +3152,8 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   assert.match(source, /function Copy-StoreDirectoryFiles/);
   assert.match(source, /kind = "nestedExecutable"/);
   assert.match(source, /containedIn = \$RelativePath/);
+  assert.match(source, /SelfSignedMutable = \$true/);
+  assert.match(source, /selfSignedMutable = \$true/);
   assert.match(source, /RelativeDirectory "app" -Pattern "\*"/);
   for (const expectedPath of [
     "AppxManifest.xml",
@@ -3191,7 +3193,7 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(payloadSource, /store-owl-shell\.json/);
   assert.match(payloadSource, /sourceRelativePath/);
   assert.match(payloadSource, /Get-DirectoryDigest/);
-  assert.match(payloadSource, /\$relativePath -eq "AppxManifest\.xml"/);
+  assert.match(payloadSource, /\$Entry\.selfSignedMutable -eq \$true/);
   assert.match(payloadSource, /Store\/Owl payload SHA-256 mismatch/);
   assert.match(payloadSource, /\$PackageFamilyName/);
   assert.match(payloadSource, /\$PackageFullName/);
@@ -3254,6 +3256,8 @@ test("tracks Store Owl shell provenance metadata", () => {
   assert.doesNotMatch(metadataSource, /[A-Z]:[\\/]/);
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/Codex.exe"));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/chrome.dll"));
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "AppxManifest.xml" && entry.selfSignedMutable === true));
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "resources.pri" && entry.selfSignedMutable === true));
   assert.ok(
     metadata.entries.some(
       (entry) =>

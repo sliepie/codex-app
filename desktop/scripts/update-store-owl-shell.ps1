@@ -191,7 +191,8 @@ function Copy-StorePath {
         [string] $SourceRoot,
         [string] $DestinationRoot,
         [string] $RelativePath,
-        [string] $Kind
+        [string] $Kind,
+        [bool] $SelfSignedMutable = $false
     )
 
     $sourcePath = Join-Path $SourceRoot ($RelativePath -replace "/", "\")
@@ -234,6 +235,9 @@ function Copy-StorePath {
         size = (Get-Item -LiteralPath $destinationPath).Length
         sha256 = Get-Sha256 -Path $destinationPath
     }
+    if ($SelfSignedMutable) {
+        $entry.selfSignedMutable = $true
+    }
     if (Test-NativePayloadCandidate -Path $destinationPath) {
         $entry.architecture = Format-PeMachine -Machine (Get-PeMachine -Path $destinationPath)
     }
@@ -244,13 +248,14 @@ function Copy-StorePattern {
     param(
         [string] $SourceRoot,
         [string] $DestinationRoot,
-        [string] $Pattern
+        [string] $Pattern,
+        [bool] $SelfSignedMutable = $false
     )
 
     Get-ChildItem -LiteralPath $SourceRoot -Filter $Pattern -File |
         Sort-Object -Property Name |
         ForEach-Object {
-            Copy-StorePath -SourceRoot $SourceRoot -DestinationRoot $DestinationRoot -RelativePath $_.Name -Kind "file"
+            Copy-StorePath -SourceRoot $SourceRoot -DestinationRoot $DestinationRoot -RelativePath $_.Name -Kind "file" -SelfSignedMutable $SelfSignedMutable
         }
 }
 
@@ -275,7 +280,7 @@ function Copy-StoreDirectoryFiles {
 }
 
 $payloadPaths = @(
-    @{ RelativePath = "AppxManifest.xml"; Kind = "file" },
+    @{ RelativePath = "AppxManifest.xml"; Kind = "file"; SelfSignedMutable = $true },
     @{ RelativePath = "assets"; Kind = "directory" },
     @{ RelativePath = "app/locales"; Kind = "directory" },
     @{ RelativePath = "app/resources"; Kind = "directory" }
@@ -335,10 +340,10 @@ try {
 
     $entries = @()
     foreach ($payloadPath in $payloadPaths) {
-        $entries += Copy-StorePath -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -RelativePath $payloadPath.RelativePath -Kind $payloadPath.Kind
+        $entries += Copy-StorePath -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -RelativePath $payloadPath.RelativePath -Kind $payloadPath.Kind -SelfSignedMutable ([bool] $payloadPath.SelfSignedMutable)
     }
     $entries += Copy-StoreDirectoryFiles -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -RelativeDirectory "app" -Pattern "*"
-    $entries += Copy-StorePattern -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -Pattern "resources*.pri"
+    $entries += Copy-StorePattern -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -Pattern "resources*.pri" -SelfSignedMutable $true
     if (Test-Path -LiteralPath (Join-Path $package.InstallLocation "priconfig.xml")) {
         $entries += Copy-StorePath -SourceRoot $package.InstallLocation -DestinationRoot $resolvedOutputRoot -RelativePath "priconfig.xml" -Kind "file"
     }

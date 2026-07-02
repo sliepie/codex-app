@@ -1,9 +1,9 @@
 {
     "productId":  "9PLM9XGG6VKS",
     "packageName":  "OpenAI.Codex",
-    "packageFullName":  "OpenAI.Codex_26.623.9142.0_arm64__2p2nqsd0c76g0",
+    "packageFullName":  "OpenAI.Codex_26.623.11225.0_arm64__2p2nqsd0c76g0",
     "packageFamilyName":  "OpenAI.Codex_2p2nqsd0c76g0",
-    "packageVersion":  "26.623.9142.0",
+    "packageVersion":  "26.623.11225.0",
     "architecture":  "Arm64",
     "payloadRoot":  "desktop/.cache/store-owl-shell/package",
     "runtimeMetadataRelativePath":  "owl-shell-runtime.json",
@@ -11,8 +11,9 @@
                     {
                         "sourceRelativePath":  "AppxManifest.xml",
                         "kind":  "file",
-                        "size":  3262,
-                        "sha256":  "c304ab883707caa16228e99ce1e1e00f778c85d2f454695ca39823b59a054e83"
+                        "size":  3263,
+                        "sha256":  "4f0181b69acffa2762a48d490666163b3f2840ed053342874e4a9eace5d88922",
+                        "selfSignedMutable":  true
                     },
                     {
                         "sourceRelativePath":  "assets",
@@ -30,7 +31,7 @@
                         "sourceRelativePath":  "app/resources",
                         "kind":  "directory",
                         "fileCount":  4929,
-                        "sha256":  "a15526bd66433da70dd3e298f2304e94a24fa6c454852f7aabecd140aa523caa"
+                        "sha256":  "06baa41d48d39490da444658670c8b87dd34c70f45a65d60ae6d537c4373f8c7"
                     },
                     {
                         "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/@worklouder/device-kit-oai/node_modules/@worklouder/wl-device-kit/node_modules/node-hid/build/Release/HID.node",
@@ -44,7 +45,7 @@
                         "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/@worklouder/device-kit-oai/node_modules/@worklouder/wl-device-kit/node_modules/serialport/node_modules/@serialport/bindings-cpp/prebuilds/win32-arm64/node.napi.node",
                         "kind":  "nestedExecutable",
                         "size":  239104,
-                        "sha256":  "09c05c8ce1913cb034a38a18e9ca67b0a3fc47f9c3307d2333888467ce5bd6bd",
+                        "sha256":  "1f31a45f99adaac42a5ebe8a988a638984438754238adbe65747bf703b2a7e47",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -52,7 +53,7 @@
                         "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/better-sqlite3/build/Release/better_sqlite3.node",
                         "kind":  "nestedExecutable",
                         "size":  3352576,
-                        "sha256":  "412e02c7b759b407a3d21ac1bb437aa9c5f0cc1dc0033f78e50e7624c91e8028",
+                        "sha256":  "cf110186b922f158c73008efae2a7d200208eaecb0a822dce2860291cb473825",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -60,7 +61,7 @@
                         "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/conpty.node",
                         "kind":  "nestedExecutable",
                         "size":  1676288,
-                        "sha256":  "0f591e4fa1079e9b219a8cd5ae05b583a76340b1571223d76ef47130995da3fb",
+                        "sha256":  "0e8a71b9a0edd781955349448af55ceeef50a7fb501c94be8304c6eac0944536",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -68,7 +69,7 @@
                         "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/conpty_console_list.node",
                         "kind":  "nestedExecutable",
                         "size":  947712,
-                        "sha256":  "02ae9aa026203c9175d344f5c6109cd2d8f47408a8e1e3111f329eeea4a708c0",
+                        "sha256":  "7586dc491aebc7cb3c630d9caef018455b7f14014987d6952b72ce6efa62f402",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -76,7 +77,7 @@
                         "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/pty.node",
                         "kind":  "nestedExecutable",
                         "size":  1646080,
-                        "sha256":  "2d639478f55ca8685f8bdb492f3d6861b892bd6bc08534423994d42d2bf02459",
+                        "sha256":  "f68381e32cde9db0fc14eb91844d8c7f763e16577fb871bfe71756a0e94a4ce0",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -84,7 +85,7 @@
                         "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/winpty.dll",
                         "kind":  "nestedExecutable",
                         "size":  1096704,
-                        "sha256":  "eeb4f4654906f6d776c201a0b4c8426b9dee38d375c0da39ef6bfe12b390f9a4",
+                        "sha256":  "e387fa091604389003857abef92c3d9265186ed6291f85fb6b85ebecbe7dba3d",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -92,15 +93,15 @@
                         "sourceRelativePath":  "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/winpty-agent.exe",
                         "kind":  "nestedExecutable",
                         "size":  1231872,
-                        "sha256":  "61b5b91198e52d9c5baaf58ae9b585142f2a5f971b4974a80cf14ce8534689f2",
+                        "sha256":  "ca46d2dfaa41d6ce753fc5780cfb3d4c0cf1f9e349eeafcff9b61e1411645f7a",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
                     {
                         "sourceRelativePath":  "app/resources/codex.exe",
                         "kind":  "nestedExecutable",
-                        "size":  278803248,
-                        "sha256":  "3be08fd1e93c821702c36ca446d18f64e128fdadfca6c2fb409d7a52b9ce79a2",
+                        "size":  280569648,
+                        "sha256":  "369c06f07cf97a3a3a0011648e5640acc6bd894125d2bd5652898b53253a247c",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -108,15 +109,15 @@
                         "sourceRelativePath":  "app/resources/codex-command-runner.exe",
                         "kind":  "nestedExecutable",
                         "size":  1111856,
-                        "sha256":  "00fbbc26ee689f226b0e32b51eb4d5831d6efad33f7609ead90a46311e0b657f",
+                        "sha256":  "a971bf9a0b5010b5a0630e6f8b2ed97b10d4a7984a4786eec1a9622b6667bca0",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
                     {
                         "sourceRelativePath":  "app/resources/codex-windows-sandbox-setup.exe",
                         "kind":  "nestedExecutable",
-                        "size":  7772976,
-                        "sha256":  "cbf5538d880ebd255ede54a9abb7dfed199ed9c3a9b94d7e086ac85f9ee1d46b",
+                        "size":  7773488,
+                        "sha256":  "e321035625d4373a8f5d3c56ca7f6791be8f9f63b959c8026b4315bbb61c42f8",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -196,7 +197,7 @@
                         "sourceRelativePath":  "app/resources/native/computer-use-app-icons.node",
                         "kind":  "nestedExecutable",
                         "size":  157184,
-                        "sha256":  "83ca6c0e371b0df778d65244665d7cb3d68f99af1083701be316a54618cdd3ae",
+                        "sha256":  "64e72afb0908260b97ffb21a4dc4cf6d10e119851ae94c92383106e84ca1c49b",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -204,7 +205,7 @@
                         "sourceRelativePath":  "app/resources/native/windows-account.node",
                         "kind":  "nestedExecutable",
                         "size":  914944,
-                        "sha256":  "7c8cb9b14c1b834ce3cd227c054318e957d90ee47d15b581f7d18cab7affee98",
+                        "sha256":  "73e4c1a2773a2fe9040aa8c0323c2fe5dcf3b2cf6eeac3a29cd8ebdfce07c9ca",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -212,7 +213,7 @@
                         "sourceRelativePath":  "app/resources/native/windows-updater.node",
                         "kind":  "nestedExecutable",
                         "size":  1158656,
-                        "sha256":  "e6ac84716e65b4e0b3632864300530a78f88588bd2c4e71c6e3e4972e9960b37",
+                        "sha256":  "e52dfd62c4d32ea17ad1aa9bc2b66d4a26537a9e7cc4118e9cbd16c966309b73",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -220,7 +221,7 @@
                         "sourceRelativePath":  "app/resources/plugins/openai-bundled/plugins/browser/scripts/node_modules/classic-level/build/Release/classic_level.node",
                         "kind":  "nestedExecutable",
                         "size":  588800,
-                        "sha256":  "80e80efb8951519e02a034f3488725094e05a422518ac5eb2cadcc6bb06457b7",
+                        "sha256":  "48600c3af525c676bf8a8030782e3a1d2d072dbec2fa8830ab0c9793dc9fa4f8",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -244,7 +245,7 @@
                         "sourceRelativePath":  "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe",
                         "kind":  "nestedExecutable",
                         "size":  940544,
-                        "sha256":  "7143abfec3b744260a17a422bcb9fb76666edcad5e1a0101a29942e9086ad8dd",
+                        "sha256":  "f6cfae9383c4974cad8421e3811b106b6473985f06048dfaaf92913fcf7dd0da",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -252,7 +253,7 @@
                         "sourceRelativePath":  "app/resources/plugins/openai-bundled/plugins/chrome/scripts/node_modules/classic-level/build/Release/classic_level.node",
                         "kind":  "nestedExecutable",
                         "size":  588800,
-                        "sha256":  "80e80efb8951519e02a034f3488725094e05a422518ac5eb2cadcc6bb06457b7",
+                        "sha256":  "48600c3af525c676bf8a8030782e3a1d2d072dbec2fa8830ab0c9793dc9fa4f8",
                         "architecture":  "arm64",
                         "containedIn":  "app/resources"
                     },
@@ -485,37 +486,43 @@
                         "sourceRelativePath":  "resources.language-is.pri",
                         "kind":  "file",
                         "size":  358848,
-                        "sha256":  "748630c0799c3f2c8607f0919ed3b530dbad64305cf5258ca1e52e627e8829ce"
+                        "sha256":  "748630c0799c3f2c8607f0919ed3b530dbad64305cf5258ca1e52e627e8829ce",
+                        "selfSignedMutable":  true
                     },
                     {
                         "sourceRelativePath":  "resources.language-is-url.pri",
                         "kind":  "file",
                         "size":  357576,
-                        "sha256":  "06365cf4f753f1e9bd26c3cc11f3eb73521085ec9e42b3d985d806ce1f693fb6"
+                        "sha256":  "06365cf4f753f1e9bd26c3cc11f3eb73521085ec9e42b3d985d806ce1f693fb6",
+                        "selfSignedMutable":  true
                     },
                     {
                         "sourceRelativePath":  "resources.language-ms.pri",
                         "kind":  "file",
                         "size":  357304,
-                        "sha256":  "7606d435bb14c6068209f9d9684b90cd35b741052c83092256d480cdfb8281d8"
+                        "sha256":  "7606d435bb14c6068209f9d9684b90cd35b741052c83092256d480cdfb8281d8",
+                        "selfSignedMutable":  true
                     },
                     {
                         "sourceRelativePath":  "resources.language-no.pri",
                         "kind":  "file",
                         "size":  357152,
-                        "sha256":  "c98a084cfc8b2f78bb0285937c7de412c6c065e436c086152662cd90c8cdb2ce"
+                        "sha256":  "c98a084cfc8b2f78bb0285937c7de412c6c065e436c086152662cd90c8cdb2ce",
+                        "selfSignedMutable":  true
                     },
                     {
                         "sourceRelativePath":  "resources.pri",
                         "kind":  "file",
                         "size":  1499680,
-                        "sha256":  "445ce04fc5c9d11bcc6072ca6431a47dd94833ae2fd253c7e22c06ed7f701477"
+                        "sha256":  "445ce04fc5c9d11bcc6072ca6431a47dd94833ae2fd253c7e22c06ed7f701477",
+                        "selfSignedMutable":  true
                     },
                     {
                         "sourceRelativePath":  "resources.scale-200.pri",
                         "kind":  "file",
                         "size":  357304,
-                        "sha256":  "0e19dd68e2af93a096e4b02fae79fb277a935ef0f45b812a47324db1c7076b03"
+                        "sha256":  "0e19dd68e2af93a096e4b02fae79fb277a935ef0f45b812a47324db1c7076b03",
+                        "selfSignedMutable":  true
                     },
                     {
                         "sourceRelativePath":  "priconfig.xml",

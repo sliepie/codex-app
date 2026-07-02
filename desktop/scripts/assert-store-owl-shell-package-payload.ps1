@@ -102,7 +102,7 @@ function Assert-FileEntry {
         throw "Package is missing Store/Owl payload file: $relativePath"
     }
 
-    if ($relativePath -eq "AppxManifest.xml") {
+    if ($Entry.selfSignedMutable -eq $true) {
         return
     }
 
