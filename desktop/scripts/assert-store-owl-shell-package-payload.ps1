@@ -102,6 +102,10 @@ function Assert-FileEntry {
         throw "Package is missing Store/Owl payload file: $relativePath"
     }
 
+    if ($relativePath -eq "AppxManifest.xml") {
+        return
+    }
+
     $file = Get-Item -LiteralPath $packagePath
     if ($null -ne $Entry.size -and $file.Length -ne [int64] $Entry.size) {
         throw "Store/Owl payload file size mismatch for $relativePath`: expected $($Entry.size), got $($file.Length)."
@@ -144,9 +148,6 @@ $metadata = Get-Content -Raw -LiteralPath $metadataPath | ConvertFrom-Json
 $package = Resolve-TargetPackage
 $installLocation = [System.IO.Path]::GetFullPath($package.InstallLocation)
 
-if ($metadata.packageFamilyName -ne $package.PackageFamilyName) {
-    throw "Store/Owl package family mismatch: metadata $($metadata.packageFamilyName), installed $($package.PackageFamilyName)."
-}
 if ([string] $metadata.architecture -ne [string] $package.Architecture) {
     throw "Store/Owl package architecture mismatch: metadata $($metadata.architecture), installed $($package.Architecture)."
 }

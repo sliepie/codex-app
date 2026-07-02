@@ -3191,9 +3191,11 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(payloadSource, /store-owl-shell\.json/);
   assert.match(payloadSource, /sourceRelativePath/);
   assert.match(payloadSource, /Get-DirectoryDigest/);
+  assert.match(payloadSource, /\$relativePath -eq "AppxManifest\.xml"/);
   assert.match(payloadSource, /Store\/Owl payload SHA-256 mismatch/);
   assert.match(payloadSource, /\$PackageFamilyName/);
   assert.match(payloadSource, /\$PackageFullName/);
+  assert.doesNotMatch(payloadSource, /package family mismatch/);
   assert.doesNotMatch(smokeSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\] \$PackageName/);
   assert.match(smokeSource, /WS_EX_APPWINDOW|wsExAppWindow/);
   assert.match(smokeSource, /WS_EX_NOACTIVATE|wsExNoActivate/);

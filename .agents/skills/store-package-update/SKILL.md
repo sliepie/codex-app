@@ -37,7 +37,7 @@ description: "Maintain Store-sourced Windows package dependencies for codex-app.
 - `desktop/scripts/update-store-owl-shell.ps1` must copy the matched set: every top-level file under `app/`, locales, `owl-shell-runtime.json`, AppX manifest/assets, and app resources.
 - `desktop/scripts/windows-package-resources.test.mjs` must cover the Store/Owl updater script, the matched set, and app resources touched by the package flow.
 - If no reusable window-flag smoke check exists, add `desktop/scripts/assert-windows-primary-window-flags.ps1` before claiming shell parity complete. Ad hoc Win32 snippets are diagnosis only.
-- Completion criterion: the package records Store source identity, version, source-relative paths, architectures, and SHA values; package-resource tests cover the matched set; Store/Owl validation confirms the installed package payload matches `desktop/resources/store-owl-shell.json`; a launched Windows build passes a reusable smoke check showing a visible primary window with `WS_EX_APPWINDOW` and without `WS_EX_NOACTIVATE`.
+- Completion criterion: the package records Store source identity, version, source-relative paths, architectures, and SHA values; package-resource tests cover the matched set; Store/Owl validation confirms the installed package payload matches `desktop/resources/store-owl-shell.json`, except self-signed `AppxManifest.xml` identity rewrites; a launched Windows build passes a reusable smoke check showing a visible primary window with `WS_EX_APPWINDOW` and without `WS_EX_NOACTIVATE`.
 
 ## Helper Binary Branch
 
