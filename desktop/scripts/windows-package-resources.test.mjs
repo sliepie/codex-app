@@ -3132,6 +3132,7 @@ test("Store package updater refreshes helpers and Store Owl shell together", () 
   assert.match(source, /const packageName = "OpenAI\.Codex"/);
   assert.match(source, /const packageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
   assert.match(source, /const requiredArchitecture = "Arm64"/);
+  assert.match(source, /const appDirectoriesHydratedFromPublicArtifacts = new Set\(\["resources"\]\)/);
   assert.match(source, /const noApplicableUpgradeExitCode = 2316632107/);
   assert.match(source, /function codexAppPackages/);
   assert.match(source, /item\.packageFamilyName === packageFamilyName/);
@@ -3150,6 +3151,7 @@ test("Store package updater refreshes helpers and Store Owl shell together", () 
   assert.match(source, /function nestedNativePayloadEntries/);
   assert.match(source, /function copyStoreDirectoryFiles/);
   assert.match(source, /function copyStoreDirectorySubdirectories/);
+  assert.match(source, /!appDirectoriesHydratedFromPublicArtifacts\.has\(entry\.name\)/);
   assert.doesNotMatch(source, /localeCompare/);
   assert.match(source, /compareOrdinal/);
   assert.match(source, /kind: "nestedExecutable"/);
@@ -3205,7 +3207,8 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(skillSource, /replacing the old Forge\/Electron shell/);
   assert.match(skillSource, /app\/Codex\.exe/);
   assert.match(skillSource, /app\/chrome\.dll/);
-  assert.match(skillSource, /full top-level `app\/` runtime file and directory set/);
+  assert.match(skillSource, /Microsoft Store package as the fallback source/);
+  assert.match(skillSource, /Do not copy `app\/resources` from Store/);
   assert.match(skillSource, /stage the Store\/Owl cache into the built MSIX\/AppX payload/);
   assert.match(skillSource, /metadata or cache automation alone is not a completed Store\/Owl shell change/);
   assert.match(skillSource, /package staging path/);
@@ -3287,25 +3290,13 @@ test("tracks Store Owl shell provenance metadata", () => {
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === metadata.runtimeMetadataRelativePath));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/Codex.exe"));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/chrome.dll"));
+  assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath === "app/resources"), false);
+  assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("app/resources/")), false);
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/gen"));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "AppxManifest.xml" && entry.selfSignedMutable === true));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "resources.pri" && entry.selfSignedMutable === true));
   assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.language-") && entry.selfSignedMutable === true), false);
   assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.scale-") && entry.selfSignedMutable === true), false);
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.scale-")));
-  assert.ok(
-    metadata.entries.some(
-      (entry) =>
-        entry.kind === "nestedExecutable" &&
-        entry.sourceRelativePath.endsWith(".node") &&
-        ["arm64", "x64", "x86"].includes(entry.architecture),
-    ),
-  );
-  assert.ok(
-    metadata.entries.some(
-      (entry) =>
-        entry.kind === "nestedExecutable" &&
-        entry.sourceRelativePath.endsWith("/codex-computer-use.exe") &&
-        entry.architecture === "x64",
-    ),
-  );
+  assert.equal(metadata.entries.some((entry) => entry.kind === "nestedExecutable"), false);
 });

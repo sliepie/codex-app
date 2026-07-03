@@ -28,6 +28,7 @@ const packageName = "OpenAI.Codex";
 const packageFamilyName = "OpenAI.Codex_2p2nqsd0c76g0";
 const requiredArchitecture = "Arm64";
 const nativePayloadExtensions = new Set([".exe", ".dll", ".node"]);
+const appDirectoriesHydratedFromPublicArtifacts = new Set(["resources"]);
 
 function codexAppPackages(): AppxPackage[] {
   return getAppxPackages(packageName)
@@ -144,7 +145,7 @@ function copyStoreDirectorySubdirectories(sourceRoot: string, destinationRoot: s
     throw new Error(`Missing Store/Owl shell payload directory: ${relativeDirectory}`);
   }
   return fs.readdirSync(sourceDirectory, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && !appDirectoriesHydratedFromPublicArtifacts.has(entry.name))
     .map((entry) => entry.name)
     .sort(compareOrdinal)
     .flatMap((name) => copyStorePath(sourceRoot, destinationRoot, `${relativeDirectory}/${name}`, "directory"));

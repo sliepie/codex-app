@@ -31,6 +31,9 @@ The bundled LaTeX plugin executable. The ARM64 package downloads the public x64 
 **Official package source**:
 An upstream OpenAI distribution channel, such as the Codex production appcast or the Microsoft Store package for product ID `9PLM9XGG6VKS`.
 
+**Store fallback source**:
+The official Microsoft Store package used only when a Windows ARM64 payload cannot be built, downloaded from a public source, or hydrated from the macOS app.
+
 **Latest official app release**:
 The official upstream Codex Desktop release selected for Windows ARM64 packaging from the production appcast.
 
@@ -47,6 +50,7 @@ A CSS selector shipped by a bundled Codex++ tweak under `desktop/codex-plusplus/
 
 - A **Windows ARM64 package** contains **Resource binaries**.
 - **Resource binaries** should be ARM64 unless they cannot be compiled, downloaded, or otherwise obtained for Windows ARM64.
+- The **Microsoft Store package** is a **Store fallback source**, not the default source for payloads that are available from public release assets or the macOS app.
 - Every **Resource binary exception** must live in `desktop/scripts/resource-binary-exceptions.ts` and be enforced by `npm run verify:windows-arm64-resource-binaries`.
 - **`node_repl`**, **`extension-host`**, and the **Computer Use helper** are **Vendored resource binaries** until they no longer need to be copied from the Microsoft Store package.
 - **`node_repl`** and **`extension-host`** use ARM64 binaries from the Microsoft Store package when available; the **Computer Use helper** may use the latest official closed-source x64 binary until a Windows ARM64 equivalent exists.
