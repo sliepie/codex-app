@@ -2148,111 +2148,19 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       uiOverrideCss,
       /role=['"]listitem['"][^{}]*class~=['"]py-1['"][^{}]*margin-left|text-token-description-foreground[^{}]*margin-left/,
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/chats-section-header:is(:hover,:focus-within)>div:has(button:not([aria-hidden='true'])[aria-label])`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/projects-section-header:has([data-state='open'])>div:has(button:not([aria-hidden='true'])[aria-label])`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/chats-section-header:is(:hover,:focus-within)>div:has(button:not([aria-hidden='true'])[aria-label]) button:not([aria-hidden='true'])[aria-label]`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/chats-section-header:is(:hover,:focus-within)>div:has(button:not([aria-hidden='true'])[aria-label]) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible)`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/section-toggle:is(:hover,:focus-visible) svg,.group\/section-toggle:is(:hover,:focus-visible) .icon-2xs{opacity:1!important;visibility:visible!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0)>div:has(button[aria-haspopup='menu'][aria-label])`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) span:has(>[role='button']:not([aria-hidden='true'])[aria-label])`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label]`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label]{color:var(--color-token-description-foreground)!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible){color:var(--color-token-foreground)!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label] :is(svg,.icon-2xs,.icon-xs,.icon-sm)",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label]",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>:is(div,span):has(button:not([aria-hidden='true'])[aria-label]),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true']>:is(div,span):has(button:not([aria-hidden='true'])[aria-label]),[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [role='button']:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [role='button']:not([aria-hidden='true'])[aria-label]{color:var(--color-token-description-foreground)!important;}",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible){color:var(--color-token-foreground)!important;}",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label])):not(:has(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label]))),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label])):not(:has(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label]))){display:none!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .w-4 span:has(>button:not([aria-hidden='true'])[aria-label]),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] .w-4 span:has(>button:not([aria-hidden='true'])[aria-label])`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [data-thread-title-trigger],[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [data-thread-title-trigger]{padding-right:1.1rem!important;min-width:0!important;}",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [data-thread-title-trigger]>:first-child,[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [data-thread-title-trigger]>:first-child",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;",
-      ),
-    );
+    assert.doesNotMatch(uiOverrideCss, /group\\\/chats-section-header:is/);
+    assert.doesNotMatch(uiOverrideCss, /group\\\/projects-section-header/);
+    assert.doesNotMatch(uiOverrideCss, /group\\\/section-toggle:is/);
+    assert.doesNotMatch(uiOverrideCss, /data-app-action-sidebar-project-row.*button:not\(\[aria-hidden='true'\]\)\[aria-label\]/);
+    assert.doesNotMatch(uiOverrideCss, /data-app-action-sidebar-thread-row.*button:not\(\[aria-hidden='true'\]\)\[aria-label\]/);
+    assert.doesNotMatch(uiOverrideCss, /text-overflow:ellipsis!important/);
     assert.ok(
       uiOverrideCss.includes(
         "[data-app-action-sidebar-section-heading=\"Pinned\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger],[data-app-action-sidebar-section-heading=\"Chats\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]{position:relative!important;left:-2px!important;}",
       ),
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row] button[aria-label*='stop' i],[data-app-action-sidebar-thread-row] button[title*='stop' i],[data-app-action-sidebar-thread-row] button[aria-label*='terminate' i],[data-app-action-sidebar-thread-row] button[title*='terminate' i],[data-app-action-sidebar-thread-row] [role='button'][aria-label*='stop' i],[data-app-action-sidebar-thread-row] [role='button'][title*='stop' i],[data-app-action-sidebar-thread-row] [role='button'][aria-label*='terminate' i],[data-app-action-sidebar-thread-row] [role='button'][title*='terminate' i]{display:none!important;}",
-      ),
-    );
+    assert.doesNotMatch(uiOverrideCss, /button\[aria-label\*='stop' i\]/);
+    assert.doesNotMatch(uiOverrideCss, /data-app-shell-tab-controller='right'/);
     assert.ok(
       uiOverrideCss.includes(
         String.raw`main.main-surface:has(.main-surface>.draggable.flex.items-center.px-panel.electron\:h-toolbar.extension\:h-toolbar-sm)>.app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center{display:none!important;}`,
