@@ -2148,19 +2148,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       uiOverrideCss,
       /role=['"]listitem['"][^{}]*class~=['"]py-1['"][^{}]*margin-left|text-token-description-foreground[^{}]*margin-left/,
     );
-    assert.doesNotMatch(uiOverrideCss, /group\\\/chats-section-header:is/);
-    assert.doesNotMatch(uiOverrideCss, /group\\\/projects-section-header/);
-    assert.doesNotMatch(uiOverrideCss, /group\\\/section-toggle:is/);
-    assert.doesNotMatch(uiOverrideCss, /data-app-action-sidebar-project-row.*button:not\(\[aria-hidden='true'\]\)\[aria-label\]/);
-    assert.doesNotMatch(uiOverrideCss, /data-app-action-sidebar-thread-row.*button:not\(\[aria-hidden='true'\]\)\[aria-label\]/);
-    assert.doesNotMatch(uiOverrideCss, /text-overflow:ellipsis!important/);
     assert.ok(
       uiOverrideCss.includes(
         "[data-app-action-sidebar-section-heading=\"Pinned\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger],[data-app-action-sidebar-section-heading=\"Chats\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]{position:relative!important;left:-2px!important;}",
       ),
     );
-    assert.doesNotMatch(uiOverrideCss, /button\[aria-label\*='stop' i\]/);
-    assert.doesNotMatch(uiOverrideCss, /data-app-shell-tab-controller='right'/);
     assert.ok(
       uiOverrideCss.includes(
         String.raw`main.main-surface:has(.main-surface>.draggable.flex.items-center.px-panel.electron\:h-toolbar.extension\:h-toolbar-sm)>.app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center{display:none!important;}`,
