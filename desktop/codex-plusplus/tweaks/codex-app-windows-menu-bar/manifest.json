@@ -1,9 +1,9 @@
 {
   "id": "dev.sliepie.codex.windows-menu-bar",
   "name": "Codex app Windows menu bar",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "githubRepo": "sliepie/codex-app",
-  "description": "Adds an Appearance setting for showing or hiding the Windows menu bar.",
+  "description": "Adds a Codex++ setting for showing or hiding the Windows menu bar.",
   "author": "sliepie",
   "homepage": "https://github.com/sliepie/codex-app",
   "tags": ["ui", "windows"],

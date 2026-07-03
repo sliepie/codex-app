@@ -10,16 +10,6 @@ const WINDOWS_MENU_ROW_DECLARATIONS = "display:none!important;";
 const WINDOWS_MENU_BAR_STORAGE_KEY = "hideWindowsMenuBar";
 const WINDOWS_MENU_BAR_FALLBACK_STORAGE_KEY =
   "codex-app-ui-overrides:hideWindowsMenuBar";
-const WINDOWS_MENU_BAR_SETTING_ROW_ID =
-  "codex-app-ui-hide-windows-menu-bar-setting";
-const WINDOWS_MENU_BAR_SETTING_HOST_SELECTOR =
-  ".main-surface .flex.flex-col.rounded-lg.border";
-const WINDOWS_MENU_BAR_SETTING_MARKERS = [
-  "theme",
-  "use pointer cursors",
-  "reduce motion",
-];
-const WINDOWS_MENU_BAR_SETTING_INSERT_BEFORE_MARKERS = ["reduce motion"];
 const SWITCH_TRACK_SELECTOR =
   "[data-codex-app-ui-menu-bar-toggle-track]";
 const SWITCH_THUMB_SELECTOR =
@@ -31,8 +21,8 @@ const SWITCH_TRACK_BASE_CLASS =
 const SWITCH_THUMB_BASE_CLASS =
   "rounded-full border border-[color:var(--gray-0)] bg-[color:var(--gray-0)] shadow-sm transition-transform duration-200 ease-out data-[state=unchecked]:translate-x-0 h-4 w-4 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px]";
 
-let windowsMenuBarSettingsObserver = null;
 let windowsMenuBarStorage = null;
+let windowsMenuBarSettingsHandle = null;
 
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
@@ -54,13 +44,6 @@ function installStyle() {
   style.id = STYLE_ID;
   style.textContent = STYLE_RULES.join("\n");
   document.head.appendChild(style);
-}
-
-function compactText(value) {
-  return String(value || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLocaleLowerCase();
 }
 
 function storedBoolean(value) {
@@ -118,31 +101,6 @@ function applyWindowsMenuBarHiddenState(hidden) {
     WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE,
     hidden ? "true" : "false",
   );
-  syncWindowsMenuBarSettingControls(hidden);
-}
-
-function findAppearanceSettingsHost() {
-  const hosts = Array.from(
-    document.querySelectorAll(WINDOWS_MENU_BAR_SETTING_HOST_SELECTOR),
-  );
-
-  return (
-    hosts.find((host) => {
-      const text = compactText(host.textContent);
-      return WINDOWS_MENU_BAR_SETTING_MARKERS.some((marker) =>
-        text.includes(marker),
-      );
-    }) || null
-  );
-}
-
-function findSettingsRowByMarkers(host, markers) {
-  return (
-    Array.from(host.children).find((child) => {
-      const text = compactText(child.textContent);
-      return markers.some((marker) => text.includes(marker));
-    }) || null
-  );
 }
 
 function createTextElement(className, text) {
@@ -152,7 +110,7 @@ function createTextElement(className, text) {
   return element;
 }
 
-function createWindowsMenuBarToggle() {
+function createWindowsMenuBarToggle(onHiddenChange) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = SWITCH_BUTTON_CLASS;
@@ -171,14 +129,14 @@ function createWindowsMenuBarToggle() {
     const hidden = !readWindowsMenuBarHidden();
     writeWindowsMenuBarHidden(hidden);
     applyWindowsMenuBarHiddenState(hidden);
+    onHiddenChange?.(hidden);
   });
 
   return button;
 }
 
-function createWindowsMenuBarSettingRow() {
+function createWindowsMenuBarSettingRow(hidden) {
   const row = document.createElement("div");
-  row.id = WINDOWS_MENU_BAR_SETTING_ROW_ID;
   row.className = "flex items-center justify-between gap-4 p-3";
   row.setAttribute("data-codex-app-ui-setting", "hide-windows-menu-bar");
 
@@ -200,14 +158,18 @@ function createWindowsMenuBarSettingRow() {
 
   const control = document.createElement("div");
   control.className = "flex shrink-0 items-center gap-2";
-  control.appendChild(createWindowsMenuBarToggle());
+  control.appendChild(
+    createWindowsMenuBarToggle((nextHidden) =>
+      syncWindowsMenuBarSettingControls(row, nextHidden),
+    ),
+  );
 
   row.append(left, control);
+  syncWindowsMenuBarSettingControls(row, hidden);
   return row;
 }
 
-function syncWindowsMenuBarSettingControls(hidden = readWindowsMenuBarHidden()) {
-  const row = document.getElementById(WINDOWS_MENU_BAR_SETTING_ROW_ID);
+function syncWindowsMenuBarSettingControls(row, hidden = readWindowsMenuBarHidden()) {
   if (!row) {
     return;
   }
@@ -231,59 +193,25 @@ function syncWindowsMenuBarSettingControls(hidden = readWindowsMenuBarHidden()) 
   }
 }
 
-function syncWindowsMenuBarSettingRow() {
-  const host = findAppearanceSettingsHost();
-  const existingRow = document.getElementById(WINDOWS_MENU_BAR_SETTING_ROW_ID);
-  const hidden = readWindowsMenuBarHidden();
-
-  if (!host) {
-    existingRow?.remove();
-    return;
-  }
-
-  if (existingRow && host.contains(existingRow)) {
-    syncWindowsMenuBarSettingControls(hidden);
-    return;
-  }
-
-  existingRow?.remove();
-  const row = createWindowsMenuBarSettingRow();
-  const insertBefore = findSettingsRowByMarkers(
-    host,
-    WINDOWS_MENU_BAR_SETTING_INSERT_BEFORE_MARKERS,
-  );
-
-  if (insertBefore) {
-    host.insertBefore(row, insertBefore);
-  } else {
-    host.appendChild(row);
-  }
-
-  syncWindowsMenuBarSettingControls(hidden);
+function renderWindowsMenuBarSetting(root) {
+  root.appendChild(createWindowsMenuBarSettingRow(readWindowsMenuBarHidden()));
 }
 
 function installWindowsMenuBarSetting(api) {
   windowsMenuBarStorage = api?.storage ?? null;
   applyWindowsMenuBarHiddenState(readWindowsMenuBarHidden());
-  syncWindowsMenuBarSettingRow();
-
-  if (typeof MutationObserver === "function") {
-    windowsMenuBarSettingsObserver?.disconnect();
-    windowsMenuBarSettingsObserver = new MutationObserver(() => {
-      syncWindowsMenuBarSettingRow();
-    });
-    windowsMenuBarSettingsObserver.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-    });
-  }
+  windowsMenuBarSettingsHandle?.unregister?.();
+  windowsMenuBarSettingsHandle = api?.settings?.register?.({
+    id: "windows-menu-bar",
+    title: "Windows menu bar",
+    render: renderWindowsMenuBarSetting,
+  }) ?? null;
 }
 
 function uninstallWindowsMenuBarSetting() {
-  windowsMenuBarSettingsObserver?.disconnect();
-  windowsMenuBarSettingsObserver = null;
+  windowsMenuBarSettingsHandle?.unregister?.();
+  windowsMenuBarSettingsHandle = null;
   windowsMenuBarStorage = null;
-  document.getElementById(WINDOWS_MENU_BAR_SETTING_ROW_ID)?.remove();
   document.documentElement?.removeAttribute(WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE);
 }
 
