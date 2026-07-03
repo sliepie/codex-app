@@ -152,6 +152,16 @@ if ([string] $metadata.architecture -ne [string] $package.Architecture) {
     throw "Store/Owl package architecture mismatch: metadata $($metadata.architecture), installed $($package.Architecture)."
 }
 
+$runtimeMetadataRelativePath = [string] $metadata.runtimeMetadataRelativePath
+if ([string]::IsNullOrWhiteSpace($runtimeMetadataRelativePath)) {
+    throw "Store/Owl metadata is missing runtimeMetadataRelativePath."
+}
+
+$runtimeMetadataEntry = @($metadata.entries) | Where-Object { [string] $_.sourceRelativePath -eq $runtimeMetadataRelativePath } | Select-Object -First 1
+if ($null -eq $runtimeMetadataEntry) {
+    throw "Store/Owl metadata entries must include runtime metadata file: $runtimeMetadataRelativePath"
+}
+
 foreach ($entry in @($metadata.entries)) {
     if ($entry.kind -eq "directory") {
         Assert-DirectoryEntry -InstallLocation $installLocation -Entry $entry

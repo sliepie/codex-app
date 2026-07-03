@@ -483,6 +483,13 @@
                         "architecture":  "arm64"
                     },
                     {
+                        "sourceRelativePath":  "resources.pri",
+                        "kind":  "file",
+                        "size":  1499680,
+                        "sha256":  "445ce04fc5c9d11bcc6072ca6431a47dd94833ae2fd253c7e22c06ed7f701477",
+                        "selfSignedMutable":  true
+                    },
+                    {
                         "sourceRelativePath":  "resources.language-is.pri",
                         "kind":  "file",
                         "size":  358848,
@@ -507,13 +514,6 @@
                         "sha256":  "c98a084cfc8b2f78bb0285937c7de412c6c065e436c086152662cd90c8cdb2ce"
                     },
                     {
-                        "sourceRelativePath":  "resources.pri",
-                        "kind":  "file",
-                        "size":  1499680,
-                        "sha256":  "445ce04fc5c9d11bcc6072ca6431a47dd94833ae2fd253c7e22c06ed7f701477",
-                        "selfSignedMutable":  true
-                    },
-                    {
                         "sourceRelativePath":  "resources.scale-200.pri",
                         "kind":  "file",
                         "size":  357304,
@@ -524,6 +524,12 @@
                         "kind":  "file",
                         "size":  1480,
                         "sha256":  "15fef7f6ce0602ff8c6543ce54d121f3b1a2cc34140b60afcf93ebdbdab648b5"
+                    },
+                    {
+                        "sourceRelativePath":  "owl-shell-runtime.json",
+                        "kind":  "file",
+                        "size":  29544,
+                        "sha256":  "5335d8f1df03b28cfd225ad752b7c450779b05d38a673bdf61a7c839f832d1fc"
                     }
                 ]
 }

@@ -3169,6 +3169,8 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   }
   assert.doesNotMatch(source, /RelativePath = "app\/Codex\.exe"/);
   assert.match(source, /owl-shell-runtime\.json/);
+  assert.match(source, /runtimeMetadataEntry/);
+  assert.match(source, /metadataEntries = @\(\$entries\) \+ @\(\$runtimeMetadataEntry\)/);
   assert.match(source, /store-owl-shell\.json/);
   assert.match(source, /Get-RepoRelativePathOrNull/);
   assert.match(source, /payloadRoot = \$metadataPayloadRoot/);
@@ -3205,6 +3207,8 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(validationSource, /\$PackageFullName/);
   assert.match(payloadSource, /store-owl-shell\.json/);
   assert.match(payloadSource, /sourceRelativePath/);
+  assert.match(payloadSource, /runtimeMetadataRelativePath/);
+  assert.match(payloadSource, /runtime metadata file/);
   assert.match(payloadSource, /Get-DirectoryDigest/);
   assert.match(payloadSource, /\$Entry\.selfSignedMutable -eq \$true/);
   assert.match(payloadSource, /Store\/Owl payload SHA-256 mismatch/);
@@ -3266,7 +3270,9 @@ test("tracks Store Owl shell provenance metadata", () => {
   assert.equal(metadata.packageFamilyName, "OpenAI.Codex_2p2nqsd0c76g0");
   assert.equal(metadata.architecture, "Arm64");
   assert.equal(metadata.payloadRoot, "desktop/.cache/store-owl-shell/package");
+  assert.equal(metadata.runtimeMetadataRelativePath, "owl-shell-runtime.json");
   assert.doesNotMatch(metadataSource, /[A-Z]:[\\/]/);
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === metadata.runtimeMetadataRelativePath));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/Codex.exe"));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/chrome.dll"));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "AppxManifest.xml" && entry.selfSignedMutable === true));

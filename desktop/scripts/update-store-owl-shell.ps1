@@ -375,6 +375,13 @@ try {
     $runtimeMetadataPath = Join-Path $resolvedOutputRoot "owl-shell-runtime.json"
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($runtimeMetadataPath, (($runtimeMetadata | ConvertTo-Json -Depth 8) + [Environment]::NewLine), $utf8NoBom)
+    $runtimeMetadataEntry = [ordered]@{
+        sourceRelativePath = "owl-shell-runtime.json"
+        kind = "file"
+        size = (Get-Item -LiteralPath $runtimeMetadataPath).Length
+        sha256 = Get-Sha256 -Path $runtimeMetadataPath
+    }
+    $metadataEntries = @($entries) + @($runtimeMetadataEntry)
 
     $metadata = [ordered]@{
         productId = $ProductId
@@ -385,7 +392,7 @@ try {
         architecture = [string] $package.Architecture
         payloadRoot = $metadataPayloadRoot
         runtimeMetadataRelativePath = "owl-shell-runtime.json"
-        entries = $entries
+        entries = $metadataEntries
     }
 
     $resolvedMetadataOutputPath = [System.IO.Path]::GetFullPath($MetadataOutputPath)
