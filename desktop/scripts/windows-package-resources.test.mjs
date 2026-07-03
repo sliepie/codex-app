@@ -3101,8 +3101,16 @@ test("Store binary updater only accepts the official Store package family", () =
   );
 });
 
-test("Store Owl shell updater copies the matched package payload set", () => {
+test("Store package updater refreshes helpers and Store Owl shell together", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"));
+  assert.equal(
+    packageJson.scripts["update:store-package"],
+    "npm run update:node-repl && npm run update:store-owl-shell",
+  );
+  assert.equal(
+    packageJson.scripts["update:node-repl"],
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-node-repl.ps1",
+  );
   assert.equal(
     packageJson.scripts["update:store-owl-shell"],
     "npm run build:scripts && npm run update:store-owl-shell:compiled",
@@ -3200,6 +3208,8 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(skillSource, /stage the Store\/Owl cache into the built MSIX\/AppX payload/);
   assert.match(skillSource, /metadata or cache automation alone is not a completed Store\/Owl shell change/);
   assert.match(skillSource, /package staging path/);
+  assert.match(skillSource, /npm --prefix desktop run update:store-package/);
+  assert.doesNotMatch(skillSource, /Choose exactly one branch|Store\/Owl Shell Migration Branch|Helper Binary Branch/);
   assert.doesNotMatch(validationSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\]\$PackageName/);
   assert.match(validationSource, /--package-family-name/);
   assert.match(validationSource, /--package-full-name/);
