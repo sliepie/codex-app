@@ -24,6 +24,8 @@ export type StoreOwlEntry = {
 };
 
 export type StoreOwlMetadata = {
+  appBuildNumber: string;
+  appVersion: string;
   productId: string;
   packageName: string;
   packageFullName: string;

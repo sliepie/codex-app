@@ -10,7 +10,6 @@ import {
 } from "./store-owl-shell-common.js";
 
 const preservedPackagedAppRootEntries = new Set(["resources"]);
-const storeResourceFallbackPaths = new Set(["app/resources/app.asar"]);
 
 function storeOwlMetadata(): StoreOwlMetadata {
   const metadataPath = path.join(desktopRoot(), "resources", "store-owl-shell.json");
@@ -71,8 +70,8 @@ export function stageStoreOwlShellAppRoot(appRoot: string): void {
       continue;
     }
     if (
-      (entry.sourceRelativePath.startsWith("app/resources/") || entry.sourceRelativePath === "app/resources") &&
-      !storeResourceFallbackPaths.has(entry.sourceRelativePath)
+      entry.sourceRelativePath.startsWith("app/resources/") ||
+      entry.sourceRelativePath === "app/resources"
     ) {
       continue;
     }

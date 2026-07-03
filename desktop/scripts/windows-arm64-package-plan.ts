@@ -1,4 +1,6 @@
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 
 export type WindowsArm64PlanTarget = "hydrate" | "make" | "package" | "prepare" | "verify";
 
@@ -125,6 +127,18 @@ function npmCommand(): string {
   return "npm";
 }
 
+function storeMatchedAppcastArgs(): string[] {
+  const metadataPath = path.join(__dirname, "..", "..", "resources", "store-owl-shell.json");
+  const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8")) as {
+    appBuildNumber?: string;
+    appVersion?: string;
+  };
+  if (!metadata.appVersion || !metadata.appBuildNumber) {
+    throw new Error("Store/Owl metadata must include appVersion and appBuildNumber for macOS appcast hydration.");
+  }
+  return ["--version", metadata.appVersion, "--build-number", metadata.appBuildNumber];
+}
+
 function quoteWindowsShellArg(value: string): string {
   if (/^[A-Za-z0-9_./:=+-]+$/.test(value)) {
     return value;
@@ -138,7 +152,7 @@ export function commandForWindowsArm64PlanStep(step: WindowsArm64PlanStep, env =
     case "build-windows-updater":
       return [npmCommand(), "run", "build:windows-oai-update-checker", "--", "-Architecture", "arm64"];
     case "hydrate-app": {
-      return [npmCommand(), "run", "hydrate:app:compiled"];
+      return [npmCommand(), "run", "hydrate:app:compiled", "--", ...storeMatchedAppcastArgs()];
     }
     case "hydrate-cli":
       return [npmCommand(), "run", "hydrate:cli:compiled"];

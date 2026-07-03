@@ -3134,7 +3134,10 @@ test("Store package updater refreshes helpers and Store Owl shell together", () 
   assert.match(source, /const packageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
   assert.match(source, /const requiredArchitecture = "Arm64"/);
   assert.match(source, /const appDirectoriesHydratedFromPublicArtifacts = new Set\(\["resources"\]\)/);
-  assert.match(source, /const storeOnlyResourceFallbackPaths = new Set\(\["app\/resources\/app\.asar"\]\)/);
+  assert.match(source, /readStoreAppAsarPackage/);
+  assert.match(source, /appVersion/);
+  assert.match(source, /appBuildNumber/);
+  assert.doesNotMatch(source, /storeOnlyResourceFallbackPaths/);
   assert.match(source, /const noApplicableUpgradeExitCode = 2316632107/);
   assert.match(source, /function codexAppPackages/);
   assert.match(source, /item\.packageFamilyName === packageFamilyName/);
@@ -3164,7 +3167,7 @@ test("Store package updater refreshes helpers and Store Owl shell together", () 
   assert.doesNotMatch(source, /resources\*\.pri/);
   assert.match(source, /copyStoreDirectorySubdirectories\(appxPackage\.installLocation, outputRoot, "app"\)/);
   assert.match(source, /copyStoreDirectoryFiles\(appxPackage\.installLocation, outputRoot, "app"\)/);
-  assert.match(source, /copyStorePath\(appxPackage\.installLocation, outputRoot, relativePath, "file"\)/);
+  assert.doesNotMatch(source, /copyStorePath\(appxPackage\.installLocation, outputRoot, relativePath, "file"\)/);
   for (const expectedPath of [
     "AppxManifest.xml",
     "assets",
@@ -3194,11 +3197,10 @@ test("Store Owl shell staging replaces Forge Electron outputs", () => {
   assert.match(forgeSource, /Skipping Store\/Owl shell staging/);
   assert.match(stageSource, /const preservedPackagedAppRootEntries = new Set\(\["resources"\]\)/);
   assert.match(stageSource, /export function storeOwlShellPayloadCacheExists\(\): boolean/);
-  assert.match(stageSource, /const storeResourceFallbackPaths = new Set\(\["app\/resources\/app\.asar"\]\)/);
+  assert.doesNotMatch(stageSource, /storeResourceFallbackPaths/);
   assert.match(stageSource, /function removeOldElectronShell\(appRoot: string\): void/);
   assert.match(stageSource, /fs\.rmSync\(path\.join\(appRoot, entry\.name\), \{ recursive: true, force: true \}\)/);
   assert.match(stageSource, /entry\.sourceRelativePath\.startsWith\("app\/"\)/);
-  assert.match(stageSource, /!storeResourceFallbackPaths\.has\(entry\.sourceRelativePath\)/);
   assert.match(stageSource, /entry\.sourceRelativePath\.slice\("app\/"\.length\)/);
   assert.match(stageSource, /entry\.sourceRelativePath === metadata\.runtimeMetadataRelativePath/);
   assert.match(stageSource, /"Codex\.exe", "chrome\.dll", "owl-shell-runtime\.json", "resources"/);
@@ -3238,8 +3240,8 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(skillSource, /app\/Codex\.exe/);
   assert.match(skillSource, /app\/chrome\.dll/);
   assert.match(skillSource, /Microsoft Store package as the fallback source/);
-  assert.match(skillSource, /Do not copy `app\/resources` wholesale from Store/);
-  assert.match(skillSource, /only copy `app\/resources\/app\.asar`/);
+  assert.match(skillSource, /Do not copy Store `app\/resources` or Store `app\/resources\/app\.asar`/);
+  assert.match(skillSource, /matching public macOS appcast version\/build/);
   assert.match(skillSource, /stage the Store\/Owl cache into the built MSIX\/AppX payload/);
   assert.match(skillSource, /metadata or cache automation alone is not a completed Store\/Owl shell change/);
   assert.match(skillSource, /package staging path/);
@@ -3315,15 +3317,17 @@ test("tracks Store Owl shell provenance metadata", () => {
   assert.equal(metadata.packageName, "OpenAI.Codex");
   assert.equal(metadata.packageFamilyName, "OpenAI.Codex_2p2nqsd0c76g0");
   assert.equal(metadata.architecture, "Arm64");
+  assert.match(metadata.appVersion, /^\d+\.\d+\.\d+$/);
+  assert.match(metadata.appBuildNumber, /^\d+$/);
   assert.equal(metadata.payloadRoot, "desktop/.cache/store-owl-shell/package");
   assert.equal(metadata.runtimeMetadataRelativePath, "owl-shell-runtime.json");
   assert.doesNotMatch(metadataSource, /[A-Z]:[\\/]/);
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === metadata.runtimeMetadataRelativePath));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/Codex.exe"));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/chrome.dll"));
-  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/resources/app.asar"));
+  assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath === "app/resources/app.asar"), false);
   assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath === "app/resources"), false);
-  assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("app/resources/") && entry.sourceRelativePath !== "app/resources/app.asar"), false);
+  assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("app/resources/")), false);
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/gen"));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "AppxManifest.xml" && entry.selfSignedMutable === true));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "resources.pri" && entry.selfSignedMutable === true));

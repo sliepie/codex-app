@@ -1,4 +1,6 @@
 {
+  "appBuildNumber": "4598",
+  "appVersion": "26.623.81905",
   "productId": "9PLM9XGG6VKS",
   "packageName": "OpenAI.Codex",
   "packageFullName": "OpenAI.Codex_26.623.11225.0_arm64__2p2nqsd0c76g0",
@@ -20,12 +22,6 @@
       "kind": "directory",
       "fileCount": 38,
       "sha256": "cdf917cdf59408b4f05ab656ea74c2f078be8c7b3eb6445b8572b4e90cb6a42b"
-    },
-    {
-      "sourceRelativePath": "app/resources/app.asar",
-      "kind": "file",
-      "size": 168850497,
-      "sha256": "309bf706a087b0f91046b083a89a6742bf142304782bcd7a590516afd3015afb"
     },
     {
       "sourceRelativePath": "app/IwaKeyDistribution",
@@ -322,8 +318,8 @@
     {
       "sourceRelativePath": "owl-shell-runtime.json",
       "kind": "file",
-      "size": 10320,
-      "sha256": "d4722e3da2a551564a5b8f808e877a4b1b37d85b72c2a6cfaa46bd3fc69d5d97"
+      "size": 10183,
+      "sha256": "ff767f6b6a1bb11da80bb0bb329569bf1a64d5c410667a3d3baf9e98073b6127"
     }
   ]
 }

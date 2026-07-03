@@ -29,7 +29,14 @@ const packageFamilyName = "OpenAI.Codex_2p2nqsd0c76g0";
 const requiredArchitecture = "Arm64";
 const nativePayloadExtensions = new Set([".exe", ".dll", ".node"]);
 const appDirectoriesHydratedFromPublicArtifacts = new Set(["resources"]);
-const storeOnlyResourceFallbackPaths = new Set(["app/resources/app.asar"]);
+const asar = require("@electron/asar") as {
+  extractFile(archive: string, filename: string): Buffer;
+};
+
+type StoreAppAsarPackageJson = {
+  codexBuildNumber?: string;
+  version?: string;
+};
 
 function codexAppPackages(): AppxPackage[] {
   return getAppxPackages(packageName)
@@ -152,6 +159,22 @@ function copyStoreDirectorySubdirectories(sourceRoot: string, destinationRoot: s
     .flatMap((name) => copyStorePath(sourceRoot, destinationRoot, `${relativeDirectory}/${name}`, "directory"));
 }
 
+function readStoreAppAsarPackage(sourceRoot: string): { appBuildNumber: string; appVersion: string } {
+  const appAsarPath = path.join(sourceRoot, "app", "resources", "app.asar");
+  if (!fs.existsSync(appAsarPath)) {
+    throw new Error("Missing Store app archive needed to resolve the matching public macOS appcast version.");
+  }
+
+  const packageJson = JSON.parse(asar.extractFile(appAsarPath, "package.json").toString("utf8")) as StoreAppAsarPackageJson;
+  if (!packageJson.version || !packageJson.codexBuildNumber) {
+    throw new Error("Store app archive package.json is missing version or codexBuildNumber.");
+  }
+  return {
+    appBuildNumber: packageJson.codexBuildNumber,
+    appVersion: packageJson.version,
+  };
+}
+
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   const outputRoot = path.resolve(args.get("output-root") ?? path.join(desktopRoot(), ".cache", "store-owl-shell", "package"));
@@ -198,6 +221,7 @@ function main(): void {
       throw new Error(`Official Codex Store package family ${packageFamilyName} was not found after winget completed.`);
     }
     assertArm64Package(appxPackage);
+    const storeAppAsarPackage = readStoreAppAsarPackage(appxPackage.installLocation);
 
     removeDirectory(outputRoot);
     fs.mkdirSync(outputRoot, { recursive: true });
@@ -209,9 +233,6 @@ function main(): void {
     ]) {
       entries.push(...copyStorePath(appxPackage.installLocation, outputRoot, payloadPath.relativePath, payloadPath.kind, payloadPath.selfSignedMutable));
     }
-    for (const relativePath of [...storeOnlyResourceFallbackPaths].sort(compareOrdinal)) {
-      entries.push(...copyStorePath(appxPackage.installLocation, outputRoot, relativePath, "file"));
-    }
     entries.push(...copyStoreDirectorySubdirectories(appxPackage.installLocation, outputRoot, "app"));
     entries.push(...copyStoreDirectoryFiles(appxPackage.installLocation, outputRoot, "app"));
     entries.push(...copyStorePath(appxPackage.installLocation, outputRoot, "resources.pri", "file", true));
@@ -221,6 +242,8 @@ function main(): void {
     }
 
     const runtimeMetadata = {
+      appBuildNumber: storeAppAsarPackage.appBuildNumber,
+      appVersion: storeAppAsarPackage.appVersion,
       productId,
       packageName: appxPackage.name,
       packageFullName: appxPackage.packageFullName,
@@ -239,6 +262,8 @@ function main(): void {
       sha256: sha256(runtimeMetadataPath),
     };
     const metadata: StoreOwlMetadata = {
+      appBuildNumber: storeAppAsarPackage.appBuildNumber,
+      appVersion: storeAppAsarPackage.appVersion,
       productId,
       packageName: appxPackage.name,
       packageFullName: appxPackage.packageFullName,
