@@ -22,6 +22,12 @@
       "sha256": "cdf917cdf59408b4f05ab656ea74c2f078be8c7b3eb6445b8572b4e90cb6a42b"
     },
     {
+      "sourceRelativePath": "app/resources/app.asar",
+      "kind": "file",
+      "size": 168850497,
+      "sha256": "309bf706a087b0f91046b083a89a6742bf142304782bcd7a590516afd3015afb"
+    },
+    {
       "sourceRelativePath": "app/IwaKeyDistribution",
       "kind": "directory",
       "fileCount": 2,
@@ -316,8 +322,8 @@
     {
       "sourceRelativePath": "owl-shell-runtime.json",
       "kind": "file",
-      "size": 10123,
-      "sha256": "21901e23b8f4f3289dbca1544354c93479c72e414ed8428fa4237caf209130b8"
+      "size": 10320,
+      "sha256": "d4722e3da2a551564a5b8f808e877a4b1b37d85b72c2a6cfaa46bd3fc69d5d97"
     }
   ]
 }

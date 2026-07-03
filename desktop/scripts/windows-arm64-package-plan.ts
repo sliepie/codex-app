@@ -28,10 +28,13 @@ export const windowsArm64HydratedCacheInputPaths = [
   "scripts/hydrate-codex-cli.ts",
   "scripts/resource-binary-exceptions.ts",
   "scripts/run-hydrate-codex-app.ts",
+  "scripts/stage-store-owl-shell.ts",
+  "scripts/store-owl-shell-common.ts",
   "scripts/windows-arm64-package-plan.ts",
   "resources/codex-computer-use.json",
   "resources/extension-host.json",
   "resources/cua_node/bin/node_repl.json",
+  "resources/store-owl-shell.json",
 ] as const;
 
 export const windowsArm64NativeModuleCacheInputPaths = [

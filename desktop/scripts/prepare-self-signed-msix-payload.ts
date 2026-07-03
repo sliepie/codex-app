@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { stageStoreOwlMsixRoot, stageStoreOwlShellAppRoot } from "./stage-store-owl-shell.js";
 
 type Options = {
   packageRoot: string;
@@ -58,16 +59,12 @@ if (!fs.existsSync(entryPoint)) {
   throw new Error(`Electron Forge did not produce the expected Windows entrypoint: ${entryPoint}`);
 }
 
+stageStoreOwlShellAppRoot(options.packageRoot);
+stageStoreOwlMsixRoot(options.outputRoot);
+
 const appRoot = path.join(options.outputRoot, "app");
 copyDirectory(options.packageRoot, appRoot);
 rewriteSwiftShaderIcdMetadata(appRoot);
-
-const assetsRoot = path.join(options.outputRoot, "assets");
-const msixAssetsRoot = path.join(process.cwd(), "assets", "windows", "msix");
-if (!fs.existsSync(msixAssetsRoot)) {
-  throw new Error(`Missing Windows MSIX assets: ${msixAssetsRoot}`);
-}
-copyDirectory(msixAssetsRoot, assetsRoot);
 
 fs.writeFileSync(
   path.join(options.outputRoot, "AppxManifest.xml"),

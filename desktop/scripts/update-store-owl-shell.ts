@@ -29,6 +29,7 @@ const packageFamilyName = "OpenAI.Codex_2p2nqsd0c76g0";
 const requiredArchitecture = "Arm64";
 const nativePayloadExtensions = new Set([".exe", ".dll", ".node"]);
 const appDirectoriesHydratedFromPublicArtifacts = new Set(["resources"]);
+const storeOnlyResourceFallbackPaths = new Set(["app/resources/app.asar"]);
 
 function codexAppPackages(): AppxPackage[] {
   return getAppxPackages(packageName)
@@ -207,6 +208,9 @@ function main(): void {
       { relativePath: "assets", kind: "directory" as const },
     ]) {
       entries.push(...copyStorePath(appxPackage.installLocation, outputRoot, payloadPath.relativePath, payloadPath.kind, payloadPath.selfSignedMutable));
+    }
+    for (const relativePath of [...storeOnlyResourceFallbackPaths].sort(compareOrdinal)) {
+      entries.push(...copyStorePath(appxPackage.installLocation, outputRoot, relativePath, "file"));
     }
     entries.push(...copyStoreDirectorySubdirectories(appxPackage.installLocation, outputRoot, "app"));
     entries.push(...copyStoreDirectoryFiles(appxPackage.installLocation, outputRoot, "app"));

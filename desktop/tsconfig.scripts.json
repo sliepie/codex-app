@@ -30,6 +30,7 @@
     "scripts/resolve-primary-runtime-source.ts",
     "scripts/resource-binary-exceptions.ts",
     "scripts/store-owl-shell-common.ts",
+    "scripts/stage-store-owl-shell.ts",
     "scripts/publish-primary-runtime-release.ts",
     "scripts/update-store-owl-shell.ts",
     "scripts/verify-skills.ts",

@@ -376,6 +376,24 @@ function assertCodexPlusPlusPackageInputs(buildPath) {
   assertRequiredPackageFile(buildPath, normalizedOriginalMain);
 }
 
+function stageStoreOwlShellPackageOutputs(packageResult) {
+  if (packageResult.platform !== targetRuntimePlatform || packageResult.arch !== targetRuntimeArch) {
+    return;
+  }
+
+  const {
+    stageStoreOwlShellAppRoot,
+    storeOwlShellPayloadCacheExists,
+  } = require('./.cache/scripts/stage-store-owl-shell.js');
+  if (!storeOwlShellPayloadCacheExists()) {
+    console.warn('Skipping Store/Owl shell staging because desktop/.cache/store-owl-shell/package is missing.');
+    return;
+  }
+  for (const outputPath of packageResult.outputPaths) {
+    stageStoreOwlShellAppRoot(outputPath);
+  }
+}
+
 const config = {
   packagerConfig: {
     asar: true,
@@ -442,6 +460,9 @@ const config = {
   },
   makers: [new MakerZIP({}, ['win32'])],
   hooks: {
+    postPackage: async (_forgeConfig, packageResult) => {
+      stageStoreOwlShellPackageOutputs(packageResult);
+    },
     postMake: async (_forgeConfig, makeResults) => {
       return makeResults.map((result) => ({
         ...result,
