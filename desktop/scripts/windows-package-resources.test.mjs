@@ -3198,6 +3198,9 @@ test("Store Owl shell staging replaces Forge Electron outputs", () => {
   assert.match(stageSource, /const preservedPackagedAppRootEntries = new Set\(\["resources"\]\)/);
   assert.match(stageSource, /export function storeOwlShellPayloadCacheExists\(\): boolean/);
   assert.doesNotMatch(stageSource, /storeResourceFallbackPaths/);
+  assert.match(stageSource, /function hydratedMacAppAsarPath\(metadata: StoreOwlMetadata\): string/);
+  assert.match(stageSource, /function copyHydratedMacAppAsar\(metadata: StoreOwlMetadata, appRoot: string\): void/);
+  assert.match(stageSource, /copyHydratedMacAppAsar\(metadata, appRoot\)/);
   assert.match(stageSource, /function removeOldElectronShell\(appRoot: string\): void/);
   assert.match(stageSource, /fs\.rmSync\(path\.join\(appRoot, entry\.name\), \{ recursive: true, force: true \}\)/);
   assert.match(stageSource, /entry\.sourceRelativePath\.startsWith\("app\/"\)/);

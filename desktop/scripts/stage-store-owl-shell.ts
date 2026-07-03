@@ -43,6 +43,34 @@ function copyMetadataEntry(payloadRoot: string, destinationRoot: string, entry: 
   copyRecursive(sourcePath, destinationPath);
 }
 
+function cacheSegment(value: string): string {
+  return value.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function hydratedMacAppAsarPath(metadata: StoreOwlMetadata): string {
+  const appSegment = cacheSegment(`${metadata.appVersion}-build-${metadata.appBuildNumber}`);
+  const appAsarPath = path.join(
+    desktopRoot(),
+    ".cache",
+    "codex-app",
+    `extract-${appSegment}`,
+    "Codex.app",
+    "Contents",
+    "Resources",
+    "app.asar",
+  );
+  if (!fs.existsSync(appAsarPath)) {
+    throw new Error(
+      `Missing Store-matched macOS app archive: ${appAsarPath}. Run npm --prefix desktop run hydrate:app:compiled -- --version ${metadata.appVersion} --build-number ${metadata.appBuildNumber} first.`,
+    );
+  }
+  return appAsarPath;
+}
+
+function copyHydratedMacAppAsar(metadata: StoreOwlMetadata, appRoot: string): void {
+  copyRecursive(hydratedMacAppAsarPath(metadata), path.join(appRoot, "resources", "app.asar"));
+}
+
 function removeOldElectronShell(appRoot: string): void {
   for (const entry of fs.readdirSync(appRoot, { withFileTypes: true })) {
     if (preservedPackagedAppRootEntries.has(entry.name)) {
@@ -84,6 +112,7 @@ export function stageStoreOwlShellAppRoot(appRoot: string): void {
     }
   }
 
+  copyHydratedMacAppAsar(metadata, appRoot);
   assertPackagedStoreOwlShell(appRoot);
   console.log(`Staged Store/Owl shell into ${appRoot}`);
 }
