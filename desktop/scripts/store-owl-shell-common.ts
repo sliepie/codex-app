@@ -139,7 +139,7 @@ export function getDirectoryFiles(directoryPath: string): string[] {
       files.push(entryPath);
     }
   }
-  return files.sort((left, right) => left.localeCompare(right));
+  return files.sort(compareOrdinal);
 }
 
 export function directoryDigest(directoryPath: string): { fileCount: number; sha256: string } {
@@ -234,6 +234,16 @@ export function resolveTargetPackage(options: { packageName?: string; packageFam
 
 export function comparePackageVersionDescending(left: AppxPackage, right: AppxPackage): number {
   return compareVersionDescending(left.version, right.version);
+}
+
+export function compareOrdinal(left: string, right: string): number {
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
 }
 
 export function compareVersionDescending(left: string, right: string): number {

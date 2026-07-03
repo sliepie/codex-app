@@ -3158,6 +3158,8 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   assert.match(source, /function nativePayloadCandidate/);
   assert.match(source, /function nestedNativePayloadEntries/);
   assert.match(source, /function copyStoreDirectoryFiles/);
+  assert.doesNotMatch(source, /localeCompare/);
+  assert.match(source, /compareOrdinal/);
   assert.match(source, /kind: "nestedExecutable"/);
   assert.match(source, /containedIn/);
   assert.match(source, /selfSignedMutable: true/);
@@ -3242,6 +3244,8 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(commonSource, /Get-AppxPackage -ErrorAction Stop/);
   assert.match(commonSource, /function normalizeAppxArchitecture/);
   assert.match(commonSource, /case 12:\s*\r?\n\s*return "Arm64"/);
+  assert.match(commonSource, /function compareOrdinal/);
+  assert.doesNotMatch(commonSource, /localeCompare/);
 });
 
 test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () => {

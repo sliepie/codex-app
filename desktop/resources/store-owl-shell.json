@@ -19,19 +19,19 @@
       "sourceRelativePath": "assets",
       "kind": "directory",
       "fileCount": 38,
-      "sha256": "6467c8a3fc23fc5330feab593ab98c28b10b671f2e4b952c4cabac3abad28830"
+      "sha256": "cdf917cdf59408b4f05ab656ea74c2f078be8c7b3eb6445b8572b4e90cb6a42b"
     },
     {
       "sourceRelativePath": "app/locales",
       "kind": "directory",
       "fileCount": 220,
-      "sha256": "178da4028b86c50fe47d9c1eace85955ec07c23e69a8a9d132fefe2bd4f054e1"
+      "sha256": "ed15568394bd723d815eef7bcdf91ce98eb1180b11e34ef9674623dafb9becf5"
     },
     {
       "sourceRelativePath": "app/resources",
       "kind": "directory",
       "fileCount": 4929,
-      "sha256": "aded2e97d88f4f6c2a37f3468d33c4a638b7e16e515b4ec9054eae6c79df7084"
+      "sha256": "e7282000c39412b520a4fe6dd1fb9de7b67f26e8ce9365c1d06de199ef914dc1"
     },
     {
       "sourceRelativePath": "app/resources/app.asar.unpacked/node_modules/@worklouder/device-kit-oai/node_modules/@worklouder/wl-device-kit/node_modules/node-hid/build/Release/HID.node",
@@ -58,18 +58,18 @@
       "containedIn": "app/resources"
     },
     {
-      "sourceRelativePath": "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/conpty_console_list.node",
-      "kind": "nestedExecutable",
-      "size": 947712,
-      "sha256": "7586dc491aebc7cb3c630d9caef018455b7f14014987d6952b72ce6efa62f402",
-      "architecture": "arm64",
-      "containedIn": "app/resources"
-    },
-    {
       "sourceRelativePath": "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/conpty.node",
       "kind": "nestedExecutable",
       "size": 1676288,
       "sha256": "0e8a71b9a0edd781955349448af55ceeef50a7fb501c94be8304c6eac0944536",
+      "architecture": "arm64",
+      "containedIn": "app/resources"
+    },
+    {
+      "sourceRelativePath": "app/resources/app.asar.unpacked/node_modules/node-pty/build/Release/conpty_console_list.node",
+      "kind": "nestedExecutable",
+      "size": 947712,
+      "sha256": "7586dc491aebc7cb3c630d9caef018455b7f14014987d6952b72ce6efa62f402",
       "architecture": "arm64",
       "containedIn": "app/resources"
     },
@@ -118,6 +118,14 @@
       "kind": "nestedExecutable",
       "size": 280569648,
       "sha256": "369c06f07cf97a3a3a0011648e5640acc6bd894125d2bd5652898b53253a247c",
+      "architecture": "arm64",
+      "containedIn": "app/resources"
+    },
+    {
+      "sourceRelativePath": "app/resources/cua_node/bin/node.exe",
+      "kind": "nestedExecutable",
+      "size": 80470176,
+      "sha256": "8c5fd45a4a1fd3cc4a6f07da8803b05194108906cb6fb7d962448a12582a5922",
       "architecture": "arm64",
       "containedIn": "app/resources"
     },
@@ -182,14 +190,6 @@
       "kind": "nestedExecutable",
       "size": 12359168,
       "sha256": "3e2fb244544c834730108caeea4fdafe3e8c3353fb611b71832b2c5897cfaac6",
-      "architecture": "arm64",
-      "containedIn": "app/resources"
-    },
-    {
-      "sourceRelativePath": "app/resources/cua_node/bin/node.exe",
-      "kind": "nestedExecutable",
-      "size": 80470176,
-      "sha256": "8c5fd45a4a1fd3cc4a6f07da8803b05194108906cb6fb7d962448a12582a5922",
       "architecture": "arm64",
       "containedIn": "app/resources"
     },
@@ -288,6 +288,34 @@
       "sha256": "da89ccaa7d1c003218c271a230c5f0f60129f9852adcefb88947e31c4cbf19ff"
     },
     {
+      "sourceRelativePath": "app/Codex.exe",
+      "kind": "file",
+      "size": 3400192,
+      "sha256": "69ca228f639e40db94304971ad226bbf47d877fcfa4537409224c141e1b39f17",
+      "architecture": "arm64"
+    },
+    {
+      "sourceRelativePath": "app/VkICD_mock_icd.dll",
+      "kind": "file",
+      "size": 624128,
+      "sha256": "d95b7c3620200b95a7aaa2bbbc3a48977895c0fb7dca3acaeaa4dc1ab33252a6",
+      "architecture": "arm64"
+    },
+    {
+      "sourceRelativePath": "app/VkLayer_khronos_validation.dll",
+      "kind": "file",
+      "size": 17530368,
+      "sha256": "8ca0a2bc07cfbaa16eb4a36c480fdcb2b3a9ccca62e978e38b3b2c5bbcb8e3b3",
+      "architecture": "arm64"
+    },
+    {
+      "sourceRelativePath": "app/chrome.dll",
+      "kind": "file",
+      "size": 288097792,
+      "sha256": "ebc3bfb9ef51562e93ebf64b22744da3cdd1b8f2b810a57fcbd2d9d1eb806602",
+      "architecture": "arm64"
+    },
+    {
       "sourceRelativePath": "app/chrome_100_percent.pak",
       "kind": "file",
       "size": 723980,
@@ -325,20 +353,6 @@
       "kind": "file",
       "size": 105984,
       "sha256": "da157b5fd2cdcc0c77d04fb4b878286af538be03b91f1e984c0cbaf34651929c",
-      "architecture": "arm64"
-    },
-    {
-      "sourceRelativePath": "app/chrome.dll",
-      "kind": "file",
-      "size": 288097792,
-      "sha256": "ebc3bfb9ef51562e93ebf64b22744da3cdd1b8f2b810a57fcbd2d9d1eb806602",
-      "architecture": "arm64"
-    },
-    {
-      "sourceRelativePath": "app/Codex.exe",
-      "kind": "file",
-      "size": 3400192,
-      "sha256": "69ca228f639e40db94304971ad226bbf47d877fcfa4537409224c141e1b39f17",
       "architecture": "arm64"
     },
     {
@@ -449,12 +463,6 @@
       "sha256": "6d10c75ce197527c7f93f927b574c293778c4b33374b9935c1da937f9030761e"
     },
     {
-      "sourceRelativePath": "app/vk_swiftshader_icd.json",
-      "kind": "file",
-      "size": 106,
-      "sha256": "32d83ff113fef532a9f97e0d2831f8656628ab1c99e9060f0332b1532839afd9"
-    },
-    {
       "sourceRelativePath": "app/vk_swiftshader.dll",
       "kind": "file",
       "size": 20218880,
@@ -462,18 +470,10 @@
       "architecture": "arm64"
     },
     {
-      "sourceRelativePath": "app/VkICD_mock_icd.dll",
+      "sourceRelativePath": "app/vk_swiftshader_icd.json",
       "kind": "file",
-      "size": 624128,
-      "sha256": "d95b7c3620200b95a7aaa2bbbc3a48977895c0fb7dca3acaeaa4dc1ab33252a6",
-      "architecture": "arm64"
-    },
-    {
-      "sourceRelativePath": "app/VkLayer_khronos_validation.dll",
-      "kind": "file",
-      "size": 17530368,
-      "sha256": "8ca0a2bc07cfbaa16eb4a36c480fdcb2b3a9ccca62e978e38b3b2c5bbcb8e3b3",
-      "architecture": "arm64"
+      "size": 106,
+      "sha256": "32d83ff113fef532a9f97e0d2831f8656628ab1c99e9060f0332b1532839afd9"
     },
     {
       "sourceRelativePath": "app/vulkan-1.dll",
@@ -529,7 +529,7 @@
       "sourceRelativePath": "owl-shell-runtime.json",
       "kind": "file",
       "size": 19587,
-      "sha256": "5cb9fc4ef60e1160f1cabd9b91cf7b6927d9758a6b78243327cb61953652046f"
+      "sha256": "019d8b9c773906cbaa25ac1e50931af54e618f3b30674323d5fa2191c2de2c9a"
     }
   ]
 }

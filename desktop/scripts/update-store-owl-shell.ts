@@ -4,6 +4,7 @@ import {
   AppxPackage,
   StoreOwlEntry,
   StoreOwlMetadata,
+  compareOrdinal,
   comparePackageVersionDescending,
   copyRecursive,
   desktopRoot,
@@ -121,7 +122,7 @@ function copyStorePattern(sourceRoot: string, destinationRoot: string, pattern: 
   return fs.readdirSync(sourceRoot, { withFileTypes: true })
     .filter((entry) => entry.isFile() && pattern.test(entry.name))
     .map((entry) => entry.name)
-    .sort((left, right) => left.localeCompare(right))
+    .sort(compareOrdinal)
     .flatMap((name) => copyStorePath(sourceRoot, destinationRoot, name, "file", false));
 }
 
@@ -133,7 +134,7 @@ function copyStoreDirectoryFiles(sourceRoot: string, destinationRoot: string, re
   return fs.readdirSync(sourceDirectory, { withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) => entry.name)
-    .sort((left, right) => left.localeCompare(right))
+    .sort(compareOrdinal)
     .flatMap((name) => copyStorePath(sourceRoot, destinationRoot, `${relativeDirectory}/${name}`, "file"));
 }
 
