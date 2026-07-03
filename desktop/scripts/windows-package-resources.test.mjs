@@ -1791,17 +1791,16 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   const menuTweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-windows-menu-bar");
   const menuManifest = JSON.parse(fs.readFileSync(path.join(menuTweakRoot, "manifest.json"), "utf8"));
   const menuSource = fs.readFileSync(path.join(menuTweakRoot, menuManifest.main), "utf8");
-  assert.doesNotMatch(menuSource, /createTreeWalker|requestAnimationFrame|setTimeout/);
+  assert.doesNotMatch(menuSource, /createTreeWalker|requestAnimationFrame|setTimeout|MutationObserver/);
   const appendedStyles = [];
   const removedStyleIds = new Set();
-  const observerCallbacks = [];
-  let observerDisconnectCount = 0;
   const storageValues = new Map();
+  const settingsSections = [];
+  let settingsUnregisterCount = 0;
 
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
   const previousNodeFilter = globalThis.NodeFilter;
-  const previousMutationObserver = globalThis.MutationObserver;
 
   class FakeStyle {
     constructor() {
@@ -1943,6 +1942,13 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
           element.attributes.has("data-codex-app-ui-menu-bar-toggle-thumb"),
         );
       }
+      if (selector === '[data-codex-app-ui-setting="hide-windows-menu-bar"]') {
+        return descendants.filter(
+          (element) =>
+            element.getAttribute("data-codex-app-ui-setting") ===
+            "hide-windows-menu-bar",
+        );
+      }
       return [];
     }
   }
@@ -1957,13 +1963,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   const settingsSurface = new FakeElement("div");
   settingsSurface.className =
     "border-token-border flex flex-col divide-y-[0.5px] divide-token-border rounded-lg border";
-  const themeRow = new FakeElement("div");
-  themeRow.textContent = "Theme";
-  const pointerRow = new FakeElement("div");
-  pointerRow.textContent = "Use pointer cursors";
-  const reduceMotionRow = new FakeElement("div");
-  reduceMotionRow.textContent = "Reduce motion";
-  settingsSurface.append(themeRow, pointerRow, reduceMotionRow);
   documentElement.appendChild(settingsSurface);
   const findById = (root, id) => {
     if (root.id === id) {
@@ -1979,20 +1978,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   };
 
   globalThis.NodeFilter = { SHOW_TEXT: 4 };
-  globalThis.MutationObserver = class {
-    constructor(callback) {
-      observerCallbacks.push(callback);
-    }
-
-    observe(target, options) {
-      assert.equal(target, documentElement);
-      assert.deepEqual(options, { childList: true, subtree: true });
-    }
-
-    disconnect() {
-      observerDisconnectCount += 1;
-    }
-  };
   globalThis.window = {
     innerHeight: 1000,
     localStorage: {
@@ -2031,17 +2016,27 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         storageValues.set(key, value);
       },
     };
+    const settings = {
+      register: (section) => {
+        settingsSections.push(section);
+        return {
+          unregister: () => {
+            settingsUnregisterCount += 1;
+          },
+        };
+      },
+    };
 
     uiModule.exports.start({ log: console });
-    menuModule.exports.start({ log: console, storage });
+    menuModule.exports.start({ log: console, storage, settings });
 
     assert.equal(
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
       "true",
     );
-    assert.equal(observerCallbacks.length, 1);
-    const menuBarObserverCallback = observerCallbacks[0];
-    assert.equal(typeof menuBarObserverCallback, "function");
+    assert.equal(settingsSections.length, 1);
+    assert.equal(settingsSections[0].id, "windows-menu-bar");
+    assert.equal(settingsSections[0].title, "Windows menu bar");
     assert.equal(appendedStyles.length, 2);
     assert.equal(appendedStyles[0].id, "codex-app-ui-overrides-style");
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
@@ -2076,18 +2071,16 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       menuBarCss.includes(String.raw`.group\/application-menu-top-bar button[aria-label]`),
       false,
     );
-    const settingRow = document.getElementById(
-      "codex-app-ui-hide-windows-menu-bar-setting",
+    settingsSections[0].render(settingsSurface);
+    const settingRow = settingsSurface.querySelector(
+      '[data-codex-app-ui-setting="hide-windows-menu-bar"]',
     );
     assert.ok(settingRow);
     assert.deepEqual(
-      settingsSurface.children.map((child) => child.id || child.textContent),
-      [
-        "Theme",
-        "Use pointer cursors",
-        "codex-app-ui-hide-windows-menu-bar-setting",
-        "Reduce motion",
-      ],
+      settingsSurface.children.map(
+        (child) => child.getAttribute("data-codex-app-ui-setting") || child.textContent,
+      ),
+      ["hide-windows-menu-bar"],
     );
     const toggle = settingRow.querySelector('button[role="switch"]');
     assert.ok(toggle);
@@ -2111,13 +2104,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         .querySelector("[data-codex-app-ui-menu-bar-toggle-track]")
         .getAttribute("data-state"),
       "unchecked",
-    );
-    menuBarObserverCallback();
-    assert.equal(
-      settingsSurface.children.filter(
-        (child) => child.id === "codex-app-ui-hide-windows-menu-bar-setting",
-      ).length,
-      1,
     );
     assert.ok(
       uiOverrideCss.includes(
@@ -2324,18 +2310,16 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       false,
     );
 
-    menuModule.exports.start({ log: console, storage });
+    menuModule.exports.start({ log: console, storage, settings });
     assert.equal(appendedStyles.length, 2);
+    assert.equal(settingsSections.length, 2);
+    assert.equal(settingsUnregisterCount, 1);
 
     menuModule.exports.stop();
     uiModule.exports.stop();
-    assert.equal(observerDisconnectCount, 2);
+    assert.equal(settingsUnregisterCount, 2);
     assert.equal(
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
-      null,
-    );
-    assert.equal(
-      document.getElementById("codex-app-ui-hide-windows-menu-bar-setting"),
       null,
     );
     assert.equal(removedStyleIds.has("codex-app-windows-menu-bar-style"), true);
@@ -2344,7 +2328,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     globalThis.window = previousWindow;
     globalThis.document = previousDocument;
     globalThis.NodeFilter = previousNodeFilter;
-    globalThis.MutationObserver = previousMutationObserver;
   }
 });
 
