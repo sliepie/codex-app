@@ -25,24 +25,20 @@ function Invoke-Checked {
 
 $repoRoot = Resolve-RepoRoot
 $windowFlagArgs = @(
-    "-NoProfile",
-    "-ExecutionPolicy", "Bypass",
-    "-File", ".\desktop\scripts\assert-windows-primary-window-flags.ps1"
+    ".\desktop\.cache\scripts\assert-windows-primary-window-flags.js"
 )
 $payloadArgs = @(
-    "-NoProfile",
-    "-ExecutionPolicy", "Bypass",
-    "-File", ".\desktop\scripts\assert-store-owl-shell-package-payload.ps1"
+    ".\desktop\.cache\scripts\assert-store-owl-shell-package-payload.js"
 )
 $packageIdentityArgs = @()
 if (-not [string]::IsNullOrWhiteSpace($PackageName)) {
-    $packageIdentityArgs += @("-PackageName", $PackageName)
+    $packageIdentityArgs += @("--package-name", $PackageName)
 }
 if (-not [string]::IsNullOrWhiteSpace($PackageFamilyName)) {
-    $packageIdentityArgs += @("-PackageFamilyName", $PackageFamilyName)
+    $packageIdentityArgs += @("--package-family-name", $PackageFamilyName)
 }
 if (-not [string]::IsNullOrWhiteSpace($PackageFullName)) {
-    $packageIdentityArgs += @("-PackageFullName", $PackageFullName)
+    $packageIdentityArgs += @("--package-full-name", $PackageFullName)
 }
 $windowFlagArgs += $packageIdentityArgs
 $payloadArgs += $packageIdentityArgs
@@ -50,8 +46,8 @@ $payloadArgs += $packageIdentityArgs
 Push-Location $repoRoot
 try {
     Invoke-Checked { npm --prefix desktop run test:windows-package-resources }
-    Invoke-Checked { powershell @payloadArgs }
-    Invoke-Checked { powershell @windowFlagArgs }
+    Invoke-Checked { node @payloadArgs }
+    Invoke-Checked { node @windowFlagArgs }
     Invoke-Checked { git diff --check }
 }
 finally {

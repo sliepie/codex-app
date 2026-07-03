@@ -16,7 +16,7 @@ description: "Store package update for codex-app. Use when refreshing Store-vend
 
 - **Always**: `AGENTS.md`, `CONTEXT.md`, `docs/executable-inventory.md`.
 - **Helper refresh**: `docs/adr/0001-use-official-x64-node-repl-fallback.md`, `desktop/scripts/update-node-repl.ps1`, `desktop/scripts/resource-binary-exceptions.ts`, and the three helper metadata JSON files under `desktop/resources/`.
-- **Shell parity**: `desktop/forge.config.js`, `desktop/scripts/prepare-self-signed-msix-payload.ts`, `desktop/scripts/windows-package-resources.test.mjs`, `desktop/resources/store-owl-shell.json` when present, and `desktop/scripts/assert-windows-primary-window-flags.ps1` when present.
+- **Shell parity**: `desktop/forge.config.js`, `desktop/scripts/prepare-self-signed-msix-payload.ts`, `desktop/scripts/windows-package-resources.test.mjs`, `desktop/resources/store-owl-shell.json` when present, and `desktop/scripts/assert-windows-primary-window-flags.ts` when present.
 
 ## Store Source Rules
 

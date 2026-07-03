@@ -3122,43 +3122,49 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"));
   assert.equal(
     packageJson.scripts["update:store-owl-shell"],
-    "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-store-owl-shell.ps1",
+    "npm run build:scripts && npm run update:store-owl-shell:compiled",
   );
+  assert.equal(packageJson.scripts["update:store-owl-shell:compiled"], "node ./.cache/scripts/update-store-owl-shell.js");
 
   const source = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "update-store-owl-shell.ps1"),
+    path.join(desktopRoot, "scripts", "update-store-owl-shell.ts"),
     "utf8",
   );
+  const commonSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "store-owl-shell-common.ts"),
+    "utf8",
+  );
+  const tsconfig = JSON.parse(fs.readFileSync(path.join(desktopRoot, "tsconfig.scripts.json"), "utf8"));
 
-  const paramBlock = source.match(/param\([\s\S]*?\)/)?.[0] ?? "";
-  assert.doesNotMatch(paramBlock, /\$ProductId|\$PackageName|\$PackageFamilyName/);
-  assert.match(source, /\$PackageName = "OpenAI\.Codex"/);
-  assert.match(source, /\$PackageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
-  assert.match(source, /\$RequiredArchitecture = "Arm64"/);
-  assert.match(source, /function Get-CodexAppPackages/);
-  assert.match(source, /\$_\.PackageFamilyName -eq \$PackageFamilyName/);
-  assert.match(source, /\[string\] \$_\.Architecture -eq \$RequiredArchitecture/);
-  assert.match(source, /\$hadOfficialPackageBeforeRun = \$existingOfficialPackages\.Count -gt 0/);
-  assert.match(source, /\$needsArm64Install = \$null -eq \$existingPackage/);
-  assert.match(source, /if \(\$needsArm64Install\)/);
-  assert.match(source, /if \(-not \$hadOfficialPackageBeforeRun\)/);
-  assert.match(source, /foreach \(\$packageToRemove in @\(Get-CodexAppPackages\)\)/);
-  assert.doesNotMatch(source, /\$installedByScript/);
-  assert.match(source, /function Assert-Arm64Package/);
-  assert.match(source, /\$Package\.Architecture/);
-  assert.match(source, /expected \$RequiredArchitecture for the Windows ARM64 payload/);
-  assert.match(source, /\$NativePayloadExtensions = @\("\.exe", "\.dll", "\.node"\)/);
-  assert.match(source, /function Test-NativePayloadCandidate/);
-  assert.match(source, /function Get-NestedNativePayloadEntries/);
-  assert.match(source, /function Copy-StoreDirectoryFiles/);
-  assert.match(source, /kind = "nestedExecutable"/);
-  assert.match(source, /containedIn = \$ContainedIn/);
-  assert.match(source, /SelfSignedMutable = \$true/);
-  assert.match(source, /selfSignedMutable = \$true/);
-  assert.match(source, /RelativePath "resources\.pri" -Kind "file" -SelfSignedMutable \$true/);
-  assert.match(source, /resources\.\*\.pri/);
+  assert.ok(tsconfig.include.includes("scripts/update-store-owl-shell.ts"));
+  assert.ok(tsconfig.include.includes("scripts/store-owl-shell-common.ts"));
+  assert.match(source, /const packageName = "OpenAI\.Codex"/);
+  assert.match(source, /const packageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
+  assert.match(source, /const requiredArchitecture = "Arm64"/);
+  assert.match(source, /const noApplicableUpgradeExitCode = 2316632107/);
+  assert.match(source, /function codexAppPackages/);
+  assert.match(source, /item\.packageFamilyName === packageFamilyName/);
+  assert.match(source, /item\.architecture === requiredArchitecture/);
+  assert.match(source, /const hadOfficialPackageBeforeRun = existingOfficialPackages\.length > 0/);
+  assert.match(source, /const needsArm64Install = existingPackage === undefined/);
+  assert.match(source, /if \(needsArm64Install\)/);
+  assert.match(source, /if \(!hadOfficialPackageBeforeRun\)/);
+  assert.match(source, /for \(const packageToRemove of codexAppPackages\(\)\)/);
+  assert.doesNotMatch(source, /installedByScript/);
+  assert.match(source, /function assertArm64Package/);
+  assert.match(source, /appxPackage\.architecture/);
+  assert.match(source, /expected \$\{requiredArchitecture\} for the Windows ARM64 payload/);
+  assert.match(source, /new Set\(\["\.exe", "\.dll", "\.node"\]\)/);
+  assert.match(source, /function nativePayloadCandidate/);
+  assert.match(source, /function nestedNativePayloadEntries/);
+  assert.match(source, /function copyStoreDirectoryFiles/);
+  assert.match(source, /kind: "nestedExecutable"/);
+  assert.match(source, /containedIn/);
+  assert.match(source, /selfSignedMutable: true/);
+  assert.match(source, /"resources\.pri", "file", true/);
+  assert.match(source, /\^resources\\\.\.\*\\\.pri\$/);
   assert.doesNotMatch(source, /resources\*\.pri/);
-  assert.match(source, /RelativeDirectory "app" -Pattern "\*"/);
+  assert.match(source, /copyStoreDirectoryFiles\(appxPackage\.installLocation, outputRoot, "app"\)/);
   for (const expectedPath of [
     "AppxManifest.xml",
     "assets",
@@ -3167,14 +3173,15 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   ]) {
     assert.match(source, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
-  assert.doesNotMatch(source, /RelativePath = "app\/Codex\.exe"/);
+  assert.doesNotMatch(source, /relativePath: "app\/Codex\.exe"/);
   assert.match(source, /owl-shell-runtime\.json/);
   assert.match(source, /runtimeMetadataEntry/);
-  assert.match(source, /metadataEntries = @\(\$entries\) \+ @\(\$runtimeMetadataEntry\)/);
+  assert.match(source, /entries: \[\.\.\.entries, runtimeMetadataEntry\]/);
   assert.match(source, /store-owl-shell\.json/);
-  assert.match(source, /Get-RepoRelativePathOrNull/);
-  assert.match(source, /payloadRoot = \$metadataPayloadRoot/);
-  assert.doesNotMatch(source, /outputRoot = \$resolvedOutputRoot/);
+  assert.match(source, /repoRelativePathOrNull/);
+  assert.match(source, /payloadRoot: repoRelativePathOrNull\(outputRoot\)/);
+  assert.doesNotMatch(source, /payloadRoot: outputRoot/);
+  assert.equal(fs.existsSync(path.join(desktopRoot, "scripts", "update-store-owl-shell.ps1")), false);
 });
 
 test("Store Owl shell validation has a reusable window flag smoke check", () => {
@@ -3186,16 +3193,22 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
     path.join(repoRoot, ".agents", "skills", "store-package-update", "scripts", "validate-store-owl-shell.ps1"),
     "utf8",
   );
-  const smokeScriptPath = path.join(desktopRoot, "scripts", "assert-windows-primary-window-flags.ps1");
-  const payloadScriptPath = path.join(desktopRoot, "scripts", "assert-store-owl-shell-package-payload.ps1");
-  assert.match(validationSource, /assert-store-owl-shell-package-payload\.ps1/);
-  assert.match(validationSource, /assert-windows-primary-window-flags\.ps1/);
-  assert.match(validationSource, /powershell @payloadArgs[\s\S]*powershell @windowFlagArgs/);
+  const smokeScriptPath = path.join(desktopRoot, "scripts", "assert-windows-primary-window-flags.ts");
+  const payloadScriptPath = path.join(desktopRoot, "scripts", "assert-store-owl-shell-package-payload.ts");
+  assert.match(validationSource, /assert-store-owl-shell-package-payload\.js/);
+  assert.match(validationSource, /assert-windows-primary-window-flags\.js/);
+  assert.match(validationSource, /node @payloadArgs[\s\S]*node @windowFlagArgs/);
   assert.equal(fs.existsSync(payloadScriptPath), true);
   assert.equal(fs.existsSync(smokeScriptPath), true);
+  assert.equal(fs.existsSync(path.join(desktopRoot, "scripts", "assert-store-owl-shell-package-payload.ps1")), false);
+  assert.equal(fs.existsSync(path.join(desktopRoot, "scripts", "assert-windows-primary-window-flags.ps1")), false);
 
   const smokeSource = fs.readFileSync(smokeScriptPath, "utf8");
   const payloadSource = fs.readFileSync(payloadScriptPath, "utf8");
+  const commonSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "store-owl-shell-common.ts"),
+    "utf8",
+  );
   assert.match(skillSource, /replacing the old Forge\/Electron shell/);
   assert.match(skillSource, /app\/Codex\.exe/);
   assert.match(skillSource, /app\/chrome\.dll/);
@@ -3203,31 +3216,32 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(skillSource, /metadata or cache automation alone is not a completed Store\/Owl shell change/);
   assert.match(skillSource, /package staging path/);
   assert.doesNotMatch(validationSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\]\$PackageName/);
-  assert.match(validationSource, /\$PackageFamilyName/);
-  assert.match(validationSource, /\$PackageFullName/);
+  assert.match(validationSource, /--package-family-name/);
+  assert.match(validationSource, /--package-full-name/);
   assert.match(payloadSource, /store-owl-shell\.json/);
   assert.match(payloadSource, /sourceRelativePath/);
   assert.match(payloadSource, /runtimeMetadataRelativePath/);
   assert.match(payloadSource, /runtime metadata file/);
-  assert.match(payloadSource, /Get-DirectoryDigest/);
-  assert.match(payloadSource, /\$Entry\.selfSignedMutable -eq \$true/);
+  assert.match(payloadSource, /directoryDigest/);
+  assert.match(payloadSource, /entry\.selfSignedMutable === true/);
   assert.match(payloadSource, /Store\/Owl payload SHA-256 mismatch/);
-  assert.match(payloadSource, /\$PackageFamilyName/);
-  assert.match(payloadSource, /\$PackageFullName/);
+  assert.match(payloadSource, /packageFamilyName/);
+  assert.match(payloadSource, /packageFullName/);
   assert.doesNotMatch(payloadSource, /package family mismatch/);
   assert.doesNotMatch(smokeSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\] \$PackageName/);
   assert.match(smokeSource, /WS_EX_APPWINDOW|wsExAppWindow/);
   assert.match(smokeSource, /WS_EX_NOACTIVATE|wsExNoActivate/);
   assert.match(smokeSource, /shell:AppsFolder/);
   assert.match(smokeSource, /GetWindowLongPtr/);
-  assert.match(smokeSource, /function Stop-PackageProcesses/);
-  assert.match(smokeSource, /Stop-Process -Id \$_.Id -Force/);
+  assert.match(smokeSource, /Stop-Process -Id \$_\.Id -Force/);
   assert.doesNotMatch(smokeSource, /existingWindowHandles/);
   assert.match(smokeSource, /No visible primary window/);
-  assert.match(smokeSource, /\$PackageFamilyName/);
-  assert.match(smokeSource, /\$PackageFullName/);
-  assert.match(smokeSource, /matched multiple packages/);
-  assert.match(smokeSource, /Get-AppxPackage -ErrorAction Stop/);
+  assert.match(smokeSource, /packageFamilyName/);
+  assert.match(smokeSource, /packageFullName/);
+  assert.match(commonSource, /matched multiple packages/);
+  assert.match(commonSource, /Get-AppxPackage -ErrorAction Stop/);
+  assert.match(commonSource, /function normalizeAppxArchitecture/);
+  assert.match(commonSource, /case 12:\s*\r?\n\s*return "Arm64"/);
 });
 
 test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () => {
