@@ -56,7 +56,9 @@
     "build:primary-runtime:win:arm64:compiled": "node ./.cache/scripts/build-primary-runtime-win-arm64.js",
     "resolve:primary-runtime-source": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/resolve-primary-runtime-source.ts",
     "publish:primary-runtime:win:arm64:compiled": "node ./.cache/scripts/publish-primary-runtime-release.js",
-    "update:node-repl": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-node-repl.ps1"
+    "update:node-repl": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-node-repl.ps1",
+    "update:store-owl-shell": "npm run build:scripts && npm run update:store-owl-shell:compiled",
+    "update:store-owl-shell:compiled": "node ./.cache/scripts/update-store-owl-shell.js"
   },
   "keywords": [
     "electron",
