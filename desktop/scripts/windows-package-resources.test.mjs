@@ -3156,7 +3156,7 @@ test("Store Owl shell updater copies the matched package payload set", () => {
   assert.match(source, /SelfSignedMutable = \$true/);
   assert.match(source, /selfSignedMutable = \$true/);
   assert.match(source, /RelativePath "resources\.pri" -Kind "file" -SelfSignedMutable \$true/);
-  assert.match(source, /resources\.language-\*\.pri/);
+  assert.match(source, /resources\.\*\.pri/);
   assert.doesNotMatch(source, /resources\*\.pri/);
   assert.match(source, /RelativeDirectory "app" -Pattern "\*"/);
   for (const expectedPath of [
@@ -3262,6 +3262,8 @@ test("tracks Store Owl shell provenance metadata", () => {
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "AppxManifest.xml" && entry.selfSignedMutable === true));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "resources.pri" && entry.selfSignedMutable === true));
   assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.language-") && entry.selfSignedMutable === true), false);
+  assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.scale-") && entry.selfSignedMutable === true), false);
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.scale-")));
   assert.ok(
     metadata.entries.some(
       (entry) =>
