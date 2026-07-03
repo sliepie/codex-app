@@ -3149,6 +3149,7 @@ test("Store package updater refreshes helpers and Store Owl shell together", () 
   assert.match(source, /function nativePayloadCandidate/);
   assert.match(source, /function nestedNativePayloadEntries/);
   assert.match(source, /function copyStoreDirectoryFiles/);
+  assert.match(source, /function copyStoreDirectorySubdirectories/);
   assert.doesNotMatch(source, /localeCompare/);
   assert.match(source, /compareOrdinal/);
   assert.match(source, /kind: "nestedExecutable"/);
@@ -3157,12 +3158,11 @@ test("Store package updater refreshes helpers and Store Owl shell together", () 
   assert.match(source, /"resources\.pri", "file", true/);
   assert.match(source, /\^resources\\\.\.\*\\\.pri\$/);
   assert.doesNotMatch(source, /resources\*\.pri/);
+  assert.match(source, /copyStoreDirectorySubdirectories\(appxPackage\.installLocation, outputRoot, "app"\)/);
   assert.match(source, /copyStoreDirectoryFiles\(appxPackage\.installLocation, outputRoot, "app"\)/);
   for (const expectedPath of [
     "AppxManifest.xml",
     "assets",
-    "app/locales",
-    "app/resources",
   ]) {
     assert.match(source, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -3205,6 +3205,7 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(skillSource, /replacing the old Forge\/Electron shell/);
   assert.match(skillSource, /app\/Codex\.exe/);
   assert.match(skillSource, /app\/chrome\.dll/);
+  assert.match(skillSource, /full top-level `app\/` runtime file and directory set/);
   assert.match(skillSource, /stage the Store\/Owl cache into the built MSIX\/AppX payload/);
   assert.match(skillSource, /metadata or cache automation alone is not a completed Store\/Owl shell change/);
   assert.match(skillSource, /package staging path/);

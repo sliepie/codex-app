@@ -138,6 +138,18 @@ function copyStoreDirectoryFiles(sourceRoot: string, destinationRoot: string, re
     .flatMap((name) => copyStorePath(sourceRoot, destinationRoot, `${relativeDirectory}/${name}`, "file"));
 }
 
+function copyStoreDirectorySubdirectories(sourceRoot: string, destinationRoot: string, relativeDirectory: string): StoreOwlEntry[] {
+  const sourceDirectory = path.join(sourceRoot, toSourcePath(relativeDirectory));
+  if (!fs.existsSync(sourceDirectory)) {
+    throw new Error(`Missing Store/Owl shell payload directory: ${relativeDirectory}`);
+  }
+  return fs.readdirSync(sourceDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort(compareOrdinal)
+    .flatMap((name) => copyStorePath(sourceRoot, destinationRoot, `${relativeDirectory}/${name}`, "directory"));
+}
+
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   const outputRoot = path.resolve(args.get("output-root") ?? path.join(desktopRoot(), ".cache", "store-owl-shell", "package"));
@@ -192,11 +204,10 @@ function main(): void {
     for (const payloadPath of [
       { relativePath: "AppxManifest.xml", kind: "file" as const, selfSignedMutable: true },
       { relativePath: "assets", kind: "directory" as const },
-      { relativePath: "app/locales", kind: "directory" as const },
-      { relativePath: "app/resources", kind: "directory" as const },
     ]) {
       entries.push(...copyStorePath(appxPackage.installLocation, outputRoot, payloadPath.relativePath, payloadPath.kind, payloadPath.selfSignedMutable));
     }
+    entries.push(...copyStoreDirectorySubdirectories(appxPackage.installLocation, outputRoot, "app"));
     entries.push(...copyStoreDirectoryFiles(appxPackage.installLocation, outputRoot, "app"));
     entries.push(...copyStorePath(appxPackage.installLocation, outputRoot, "resources.pri", "file", true));
     entries.push(...copyStorePattern(appxPackage.installLocation, outputRoot, /^resources\..*\.pri$/u));

@@ -22,10 +22,46 @@
       "sha256": "cdf917cdf59408b4f05ab656ea74c2f078be8c7b3eb6445b8572b4e90cb6a42b"
     },
     {
+      "sourceRelativePath": "app/IwaKeyDistribution",
+      "kind": "directory",
+      "fileCount": 2,
+      "sha256": "c89b0a1e008f93374eb5ffd9124d717f9a0dda158b4bc9480bb1372dcfd3333f"
+    },
+    {
+      "sourceRelativePath": "app/MEIPreload",
+      "kind": "directory",
+      "fileCount": 2,
+      "sha256": "0b6f5cd734754174323c0ec8b126a1d893baf5d63f99d8d93e9277f3698d8338"
+    },
+    {
+      "sourceRelativePath": "app/PrivacySandboxAttestationsPreloaded",
+      "kind": "directory",
+      "fileCount": 2,
+      "sha256": "4e202c4ec4b94c9618780cd8dbfa8eb158b6ecc414058426ac5e0600f30b19f4"
+    },
+    {
+      "sourceRelativePath": "app/angledata",
+      "kind": "directory",
+      "fileCount": 2,
+      "sha256": "488024e251b9771b8de82066e90be4370e1d1fe086fa9d67205fb5cf8a779156"
+    },
+    {
+      "sourceRelativePath": "app/gen",
+      "kind": "directory",
+      "fileCount": 4688,
+      "sha256": "154648ac624867dd011d74aea80e04e5ccc654a8b0dbbe3008a21f77e770793f"
+    },
+    {
       "sourceRelativePath": "app/locales",
       "kind": "directory",
       "fileCount": 220,
       "sha256": "ed15568394bd723d815eef7bcdf91ce98eb1180b11e34ef9674623dafb9becf5"
+    },
+    {
+      "sourceRelativePath": "app/pyproto",
+      "kind": "directory",
+      "fileCount": 36,
+      "sha256": "e35c8a9084ec9e5c2498f4e311d890573b9668e2ff860718b287882260c498fa"
     },
     {
       "sourceRelativePath": "app/resources",
@@ -282,6 +318,12 @@
       "containedIn": "app/resources"
     },
     {
+      "sourceRelativePath": "app/tools",
+      "kind": "directory",
+      "fileCount": 1,
+      "sha256": "a1c32d0093f377899f69545094a04ab0ec809b18c50da388e9f0afbcb3add80f"
+    },
+    {
       "sourceRelativePath": "app/149.0.7827.197.manifest",
       "kind": "file",
       "size": 228,
@@ -528,8 +570,8 @@
     {
       "sourceRelativePath": "owl-shell-runtime.json",
       "kind": "file",
-      "size": 19587,
-      "sha256": "019d8b9c773906cbaa25ac1e50931af54e618f3b30674323d5fa2191c2de2c9a"
+      "size": 20945,
+      "sha256": "c615673ff43c9e300458a6a9bc586c7b6950e38618cca341248ce84bd7d1dfa2"
     }
   ]
 }
