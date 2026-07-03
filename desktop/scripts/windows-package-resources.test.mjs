@@ -3176,6 +3176,10 @@ test("Store Owl shell updater copies the matched package payload set", () => {
 });
 
 test("Store Owl shell validation has a reusable window flag smoke check", () => {
+  const skillSource = fs.readFileSync(
+    path.join(repoRoot, ".agents", "skills", "store-package-update", "SKILL.md"),
+    "utf8",
+  );
   const validationSource = fs.readFileSync(
     path.join(repoRoot, ".agents", "skills", "store-package-update", "scripts", "validate-store-owl-shell.ps1"),
     "utf8",
@@ -3190,6 +3194,12 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
 
   const smokeSource = fs.readFileSync(smokeScriptPath, "utf8");
   const payloadSource = fs.readFileSync(payloadScriptPath, "utf8");
+  assert.match(skillSource, /replacing the old Forge\/Electron shell/);
+  assert.match(skillSource, /app\/Codex\.exe/);
+  assert.match(skillSource, /app\/chrome\.dll/);
+  assert.match(skillSource, /stage the Store\/Owl cache into the built MSIX\/AppX payload/);
+  assert.match(skillSource, /metadata or cache automation alone is not a completed Store\/Owl shell change/);
+  assert.match(skillSource, /package staging path/);
   assert.doesNotMatch(validationSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\]\$PackageName/);
   assert.match(validationSource, /\$PackageFamilyName/);
   assert.match(validationSource, /\$PackageFullName/);

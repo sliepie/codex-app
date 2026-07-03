@@ -27,17 +27,19 @@ description: "Maintain Store-sourced Windows package dependencies for codex-app.
 
 ## Store/Owl Shell Branch
 
+- Goal: update the Windows package to run from the official Store/Owl shell payload, replacing the old Forge/Electron shell with the Store-matched `app/Codex.exe`, `app/chrome.dll`, and sibling Chromium runtime files.
 - Run `npm --prefix desktop run update:store-owl-shell` from the repo root to copy the Store/Owl matched set from the official Store package into the ignored Store/Owl cache and write `desktop/resources/store-owl-shell.json`.
 - Treat the Store/Owl shell as a matched set: the full top-level `app/` runtime file set, locales, `owl-shell-runtime.json`, app resources, AppX manifest identity, and AppX assets stay in version lockstep.
 - Do not copy only `chrome.dll`, only `Codex.exe`, or only icon assets.
 - Do not commit Store/Owl shell payload binaries such as `Codex.exe`, `chrome_elf.dll`, `chrome.dll`, `.pak` resources, snapshots, locales, or AppX image assets unless the repo intentionally adds a tracked allowlist for that branch. Commit provenance metadata, package automation, and tests; hydrate or package the payload from the official Store source.
+- Wire the Windows package flow to stage the Store/Owl cache into the built MSIX/AppX payload before validation. Updating metadata or cache automation alone is not a completed Store/Owl shell change.
 - Prefer Store/Owl package parity over stock Electron taskbar/focus patches. Stock Electron compatibility patches are fallback-only and need a failing smoke check first.
 - Prefer MSIX/AppX validation for shell parity. ZIP or unpacked launches are acceptable for file inspection, but not as the final taskbar/focus signal.
 - Store source provenance must be committed to `desktop/resources/store-owl-shell.json`; if that file does not exist yet, creating it is part of the shell parity change.
 - `desktop/scripts/update-store-owl-shell.ps1` must copy the matched set: every top-level file under `app/`, locales, `owl-shell-runtime.json`, AppX manifest/assets, and app resources.
 - `desktop/scripts/windows-package-resources.test.mjs` must cover the Store/Owl updater script, the matched set, and app resources touched by the package flow.
 - If no reusable window-flag smoke check exists, add `desktop/scripts/assert-windows-primary-window-flags.ps1` before claiming shell parity complete. Ad hoc Win32 snippets are diagnosis only.
-- Completion criterion: the package records Store source identity, version, source-relative paths, architectures, and SHA values; package-resource tests cover the matched set; Store/Owl validation confirms the installed package payload matches `desktop/resources/store-owl-shell.json`, except entries marked mutable for self-signed identity-resource rewrites; a launched Windows build passes a reusable smoke check showing a visible primary window with `WS_EX_APPWINDOW` and without `WS_EX_NOACTIVATE`.
+- Completion criterion: the package records Store source identity, version, source-relative paths, architectures, and SHA values; package-resource tests cover the matched set and the package staging path; Store/Owl validation confirms the installed package payload matches `desktop/resources/store-owl-shell.json`, except entries marked mutable for self-signed identity-resource rewrites; the installed build contains the Store/Owl `app/Codex.exe` and `app/chrome.dll`; a launched Windows build passes a reusable smoke check showing a visible primary window with `WS_EX_APPWINDOW` and without `WS_EX_NOACTIVATE`.
 
 ## Helper Binary Branch
 
