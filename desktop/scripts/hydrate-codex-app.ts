@@ -1979,6 +1979,32 @@ export function pruneUnusedNativePayloads(nodeModulesRoot: string): void {
   removeDebugSymbolPayloads(nodeModulesRoot);
 }
 
+function patchNodePtySpectreMitigation(nodeModulesRoot: string): void {
+  const nodePtyRoot = packageRoot(nodeModulesRoot, "node-pty");
+  if (!fs.existsSync(nodePtyRoot)) {
+    return;
+  }
+
+  let patchedCount = 0;
+  for (const relativePath of ["binding.gyp", "deps/winpty/src/winpty.gyp"]) {
+    const filePath = path.join(nodePtyRoot, ...relativePath.split("/"));
+    if (!fs.existsSync(filePath)) {
+      continue;
+    }
+
+    const source = fs.readFileSync(filePath, "utf8");
+    const patched = source.replaceAll("'SpectreMitigation': 'Spectre'", "'SpectreMitigation': 'false'");
+    if (patched !== source) {
+      fs.writeFileSync(filePath, patched, "utf8");
+      patchedCount++;
+    }
+  }
+
+  if (patchedCount > 0) {
+    console.log("Disabled node-pty Spectre library requirement for Windows ARM64 source rebuild.");
+  }
+}
+
 function syncNativeNodeModulesTarget(
   target: NativeNodeModulesTarget,
   runtimeVersion: string,
@@ -2049,6 +2075,7 @@ function syncNativeNodeModulesTarget(
   const nativeModuleNames = nativeModules.map((nativeModule) => nativeModule.name);
   pruneUnusedNativePayloads(target.nodeModulesRoot);
   if (target.runtime === "electron") {
+    patchNodePtySpectreMitigation(target.nodeModulesRoot);
     runElectronPrebuildInstall(
       target,
       nativeModules.filter((nativeModule) => !nativeNodeModuleReady(target, nativeModule, abi)),
@@ -2092,6 +2119,7 @@ function syncNativeNodeModulesTarget(
           nodeModulesRoot: target.nodeModulesRoot,
         });
       }
+      patchNodePtySpectreMitigation(target.nodeModulesRoot);
       const rebuildEnv =
         prepareElectronHeadersForNativeRebuild(
           desktopRoot,

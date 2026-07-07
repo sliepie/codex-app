@@ -1,20 +1,23 @@
 {
-  "appBuildNumber": "4598",
-  "appVersion": "26.623.81905",
+  "appBuildNumber": "4753",
+  "appVersion": "26.623.141536",
   "productId": "9PLM9XGG6VKS",
   "packageName": "OpenAI.Codex",
-  "packageFullName": "OpenAI.Codex_26.623.11225.0_arm64__2p2nqsd0c76g0",
+  "packageFullName": "OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0",
   "packageFamilyName": "OpenAI.Codex_2p2nqsd0c76g0",
-  "packageVersion": "26.623.11225.0",
+  "packageVersion": "26.623.19656.0",
   "architecture": "Arm64",
-  "payloadRoot": "desktop/.cache/store-owl-shell/package",
+  "payloadArchive": "desktop/resources/store-owl-shell/package.tar.gz",
+  "payloadArchiveSha256": "3eeac37fc13338d638cd8bc80c04d4b1e8ada4dd62520ecd7bbcdadf6d9d33c7",
+  "payloadArchiveSize": 218942831,
+  "payloadRoot": null,
   "runtimeMetadataRelativePath": "owl-shell-runtime.json",
   "entries": [
     {
       "sourceRelativePath": "AppxManifest.xml",
       "kind": "file",
       "size": 3263,
-      "sha256": "4f0181b69acffa2762a48d490666163b3f2840ed053342874e4a9eace5d88922",
+      "sha256": "9db300dceed5f1b2639c08eeb759e83bdf7ba21ea86f076d82e61feeaf75aa83",
       "selfSignedMutable": true
     },
     {
@@ -263,7 +266,8 @@
       "sourceRelativePath": "app/vk_swiftshader_icd.json",
       "kind": "file",
       "size": 106,
-      "sha256": "32d83ff113fef532a9f97e0d2831f8656628ab1c99e9060f0332b1532839afd9"
+      "sha256": "32d83ff113fef532a9f97e0d2831f8656628ab1c99e9060f0332b1532839afd9",
+      "selfSignedMutable": true
     },
     {
       "sourceRelativePath": "app/vulkan-1.dll",
@@ -318,8 +322,8 @@
     {
       "sourceRelativePath": "owl-shell-runtime.json",
       "kind": "file",
-      "size": 10183,
-      "sha256": "ff767f6b6a1bb11da80bb0bb329569bf1a64d5c410667a3d3baf9e98073b6127"
+      "size": 10271,
+      "sha256": "70ff81ab0cdeb6e4b66d125c03e332e7d45bfcb2de5373e7d9675ebc6c57ba44"
     }
   ]
 }

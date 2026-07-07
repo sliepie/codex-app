@@ -37,6 +37,7 @@ export const windowsArm64HydratedCacheInputPaths = [
   "resources/extension-host.json",
   "resources/cua_node/bin/node_repl.json",
   "resources/store-owl-shell.json",
+  "resources/store-owl-shell/package.tar.gz",
 ] as const;
 
 export const windowsArm64NativeModuleCacheInputPaths = [

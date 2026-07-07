@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import { appendFileSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { codexAppcastUrlForFeed, type CodexAppcastFeed } from "./codex-appcast-feeds.ts";
 import {
   windowsArm64HydratedCacheInputPaths,
   windowsArm64HydratedCacheKeyVersion,
@@ -62,8 +61,13 @@ type ReleaseInputs = {
 
 type AppcastRelease = {
   buildNumber: string;
-  feedName: CodexAppcastFeed;
+  feedName: "prod";
   version: string;
+};
+
+type StoreOwlReleaseMetadata = {
+  appBuildNumber?: string;
+  appVersion?: string;
 };
 
 type ResolveRepoReleaseRevisionOptions = ReleaseInputs & {
@@ -140,6 +144,25 @@ function hashCacheInputs(paths: string[]): string {
     hash.update("\0");
   }
   return hash.digest("hex");
+}
+
+function storeOwlMetadataPath(): string {
+  return process.env.CODEX_STORE_OWL_METADATA_PATH ?? path.resolve(desktopRoot, "resources", "store-owl-shell.json");
+}
+
+function readStoreMatchedAppRelease(): AppcastRelease {
+  const metadata = JSON.parse(readFileSync(storeOwlMetadataPath(), "utf8")) as StoreOwlReleaseMetadata;
+  const version = assertMatches(
+    "Store/Owl matched Codex app version",
+    metadata.appVersion ?? "",
+    appVersionPattern,
+  );
+  const buildNumber = assertMatches(
+    "Store/Owl matched Codex app build number",
+    metadata.appBuildNumber ?? "",
+    buildNumberPattern,
+  );
+  return { buildNumber, feedName: "prod", version };
 }
 
 function escapeRegExp(value: string): string {
@@ -343,41 +366,6 @@ async function fetchLatestReleaseTag(repository: string, label: string): Promise
   return tagName;
 }
 
-async function fetchAppcastRelease(feedName: CodexAppcastFeed): Promise<AppcastRelease> {
-  const feedUrl = codexAppcastUrlForFeed(feedName);
-  const response = await fetch(feedUrl);
-  if (!response.ok) {
-    fail(`Failed to fetch ${feedName} Codex appcast: ${response.status} ${response.statusText}`);
-  }
-
-  const appcast = await response.text();
-  const item = firstMatch(
-    appcast,
-    /(<item\b[\s\S]*?<\/item>)/i,
-    `No Codex app release was found in the ${feedName} appcast.`,
-  );
-  const version = assertMatches(
-    `${feedName} Codex app version`,
-    firstMatch(
-      item,
-      /<sparkle:shortVersionString>([^<]+)<\/sparkle:shortVersionString>/i,
-      `The selected ${feedName} Codex app release does not have a version.`,
-    ),
-    appVersionPattern,
-  );
-  const buildNumber = assertMatches(
-    `${feedName} Codex app build number`,
-    firstMatch(
-      item,
-      /<sparkle:version>([^<]+)<\/sparkle:version>/i,
-      `The selected ${feedName} Codex app release does not have a build number.`,
-    ),
-    buildNumberPattern,
-  );
-
-  return { buildNumber, feedName, version };
-}
-
 async function fetchGitTagCommitSha(repository: string, tagName: string, label: string): Promise<string> {
   const response = await fetchPublicGithubUrl(repositoryApiUrl(repository, `/git/ref/tags/${encodeURIComponent(tagName)}`), {
     headers: githubHeaders(),
@@ -417,7 +405,7 @@ async function fetchGitTagCommitSha(repository: string, tagName: string, label: 
 }
 
 async function main(): Promise<void> {
-  const selectedAppcastRelease = await fetchAppcastRelease("prod");
+  const selectedAppcastRelease = readStoreMatchedAppRelease();
   const appVersion = selectedAppcastRelease.version;
   const buildNumber = selectedAppcastRelease.buildNumber;
   const cliTag = assertMatches(

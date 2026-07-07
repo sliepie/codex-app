@@ -381,14 +381,7 @@ function stageStoreOwlShellPackageOutputs(packageResult) {
     return;
   }
 
-  const {
-    stageStoreOwlShellAppRoot,
-    storeOwlShellPayloadCacheExists,
-  } = require('./.cache/scripts/stage-store-owl-shell.js');
-  if (!storeOwlShellPayloadCacheExists()) {
-    console.warn('Skipping Store/Owl shell staging because desktop/.cache/store-owl-shell/package is missing.');
-    return;
-  }
+  const { stageStoreOwlShellAppRoot } = require('./.cache/scripts/stage-store-owl-shell.js');
   for (const outputPath of packageResult.outputPaths) {
     stageStoreOwlShellAppRoot(outputPath);
   }

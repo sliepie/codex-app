@@ -1155,6 +1155,15 @@ test("prunes unused node-pty fallback and debug payloads", () => {
   );
 });
 
+test("Windows ARM64 hydration disables node-pty Spectre library requirement", () => {
+  const source = fs.readFileSync(path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"), "utf8");
+
+  assert.match(source, /function patchNodePtySpectreMitigation\(nodeModulesRoot: string\): void/);
+  assert.match(source, /"binding\.gyp", "deps\/winpty\/src\/winpty\.gyp"/);
+  assert.match(source, /"'SpectreMitigation': 'Spectre'", "'SpectreMitigation': 'false'"/);
+  assert.match(source, /patchNodePtySpectreMitigation\(target\.nodeModulesRoot\)/);
+});
+
 test("Mach-O native payloads are not ready for Windows ARM64", () => {
   const packageRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-native-package-"));
   writeMachOFixture(path.join(packageRoot, "build", "Release", "better_sqlite3.node"));
@@ -3134,6 +3143,7 @@ test("Store package updater refreshes helpers and Store Owl shell together", () 
   assert.match(source, /const packageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
   assert.match(source, /const requiredArchitecture = "Arm64"/);
   assert.match(source, /const appDirectoriesHydratedFromPublicArtifacts = new Set\(\["resources"\]\)/);
+  assert.match(source, /const selfSignedMutableStorePaths = new Set\(\["app\/vk_swiftshader_icd\.json"\]\)/);
   assert.match(source, /readStoreAppAsarPackage/);
   assert.match(source, /appVersion/);
   assert.match(source, /appBuildNumber/);
@@ -3167,6 +3177,7 @@ test("Store package updater refreshes helpers and Store Owl shell together", () 
   assert.doesNotMatch(source, /resources\*\.pri/);
   assert.match(source, /copyStoreDirectorySubdirectories\(appxPackage\.installLocation, outputRoot, "app"\)/);
   assert.match(source, /copyStoreDirectoryFiles\(appxPackage\.installLocation, outputRoot, "app"\)/);
+  assert.match(source, /selfSignedMutableStorePaths\.has\(relativePath\)/);
   assert.doesNotMatch(source, /copyStorePath\(appxPackage\.installLocation, outputRoot, relativePath, "file"\)/);
   for (const expectedPath of [
     "AppxManifest.xml",
@@ -3179,8 +3190,13 @@ test("Store package updater refreshes helpers and Store Owl shell together", () 
   assert.match(source, /runtimeMetadataEntry/);
   assert.match(source, /entries: \[\.\.\.entries, runtimeMetadataEntry\]/);
   assert.match(source, /store-owl-shell\.json/);
+  assert.match(source, /"resources", "store-owl-shell", "package\.tar\.gz"/);
+  assert.match(source, /"\.cache", "store-owl-shell", "package"/);
+  assert.match(source, /payloadArchive: repoRelativePathOrNull\(archiveOutputPath\)/);
+  assert.match(source, /payloadArchiveSha256: sha256\(archiveOutputPath\)/);
+  assert.match(source, /payloadRoot: null/);
   assert.match(source, /repoRelativePathOrNull/);
-  assert.match(source, /payloadRoot: repoRelativePathOrNull\(outputRoot\)/);
+  assert.match(source, /tar"\, \["-czf", archiveOutputPath/);
   assert.doesNotMatch(source, /payloadRoot: outputRoot/);
   assert.equal(fs.existsSync(path.join(desktopRoot, "scripts", "update-store-owl-shell.ps1")), false);
 });
@@ -3193,15 +3209,20 @@ test("Store Owl shell staging replaces Forge Electron outputs", () => {
   assert.match(forgeSource, /postPackage: async \(_forgeConfig, packageResult\)/);
   assert.match(forgeSource, /stageStoreOwlShellPackageOutputs\(packageResult\)/);
   assert.match(forgeSource, /require\('\.\/\.cache\/scripts\/stage-store-owl-shell\.js'\)/);
-  assert.match(forgeSource, /storeOwlShellPayloadCacheExists/);
-  assert.match(forgeSource, /Skipping Store\/Owl shell staging/);
+  assert.doesNotMatch(forgeSource, /storeOwlShellPayloadCacheExists/);
+  assert.doesNotMatch(forgeSource, /Skipping Store\/Owl shell staging/);
   assert.match(stageSource, /const preservedPackagedAppRootEntries = new Set\(\["resources"\]\)/);
+  assert.match(stageSource, /const codexWindowsPackageIdentity = "Sliepie\.Codex\.SelfSigned"/);
   assert.match(stageSource, /export function storeOwlShellPayloadCacheExists\(\): boolean/);
+  assert.match(stageSource, /function expandedStoreOwlPayloadArchiveRoot\(metadata: StoreOwlMetadata\): string/);
+  assert.match(stageSource, /payloadArchiveSha256/);
+  assert.match(stageSource, /runChecked\("tar", \["-xzf", archivePath/);
   assert.doesNotMatch(stageSource, /storeResourceFallbackPaths/);
   assert.match(stageSource, /function hydratedMacAppAsarPath\(metadata: StoreOwlMetadata\): string/);
   assert.match(stageSource, /const codexPlusPlusMain = "codex-plusplus\/loader\.cjs"/);
   assert.match(stageSource, /function copyHydratedMacAppAsarWithCodexPlusPlus\(metadata: StoreOwlMetadata, appRoot: string\): void/);
   assert.match(stageSource, /main: codexPlusPlusMain/);
+  assert.match(stageSource, /codexWindowsPackageIdentity/);
   assert.match(stageSource, /originalMain/);
   assert.match(stageSource, /collectCodexPlusPlusFiles\(path\.join\(desktopRoot\(\), "codex-plusplus"\)\)/);
   assert.match(stageSource, /copyHydratedMacAppAsarWithCodexPlusPlus\(metadata, appRoot\)/);
@@ -3215,7 +3236,7 @@ test("Store Owl shell staging replaces Forge Electron outputs", () => {
   assert.match(stageSource, /fs\.rmSync\(path\.join\(appRoot, entry\.name\), \{ recursive: true, force: true \}\)/);
   assert.match(stageSource, /entry\.sourceRelativePath\.startsWith\("app\/"\)/);
   assert.match(stageSource, /entry\.sourceRelativePath\.slice\("app\/"\.length\)/);
-  assert.match(stageSource, /entry\.sourceRelativePath === metadata\.runtimeMetadataRelativePath/);
+  assert.doesNotMatch(stageSource, /entry\.sourceRelativePath === metadata\.runtimeMetadataRelativePath[\s\S]*copyMetadataEntry\(payloadRoot, appRoot/);
   assert.match(stageSource, /"Codex\.exe", "chrome\.dll", "owl-shell-runtime\.json", "resources"/);
   assert.doesNotMatch(stageSource, /new Set\(\["resources", "locales"\]\)/);
 
@@ -3255,8 +3276,8 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.match(skillSource, /Microsoft Store package as the fallback source/);
   assert.match(skillSource, /Do not copy Store `app\/resources` or Store `app\/resources\/app\.asar`/);
   assert.match(skillSource, /matching public macOS appcast version\/build/);
-  assert.match(skillSource, /stage the Store\/Owl cache into the built MSIX\/AppX payload/);
-  assert.match(skillSource, /metadata or cache automation alone is not a completed Store\/Owl shell change/);
+  assert.match(skillSource, /stage the tracked Store\/Owl payload into the built MSIX\/AppX payload/);
+  assert.match(skillSource, /metadata or payload automation alone is not a completed Store\/Owl shell change/);
   assert.match(skillSource, /package staging path/);
   assert.match(skillSource, /npm --prefix desktop run update:store-package/);
   assert.doesNotMatch(skillSource, /Choose exactly one branch|Store\/Owl Shell Migration Branch|Helper Binary Branch/);
@@ -3319,8 +3340,13 @@ test("ignores generated signing-secret base64 exports", () => {
 
 test("tracks Store Owl shell provenance metadata", () => {
   const gitignoreSource = fs.readFileSync(path.join(repoRoot, ".gitignore"), "utf8");
+  const gitattributesSource = fs.readFileSync(path.join(repoRoot, ".gitattributes"), "utf8");
   assert.match(gitignoreSource, /^desktop\/resources\/\*$/m);
   assert.match(gitignoreSource, /^!desktop\/resources\/store-owl-shell\.json$/m);
+  assert.match(gitignoreSource, /^!desktop\/resources\/store-owl-shell\/$/m);
+  assert.match(gitignoreSource, /^desktop\/resources\/store-owl-shell\/\*$/m);
+  assert.match(gitignoreSource, /^!desktop\/resources\/store-owl-shell\/package\.tar\.gz$/m);
+  assert.match(gitattributesSource, /^desktop\/resources\/store-owl-shell\/package\.tar\.gz filter=lfs diff=lfs merge=lfs -text$/m);
 
   const metadataPath = path.join(desktopRoot, "resources", "store-owl-shell.json");
   assert.equal(fs.existsSync(metadataPath), true);
@@ -3332,7 +3358,10 @@ test("tracks Store Owl shell provenance metadata", () => {
   assert.equal(metadata.architecture, "Arm64");
   assert.match(metadata.appVersion, /^\d+\.\d+\.\d+$/);
   assert.match(metadata.appBuildNumber, /^\d+$/);
-  assert.equal(metadata.payloadRoot, "desktop/.cache/store-owl-shell/package");
+  assert.equal(metadata.payloadArchive, "desktop/resources/store-owl-shell/package.tar.gz");
+  assert.match(metadata.payloadArchiveSha256, /^[a-f0-9]{64}$/);
+  assert.ok(metadata.payloadArchiveSize > 0);
+  assert.equal(metadata.payloadRoot, null);
   assert.equal(metadata.runtimeMetadataRelativePath, "owl-shell-runtime.json");
   assert.doesNotMatch(metadataSource, /[A-Z]:[\\/]/);
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === metadata.runtimeMetadataRelativePath));
@@ -3344,6 +3373,7 @@ test("tracks Store Owl shell provenance metadata", () => {
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/gen"));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "AppxManifest.xml" && entry.selfSignedMutable === true));
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "resources.pri" && entry.selfSignedMutable === true));
+  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/vk_swiftshader_icd.json" && entry.selfSignedMutable === true));
   assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.language-") && entry.selfSignedMutable === true), false);
   assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.scale-") && entry.selfSignedMutable === true), false);
   assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.scale-")));

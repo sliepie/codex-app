@@ -1,1 +1,2 @@
-# This repository intentionally does not track app payloads or helper binaries.
+# Store/Owl shell payload archive is intentionally tracked with Git LFS.
+desktop/resources/store-owl-shell/package.tar.gz filter=lfs diff=lfs merge=lfs -text

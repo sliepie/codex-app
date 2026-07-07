@@ -8,11 +8,14 @@ import {
   copyRecursive,
   desktopRoot,
   repoRoot,
+  runChecked,
+  sha256,
   toSourcePath,
 } from "./store-owl-shell-common.js";
 
 const preservedPackagedAppRootEntries = new Set(["resources"]);
 const codexPlusPlusMain = "codex-plusplus/loader.cjs";
+const codexWindowsPackageIdentity = "Sliepie.Codex.SelfSigned";
 const windowsNativeModuleNames = ["better-sqlite3", "node-pty"];
 
 type AsarHeaderEntry = {
@@ -31,21 +34,66 @@ function storeOwlMetadata(): StoreOwlMetadata {
 }
 
 function storeOwlPayloadRoot(metadata: StoreOwlMetadata): string {
+  if (metadata.payloadArchive) {
+    return expandedStoreOwlPayloadArchiveRoot(metadata);
+  }
   const payloadRoot = metadata.payloadRoot
     ? path.resolve(repoRoot(), toSourcePath(metadata.payloadRoot))
     : path.join(desktopRoot(), ".cache", "store-owl-shell", "package");
   if (!fs.existsSync(payloadRoot)) {
-    throw new Error(`Missing Store/Owl payload cache: ${payloadRoot}. Run npm --prefix desktop run update:store-package first.`);
+    throw new Error(`Missing Store/Owl payload: ${payloadRoot}. Run npm --prefix desktop run update:store-package first.`);
   }
   return payloadRoot;
 }
 
 export function storeOwlShellPayloadCacheExists(): boolean {
   const metadata = storeOwlMetadata();
+  if (metadata.payloadArchive) {
+    return fs.existsSync(path.resolve(repoRoot(), toSourcePath(metadata.payloadArchive)));
+  }
   const payloadRoot = metadata.payloadRoot
     ? path.resolve(repoRoot(), toSourcePath(metadata.payloadRoot))
     : path.join(desktopRoot(), ".cache", "store-owl-shell", "package");
   return fs.existsSync(payloadRoot);
+}
+
+function storeOwlPayloadArchive(metadata: StoreOwlMetadata): string {
+  if (!metadata.payloadArchive) {
+    throw new Error("Store/Owl metadata is missing payloadArchive.");
+  }
+  const archivePath = path.resolve(repoRoot(), toSourcePath(metadata.payloadArchive));
+  if (!fs.existsSync(archivePath)) {
+    throw new Error(`Missing Store/Owl payload archive: ${archivePath}. Run npm --prefix desktop run update:store-package first.`);
+  }
+  if (metadata.payloadArchiveSha256 && sha256(archivePath) !== metadata.payloadArchiveSha256) {
+    throw new Error(`Store/Owl payload archive SHA-256 mismatch: ${metadata.payloadArchive}.`);
+  }
+  return archivePath;
+}
+
+function expandedStoreOwlPayloadArchiveRoot(metadata: StoreOwlMetadata): string {
+  const archivePath = storeOwlPayloadArchive(metadata);
+  const archiveSha256 = metadata.payloadArchiveSha256 ?? sha256(archivePath);
+  const payloadRoot = path.join(
+    desktopRoot(),
+    ".cache",
+    "store-owl-shell",
+    `package-${cacheSegment(metadata.packageFullName)}-${archiveSha256.slice(0, 12)}`,
+  );
+  const markerPath = path.join(payloadRoot, ".archive-sha256");
+  if (
+    fs.existsSync(path.join(payloadRoot, "app", "Codex.exe")) &&
+    fs.existsSync(markerPath) &&
+    fs.readFileSync(markerPath, "utf8").trim() === archiveSha256
+  ) {
+    return payloadRoot;
+  }
+
+  fs.rmSync(payloadRoot, { recursive: true, force: true });
+  fs.mkdirSync(payloadRoot, { recursive: true });
+  runChecked("tar", ["-xzf", archivePath, "-C", payloadRoot]);
+  fs.writeFileSync(markerPath, `${archiveSha256}\n`);
+  return payloadRoot;
 }
 
 function copyMetadataEntry(payloadRoot: string, destinationRoot: string, entry: StoreOwlEntry, destinationRelativePath: string): void {
@@ -175,6 +223,7 @@ function copyHydratedMacAppAsarWithCodexPlusPlus(metadata: StoreOwlMetadata, app
       ...upstreamPackageJson.__codexpp,
       originalMain,
     },
+    codexWindowsPackageIdentity,
     main: codexPlusPlusMain,
   };
   const appendedFiles = [
@@ -243,10 +292,6 @@ export function stageStoreOwlShellAppRoot(appRoot: string): void {
     }
     if (entry.sourceRelativePath.startsWith("app/")) {
       copyMetadataEntry(payloadRoot, appRoot, entry, entry.sourceRelativePath.slice("app/".length));
-      continue;
-    }
-    if (entry.sourceRelativePath === metadata.runtimeMetadataRelativePath) {
-      copyMetadataEntry(payloadRoot, appRoot, entry, entry.sourceRelativePath);
     }
   }
 

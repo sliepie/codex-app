@@ -32,6 +32,9 @@ export type StoreOwlMetadata = {
   packageFamilyName: string;
   packageVersion: string;
   architecture: string;
+  payloadArchive: string | null;
+  payloadArchiveSha256?: string;
+  payloadArchiveSize?: number;
   payloadRoot: string | null;
   runtimeMetadataRelativePath: string;
   entries: StoreOwlEntry[];

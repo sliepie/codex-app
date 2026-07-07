@@ -29,6 +29,7 @@ const packageFamilyName = "OpenAI.Codex_2p2nqsd0c76g0";
 const requiredArchitecture = "Arm64";
 const nativePayloadExtensions = new Set([".exe", ".dll", ".node"]);
 const appDirectoriesHydratedFromPublicArtifacts = new Set(["resources"]);
+const selfSignedMutableStorePaths = new Set(["app/vk_swiftshader_icd.json"]);
 const asar = require("@electron/asar") as {
   extractFile(archive: string, filename: string): Buffer;
 };
@@ -144,7 +145,10 @@ function copyStoreDirectoryFiles(sourceRoot: string, destinationRoot: string, re
     .filter((entry) => entry.isFile())
     .map((entry) => entry.name)
     .sort(compareOrdinal)
-    .flatMap((name) => copyStorePath(sourceRoot, destinationRoot, `${relativeDirectory}/${name}`, "file"));
+    .flatMap((name) => {
+      const relativePath = `${relativeDirectory}/${name}`;
+      return copyStorePath(sourceRoot, destinationRoot, relativePath, "file", selfSignedMutableStorePaths.has(relativePath));
+    });
 }
 
 function copyStoreDirectorySubdirectories(sourceRoot: string, destinationRoot: string, relativeDirectory: string): StoreOwlEntry[] {
@@ -178,6 +182,9 @@ function readStoreAppAsarPackage(sourceRoot: string): { appBuildNumber: string; 
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   const outputRoot = path.resolve(args.get("output-root") ?? path.join(desktopRoot(), ".cache", "store-owl-shell", "package"));
+  const archiveOutputPath = path.resolve(
+    args.get("archive-output-path") ?? path.join(desktopRoot(), "resources", "store-owl-shell", "package.tar.gz"),
+  );
   const metadataOutputPath = path.resolve(args.get("metadata-output-path") ?? path.join(desktopRoot(), "resources", "store-owl-shell.json"));
   const existingOfficialPackages = codexAppPackages();
   const existingPackage = codexArm64Package();
@@ -250,6 +257,7 @@ function main(): void {
       packageFamilyName: appxPackage.packageFamilyName,
       packageVersion: appxPackage.version,
       architecture: appxPackage.architecture,
+      payloadArchive: "store-owl-shell/package.tar.gz",
       payloadRoot: "store-owl-shell/package",
       entries,
     };
@@ -261,6 +269,9 @@ function main(): void {
       size: fs.statSync(runtimeMetadataPath).size,
       sha256: sha256(runtimeMetadataPath),
     };
+    fs.mkdirSync(path.dirname(archiveOutputPath), { recursive: true });
+    fs.rmSync(archiveOutputPath, { force: true });
+    runChecked("tar", ["-czf", archiveOutputPath, "-C", outputRoot, "."]);
     const metadata: StoreOwlMetadata = {
       appBuildNumber: storeAppAsarPackage.appBuildNumber,
       appVersion: storeAppAsarPackage.appVersion,
@@ -270,13 +281,16 @@ function main(): void {
       packageFamilyName: appxPackage.packageFamilyName,
       packageVersion: appxPackage.version,
       architecture: appxPackage.architecture,
-      payloadRoot: repoRelativePathOrNull(outputRoot),
+      payloadArchive: repoRelativePathOrNull(archiveOutputPath),
+      payloadArchiveSha256: sha256(archiveOutputPath),
+      payloadArchiveSize: fs.statSync(archiveOutputPath).size,
+      payloadRoot: null,
       runtimeMetadataRelativePath: "owl-shell-runtime.json",
       entries: [...entries, runtimeMetadataEntry],
     };
     fs.mkdirSync(path.dirname(metadataOutputPath), { recursive: true });
     fs.writeFileSync(metadataOutputPath, `${JSON.stringify(metadata, null, 2)}\n`);
-    console.log(`Updated Store/Owl shell payload at ${outputRoot} from ${appxPackage.packageFullName}.`);
+    console.log(`Updated Store/Owl shell payload archive at ${archiveOutputPath} from ${appxPackage.packageFullName}.`);
     console.log(`Wrote Store/Owl shell metadata to ${metadataOutputPath}.`);
   } finally {
     if (!hadOfficialPackageBeforeRun) {

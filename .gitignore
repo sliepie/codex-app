@@ -13,6 +13,9 @@ desktop/resources/*
 !desktop/resources/codex-computer-use.exe
 !desktop/resources/codex-computer-use.json
 !desktop/resources/store-owl-shell.json
+!desktop/resources/store-owl-shell/
+desktop/resources/store-owl-shell/*
+!desktop/resources/store-owl-shell/package.tar.gz
 !desktop/resources/cua_node/
 desktop/resources/cua_node/*
 !desktop/resources/cua_node/bin/
