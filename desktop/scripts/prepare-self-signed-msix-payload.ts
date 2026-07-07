@@ -1,8 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { stageStoreOwlMsixRoot, stageStoreOwlShellAppRoot } from "./stage-store-owl-shell.js";
-
-const windowsHostMode = process.env.CODEX_WINDOWS_HOST_MODE ?? "electron";
 
 type Options = {
   packageRoot: string;
@@ -59,11 +56,6 @@ const options = parseOptions(process.argv.slice(2));
 const entryPoint = path.join(options.packageRoot, "Codex.exe");
 if (!fs.existsSync(entryPoint)) {
   throw new Error(`Electron Forge did not produce the expected Windows entrypoint: ${entryPoint}`);
-}
-
-if (windowsHostMode === "store-owl") {
-  stageStoreOwlShellAppRoot(options.packageRoot);
-  stageStoreOwlMsixRoot(options.outputRoot);
 }
 
 const appRoot = path.join(options.outputRoot, "app");

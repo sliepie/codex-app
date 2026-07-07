@@ -10,13 +10,13 @@ Date: 2026-07-07
 | Windows ARM64 output | Default clean Electron testbed: `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64.zip` |
 | Windows package directory | `desktop/out/Codex-win32-arm64` |
 | macOS extracted app | `desktop/.cache/codex-app/extract-26.623.141536-build-4753/Codex.app` |
-| Tracked Store/Owl shell payload | Opt-in `CODEX_WINDOWS_HOST_MODE=store-owl` archive `desktop/resources/store-owl-shell/package.tar.gz` from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` |
+| Tracked Store/Owl shell payload | Parked archive `desktop/resources/store-owl-shell/package.tar.gz` from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; not wired into the clean Electron package |
 | Vendored Node REPL helper | `desktop/resources/cua_node/bin/node_repl.exe` from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` |
 | Vendored Chrome extension host helper | `desktop/resources/extension-host.exe` from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` |
-| Vendored Computer Use helper fallback | `desktop/resources/codex-computer-use.exe` from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` |
-| GitHub-release hydrated Tectonic fallback | `tectonic-0.16.9-x86_64-pc-windows-msvc.zip` from `tectonic-typesetting/tectonic` |
+| Vendored Computer Use helper | `desktop/resources/codex-computer-use.exe` from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; explicit x64 exception |
+| GitHub-release hydrated Tectonic | `tectonic-0.16.9-x86_64-pc-windows-msvc.zip` from `tectonic-typesetting/tectonic`; explicit x64 exception |
 | Resource binary exception policy | `desktop/scripts/resource-binary-exceptions.ts` enforced by `npm run verify:windows-arm64-resource-binaries` |
-| Store architecture check | Microsoft Store package `9PLM9XGG6VKS` installed `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; opt-in Store/Owl shell, Node REPL, and Chrome extension-host are ARM64, while Computer Use remains x64 |
+| Store architecture check | Microsoft Store package `9PLM9XGG6VKS` installed `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; parked Store/Owl shell, Node REPL, and Chrome extension-host are ARM64, while Computer Use remains x64 |
 
 ## Version Match
 
@@ -27,11 +27,11 @@ Date: 2026-07-07
 | Electron | refresh manifest = `41.2.0` | `desktop/package.json` dependency = `41.2.0` | Match |
 | Codex CLI | release payload = `rust-v0.128.0` | `resources/codex.exe --version` = `codex-cli 0.128.0` | Match |
 | CLI helper binaries | release payload = `rust-v0.128.0` | Windows helper `FileVersion` = `0.128.0` | Match |
-| Store/Owl shell payload | Store package `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` | `app/chrome.dll` SHA-256 = `ebc3bfb9ef51562e93ebf64b22744da3cdd1b8f2b810a57fcbd2d9d1eb806602`; `app/Codex.exe` SHA-256 = `69ca228f639e40db94304971ad226bbf47d877fcfa4537409224c141e1b39f17` | Tracked opt-in Store/Owl ARM64 shell payload |
+| Store/Owl shell payload | Store package `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` | `app/chrome.dll` SHA-256 = `ebc3bfb9ef51562e93ebf64b22744da3cdd1b8f2b810a57fcbd2d9d1eb806602`; `app/Codex.exe` SHA-256 = `69ca228f639e40db94304971ad226bbf47d877fcfa4537409224c141e1b39f17` | Parked Store/Owl ARM64 shell payload |
 | Node REPL helper | Store package `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` | `resources/cua_node/bin/node_repl.exe` SHA-256 = `3e2fb244544c834730108caeea4fdafe3e8c3353fb611b71832b2c5897cfaac6` | Store-vendored ARM64 helper |
 | Chrome extension host helper | Store package `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` | `resources/extension-host.exe` SHA-256 = `585ad4fb9e91e2d683a6ef42a9dc37f7fb3bfdb703bcc42a3e3d22d02750c0cc` | Store-vendored ARM64 helper |
-| Computer Use helper fallback | Store package `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` | `resources/codex-computer-use.exe` SHA-256 = `f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03` | Explicit x64 exception |
-| Tectonic fallback | Public release `tectonic@0.16.9` | `tectonic.exe` SHA-256 = `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb`; asset digest = `sha256:131a24604785a9600989a3d91225f597df52ac06f00aeffe86fd529f99ee5cdd` | `hydrate:cli` x64 exception |
+| Computer Use helper | Store package `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` | `resources/codex-computer-use.exe` SHA-256 = `f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03` | Explicit x64 exception |
+| Tectonic | Public release `tectonic@0.16.9` | `tectonic.exe` SHA-256 = `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb`; asset digest = `sha256:131a24604785a9600989a3d91225f597df52ac06f00aeffe86fd529f99ee5cdd` | `hydrate:cli` x64 exception |
 
 ## Architecture Summary
 
@@ -41,7 +41,7 @@ Date: 2026-07-07
 | Windows ARM64 output | 31 PE files in the clean Electron testbed | Uses the Electron ARM64 host, Store-vendored ARM64 helpers for `resources/cua_node/bin/node_repl.exe` and Chrome plugin `extension-host.exe`, plus explicit `x64` exceptions for Computer Use `codex-computer-use.exe` and LaTeX `tectonic.exe` |
 | Rebuilt native module cache | 1 PE file | `better_sqlite3.node` is `ARM64`; `.forge-meta` is `arm64--145` |
 
-The produced Windows package contains no `.node` files in `resources/app.asar` and no `resources/app.asar.unpacked` directory. The local native cache is rebuilt for ARM64, but no native module is emitted as a separate file in the produced package.
+The produced Windows package contains no `.node` files in `resources/app.asar`. Native module payloads are emitted under `resources/app.asar.unpacked` only when Electron Forge unpacks them for the ARM64 build.
 
 The Windows ARM64 package is ARM64 by default. Any x64 PE payload must match the named exception policy in `desktop/scripts/resource-binary-exceptions.ts`; unlisted non-ARM64 `.dll`, `.exe`, or `.node` files fail `npm run verify:windows-arm64-resource-binaries`.
 
@@ -94,7 +94,6 @@ The Windows ARM64 package is ARM64 by default. Any x64 PE payload must match the
 | `d3dcompiler_47.dll` | `ARM64` | `10.0.26100.4654` |
 | `dxcompiler.dll` | `ARM64` | `1.9.2602.0` |
 | `dxil.dll` | `ARM64` | `101.7.2308.24` |
-| `chrome.dll` | `ARM64` | Store/Owl shell runtime `149.0.7827.197` |
 | `libEGL.dll` | `ARM64` | `2.1.27045` |
 | `libGLESv2.dll` | `ARM64` | `2.1.27045` |
 | `resources/codex-command-runner.exe` | `ARM64` | `0.128.0` |

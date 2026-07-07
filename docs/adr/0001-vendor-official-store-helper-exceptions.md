@@ -1,4 +1,4 @@
-# 0001 Vendor official x64 Store binary fallbacks
+# 0001 Vendor Official Store Helper Exceptions
 
 ## Status
 
@@ -18,9 +18,9 @@ The bundled Computer Use plugin needs a Windows helper executable. The public ap
 
 ## Decision
 
-Use the Store package only as a fallback source for Windows ARM64 payloads that cannot be built, downloaded from a public source, or hydrated from the macOS app.
+Use the Store package only as the source for explicitly vendored Windows helper payloads that cannot be built, downloaded from a public source, or hydrated from the macOS app.
 
-Use the latest official closed-source Store `node_repl.exe`, Chrome `extension-host.exe`, and Computer Use `codex-computer-use.exe` as committed vendored fallbacks. `node_repl.exe` and Chrome `extension-host.exe` are ARM64 when the Store package provides ARM64 binaries; Computer Use remains an x64 fallback until a Windows ARM64-native equivalent can be compiled, downloaded, or otherwise obtained.
+Use the latest official closed-source Store `node_repl.exe`, Chrome `extension-host.exe`, and Computer Use `codex-computer-use.exe` as committed vendored helper binaries. `node_repl.exe` and Chrome `extension-host.exe` are ARM64 when the Store package provides ARM64 binaries; Computer Use remains an explicit x64 exception until a Windows ARM64-native equivalent can be compiled, downloaded, or otherwise obtained.
 
 Hydration may install or upgrade the official Microsoft Store Codex app (`9PLM9XGG6VKS`), copy `node_repl.exe`, `extension-host.exe`, and `codex-computer-use.exe` from the installed package location, and uninstall Codex afterward only if the script installed it into a previously missing state. These binary updates must always come from that official Microsoft Store package with the `OpenAI.Codex` package identity; `OpenAI.Codex.Arm64Dev`, local manual paths, copied package folders, appcast artifacts, GitHub release assets, npm packages, and other non-Store sources are not valid update sources.
 
@@ -30,7 +30,7 @@ Validation must keep the package ARM64 by default and treat every Store-vendored
 
 ## Consequences
 
-- The Windows ARM64 package becomes intentionally mixed-architecture while this fallback is in use.
+- The Windows ARM64 package contains explicit x64 exceptions while ARM64-native helper binaries are unavailable.
 - Node REPL tool support can work before an ARM64-native `node_repl` exists.
 - The bundled Chrome plugin can use the official Windows native messaging host while the app package remains ARM64.
 - The bundled Computer Use plugin can use the official Windows helper while the app package remains ARM64.

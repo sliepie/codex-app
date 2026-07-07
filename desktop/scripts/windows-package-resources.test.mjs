@@ -1103,7 +1103,7 @@ test("discovers source-only native packages that declare binding.gyp", () => {
   ]);
 });
 
-test("prunes unused node-pty fallback and debug payloads", () => {
+test("prunes unused node-pty alternate and debug payloads", () => {
   const nodeModulesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-native-modules-"));
   const nodePtyRoot = path.join(nodeModulesRoot, "node-pty");
 
@@ -1345,7 +1345,7 @@ test("allows the upstream bundle to omit the browser plugin", () => {
   );
 });
 
-test("keeps generated plugin resources and makes Codex++ package integration opt-in", () => {
+test("keeps generated plugin resources without Codex++ package integration", () => {
   const config = require(path.join(desktopRoot, "forge.config.js"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/plugins"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
@@ -1389,13 +1389,11 @@ test("keeps generated plugin resources and makes Codex++ package integration opt
   assert.match(loaderSource, /fs\.readSync\(/);
 
   const forgeSource = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
-  assert.match(forgeSource, /const windowsHostMode = process\.env\.CODEX_WINDOWS_HOST_MODE \?\? 'electron'/);
-  assert.match(forgeSource, /const enableCodexPlusPlus = process\.env\.CODEX_ENABLE_CODEX_PLUSPLUS === '1'/);
-  assert.match(forgeSource, /originalMain: recoveredOriginalMain\(upstreamPackageJson\)/);
+  assert.doesNotMatch(forgeSource, /CODEX_WINDOWS_HOST_MODE|CODEX_ENABLE_CODEX_PLUSPLUS/);
   assert.match(forgeSource, /packageJson\.main = recoveredOriginalMain\(upstreamPackageJson\)/);
   assert.match(forgeSource, /path\.posix\.isAbsolute\(normalizedMain\)/);
   assert.match(forgeSource, /normalizedMain\.startsWith\('\.\.\/'\)/);
-  assert.match(forgeSource, /assertCodexPlusPlusPackageInputs\(buildPath\)/);
+  assert.doesNotMatch(forgeSource, /assertCodexPlusPlusPackageInputs|codex-plusplus\/loader\.cjs/);
 });
 
 function ensureRecoveredPackageForForgeTest(t) {
@@ -1444,32 +1442,6 @@ function runForgeAfterCopyExtraResources(config, buildPath) {
   });
 }
 
-function loadForgeConfigWithEnv(t, env) {
-  const configPath = path.join(desktopRoot, "forge.config.js");
-  const previousEnv = {};
-  for (const [key, value] of Object.entries(env)) {
-    previousEnv[key] = process.env[key];
-    if (value === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = value;
-    }
-  }
-  delete require.cache[require.resolve(configPath)];
-  const config = require(configPath);
-  t.after(() => {
-    for (const [key, value] of Object.entries(previousEnv)) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-    delete require.cache[require.resolve(configPath)];
-  });
-  return config;
-}
-
 test("Forge package prunes macOS plugin resources before ZIP makers run", async (t) => {
   const config = require(path.join(desktopRoot, "forge.config.js"));
   const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-plugin-prune-"));
@@ -1492,10 +1464,7 @@ test("Forge package prunes macOS plugin resources before ZIP makers run", async 
 
 test("Forge package uses a plain Electron recovered main by default", async (t) => {
   ensureRecoveredPackageForForgeTest(t);
-  const config = loadForgeConfigWithEnv(t, {
-    CODEX_ENABLE_CODEX_PLUSPLUS: undefined,
-    CODEX_WINDOWS_HOST_MODE: undefined,
-  });
+  const config = require(path.join(desktopRoot, "forge.config.js"));
   const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-electron-testbed-"));
   t.after(() => fs.rmSync(buildPath, { recursive: true, force: true }));
 
@@ -1507,21 +1476,6 @@ test("Forge package uses a plain Electron recovered main by default", async (t) 
   assert.equal(packageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
   assert.equal(packageJson.__codexpp, undefined);
   assert.equal(packageJson.codexWindowsPackageIdentity, undefined);
-});
-
-test("Forge preflight fails when hydrated Codex++ runtime is missing", async (t) => {
-  ensureRecoveredPackageForForgeTest(t);
-  const config = loadForgeConfigWithEnv(t, { CODEX_ENABLE_CODEX_PLUSPLUS: "1" });
-  const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-preflight-"));
-  t.after(() => fs.rmSync(buildPath, { recursive: true, force: true }));
-
-  writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
-  writeFixture(path.join(buildPath, "codex-plusplus", "loader.cjs"), "module.exports = {};\n");
-
-  await assert.rejects(
-    () => runForgeAfterCopy(config, buildPath),
-    /Missing required packaged file: codex-plusplus\/runtime\/main\.js/,
-  );
 });
 
 function createCodexPlusPlusLoaderFixture(t) {
@@ -2726,7 +2680,7 @@ test("Codex app hydration guards missing OWL Electron feature binding", () => {
   assert.equal(secondPatch.changed, false);
 });
 
-test("Codex app hydration accepts upstream OWL binding fallback", () => {
+test("Codex app hydration accepts upstream OWL binding null path", () => {
   const source =
     "var Ve=`electron_common_owl_features`,Ge=t.Yc({isOwlFeatureEnabled:t.Wc(e=>typeof e==`function`)});function Qe(){let e=process._linkedBinding;if(typeof e!=`function`)return null;let t;try{t=e.call(process,Ve)}catch(e){if(st(e))return null;throw e}return Ge.parse(t)}";
 
@@ -3123,14 +3077,11 @@ test("self-signed appinstaller updates immediately on launch", () => {
   );
 });
 
-test("hardcodes packaged Windows updater metadata to the self-signed identity", () => {
+test("clean Electron package does not inject self-signed Windows identity metadata", () => {
   const source = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
-  assert.match(source, /const codexWindowsPackageIdentity = 'Sliepie\.Codex\.SelfSigned';/);
-  assert.match(source, /if \(enableCodexPlusPlus\) \{/);
-  assert.match(
-    source,
-    /packageJson\.codexWindowsPackageIdentity = codexWindowsPackageIdentity;/,
-  );
+  assert.doesNotMatch(source, /const codexWindowsPackageIdentity|Sliepie\.Codex\.SelfSigned/);
+  assert.match(source, /delete packageJson\.codexWindowsPackageIdentity;/);
+  assert.match(source, /delete packageJson\.__codexpp;/);
 });
 
 test("Store binary updater only accepts the official Store package family", () => {
@@ -3250,15 +3201,14 @@ test("Store package updater refreshes helpers and Store Owl shell together", () 
   assert.equal(fs.existsSync(path.join(desktopRoot, "scripts", "update-store-owl-shell.ps1")), false);
 });
 
-test("Store Owl shell staging replaces Forge Electron outputs", () => {
+test("Store Owl shell staging is not wired into the clean Electron package path", () => {
   const forgeSource = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
   const prepareSource = fs.readFileSync(path.join(desktopRoot, "scripts", "prepare-self-signed-msix-payload.ts"), "utf8");
   const stageSource = fs.readFileSync(path.join(desktopRoot, "scripts", "stage-store-owl-shell.ts"), "utf8");
 
-  assert.match(forgeSource, /postPackage: async \(_forgeConfig, packageResult\)/);
-  assert.match(forgeSource, /stageStoreOwlShellPackageOutputs\(packageResult\)/);
-  assert.match(forgeSource, /if \(windowsHostMode !== 'store-owl'\) \{/);
-  assert.match(forgeSource, /require\('\.\/\.cache\/scripts\/stage-store-owl-shell\.js'\)/);
+  assert.doesNotMatch(forgeSource, /postPackage: async \(_forgeConfig, packageResult\)/);
+  assert.doesNotMatch(forgeSource, /stageStoreOwlShellPackageOutputs|stageStoreOwlShellAppRoot/);
+  assert.doesNotMatch(forgeSource, /require\('\.\/\.cache\/scripts\/stage-store-owl-shell\.js'\)/);
   assert.doesNotMatch(forgeSource, /storeOwlShellPayloadCacheExists/);
   assert.doesNotMatch(forgeSource, /Skipping Store\/Owl shell staging/);
   assert.match(stageSource, /const preservedPackagedAppRootEntries = new Set\(\["resources"\]\)/);
@@ -3290,9 +3240,7 @@ test("Store Owl shell staging replaces Forge Electron outputs", () => {
   assert.match(stageSource, /"Codex\.exe", "chrome\.dll", "owl-shell-runtime\.json", "resources"/);
   assert.doesNotMatch(stageSource, /new Set\(\["resources", "locales"\]\)/);
 
-  assert.match(prepareSource, /if \(windowsHostMode === "store-owl"\) \{/);
-  assert.match(prepareSource, /stageStoreOwlShellAppRoot\(options\.packageRoot\)/);
-  assert.match(prepareSource, /stageStoreOwlMsixRoot\(options\.outputRoot\)/);
+  assert.doesNotMatch(prepareSource, /stageStoreOwlShellAppRoot|stageStoreOwlMsixRoot|CODEX_WINDOWS_HOST_MODE/);
   assert.doesNotMatch(prepareSource, /assets", "windows", "msix"/);
 });
 
@@ -3321,15 +3269,12 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
     path.join(desktopRoot, "scripts", "store-owl-shell-common.ts"),
     "utf8",
   );
-  assert.match(skillSource, /replacing the old Forge\/Electron shell/);
+  assert.match(skillSource, /not wired into the default Windows package/);
   assert.match(skillSource, /app\/Codex\.exe/);
   assert.match(skillSource, /app\/chrome\.dll/);
-  assert.match(skillSource, /Microsoft Store package as the fallback source/);
   assert.match(skillSource, /Do not copy Store `app\/resources` or Store `app\/resources\/app\.asar`/);
   assert.match(skillSource, /matching public macOS appcast version\/build/);
-  assert.match(skillSource, /stage the tracked Store\/Owl payload into the built MSIX\/AppX payload/);
-  assert.match(skillSource, /metadata or payload automation alone is not a completed Store\/Owl shell change/);
-  assert.match(skillSource, /package staging path/);
+  assert.match(skillSource, /not a completed Windows package change/);
   assert.match(skillSource, /npm --prefix desktop run update:store-package/);
   assert.doesNotMatch(skillSource, /Choose exactly one branch|Store\/Owl Shell Migration Branch|Helper Binary Branch/);
   assert.doesNotMatch(validationSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\]\$PackageName/);
