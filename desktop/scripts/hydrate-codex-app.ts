@@ -3382,6 +3382,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   patchRecoveredWindowsPrimaryWindowTaskbar(recoveredRoot);
   patchRecoveredOwlFeatureBinding(recoveredRoot);
   patchRecoveredOwlFeatureSwitch(recoveredRoot);
+  patchRecoveredMessageRailStatsigGate(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
   fs.writeFileSync(
