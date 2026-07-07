@@ -3381,6 +3381,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   patchWindowsSelfSignedBundle(recoveredRoot);
   patchRecoveredWindowsPrimaryWindowTaskbar(recoveredRoot);
   patchRecoveredOwlFeatureBinding(recoveredRoot);
+  patchRecoveredOwlFeatureSwitch(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
   fs.writeFileSync(
