@@ -25,7 +25,7 @@ Date: 2026-07-07
 | --- | --- | --- | --- |
 | App version | Store metadata `appVersion` = `26.623.141536` | package app archive hydrated from `26.623.141536` | Match |
 | Build number | Store metadata `appBuildNumber` = `4753` | package app archive hydrated from build `4753` | Match |
-| Electron | refresh manifest = `41.2.0` | `desktop/package.json` dependency = `41.2.0` | Match |
+| Electron | npm registry latest stable checked = `43.0.0` | `desktop/package.json` dependency = `43.0.0` | Match |
 | Codex CLI | release payload = `rust-v0.128.0` | `resources/codex.exe --version` = `codex-cli 0.128.0` | Match |
 | CLI helper binaries | release payload = `rust-v0.128.0` | Windows helper `FileVersion` = `0.128.0` | Match |
 | Store/Owl shell payload | Store package `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` | `app/chrome.dll` SHA-256 = `ebc3bfb9ef51562e93ebf64b22744da3cdd1b8f2b810a57fcbd2d9d1eb806602`; `app/Codex.exe` SHA-256 = `69ca228f639e40db94304971ad226bbf47d877fcfa4537409224c141e1b39f17` | Parked Store/Owl ARM64 shell payload |
@@ -40,7 +40,7 @@ Date: 2026-07-07
 | --- | ---: | --- |
 | macOS source app | 36 Mach-O files | 31 `arm64`, 5 Sparkle universal `fat(2)` files |
 | Windows ARM64 output | 31 PE files in the clean Electron testbed | Uses the Electron ARM64 host, Store-vendored ARM64 helpers for `resources/cua_node/bin/node_repl.exe` and Chrome plugin `extension-host.exe`, plus explicit `x64` exceptions for Computer Use `codex-computer-use.exe` and LaTeX `tectonic.exe` |
-| Rebuilt native module cache | 1 PE file | `better_sqlite3.node` is `ARM64`; `.forge-meta` is `arm64--145` |
+| Rebuilt native module cache | Electron native payloads | `better-sqlite3` and `node-pty` are rebuilt for Windows ARM64 Electron ABI `148`; `.forge-meta` is `arm64--148` |
 
 The produced Windows package contains no `.node` files in `resources/app.asar`. Native module payloads are emitted under `resources/app.asar.unpacked` only when Electron Forge unpacks them for the ARM64 build.
 
