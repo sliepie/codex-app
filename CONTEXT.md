@@ -41,7 +41,7 @@ The official upstream Codex Desktop release selected for Windows ARM64 packaging
 A refresh path that installs or upgrades the official Microsoft Store Codex app, copies `node_repl.exe`, `extension-host.exe`, and `codex-computer-use.exe` from the installed package, and uninstalls Codex only if the script installed it into a previously missing state.
 
 **Windows ARM64 package plan**:
-The single ordered script plan for ARM64 Windows packaging. It builds the updater, hydrates upstream app resources with only the Windows primary taskbar-window patch, hydrates required Windows release assets, verifies browser runtime compatibility, runs Forge, and verifies resource-binary architecture policy.
+The single ordered script plan for ARM64 Windows packaging. It builds the updater, hydrates upstream app resources with Codex++ plus the Electron-compatible recovered-source patches, hydrates required Windows release assets, verifies browser runtime compatibility, runs Forge, and verifies resource-binary architecture policy.
 
 **Bundled UI tweak selector**:
 A CSS selector shipped by a bundled Codex++ tweak under `desktop/codex-plusplus/tweaks/`.
@@ -53,7 +53,8 @@ A CSS selector shipped by a bundled Codex++ tweak under `desktop/codex-plusplus/
 - The **Microsoft Store package** is a **Store helper source**, not the default source for payloads that are available from public release assets or the macOS app.
 - Every **Resource binary exception** must live in `desktop/scripts/resource-binary-exceptions.ts` and be enforced by `npm run verify:windows-arm64-resource-binaries`.
 - **`node_repl`**, **`extension-host`**, and the **Computer Use helper** are **Vendored resource binaries** until they no longer need to be copied from the Microsoft Store package.
-- The Windows package is a **clean Electron testbed**: no Codex++ loader, no Codex++ hydration, no custom host swap, and no recovered-source feature patches except the Windows primary taskbar-window patch, the Electron Owl binding compatibility patch, and Windows primary-runtime routing. It does not enable OWL features, message rail gates, window-service rewrites, or Work Louder stubs.
+- The Windows package uses the **Electron host** with Codex++ restored: the packaged app starts through `codex-plusplus/loader.cjs`, hydrates Codex++ runtime assets, applies the Windows primary taskbar-window patch, and restores the Electron-compatible recovered-source patches for self-signed Windows bundles, OWL features, message rail, Codex window services, and the Codex Micro / Work Louder cleanup.
+- The **Store/Owl host swap** remains parked outside the build path. The default Windows package must not replace the Forge/Electron root executable with Store/Owl `Codex.exe`, `chrome.dll`, or `owl-shell-runtime.json`, and no Store/Owl shell payload archive or metadata is tracked.
 - **`node_repl`** and **`extension-host`** use ARM64 binaries from the Microsoft Store package when available; the **Computer Use helper** may use the latest official closed-source x64 binary until a Windows ARM64 equivalent exists.
 - A **Temporary Store-install scrape** refreshes the vendored `desktop/resources/cua_node/bin/node_repl.exe`, `desktop/resources/extension-host.exe`, and `desktop/resources/codex-computer-use.exe` binaries from the official Microsoft Store package for product ID `9PLM9XGG6VKS`; non-Store sources are not valid for these vendored helper updates.
 - **Tectonic** is a public GitHub-release hydrated **Resource binary exception** from `tectonic-typesetting/tectonic` until a Windows ARM64 release asset exists.
