@@ -3383,6 +3383,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   patchRecoveredOwlFeatureBinding(recoveredRoot);
   patchRecoveredOwlFeatureSwitch(recoveredRoot);
   patchRecoveredMessageRailStatsigGate(recoveredRoot);
+  patchRecoveredCodexWindowServices(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
   fs.writeFileSync(
