@@ -7,7 +7,7 @@ Date: 2026-07-07
 | Artifact | Value |
 | --- | --- |
 | macOS source app | Store-matched public appcast release `Codex-darwin-arm64-26.623.141536.zip` build `4753` |
-| Windows ARM64 output | Default clean Electron testbed: `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64.zip` |
+| Windows ARM64 output | Default clean Electron testbed with the Windows primary taskbar-window patch: `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64.zip` |
 | Windows package directory | `desktop/out/Codex-win32-arm64` |
 | macOS extracted app | `desktop/.cache/codex-app/extract-26.623.141536-build-4753/Codex.app` |
 | Tracked Store/Owl shell payload | Parked archive `desktop/resources/store-owl-shell/package.tar.gz` from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; not wired into the clean Electron package |
@@ -17,7 +17,7 @@ Date: 2026-07-07
 | GitHub-release hydrated Tectonic | `tectonic-0.16.9-x86_64-pc-windows-msvc.zip` from `tectonic-typesetting/tectonic`; explicit x64 exception |
 | Resource binary exception policy | `desktop/scripts/resource-binary-exceptions.ts` enforced by `npm run verify:windows-arm64-resource-binaries` |
 | Store architecture check | Microsoft Store package `9PLM9XGG6VKS` installed `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; parked Store/Owl shell, Node REPL, and Chrome extension-host are ARM64, while Computer Use remains x64 |
-| Clean testbed policy | No Codex++ loader, no Codex++ hydration, no Store/Owl host swap, and no recovered-source feature patches in the default Windows package path |
+| Clean testbed policy | No Codex++ loader, no Codex++ hydration, no Store/Owl host swap, and no recovered-source feature patches except the Windows primary taskbar-window patch in the default Windows package path |
 
 ## Version Match
 

@@ -27,6 +27,7 @@ public static class WindowFlags {
   public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
   [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
   [DllImport("user32.dll", SetLastError = true)] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
   [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)] public static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
   [DllImport("user32.dll", EntryPoint = "GetWindowLongW", SetLastError = true)] public static extern int GetWindowLong32(IntPtr hWnd, int nIndex);
@@ -59,6 +60,7 @@ function Get-PackageWindows {
     if (-not $processPath.StartsWith($InstallLocation, [System.StringComparison]::OrdinalIgnoreCase)) { return $true }
     $windows.Add([pscustomobject]@{
       Handle = $windowHandle
+      Owner = [WindowFlags]::GetWindow($windowHandle, 4).ToInt64()
       ProcessId = $processId
       ProcessName = $process.ProcessName
       Title = Get-WindowTitle -WindowHandle $windowHandle
@@ -83,14 +85,19 @@ do {
   if ($windows.Count -gt 0) { break }
 } while ((Get-Date) -lt $deadline)
 if ($windows.Count -eq 0) { throw "No visible primary window found for package $PackageFullName." }
+$wsExAppWindow = 0x00040000
+$wsExNoActivate = 0x08000000
+$wsExToolWindow = 0x00000080
 $validWindow = $windows | Where-Object {
-  ($_.ExtendedStyle -band 0x00040000) -ne 0 -and ($_.ExtendedStyle -band 0x08000000) -eq 0
+  $hasAppWindow = ($_.ExtendedStyle -band $wsExAppWindow) -ne 0
+  $isUnownedTaskbarWindow = $_.Owner -eq 0 -and ($_.ExtendedStyle -band $wsExToolWindow) -eq 0
+  ($hasAppWindow -or $isUnownedTaskbarWindow) -and ($_.ExtendedStyle -band $wsExNoActivate) -eq 0
 } | Select-Object -First 1
 if ($null -eq $validWindow) {
-  $details = $windows | ForEach-Object { "$($_.ProcessName)[$($_.ProcessId)] hwnd=$($_.Handle) exStyle=0x$($_.ExtendedStyle.ToString('x')) title=$($_.Title)" }
-  throw "No visible package window had WS_EX_APPWINDOW without WS_EX_NOACTIVATE.\`n$($details -join [Environment]::NewLine)"
+  $details = $windows | ForEach-Object { "$($_.ProcessName)[$($_.ProcessId)] hwnd=$($_.Handle) owner=$($_.Owner) exStyle=0x$($_.ExtendedStyle.ToString('x')) title=$($_.Title)" }
+  throw "No visible package window was taskbar-eligible without WS_EX_NOACTIVATE.\`n$($details -join [Environment]::NewLine)"
 }
-Write-Output "Window flags ok: $($validWindow.ProcessName)[$($validWindow.ProcessId)] hwnd=$($validWindow.Handle) exStyle=0x$($validWindow.ExtendedStyle.ToString('x'))"
+Write-Output "Window flags ok: $($validWindow.ProcessName)[$($validWindow.ProcessId)] hwnd=$($validWindow.Handle) owner=$($validWindow.Owner) exStyle=0x$($validWindow.ExtendedStyle.ToString('x'))"
 `;
   execFileSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script], {
     stdio: "inherit",

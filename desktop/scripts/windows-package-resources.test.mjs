@@ -27,6 +27,7 @@ const {
   patchMarkdownOperationDirectiveCrashSource,
   pruneWorkLouderPackages,
   patchOwlFeatureBindingSource,
+  patchRecoveredWindowsPrimaryWindowTaskbarSource,
   patchRecoveredMessageRailStatsigGateSource,
   patchRecoveredOwlFeatureSwitchSource,
   pruneUnusedNativePayloads,
@@ -2542,7 +2543,7 @@ test("log cleanup helper blocks any Codex process before moving SQLite logs", ()
   assert.match(scriptSource, /Move-Item -LiteralPath \$file\.FullName -Destination \$destination -Force/);
 });
 
-test("Codex app hydration keeps Codex++ and recovered-source patches out of the clean testbed path", () => {
+test("Codex app hydration keeps Codex++ and unrelated recovered-source patches out of the Windows taskbar fix path", () => {
   const scriptSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
     "utf8",
@@ -2555,6 +2556,7 @@ test("Codex app hydration keeps Codex++ and recovered-source patches out of the 
   assert.match(scriptSource, /releaseItemBuildNumber\(candidate\) === buildNumber/);
   assert.match(scriptSource, /findReleaseItem\(await appcastResponse\.text\(\), options\.version, options\.buildNumber\)/);
   assert.match(scriptSource, /syncBundledPluginResources\(appResourcesRoot\);/);
+  assert.match(scriptSource, /patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
   assert.match(scriptSource, /syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
   assert.doesNotMatch(scriptSource, /options\.codexPlusPlus|defaultCodexPlusPlusRepo/);
   assert.doesNotMatch(scriptSource, /CODEX_PLUS_PLUS|--codex-plusplus/);
@@ -2566,6 +2568,28 @@ test("Codex app hydration keeps Codex++ and recovered-source patches out of the 
   assert.doesNotMatch(scriptSource, /^\s+patchRecoveredCodexWindowServices\(recoveredRoot\);/m);
   assert.doesNotMatch(scriptSource, /^\s+patchRecoveredCodexMicroService\(recoveredRoot\);/m);
   assert.doesNotMatch(scriptSource, /^\s+pruneWorkLouderPackages\(recoveredRoot\);/m);
+});
+
+test("Codex app hydration makes the recovered Windows primary window focusable and taskbar-visible", () => {
+  const source =
+    "function j9({appearance:e,opaqueWindowSurfaceEnabled:t,platform:n,windowZoom:r=1}){switch(e){case`primary`:return n===`darwin`?t?{titleBarStyle:`hiddenInset`,trafficLightPosition:d9(r)}:{vibrancy:`menu`,titleBarStyle:`hiddenInset`,trafficLightPosition:d9(r)}:n===`win32`||n===`linux`?{titleBarStyle:`hidden`,titleBarOverlay:f9(r)}:{titleBarStyle:`default`};case`hud`:return{}}}";
+
+  const patch = patchRecoveredWindowsPrimaryWindowTaskbarSource(source);
+
+  assert.ok(patch);
+  assert.equal(patch.changed, true);
+  assert.match(
+    patch.source,
+    /n===`win32`\|\|n===`linux`\?\{titleBarStyle:`hidden`,titleBarOverlay:f9\(r\),skipTaskbar:!1,focusable:!0\/\* Codex Windows primary taskbar window \*\/\}/,
+  );
+  assert.match(
+    patch.source,
+    /n===`darwin`\?t\?\{titleBarStyle:`hiddenInset`,trafficLightPosition:d9\(r\)\}:\{vibrancy:`menu`,titleBarStyle:`hiddenInset`,trafficLightPosition:d9\(r\)\}/,
+  );
+
+  const secondPatch = patchRecoveredWindowsPrimaryWindowTaskbarSource(patch.source);
+  assert.ok(secondPatch);
+  assert.equal(secondPatch.changed, false);
 });
 
 test("authenticates GitHub release asset downloads when a token is available", () => {
@@ -3286,6 +3310,10 @@ test("Store Owl shell validation has a reusable window flag smoke check", () => 
   assert.doesNotMatch(smokeSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\] \$PackageName/);
   assert.match(smokeSource, /WS_EX_APPWINDOW|wsExAppWindow/);
   assert.match(smokeSource, /WS_EX_NOACTIVATE|wsExNoActivate/);
+  assert.match(smokeSource, /WS_EX_TOOLWINDOW|wsExToolWindow/);
+  assert.match(smokeSource, /GetWindow\(/);
+  assert.match(smokeSource, /Owner/);
+  assert.match(smokeSource, /taskbar-eligible/);
   assert.match(smokeSource, /shell:AppsFolder/);
   assert.match(smokeSource, /GetWindowLongPtr/);
   assert.match(smokeSource, /Stop-Process -Id \$_\.Id -Force/);

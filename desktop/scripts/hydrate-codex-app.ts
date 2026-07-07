@@ -2711,6 +2711,67 @@ const enabledOwlFeaturesSwitchValue = enabledOwlFeatures.join(",");
 const enabledOwlFeaturesMarker = "Codex++ enable Owl Electron features";
 const messageRailStatsigGate = "2551582477";
 const messageRailStatsigGateMarker = "Codex++ enable message rail";
+const windowsPrimaryWindowTaskbarOptionsMarker = "Codex Windows primary taskbar window";
+
+export function patchRecoveredWindowsPrimaryWindowTaskbarSource(source: string): OwlFeatureBindingPatch | null {
+  if (!source.includes("case`primary`") || !source.includes("titleBarOverlay")) {
+    return null;
+  }
+
+  if (source.includes(windowsPrimaryWindowTaskbarOptionsMarker)) {
+    return { changed: false, source };
+  }
+
+  const optionsPattern = new RegExp(
+    `case\`primary\`:return (${identifierPattern})===\`darwin\`\\?(${identifierPattern})\\?\\{titleBarStyle:\`hiddenInset\`,trafficLightPosition:(${identifierPattern})\\((${identifierPattern})\\)\\}:\\{vibrancy:\`menu\`,titleBarStyle:\`hiddenInset\`,trafficLightPosition:\\3\\(\\4\\)\\}:\\1===\`win32\`\\|\\|\\1===\`linux\`\\?\\{titleBarStyle:\`hidden\`,titleBarOverlay:(${identifierPattern})\\(\\4\\)\\}:\\{titleBarStyle:\`default\`\\}`,
+  );
+  const optionsMatch = optionsPattern.exec(source);
+  if (!optionsMatch?.[1] || !optionsMatch[2] || !optionsMatch[3] || !optionsMatch[4] || !optionsMatch[5]) {
+    return null;
+  }
+
+  const [, platform, opaqueWindowSurfaceEnabled, trafficLightPosition, windowZoom, titleBarOverlay] =
+    optionsMatch;
+  return {
+    changed: true,
+    source: source.replace(
+      optionsPattern,
+      () =>
+        `case\`primary\`:return ${platform}===\`darwin\`?${opaqueWindowSurfaceEnabled}?{titleBarStyle:\`hiddenInset\`,trafficLightPosition:${trafficLightPosition}(${windowZoom})}:{vibrancy:\`menu\`,titleBarStyle:\`hiddenInset\`,trafficLightPosition:${trafficLightPosition}(${windowZoom})}:${platform}===\`win32\`||${platform}===\`linux\`?{titleBarStyle:\`hidden\`,titleBarOverlay:${titleBarOverlay}(${windowZoom}),skipTaskbar:!1,focusable:!0/* ${windowsPrimaryWindowTaskbarOptionsMarker} */}:{titleBarStyle:\`default\`}`,
+    ),
+  };
+}
+
+function patchRecoveredWindowsPrimaryWindowTaskbar(recoveredRoot: string): void {
+  const candidates = [readRecoveredOriginalMain(recoveredRoot), ...findRecoveredViteMainBundles(recoveredRoot)];
+  const seen = new Set<string>();
+  const diagnostics: string[] = [];
+
+  for (const relativePath of candidates) {
+    const normalized = relativePath.replace(/\\/g, "/").replace(/^\.\//, "");
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+
+    const filePath = path.join(recoveredRoot, normalized);
+    if (!fs.existsSync(filePath)) continue;
+
+    const source = fs.readFileSync(filePath, "utf8");
+    const patch = patchRecoveredWindowsPrimaryWindowTaskbarSource(source);
+    if (!patch) {
+      diagnostics.push(normalized);
+      continue;
+    }
+
+    if (patch.changed) {
+      fs.writeFileSync(filePath, patch.source, "utf8");
+    }
+
+    console.log("Patched Windows primary taskbar window in " + normalized);
+    return;
+  }
+
+  throw new Error("Could not patch Windows primary taskbar window. Checked: " + diagnostics.join(", "));
+}
 
 export function patchOwlFeatureBindingSource(source: string): OwlFeatureBindingPatch | null {
   if (!source.includes("electron_common_owl_features")) {
@@ -3296,6 +3357,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     ],
     { stdio: "inherit" },
   );
+  patchRecoveredWindowsPrimaryWindowTaskbar(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
   fs.writeFileSync(
