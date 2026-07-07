@@ -1346,13 +1346,13 @@ test("allows the upstream bundle to omit the browser plugin", () => {
   );
 });
 
-test("keeps generated plugin resources without Codex++ package integration", () => {
+test("keeps generated plugin resources with Codex++ package integration", () => {
   const config = require(path.join(desktopRoot, "forge.config.js"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/plugins"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
-  assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), true);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus-old/loader.cjs"), true);
-  assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), true);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);
   assert.equal(config.packagerConfig.ignore("/package.json.bak"), true);
   assert.equal(
     config.packagerConfig.ignore(
@@ -1362,17 +1362,17 @@ test("keeps generated plugin resources without Codex++ package integration", () 
   );
   assert.equal(
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json"),
-    true,
+    false,
   );
   assert.equal(
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-windows-menu-bar/manifest.json"),
-    true,
+    false,
   );
 
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
-  assert.equal(packageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
+  assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
 
   const loaderSource = fs.readFileSync(
     path.join(desktopRoot, "codex-plusplus", "loader.cjs"),
@@ -1391,10 +1391,11 @@ test("keeps generated plugin resources without Codex++ package integration", () 
 
   const forgeSource = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
   assert.doesNotMatch(forgeSource, /CODEX_WINDOWS_HOST_MODE|CODEX_ENABLE_CODEX_PLUSPLUS/);
-  assert.match(forgeSource, /packageJson\.main = recoveredOriginalMain\(upstreamPackageJson\)/);
+  assert.match(forgeSource, /packageJson\.main = codexPlusPlusMain/);
   assert.match(forgeSource, /path\.posix\.isAbsolute\(normalizedMain\)/);
   assert.match(forgeSource, /normalizedMain\.startsWith\('\.\.\/'\)/);
-  assert.doesNotMatch(forgeSource, /assertCodexPlusPlusPackageInputs|codex-plusplus\/loader\.cjs/);
+  assert.match(forgeSource, /assertCodexPlusPlusPackageInputs/);
+  assert.match(forgeSource, /codexPlusPlusMain = 'codex-plusplus\/loader\.cjs'/);
 });
 
 function ensureRecoveredPackageForForgeTest(t) {
@@ -1443,6 +1444,18 @@ function runForgeAfterCopyExtraResources(config, buildPath) {
   });
 }
 
+function writeCodexPlusPlusPackageFiles(buildPath) {
+  for (const relativePath of [
+    "codex-plusplus/loader.cjs",
+    "codex-plusplus/runtime/main.js",
+    "codex-plusplus/runtime/preload.js",
+    "codex-plusplus/LICENSE",
+    "codex-plusplus/release.json",
+  ]) {
+    writeFixture(path.join(buildPath, ...relativePath.split("/")), "codex-plusplus\n");
+  }
+}
+
 test("Forge package prunes macOS plugin resources before ZIP makers run", async (t) => {
   const config = require(path.join(desktopRoot, "forge.config.js"));
   const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-plugin-prune-"));
@@ -1463,19 +1476,22 @@ test("Forge package prunes macOS plugin resources before ZIP makers run", async 
   assert.equal(fs.existsSync(path.join(keptRoot, "codex-computer-use.exe")), true);
 });
 
-test("Forge package uses a plain Electron recovered main with self-signed updater identity", async (t) => {
+test("Forge package uses the Codex++ loader with self-signed updater identity", async (t) => {
   ensureRecoveredPackageForForgeTest(t);
   const config = require(path.join(desktopRoot, "forge.config.js"));
   const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-electron-testbed-"));
   t.after(() => fs.rmSync(buildPath, { recursive: true, force: true }));
 
   writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
+  writeCodexPlusPlusPackageFiles(buildPath);
 
   await runForgeAfterCopy(config, buildPath);
 
   const packageJson = JSON.parse(fs.readFileSync(path.join(buildPath, "package.json"), "utf8"));
-  assert.equal(packageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
-  assert.equal(packageJson.__codexpp, undefined);
+  assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
+  assert.deepEqual(packageJson.__codexpp, {
+    originalMain: "recovered/app-asar-extracted/.vite/build/bootstrap.js",
+  });
   assert.equal(packageJson.codexWindowsPackageIdentity, "Sliepie.Codex.SelfSigned");
 });
 
@@ -2418,9 +2434,15 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
-  assert.doesNotMatch(workflowSource, /codex_plus_plus|CODEX_PLUS_PLUS/);
+  assert.match(workflowSource, /codex_plus_plus_tag: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /codex_plus_plus_sha: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_sha \}\}/);
   assert.doesNotMatch(workflowSource, /Upstream Codex appcast/);
-  assert.doesNotMatch(workflowSource, /Codex\+\+/);
+  assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
+  assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
   assert.doesNotMatch(workflowSource, /PR_HEAD_SHA/);
   assert.match(workflowSource, /\$targetSha = \$env:BUILD_SHA/);
@@ -2430,17 +2452,19 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /gh release upload \$tag \$zip\.FullName[\s\S]*--clobber/);
 });
 
-test("release workflow keeps Codex++ out of package inputs and release metadata", () => {
+test("release workflow tracks Codex++ in package inputs and release metadata", () => {
   const workflowSource = fs.readFileSync(
     path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
     "utf8",
   );
 
-  assert.doesNotMatch(workflowSource, /codex_plus_plus|CODEX_PLUS_PLUS/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_URL/);
   assert.doesNotMatch(workflowSource, /Codex appcast:/);
-  assert.doesNotMatch(workflowSource, /Codex\+\+/);
+  assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
+  assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--notes "\$notes"/);
 });
@@ -2543,7 +2567,7 @@ test("log cleanup helper blocks any Codex process before moving SQLite logs", ()
   assert.match(scriptSource, /Move-Item -LiteralPath \$file\.FullName -Destination \$destination -Force/);
 });
 
-test("Codex app hydration keeps Codex++ patches out while applying Electron compatibility patches", () => {
+test("Codex app hydration restores Codex++ while applying Electron compatibility patches", () => {
   const scriptSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
     "utf8",
@@ -2556,11 +2580,16 @@ test("Codex app hydration keeps Codex++ patches out while applying Electron comp
   assert.match(scriptSource, /releaseItemBuildNumber\(candidate\) === buildNumber/);
   assert.match(scriptSource, /findReleaseItem\(await appcastResponse\.text\(\), options\.version, options\.buildNumber\)/);
   assert.match(scriptSource, /syncBundledPluginResources\(appResourcesRoot\);/);
+  assert.match(scriptSource, /options\.codexPlusPlusRepo/);
+  assert.match(scriptSource, /defaultCodexPlusPlusRepo = "b-nnett\/codex-plusplus"/);
+  assert.match(scriptSource, /CODEX_PLUS_PLUS|--codex-plusplus/);
+  assert.match(scriptSource, /await hydrateCodexPlusPlusRuntime\(/);
+  assert.match(
+    scriptSource,
+    /await hydrateCodexPlusPlusRuntime\([\s\S]*?options\.codexPlusPlusRepo[\s\S]*?options\.codexPlusPlusTag[\s\S]*?options\.codexPlusPlusSha[\s\S]*?\);[\s\S]*?patchWindowsSelfSignedBundle\(recoveredRoot\);[\s\S]*?patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);[\s\S]*?patchRecoveredOwlFeatureBinding\(recoveredRoot\);/,
+  );
   assert.match(scriptSource, /patchWindowsSelfSignedBundle\(recoveredRoot\);\s+patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
   assert.match(scriptSource, /syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
-  assert.doesNotMatch(scriptSource, /options\.codexPlusPlus|defaultCodexPlusPlusRepo/);
-  assert.doesNotMatch(scriptSource, /CODEX_PLUS_PLUS|--codex-plusplus/);
-  assert.doesNotMatch(scriptSource, /await hydrateCodexPlusPlusRuntime\(/);
   assert.match(scriptSource, /^\s+patchWindowsSelfSignedBundle\(recoveredRoot\);/m);
   assert.match(scriptSource, /^\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);/m);
   assert.doesNotMatch(scriptSource, /^\s+patchRecoveredOwlFeatureSwitch\(recoveredRoot\);/m);
@@ -3094,11 +3123,12 @@ test("self-signed appinstaller updates immediately on launch", () => {
   );
 });
 
-test("clean Electron package preserves self-signed Windows identity metadata", () => {
+test("Electron package enables Codex++ with self-signed Windows identity metadata", () => {
   const source = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
   assert.match(source, /packageJson\.codexWindowsPackageIdentity = 'Sliepie\.Codex\.SelfSigned';/);
   assert.doesNotMatch(source, /delete packageJson\.codexWindowsPackageIdentity;/);
-  assert.match(source, /delete packageJson\.__codexpp;/);
+  assert.match(source, /packageJson\.__codexpp = \{/);
+  assert.match(source, /originalMain: recoveredOriginalMain\(upstreamPackageJson\)/);
 });
 
 test("Store binary updater only accepts the official Store package family", () => {
