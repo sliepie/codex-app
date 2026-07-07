@@ -26,7 +26,7 @@ The Chrome plugin's Windows native messaging host. The ARM64 package uses the of
 The Windows helper executable used by the bundled Computer Use plugin to control desktop apps. The ARM64 package uses the official x64 Store fallback until an ARM64 helper exists.
 
 **Store/Owl shell payload**:
-The tracked `desktop/resources/store-owl-shell/package.tar.gz` archive copied from the official Microsoft Store Codex package. It supplies the ARM64 `Codex.exe`, `chrome.dll`, Chromium runtime files, Store manifest assets, and PRI files while the app archive and resources continue to hydrate from the matching public macOS appcast release.
+The tracked `desktop/resources/store-owl-shell/package.tar.gz` archive copied from the official Microsoft Store Codex package. It supplies the ARM64 `Codex.exe`, `chrome.dll`, Chromium runtime files, Store manifest assets, and PRI files for the opt-in `CODEX_WINDOWS_HOST_MODE=store-owl` path while the default Windows package remains a clean Forge/Electron testbed.
 
 **Tectonic**:
 The bundled LaTeX plugin executable. The ARM64 package downloads the public x64 Windows Tectonic release asset until an ARM64 build exists.
@@ -56,7 +56,9 @@ A CSS selector shipped by a bundled Codex++ tweak under `desktop/codex-plusplus/
 - The **Microsoft Store package** is a **Store fallback source**, not the default source for payloads that are available from public release assets or the macOS app.
 - Every **Resource binary exception** must live in `desktop/scripts/resource-binary-exceptions.ts` and be enforced by `npm run verify:windows-arm64-resource-binaries`.
 - **`node_repl`**, **`extension-host`**, and the **Computer Use helper** are **Vendored resource binaries** until they no longer need to be copied from the Microsoft Store package.
-- The **Store/Owl shell payload** is a tracked Store fallback archive at `desktop/resources/store-owl-shell/package.tar.gz` and must stay version-locked to `desktop/resources/store-owl-shell.json`.
+- The default Windows package is a **clean Electron testbed**: no Codex++ loader and no Store/Owl host swap unless explicitly enabled by environment.
+- The **Codex++ package integration** is opt-in for the Windows package through `CODEX_ENABLE_CODEX_PLUSPLUS=1`.
+- The **Store/Owl shell payload** is a tracked Store fallback archive at `desktop/resources/store-owl-shell/package.tar.gz`; it must stay version-locked to `desktop/resources/store-owl-shell.json` and is staged only with `CODEX_WINDOWS_HOST_MODE=store-owl`.
 - **`node_repl`** and **`extension-host`** use ARM64 binaries from the Microsoft Store package when available; the **Computer Use helper** may use the latest official closed-source x64 binary until a Windows ARM64 equivalent exists.
 - A **Temporary Store-install scrape** refreshes the vendored `desktop/resources/cua_node/bin/node_repl.exe`, `desktop/resources/extension-host.exe`, and `desktop/resources/codex-computer-use.exe` binaries from the official Microsoft Store package for product ID `9PLM9XGG6VKS`; non-Store sources are not valid for these vendored fallback updates.
 - **Tectonic** is a public GitHub-release hydrated **Resource binary exception** from `tectonic-typesetting/tectonic` until a Windows ARM64 release asset exists.

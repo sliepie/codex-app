@@ -18,6 +18,12 @@ const targetRuntimeArch = 'arm64';
 const targetRuntimePlatform = 'win32';
 const codexWindowsPackageIdentity = 'Sliepie.Codex.SelfSigned';
 const requiredInstalledRuntimePackageNames = new Set(['tslib']);
+const windowsHostMode = process.env.CODEX_WINDOWS_HOST_MODE ?? 'electron';
+const enableCodexPlusPlus = process.env.CODEX_ENABLE_CODEX_PLUSPLUS === '1';
+
+if (!['electron', 'store-owl'].includes(windowsHostMode)) {
+  throw new Error('Unsupported CODEX_WINDOWS_HOST_MODE: ' + windowsHostMode);
+}
 
 function listPackageRoots(nodeModulesRoot) {
   if (!fs.existsSync(nodeModulesRoot)) {
@@ -283,9 +289,9 @@ function isPackageFile(file) {
     '/recovered/app-asar-extracted/webview',
     '/recovered/app-asar-extracted/skills',
     '/recovered/app-asar-extracted/package.json',
-    '/codex-plusplus',
     '/package.json',
   ].some((allowedPath) => matchesPath(file, allowedPath)) ||
+    (enableCodexPlusPlus && matchesPath(file, '/codex-plusplus')) ||
     isRecoveredNodeModule(file) ||
     isInstalledRuntimeNodeModule(file);
 }
@@ -313,14 +319,20 @@ function syncPackagedPackageJson(buildPath) {
   packageJson.version = releaseInfo?.version ?? upstreamPackageJson.version ?? packageJson.version;
   packageJson.codexBuildNumber =
     releaseInfo?.buildNumber ?? upstreamPackageJson.codexBuildNumber ?? packageJson.codexBuildNumber;
-  packageJson.codexWindowsPackageIdentity = codexWindowsPackageIdentity;
-  packageJson.__codexpp = {
-    ...(packageJson.__codexpp && typeof packageJson.__codexpp === 'object'
-      ? packageJson.__codexpp
-      : {}),
-    originalMain: recoveredOriginalMain(upstreamPackageJson),
-  };
-  packageJson.main = 'codex-plusplus/loader.cjs';
+  if (enableCodexPlusPlus) {
+    packageJson.codexWindowsPackageIdentity = codexWindowsPackageIdentity;
+    packageJson.__codexpp = {
+      ...(packageJson.__codexpp && typeof packageJson.__codexpp === 'object'
+        ? packageJson.__codexpp
+        : {}),
+      originalMain: recoveredOriginalMain(upstreamPackageJson),
+    };
+    packageJson.main = 'codex-plusplus/loader.cjs';
+  } else {
+    delete packageJson.codexWindowsPackageIdentity;
+    delete packageJson.__codexpp;
+    packageJson.main = recoveredOriginalMain(upstreamPackageJson);
+  }
 
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
 }
@@ -360,6 +372,10 @@ function assertRequiredPackageFile(buildPath, relativePath) {
 }
 
 function assertCodexPlusPlusPackageInputs(buildPath) {
+  if (!enableCodexPlusPlus) {
+    return;
+  }
+
   for (const relativePath of requiredCodexPlusPlusPackageFiles) {
     assertRequiredPackageFile(buildPath, relativePath);
   }
@@ -377,6 +393,9 @@ function assertCodexPlusPlusPackageInputs(buildPath) {
 }
 
 function stageStoreOwlShellPackageOutputs(packageResult) {
+  if (windowsHostMode !== 'store-owl') {
+    return;
+  }
   if (packageResult.platform !== targetRuntimePlatform || packageResult.arch !== targetRuntimeArch) {
     return;
   }
