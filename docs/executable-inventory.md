@@ -17,6 +17,7 @@ Date: 2026-07-07
 | GitHub-release hydrated Tectonic | `tectonic-0.16.9-x86_64-pc-windows-msvc.zip` from `tectonic-typesetting/tectonic`; explicit x64 exception |
 | Resource binary exception policy | `desktop/scripts/resource-binary-exceptions.ts` enforced by `npm run verify:windows-arm64-resource-binaries` |
 | Store architecture check | Microsoft Store package `9PLM9XGG6VKS` installed `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; parked Store/Owl shell, Node REPL, and Chrome extension-host are ARM64, while Computer Use remains x64 |
+| Clean testbed policy | No Codex++ loader, no Codex++ hydration, no Store/Owl host swap, and no recovered-source feature patches in the default Windows package path |
 
 ## Version Match
 

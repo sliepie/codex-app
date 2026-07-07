@@ -3,7 +3,7 @@
   "productName": "Codex",
   "version": "0.0.0",
   "description": "Codex",
-  "main": "codex-plusplus/loader.cjs",
+  "main": "recovered/app-asar-extracted/.vite/build/bootstrap.js",
   "private": true,
   "author": "OpenAI",
   "engines": {

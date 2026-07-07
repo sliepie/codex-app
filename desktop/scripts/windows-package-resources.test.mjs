@@ -1371,7 +1371,7 @@ test("keeps generated plugin resources without Codex++ package integration", () 
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
-  assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
+  assert.equal(packageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
 
   const loaderSource = fs.readFileSync(
     path.join(desktopRoot, "codex-plusplus", "loader.cjs"),
@@ -2417,11 +2417,9 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
-  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_tag \}\}/);
-  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_sha \}\}/);
+  assert.doesNotMatch(workflowSource, /codex_plus_plus|CODEX_PLUS_PLUS/);
   assert.doesNotMatch(workflowSource, /Upstream Codex appcast/);
-  assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
-  assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
+  assert.doesNotMatch(workflowSource, /Codex\+\+/);
   assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
   assert.doesNotMatch(workflowSource, /PR_HEAD_SHA/);
   assert.match(workflowSource, /\$targetSha = \$env:BUILD_SHA/);
@@ -2431,19 +2429,17 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /gh release upload \$tag \$zip\.FullName[\s\S]*--clobber/);
 });
 
-test("release workflow tracks Codex++ in package inputs and release metadata", () => {
+test("release workflow keeps Codex++ out of package inputs and release metadata", () => {
   const workflowSource = fs.readFileSync(
     path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
     "utf8",
   );
 
-  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
-  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
+  assert.doesNotMatch(workflowSource, /codex_plus_plus|CODEX_PLUS_PLUS/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_URL/);
   assert.doesNotMatch(workflowSource, /Codex appcast:/);
-  assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
-  assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
+  assert.doesNotMatch(workflowSource, /Codex\+\+/);
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--notes "\$notes"/);
 });
@@ -2546,33 +2542,30 @@ test("log cleanup helper blocks any Codex process before moving SQLite logs", ()
   assert.match(scriptSource, /Move-Item -LiteralPath \$file\.FullName -Destination \$destination -Force/);
 });
 
-test("authenticates Codex++ GitHub release lookup when a token is available", () => {
+test("Codex app hydration keeps Codex++ and recovered-source patches out of the clean testbed path", () => {
   const scriptSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
     "utf8",
   );
 
-  assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
-  assert.match(scriptSource, /headers\.Authorization = "Bearer " \+ token/);
-  assert.match(scriptSource, /fetchGithubUrl/);
-  assert.match(scriptSource, /withoutAuthorization/);
-  assert.match(scriptSource, /shouldRetryWithoutAuthorization/);
-  assert.match(scriptSource, /statusCode === 401 \|\| statusCode === 404/);
-  assert.match(scriptSource, /headers: githubHeaders\(\)/);
-  assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_REPOSITORY/);
   assert.match(scriptSource, /process\.env\.CODEX_APP_VERSION/);
   assert.match(scriptSource, /process\.env\.CODEX_APP_BUILD/);
   assert.match(scriptSource, /--build-number/);
   assert.match(scriptSource, /function findReleaseItem\(appcast: string, version\?: string, buildNumber\?: string\)/);
   assert.match(scriptSource, /releaseItemBuildNumber\(candidate\) === buildNumber/);
   assert.match(scriptSource, /findReleaseItem\(await appcastResponse\.text\(\), options\.version, options\.buildNumber\)/);
-  assert.match(scriptSource, /--codex-plusplus-repo/);
-  assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_TAG/);
-  assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_SHA/);
-  assert.match(scriptSource, /fetchCodexPlusPlusRelease\(repository, pinnedTagName\)/);
-  assert.match(scriptSource, /fetchCodexPlusPlusTagCommitSha\(repository, tagName\)/);
-  assert.match(scriptSource, /repos\/\$\{repositoryApiPath\(repository\)\}\/zipball\/\$\{commitSha\}/);
-  assert.match(scriptSource, /downloadFile\(zipballUrl, zipPath, githubHeaders\(\)\)/);
+  assert.match(scriptSource, /syncBundledPluginResources\(appResourcesRoot\);/);
+  assert.match(scriptSource, /syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
+  assert.doesNotMatch(scriptSource, /options\.codexPlusPlus|defaultCodexPlusPlusRepo/);
+  assert.doesNotMatch(scriptSource, /CODEX_PLUS_PLUS|--codex-plusplus/);
+  assert.doesNotMatch(scriptSource, /await hydrateCodexPlusPlusRuntime\(/);
+  assert.doesNotMatch(scriptSource, /^\s+patchWindowsSelfSignedBundle\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredOwlFeatureSwitch\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredMessageRailStatsigGate\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredCodexWindowServices\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredCodexMicroService\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /^\s+pruneWorkLouderPackages\(recoveredRoot\);/m);
 });
 
 test("authenticates GitHub release asset downloads when a token is available", () => {

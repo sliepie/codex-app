@@ -20,9 +20,6 @@ type Options = {
   version?: string;
   buildNumber?: string;
   cacheRoot: string;
-  codexPlusPlusRepo: string;
-  codexPlusPlusSha?: string;
-  codexPlusPlusTag?: string;
   force: boolean;
 };
 
@@ -122,7 +119,6 @@ const desktopRoot = resolveDesktopRoot();
 const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-node-modules");
 const electronNativeModuleCacheInputPaths = windowsArm64NativeModuleCacheInputPaths;
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
-const defaultCodexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
 const legacyBundledMarketplaceNames = ["openai-bundled-beta"] as const;
 const nodeAbi = require("node-abi") as {
@@ -158,16 +154,6 @@ function parseOptions(argv: string[]): Options {
       readOption(argv, "--build-number", "-BuildNumber") ??
       process.env.CODEX_APP_BUILD,
     cacheRoot,
-    codexPlusPlusRepo:
-      readOption(argv, "--codex-plusplus-repo", "-CodexPlusPlusRepo") ??
-      process.env.CODEX_PLUS_PLUS_REPOSITORY ??
-      defaultCodexPlusPlusRepo,
-    codexPlusPlusTag:
-      readOption(argv, "--codex-plusplus-tag", "-CodexPlusPlusTag") ??
-      process.env.CODEX_PLUS_PLUS_TAG,
-    codexPlusPlusSha:
-      readOption(argv, "--codex-plusplus-sha", "-CodexPlusPlusSha") ??
-      process.env.CODEX_PLUS_PLUS_SHA,
     force: hasFlag(argv, "--force", "-Force"),
   };
 }
@@ -760,7 +746,7 @@ export function syncCodexPlusPlusRuntimeAssets(
   sourceRoot: string,
   release: CodexPlusPlusRelease,
   destinationRoot = codexPlusPlusRoot,
-  repository = defaultCodexPlusPlusRepo,
+  repository = "b-nnett/codex-plusplus",
 ): void {
   const runtimeSourceRoot = path.join(
     sourceRoot,
@@ -3298,13 +3284,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   const appResourcesRoot = path.dirname(appAsar);
   const nodeVersion = readBundledNodeVersion(appResourcesRoot);
   syncBundledPluginResources(appResourcesRoot);
-  await hydrateCodexPlusPlusRuntime(
-    options.cacheRoot,
-    options.codexPlusPlusRepo,
-    options.force,
-    options.codexPlusPlusTag,
-    options.codexPlusPlusSha,
-  );
 
   execFileSync(
     process.execPath,
@@ -3317,13 +3296,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     ],
     { stdio: "inherit" },
   );
-  patchWindowsSelfSignedBundle(recoveredRoot);
-  patchRecoveredOwlFeatureBinding(recoveredRoot);
-  patchRecoveredOwlFeatureSwitch(recoveredRoot);
-  patchRecoveredMessageRailStatsigGate(recoveredRoot);
-  patchRecoveredCodexWindowServices(recoveredRoot);
-  patchRecoveredCodexMicroService(recoveredRoot);
-  pruneWorkLouderPackages(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
   fs.writeFileSync(
