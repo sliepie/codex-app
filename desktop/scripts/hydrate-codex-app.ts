@@ -3358,6 +3358,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     { stdio: "inherit" },
   );
   patchRecoveredWindowsPrimaryWindowTaskbar(recoveredRoot);
+  patchRecoveredOwlFeatureBinding(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
   fs.writeFileSync(

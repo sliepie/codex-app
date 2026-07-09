@@ -1463,7 +1463,7 @@ test("Forge package prunes macOS plugin resources before ZIP makers run", async 
   assert.equal(fs.existsSync(path.join(keptRoot, "codex-computer-use.exe")), true);
 });
 
-test("Forge package uses a plain Electron recovered main by default", async (t) => {
+test("Forge package uses a plain Electron recovered main with self-signed updater identity", async (t) => {
   ensureRecoveredPackageForForgeTest(t);
   const config = require(path.join(desktopRoot, "forge.config.js"));
   const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-electron-testbed-"));
@@ -1476,7 +1476,7 @@ test("Forge package uses a plain Electron recovered main by default", async (t) 
   const packageJson = JSON.parse(fs.readFileSync(path.join(buildPath, "package.json"), "utf8"));
   assert.equal(packageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
   assert.equal(packageJson.__codexpp, undefined);
-  assert.equal(packageJson.codexWindowsPackageIdentity, undefined);
+  assert.equal(packageJson.codexWindowsPackageIdentity, "Sliepie.Codex.SelfSigned");
 });
 
 function createCodexPlusPlusLoaderFixture(t) {
@@ -2543,7 +2543,7 @@ test("log cleanup helper blocks any Codex process before moving SQLite logs", ()
   assert.match(scriptSource, /Move-Item -LiteralPath \$file\.FullName -Destination \$destination -Force/);
 });
 
-test("Codex app hydration keeps Codex++ and unrelated recovered-source patches out of the Windows taskbar fix path", () => {
+test("Codex app hydration keeps Codex++ patches out while applying Electron compatibility patches", () => {
   const scriptSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
     "utf8",
@@ -2556,13 +2556,13 @@ test("Codex app hydration keeps Codex++ and unrelated recovered-source patches o
   assert.match(scriptSource, /releaseItemBuildNumber\(candidate\) === buildNumber/);
   assert.match(scriptSource, /findReleaseItem\(await appcastResponse\.text\(\), options\.version, options\.buildNumber\)/);
   assert.match(scriptSource, /syncBundledPluginResources\(appResourcesRoot\);/);
-  assert.match(scriptSource, /patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
+  assert.match(scriptSource, /patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
   assert.match(scriptSource, /syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
   assert.doesNotMatch(scriptSource, /options\.codexPlusPlus|defaultCodexPlusPlusRepo/);
   assert.doesNotMatch(scriptSource, /CODEX_PLUS_PLUS|--codex-plusplus/);
   assert.doesNotMatch(scriptSource, /await hydrateCodexPlusPlusRuntime\(/);
   assert.doesNotMatch(scriptSource, /^\s+patchWindowsSelfSignedBundle\(recoveredRoot\);/m);
-  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);/m);
+  assert.match(scriptSource, /^\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);/m);
   assert.doesNotMatch(scriptSource, /^\s+patchRecoveredOwlFeatureSwitch\(recoveredRoot\);/m);
   assert.doesNotMatch(scriptSource, /^\s+patchRecoveredMessageRailStatsigGate\(recoveredRoot\);/m);
   assert.doesNotMatch(scriptSource, /^\s+patchRecoveredCodexWindowServices\(recoveredRoot\);/m);
@@ -3094,10 +3094,10 @@ test("self-signed appinstaller updates immediately on launch", () => {
   );
 });
 
-test("clean Electron package does not inject self-signed Windows identity metadata", () => {
+test("clean Electron package preserves self-signed Windows identity metadata", () => {
   const source = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
-  assert.doesNotMatch(source, /const codexWindowsPackageIdentity|Sliepie\.Codex\.SelfSigned/);
-  assert.match(source, /delete packageJson\.codexWindowsPackageIdentity;/);
+  assert.match(source, /packageJson\.codexWindowsPackageIdentity = 'Sliepie\.Codex\.SelfSigned';/);
+  assert.doesNotMatch(source, /delete packageJson\.codexWindowsPackageIdentity;/);
   assert.match(source, /delete packageJson\.__codexpp;/);
 });
 

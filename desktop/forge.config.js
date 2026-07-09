@@ -304,7 +304,7 @@ function syncPackagedPackageJson(buildPath) {
   packageJson.version = releaseInfo?.version ?? upstreamPackageJson.version ?? packageJson.version;
   packageJson.codexBuildNumber =
     releaseInfo?.buildNumber ?? upstreamPackageJson.codexBuildNumber ?? packageJson.codexBuildNumber;
-  delete packageJson.codexWindowsPackageIdentity;
+  packageJson.codexWindowsPackageIdentity = 'Sliepie.Codex.SelfSigned';
   delete packageJson.__codexpp;
   packageJson.main = recoveredOriginalMain(upstreamPackageJson);
 
