@@ -64,27 +64,18 @@ test("Windows ARM64 package plan scopes GitHub tokens to hydration steps", () =>
   }
 });
 
-test("Windows ARM64 package plan hydrates the Store-matched public macOS appcast", () => {
+test("Windows ARM64 package plan hydrates the latest public appcast by default", () => {
   const hydrateApp = expandWindowsArm64Plan("hydrate").find((step) => step.id === "hydrate-app");
   const hydrateCli = expandWindowsArm64Plan("hydrate").find((step) => step.id === "hydrate-cli");
-  const storeOwlMetadata = JSON.parse(fs.readFileSync(path.join(desktopRoot, "resources", "store-owl-shell.json"), "utf8"));
 
   assert.ok(hydrateApp);
   assert.ok(hydrateCli);
   assert.deepEqual(
     commandForWindowsArm64PlanStep(hydrateApp),
-    [
-      "npm",
-      "run",
-      "hydrate:app:compiled",
-      "--",
-      "--version",
-      storeOwlMetadata.appVersion,
-      "--build-number",
-      storeOwlMetadata.appBuildNumber,
-    ],
+    ["npm", "run", "hydrate:app:compiled"],
   );
-  assert.doesNotMatch(commandForWindowsArm64PlanStep(hydrateCli).join(" "), /appcast-feed/);
+  assert.doesNotMatch(commandForWindowsArm64PlanStep(hydrateApp).join(" "), /--version|--build-number|appcast-feed/);
+  assert.doesNotMatch(commandForWindowsArm64PlanStep(hydrateCli).join(" "), /--version|--build-number|appcast-feed/);
 });
 
 test("Windows ARM64 make target zips an already verified package root", () => {
@@ -106,13 +97,13 @@ test("Windows ARM64 package plan launches npm through a Windows-safe process ada
     assert.match(path.basename(invocation[0]), /^cmd(?:\.exe)?$/i);
     assert.deepEqual(invocation.slice(1, 4), ["/d", "/s", "/c"]);
     assert.match(invocation[4], /npm run hydrate:app:compiled/);
-    assert.match(invocation[4], /--version/);
-    assert.match(invocation[4], /--build-number/);
+    assert.doesNotMatch(invocation[4], /--version/);
+    assert.doesNotMatch(invocation[4], /--build-number/);
     assert.doesNotMatch(invocation[4], /appcast-feed/);
   } else {
     assert.deepEqual(invocation.slice(0, 3), ["npm", "run", "hydrate:app:compiled"]);
-    assert.ok(invocation.includes("--version"));
-    assert.ok(invocation.includes("--build-number"));
+    assert.equal(invocation.includes("--version"), false);
+    assert.equal(invocation.includes("--build-number"), false);
   }
 });
 
@@ -143,8 +134,8 @@ test("Windows ARM64 cache input lists include the executable plan and hydrators"
   assert.ok(windowsArm64HydratedCacheInputPaths.includes("scripts/windows-arm64-package-plan.ts"));
   assert.ok(windowsArm64HydratedCacheInputPaths.includes("scripts/hydrate-codex-cli.ts"));
   assert.ok(windowsArm64HydratedCacheInputPaths.includes("scripts/resource-binary-exceptions.ts"));
-  assert.ok(windowsArm64HydratedCacheInputPaths.includes("scripts/stage-store-owl-shell.ts"));
-  assert.ok(windowsArm64HydratedCacheInputPaths.includes("resources/store-owl-shell.json"));
+  assert.equal(windowsArm64HydratedCacheInputPaths.includes("scripts/stage-store-owl-shell.ts"), false);
+  assert.equal(windowsArm64HydratedCacheInputPaths.includes("resources/store-owl-shell.json"), false);
   assert.ok(windowsArm64HydratedCacheInputPaths.includes("resources/codex-computer-use.json"));
   assert.ok(windowsArm64NativeModuleCacheInputPaths.includes("scripts/patch-better-sqlite3-electron.ts"));
 });

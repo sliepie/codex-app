@@ -43,13 +43,6 @@ function appcastFor(version, buildNumber) {
 </rss>`;
 }
 
-function releaseFromAppcast(source) {
-  return {
-    appBuildNumber: source.match(/<sparkle:version>([^<]+)<\/sparkle:version>/i)?.[1]?.trim(),
-    appVersion: source.match(/<sparkle:shortVersionString>([^<]+)<\/sparkle:shortVersionString>/i)?.[1]?.trim(),
-  };
-}
-
 function releaseInputsBody({
   appBuildNumber = "2429",
   appVersion = "26.429.61741",
@@ -155,12 +148,6 @@ async function runResolver({
   const directory = await mkdtemp(path.join(tmpdir(), "codex-release-resolver-"));
   const outputPath = path.join(directory, "github-output.txt");
   const fetchShimPath = path.join(directory, "mock-appcast-fetch.mjs");
-  const metadataPath = path.join(directory, "store-owl-shell.json");
-  await writeFile(
-    metadataPath,
-    JSON.stringify(releaseFromAppcast(appcastSource ?? appcast), null, 2) + "\n",
-    "utf8",
-  );
   await writeFile(
     fetchShimPath,
     `const originalFetch = globalThis.fetch;\n` +
@@ -187,7 +174,6 @@ async function runResolver({
             GITHUB_OUTPUT: outputPath,
             GITHUB_REPOSITORY: "sliepie/codex-app",
             GITHUB_SHA: sha,
-            CODEX_STORE_OWL_METADATA_PATH: metadataPath,
             NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import ${pathToFileURL(fetchShimPath).href}`.trim(),
           },
         },
