@@ -28,12 +28,28 @@ const githubApiUrl = process.env.GITHUB_API_URL ?? "https://api.github.com";
 const appVersionPattern = /^\d+\.\d+\.\d+$/;
 const buildNumberPattern = /^\d+$/;
 const releaseTagPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const shaPattern = /^[0-9a-f]{40}$/i;
 const maxMsixVersionSegment = 65535;
 
 type GithubRelease = {
   body?: string | null;
   tag_name?: string | null;
   target_commitish?: string | null;
+};
+
+type GithubGitRef = {
+  object?: {
+    sha?: string | null;
+    type?: string | null;
+    url?: string | null;
+  } | null;
+};
+
+type GithubGitTag = {
+  object?: {
+    sha?: string | null;
+    type?: string | null;
+  } | null;
 };
 
 type ReleaseInputs = {
@@ -325,6 +341,48 @@ async function fetchLatestReleaseTag(repository: string, label: string): Promise
   }
 
   return tagName;
+}
+
+async function fetchGitTagCommitSha(repository: string, tagName: string, label: string): Promise<string> {
+  const response = await fetchPublicGithubUrl(
+    repositoryApiUrl(repository, `/git/ref/tags/${encodeURIComponent(tagName)}`),
+    { headers: githubHeaders() },
+  );
+  if (!response.ok) {
+    fail(`Failed to resolve ${label} tag ${tagName}: ${response.status} ${response.statusText}`);
+  }
+
+  const ref = (await response.json()) as GithubGitRef;
+  const object = ref.object;
+  const sha = object?.sha ?? "";
+  if (!sha) {
+    fail(`${label} tag ${tagName} did not include an object SHA.`);
+  }
+
+  if (object?.type === "commit") {
+    return sha;
+  }
+  if (object?.type !== "tag") {
+    fail(
+      `${label} tag ${tagName} points to a ${object?.type ?? "unknown"} object, expected a commit or annotated tag.`,
+    );
+  }
+
+  const tagResponse = await fetchPublicGithubUrl(
+    object.url ?? repositoryApiUrl(repository, `/git/tags/${sha}`),
+    { headers: githubHeaders() },
+  );
+  if (!tagResponse.ok) {
+    fail(`Failed to dereference ${label} tag ${tagName}: ${tagResponse.status} ${tagResponse.statusText}`);
+  }
+
+  const tag = (await tagResponse.json()) as GithubGitTag;
+  const commitSha = tag.object?.sha ?? "";
+  if (!commitSha || tag.object?.type !== "commit") {
+    fail(`${label} tag ${tagName} does not point to a commit.`);
+  }
+
+  return commitSha;
 }
 
 async function fetchAppcastRelease(feedName: CodexAppcastFeed): Promise<AppcastRelease> {
