@@ -3,7 +3,7 @@
   "productName": "Codex",
   "version": "0.0.0",
   "description": "Codex",
-  "main": "codex-plusplus/loader.cjs",
+  "main": "recovered/app-asar-extracted/.vite/build/bootstrap.js",
   "private": true,
   "author": "OpenAI",
   "engines": {
@@ -56,9 +56,8 @@
     "build:primary-runtime:win:arm64:compiled": "node ./.cache/scripts/build-primary-runtime-win-arm64.js",
     "resolve:primary-runtime-source": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/resolve-primary-runtime-source.ts",
     "publish:primary-runtime:win:arm64:compiled": "node ./.cache/scripts/publish-primary-runtime-release.js",
-    "update:node-repl": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-node-repl.ps1",
-    "update:store-owl-shell": "npm run build:scripts && npm run update:store-owl-shell:compiled",
-    "update:store-owl-shell:compiled": "node ./.cache/scripts/update-store-owl-shell.js"
+    "update:store-package": "npm run update:node-repl",
+    "update:node-repl": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-node-repl.ps1"
   },
   "keywords": [
     "electron",
@@ -75,7 +74,7 @@
     "@electron/asar": "^3.4.1",
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.4",
-    "electron": "42.0.1",
+    "electron": "43.0.0",
     "extract-zip": "^2.0.1",
     "node-abi": "^4.31.0",
     "yaml": "^2.9.0"

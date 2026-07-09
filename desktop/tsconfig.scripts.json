@@ -14,8 +14,6 @@
   },
   "include": [
     "scripts/decode-self-signed-pfx.ts",
-    "scripts/assert-store-owl-shell-package-payload.ts",
-    "scripts/assert-windows-primary-window-flags.ts",
     "scripts/build-primary-runtime-win-arm64.ts",
     "scripts/bundled-plugin-windows-payloads.ts",
     "scripts/codex-appcast-feeds.ts",
@@ -29,9 +27,7 @@
     "scripts/resolve-codex-releases.ts",
     "scripts/resolve-primary-runtime-source.ts",
     "scripts/resource-binary-exceptions.ts",
-    "scripts/store-owl-shell-common.ts",
     "scripts/publish-primary-runtime-release.ts",
-    "scripts/update-store-owl-shell.ts",
     "scripts/verify-skills.ts",
     "scripts/verify-browser-client-runtime.ts",
     "scripts/verify-windows-arm64-resource-binaries.ts",

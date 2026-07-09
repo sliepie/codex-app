@@ -47,10 +47,9 @@ jobs:
           RELEASE_VERSION: ${{ steps.upstream.outputs.release_version }}
           CODEX_APP_BUILD: ${{ steps.upstream.outputs.codex_app_build }}
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
-          CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
           CURRENT_COMMIT_RELEASE_TAG: ${{ steps.upstream.outputs.current_commit_release_tag }}
         run: |
-          Write-Output "Codex app $env:RELEASE_VERSION build $env:CODEX_APP_BUILD with CLI $env:CODEX_CLI_TAG and Codex++ $env:CODEX_PLUS_PLUS_TAG already has repo release $env:CURRENT_COMMIT_RELEASE_TAG for this commit; continuing so later release and Pages steps can repair partial runs."
+          Write-Output "Codex app $env:RELEASE_VERSION build $env:CODEX_APP_BUILD with CLI $env:CODEX_CLI_TAG already has repo release $env:CURRENT_COMMIT_RELEASE_TAG for this commit; continuing so later release and Pages steps can repair partial runs."
 
       - name: Restore npm cache
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -109,8 +108,6 @@ jobs:
           CODEX_APP_VERSION: ${{ steps.upstream.outputs.codex_app_version }}
           CODEX_APP_BUILD: ${{ steps.upstream.outputs.codex_app_build }}
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
-          CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
-          CODEX_PLUS_PLUS_SHA: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
           GH_TOKEN: ${{ github.token }}
         run: npm run plan:win:arm64:compiled -- make
 
@@ -130,8 +127,6 @@ jobs:
           CODEX_APP_VERSION: ${{ steps.upstream.outputs.codex_app_version }}
           CODEX_APP_BUILD: ${{ steps.upstream.outputs.codex_app_build }}
           CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
-          CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
-          CODEX_PLUS_PLUS_SHA: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
         run: |
           $zip = Get-ChildItem -Path "desktop/out/make/zip/win32/arm64/*.zip" | Select-Object -First 1
           if ($null -eq $zip) {
@@ -143,8 +138,6 @@ jobs:
           $notes = @"
           Codex app: $env:CODEX_APP_VERSION build $env:CODEX_APP_BUILD
           Codex CLI: $env:CODEX_CLI_TAG
-          Codex++: $env:CODEX_PLUS_PLUS_TAG
-          Codex++ commit: $env:CODEX_PLUS_PLUS_SHA
           Commit: $env:GITHUB_SHA
           "@
 

@@ -27,6 +27,7 @@ const {
   patchMarkdownOperationDirectiveCrashSource,
   pruneWorkLouderPackages,
   patchOwlFeatureBindingSource,
+  patchRecoveredWindowsPrimaryWindowTaskbarSource,
   patchRecoveredMessageRailStatsigGateSource,
   patchRecoveredOwlFeatureSwitchSource,
   pruneUnusedNativePayloads,
@@ -1103,7 +1104,7 @@ test("discovers source-only native packages that declare binding.gyp", () => {
   ]);
 });
 
-test("prunes unused node-pty fallback and debug payloads", () => {
+test("prunes unused node-pty alternate and debug payloads", () => {
   const nodeModulesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-native-modules-"));
   const nodePtyRoot = path.join(nodeModulesRoot, "node-pty");
 
@@ -1153,6 +1154,15 @@ test("prunes unused node-pty fallback and debug payloads", () => {
     fs.existsSync(path.join(nodePtyRoot, "prebuilds", "win32-arm64", "winpty-agent.exe")),
     false,
   );
+});
+
+test("Windows ARM64 hydration disables node-pty Spectre library requirement", () => {
+  const source = fs.readFileSync(path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"), "utf8");
+
+  assert.match(source, /function patchNodePtySpectreMitigation\(nodeModulesRoot: string\): void/);
+  assert.match(source, /"binding\.gyp", "deps\/winpty\/src\/winpty\.gyp"/);
+  assert.match(source, /"'SpectreMitigation': 'Spectre'", "'SpectreMitigation': 'false'"/);
+  assert.match(source, /patchNodePtySpectreMitigation\(target\.nodeModulesRoot\)/);
 });
 
 test("Mach-O native payloads are not ready for Windows ARM64", () => {
@@ -1336,13 +1346,13 @@ test("allows the upstream bundle to omit the browser plugin", () => {
   );
 });
 
-test("includes generated plugin resources and Codex++ integration in the Windows package", () => {
+test("keeps generated plugin resources without Codex++ package integration", () => {
   const config = require(path.join(desktopRoot, "forge.config.js"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/plugins"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
-  assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), true);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus-old/loader.cjs"), true);
-  assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), true);
   assert.equal(config.packagerConfig.ignore("/package.json.bak"), true);
   assert.equal(
     config.packagerConfig.ignore(
@@ -1352,17 +1362,17 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   );
   assert.equal(
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json"),
-    false,
+    true,
   );
   assert.equal(
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-windows-menu-bar/manifest.json"),
-    false,
+    true,
   );
 
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
-  assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
+  assert.equal(packageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
 
   const loaderSource = fs.readFileSync(
     path.join(desktopRoot, "codex-plusplus", "loader.cjs"),
@@ -1380,10 +1390,11 @@ test("includes generated plugin resources and Codex++ integration in the Windows
   assert.match(loaderSource, /fs\.readSync\(/);
 
   const forgeSource = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
-  assert.match(forgeSource, /originalMain: recoveredOriginalMain\(upstreamPackageJson\)/);
+  assert.doesNotMatch(forgeSource, /CODEX_WINDOWS_HOST_MODE|CODEX_ENABLE_CODEX_PLUSPLUS/);
+  assert.match(forgeSource, /packageJson\.main = recoveredOriginalMain\(upstreamPackageJson\)/);
   assert.match(forgeSource, /path\.posix\.isAbsolute\(normalizedMain\)/);
   assert.match(forgeSource, /normalizedMain\.startsWith\('\.\.\/'\)/);
-  assert.match(forgeSource, /assertCodexPlusPlusPackageInputs\(buildPath\)/);
+  assert.doesNotMatch(forgeSource, /assertCodexPlusPlusPackageInputs|codex-plusplus\/loader\.cjs/);
 });
 
 function ensureRecoveredPackageForForgeTest(t) {
@@ -1452,19 +1463,20 @@ test("Forge package prunes macOS plugin resources before ZIP makers run", async 
   assert.equal(fs.existsSync(path.join(keptRoot, "codex-computer-use.exe")), true);
 });
 
-test("Forge preflight fails when hydrated Codex++ runtime is missing", async (t) => {
+test("Forge package uses a plain Electron recovered main with self-signed updater identity", async (t) => {
   ensureRecoveredPackageForForgeTest(t);
   const config = require(path.join(desktopRoot, "forge.config.js"));
-  const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-preflight-"));
+  const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-electron-testbed-"));
   t.after(() => fs.rmSync(buildPath, { recursive: true, force: true }));
 
   writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
-  writeFixture(path.join(buildPath, "codex-plusplus", "loader.cjs"), "module.exports = {};\n");
 
-  await assert.rejects(
-    () => runForgeAfterCopy(config, buildPath),
-    /Missing required packaged file: codex-plusplus\/runtime\/main\.js/,
-  );
+  await runForgeAfterCopy(config, buildPath);
+
+  const packageJson = JSON.parse(fs.readFileSync(path.join(buildPath, "package.json"), "utf8"));
+  assert.equal(packageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
+  assert.equal(packageJson.__codexpp, undefined);
+  assert.equal(packageJson.codexWindowsPackageIdentity, "Sliepie.Codex.SelfSigned");
 });
 
 function createCodexPlusPlusLoaderFixture(t) {
@@ -2406,11 +2418,9 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
-  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_tag \}\}/);
-  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_sha \}\}/);
+  assert.doesNotMatch(workflowSource, /codex_plus_plus|CODEX_PLUS_PLUS/);
   assert.doesNotMatch(workflowSource, /Upstream Codex appcast/);
-  assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
-  assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
+  assert.doesNotMatch(workflowSource, /Codex\+\+/);
   assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
   assert.doesNotMatch(workflowSource, /PR_HEAD_SHA/);
   assert.match(workflowSource, /\$targetSha = \$env:BUILD_SHA/);
@@ -2420,19 +2430,17 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /gh release upload \$tag \$zip\.FullName[\s\S]*--clobber/);
 });
 
-test("release workflow tracks Codex++ in package inputs and release metadata", () => {
+test("release workflow keeps Codex++ out of package inputs and release metadata", () => {
   const workflowSource = fs.readFileSync(
     path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
     "utf8",
   );
 
-  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
-  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
+  assert.doesNotMatch(workflowSource, /codex_plus_plus|CODEX_PLUS_PLUS/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_URL/);
   assert.doesNotMatch(workflowSource, /Codex appcast:/);
-  assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
-  assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
+  assert.doesNotMatch(workflowSource, /Codex\+\+/);
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--notes "\$notes"/);
 });
@@ -2535,33 +2543,53 @@ test("log cleanup helper blocks any Codex process before moving SQLite logs", ()
   assert.match(scriptSource, /Move-Item -LiteralPath \$file\.FullName -Destination \$destination -Force/);
 });
 
-test("authenticates Codex++ GitHub release lookup when a token is available", () => {
+test("Codex app hydration keeps Codex++ patches out while applying Electron compatibility patches", () => {
   const scriptSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
     "utf8",
   );
 
-  assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
-  assert.match(scriptSource, /headers\.Authorization = "Bearer " \+ token/);
-  assert.match(scriptSource, /fetchGithubUrl/);
-  assert.match(scriptSource, /withoutAuthorization/);
-  assert.match(scriptSource, /shouldRetryWithoutAuthorization/);
-  assert.match(scriptSource, /statusCode === 401 \|\| statusCode === 404/);
-  assert.match(scriptSource, /headers: githubHeaders\(\)/);
-  assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_REPOSITORY/);
   assert.match(scriptSource, /process\.env\.CODEX_APP_VERSION/);
   assert.match(scriptSource, /process\.env\.CODEX_APP_BUILD/);
   assert.match(scriptSource, /--build-number/);
   assert.match(scriptSource, /function findReleaseItem\(appcast: string, version\?: string, buildNumber\?: string\)/);
   assert.match(scriptSource, /releaseItemBuildNumber\(candidate\) === buildNumber/);
   assert.match(scriptSource, /findReleaseItem\(await appcastResponse\.text\(\), options\.version, options\.buildNumber\)/);
-  assert.match(scriptSource, /--codex-plusplus-repo/);
-  assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_TAG/);
-  assert.match(scriptSource, /process\.env\.CODEX_PLUS_PLUS_SHA/);
-  assert.match(scriptSource, /fetchCodexPlusPlusRelease\(repository, pinnedTagName\)/);
-  assert.match(scriptSource, /fetchCodexPlusPlusTagCommitSha\(repository, tagName\)/);
-  assert.match(scriptSource, /repos\/\$\{repositoryApiPath\(repository\)\}\/zipball\/\$\{commitSha\}/);
-  assert.match(scriptSource, /downloadFile\(zipballUrl, zipPath, githubHeaders\(\)\)/);
+  assert.match(scriptSource, /syncBundledPluginResources\(appResourcesRoot\);/);
+  assert.match(scriptSource, /patchWindowsSelfSignedBundle\(recoveredRoot\);\s+patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
+  assert.match(scriptSource, /syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
+  assert.doesNotMatch(scriptSource, /options\.codexPlusPlus|defaultCodexPlusPlusRepo/);
+  assert.doesNotMatch(scriptSource, /CODEX_PLUS_PLUS|--codex-plusplus/);
+  assert.doesNotMatch(scriptSource, /await hydrateCodexPlusPlusRuntime\(/);
+  assert.match(scriptSource, /^\s+patchWindowsSelfSignedBundle\(recoveredRoot\);/m);
+  assert.match(scriptSource, /^\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredOwlFeatureSwitch\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredMessageRailStatsigGate\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredCodexWindowServices\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredCodexMicroService\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /^\s+pruneWorkLouderPackages\(recoveredRoot\);/m);
+});
+
+test("Codex app hydration makes the recovered Windows primary window focusable and taskbar-visible", () => {
+  const source =
+    "function j9({appearance:e,opaqueWindowSurfaceEnabled:t,platform:n,windowZoom:r=1}){switch(e){case`primary`:return n===`darwin`?t?{titleBarStyle:`hiddenInset`,trafficLightPosition:d9(r)}:{vibrancy:`menu`,titleBarStyle:`hiddenInset`,trafficLightPosition:d9(r)}:n===`win32`||n===`linux`?{titleBarStyle:`hidden`,titleBarOverlay:f9(r)}:{titleBarStyle:`default`};case`hud`:return{}}}";
+
+  const patch = patchRecoveredWindowsPrimaryWindowTaskbarSource(source);
+
+  assert.ok(patch);
+  assert.equal(patch.changed, true);
+  assert.match(
+    patch.source,
+    /n===`win32`\|\|n===`linux`\?\{titleBarStyle:`hidden`,titleBarOverlay:f9\(r\),skipTaskbar:!1,focusable:!0\/\* Codex Windows primary taskbar window \*\/\}/,
+  );
+  assert.match(
+    patch.source,
+    /n===`darwin`\?t\?\{titleBarStyle:`hiddenInset`,trafficLightPosition:d9\(r\)\}:\{vibrancy:`menu`,titleBarStyle:`hiddenInset`,trafficLightPosition:d9\(r\)\}/,
+  );
+
+  const secondPatch = patchRecoveredWindowsPrimaryWindowTaskbarSource(patch.source);
+  assert.ok(secondPatch);
+  assert.equal(secondPatch.changed, false);
 });
 
 test("authenticates GitHub release asset downloads when a token is available", () => {
@@ -2669,7 +2697,7 @@ test("Codex app hydration guards missing OWL Electron feature binding", () => {
   assert.equal(secondPatch.changed, false);
 });
 
-test("Codex app hydration accepts upstream OWL binding fallback", () => {
+test("Codex app hydration accepts upstream OWL binding null path", () => {
   const source =
     "var Ve=`electron_common_owl_features`,Ge=t.Yc({isOwlFeatureEnabled:t.Wc(e=>typeof e==`function`)});function Qe(){let e=process._linkedBinding;if(typeof e!=`function`)return null;let t;try{t=e.call(process,Ve)}catch(e){if(st(e))return null;throw e}return Ge.parse(t)}";
 
@@ -3066,13 +3094,11 @@ test("self-signed appinstaller updates immediately on launch", () => {
   );
 });
 
-test("hardcodes packaged Windows updater metadata to the self-signed identity", () => {
+test("clean Electron package preserves self-signed Windows identity metadata", () => {
   const source = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
-  assert.match(source, /const codexWindowsPackageIdentity = 'Sliepie\.Codex\.SelfSigned';/);
-  assert.match(
-    source,
-    /packageJson\.codexWindowsPackageIdentity = codexWindowsPackageIdentity;/,
-  );
+  assert.match(source, /packageJson\.codexWindowsPackageIdentity = 'Sliepie\.Codex\.SelfSigned';/);
+  assert.doesNotMatch(source, /delete packageJson\.codexWindowsPackageIdentity;/);
+  assert.match(source, /delete packageJson\.__codexpp;/);
 });
 
 test("Store binary updater only accepts the official Store package family", () => {
@@ -3101,134 +3127,23 @@ test("Store binary updater only accepts the official Store package family", () =
   );
 });
 
-test("Store Owl shell updater copies the matched package payload set", () => {
+test("Store package updater refreshes helper binaries only", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"));
   assert.equal(
-    packageJson.scripts["update:store-owl-shell"],
-    "npm run build:scripts && npm run update:store-owl-shell:compiled",
+    packageJson.scripts["update:store-package"],
+    "npm run update:node-repl",
   );
-  assert.equal(packageJson.scripts["update:store-owl-shell:compiled"], "node ./.cache/scripts/update-store-owl-shell.js");
+  assert.equal(
+    packageJson.scripts["update:node-repl"],
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-node-repl.ps1",
+  );
+  assert.equal(packageJson.scripts["update:store-owl-shell"], undefined);
+  assert.equal(packageJson.scripts["update:store-owl-shell:compiled"], undefined);
 
-  const source = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "update-store-owl-shell.ts"),
-    "utf8",
-  );
-  const commonSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "store-owl-shell-common.ts"),
-    "utf8",
-  );
   const tsconfig = JSON.parse(fs.readFileSync(path.join(desktopRoot, "tsconfig.scripts.json"), "utf8"));
-
-  assert.ok(tsconfig.include.includes("scripts/update-store-owl-shell.ts"));
-  assert.ok(tsconfig.include.includes("scripts/store-owl-shell-common.ts"));
-  assert.match(source, /const packageName = "OpenAI\.Codex"/);
-  assert.match(source, /const packageFamilyName = "OpenAI\.Codex_2p2nqsd0c76g0"/);
-  assert.match(source, /const requiredArchitecture = "Arm64"/);
-  assert.match(source, /const noApplicableUpgradeExitCode = 2316632107/);
-  assert.match(source, /function codexAppPackages/);
-  assert.match(source, /item\.packageFamilyName === packageFamilyName/);
-  assert.match(source, /item\.architecture === requiredArchitecture/);
-  assert.match(source, /const hadOfficialPackageBeforeRun = existingOfficialPackages\.length > 0/);
-  assert.match(source, /const needsArm64Install = existingPackage === undefined/);
-  assert.match(source, /if \(needsArm64Install\)/);
-  assert.match(source, /if \(!hadOfficialPackageBeforeRun\)/);
-  assert.match(source, /for \(const packageToRemove of codexAppPackages\(\)\)/);
-  assert.doesNotMatch(source, /installedByScript/);
-  assert.match(source, /function assertArm64Package/);
-  assert.match(source, /appxPackage\.architecture/);
-  assert.match(source, /expected \$\{requiredArchitecture\} for the Windows ARM64 payload/);
-  assert.match(source, /new Set\(\["\.exe", "\.dll", "\.node"\]\)/);
-  assert.match(source, /function nativePayloadCandidate/);
-  assert.match(source, /function nestedNativePayloadEntries/);
-  assert.match(source, /function copyStoreDirectoryFiles/);
-  assert.doesNotMatch(source, /localeCompare/);
-  assert.match(source, /compareOrdinal/);
-  assert.match(source, /kind: "nestedExecutable"/);
-  assert.match(source, /containedIn/);
-  assert.match(source, /selfSignedMutable: true/);
-  assert.match(source, /"resources\.pri", "file", true/);
-  assert.match(source, /\^resources\\\.\.\*\\\.pri\$/);
-  assert.doesNotMatch(source, /resources\*\.pri/);
-  assert.match(source, /copyStoreDirectoryFiles\(appxPackage\.installLocation, outputRoot, "app"\)/);
-  for (const expectedPath of [
-    "AppxManifest.xml",
-    "assets",
-    "app/locales",
-    "app/resources",
-  ]) {
-    assert.match(source, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  }
-  assert.doesNotMatch(source, /relativePath: "app\/Codex\.exe"/);
-  assert.match(source, /owl-shell-runtime\.json/);
-  assert.match(source, /runtimeMetadataEntry/);
-  assert.match(source, /entries: \[\.\.\.entries, runtimeMetadataEntry\]/);
-  assert.match(source, /store-owl-shell\.json/);
-  assert.match(source, /repoRelativePathOrNull/);
-  assert.match(source, /payloadRoot: repoRelativePathOrNull\(outputRoot\)/);
-  assert.doesNotMatch(source, /payloadRoot: outputRoot/);
-  assert.equal(fs.existsSync(path.join(desktopRoot, "scripts", "update-store-owl-shell.ps1")), false);
-});
-
-test("Store Owl shell validation has a reusable window flag smoke check", () => {
-  const skillSource = fs.readFileSync(
-    path.join(repoRoot, ".agents", "skills", "store-package-update", "SKILL.md"),
-    "utf8",
-  );
-  const validationSource = fs.readFileSync(
-    path.join(repoRoot, ".agents", "skills", "store-package-update", "scripts", "validate-store-owl-shell.ps1"),
-    "utf8",
-  );
-  const smokeScriptPath = path.join(desktopRoot, "scripts", "assert-windows-primary-window-flags.ts");
-  const payloadScriptPath = path.join(desktopRoot, "scripts", "assert-store-owl-shell-package-payload.ts");
-  assert.match(validationSource, /assert-store-owl-shell-package-payload\.js/);
-  assert.match(validationSource, /assert-windows-primary-window-flags\.js/);
-  assert.match(validationSource, /node @payloadArgs[\s\S]*node @windowFlagArgs/);
-  assert.equal(fs.existsSync(payloadScriptPath), true);
-  assert.equal(fs.existsSync(smokeScriptPath), true);
-  assert.equal(fs.existsSync(path.join(desktopRoot, "scripts", "assert-store-owl-shell-package-payload.ps1")), false);
-  assert.equal(fs.existsSync(path.join(desktopRoot, "scripts", "assert-windows-primary-window-flags.ps1")), false);
-
-  const smokeSource = fs.readFileSync(smokeScriptPath, "utf8");
-  const payloadSource = fs.readFileSync(payloadScriptPath, "utf8");
-  const commonSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "store-owl-shell-common.ts"),
-    "utf8",
-  );
-  assert.match(skillSource, /replacing the old Forge\/Electron shell/);
-  assert.match(skillSource, /app\/Codex\.exe/);
-  assert.match(skillSource, /app\/chrome\.dll/);
-  assert.match(skillSource, /stage the Store\/Owl cache into the built MSIX\/AppX payload/);
-  assert.match(skillSource, /metadata or cache automation alone is not a completed Store\/Owl shell change/);
-  assert.match(skillSource, /package staging path/);
-  assert.doesNotMatch(validationSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\]\$PackageName/);
-  assert.match(validationSource, /--package-family-name/);
-  assert.match(validationSource, /--package-full-name/);
-  assert.match(payloadSource, /store-owl-shell\.json/);
-  assert.match(payloadSource, /sourceRelativePath/);
-  assert.match(payloadSource, /runtimeMetadataRelativePath/);
-  assert.match(payloadSource, /runtime metadata file/);
-  assert.match(payloadSource, /directoryDigest/);
-  assert.match(payloadSource, /entry\.selfSignedMutable === true/);
-  assert.match(payloadSource, /Store\/Owl payload SHA-256 mismatch/);
-  assert.match(payloadSource, /packageFamilyName/);
-  assert.match(payloadSource, /packageFullName/);
-  assert.doesNotMatch(payloadSource, /package family mismatch/);
-  assert.doesNotMatch(smokeSource, /\[Parameter\(Mandatory = \$true\)\]\s*\r?\n\s*\[string\] \$PackageName/);
-  assert.match(smokeSource, /WS_EX_APPWINDOW|wsExAppWindow/);
-  assert.match(smokeSource, /WS_EX_NOACTIVATE|wsExNoActivate/);
-  assert.match(smokeSource, /shell:AppsFolder/);
-  assert.match(smokeSource, /GetWindowLongPtr/);
-  assert.match(smokeSource, /Stop-Process -Id \$_\.Id -Force/);
-  assert.doesNotMatch(smokeSource, /existingWindowHandles/);
-  assert.match(smokeSource, /No visible primary window/);
-  assert.match(smokeSource, /packageFamilyName/);
-  assert.match(smokeSource, /packageFullName/);
-  assert.match(commonSource, /matched multiple packages/);
-  assert.match(commonSource, /Get-AppxPackage -ErrorAction Stop/);
-  assert.match(commonSource, /function normalizeAppxArchitecture/);
-  assert.match(commonSource, /case 12:\s*\r?\n\s*return "Arm64"/);
-  assert.match(commonSource, /function compareOrdinal/);
-  assert.doesNotMatch(commonSource, /localeCompare/);
+  assert.equal(tsconfig.include.includes("scripts/update-store-owl-shell.ts"), false);
+  assert.equal(tsconfig.include.includes("scripts/store-owl-shell-common.ts"), false);
+  assert.equal(tsconfig.include.includes("scripts/stage-store-owl-shell.ts"), false);
 });
 
 test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () => {
@@ -3257,44 +3172,13 @@ test("ignores generated signing-secret base64 exports", () => {
   assert.match(gitignoreSource, /^\*\.pfx\.base64\.txt$/m);
 });
 
-test("tracks Store Owl shell provenance metadata", () => {
+test("does not track Store Owl shell payload metadata", () => {
   const gitignoreSource = fs.readFileSync(path.join(repoRoot, ".gitignore"), "utf8");
+  const gitattributesPath = path.join(repoRoot, ".gitattributes");
+  const gitattributesSource = fs.existsSync(gitattributesPath) ? fs.readFileSync(gitattributesPath, "utf8") : "";
   assert.match(gitignoreSource, /^desktop\/resources\/\*$/m);
-  assert.match(gitignoreSource, /^!desktop\/resources\/store-owl-shell\.json$/m);
-
-  const metadataPath = path.join(desktopRoot, "resources", "store-owl-shell.json");
-  assert.equal(fs.existsSync(metadataPath), true);
-  const metadataSource = fs.readFileSync(metadataPath, "utf8");
-  const metadata = JSON.parse(metadataSource);
-  assert.equal(metadata.productId, "9PLM9XGG6VKS");
-  assert.equal(metadata.packageName, "OpenAI.Codex");
-  assert.equal(metadata.packageFamilyName, "OpenAI.Codex_2p2nqsd0c76g0");
-  assert.equal(metadata.architecture, "Arm64");
-  assert.equal(metadata.payloadRoot, "desktop/.cache/store-owl-shell/package");
-  assert.equal(metadata.runtimeMetadataRelativePath, "owl-shell-runtime.json");
-  assert.doesNotMatch(metadataSource, /[A-Z]:[\\/]/);
-  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === metadata.runtimeMetadataRelativePath));
-  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/Codex.exe"));
-  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "app/chrome.dll"));
-  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "AppxManifest.xml" && entry.selfSignedMutable === true));
-  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath === "resources.pri" && entry.selfSignedMutable === true));
-  assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.language-") && entry.selfSignedMutable === true), false);
-  assert.equal(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.scale-") && entry.selfSignedMutable === true), false);
-  assert.ok(metadata.entries.some((entry) => entry.sourceRelativePath.startsWith("resources.scale-")));
-  assert.ok(
-    metadata.entries.some(
-      (entry) =>
-        entry.kind === "nestedExecutable" &&
-        entry.sourceRelativePath.endsWith(".node") &&
-        ["arm64", "x64", "x86"].includes(entry.architecture),
-    ),
-  );
-  assert.ok(
-    metadata.entries.some(
-      (entry) =>
-        entry.kind === "nestedExecutable" &&
-        entry.sourceRelativePath.endsWith("/codex-computer-use.exe") &&
-        entry.architecture === "x64",
-    ),
-  );
+  assert.doesNotMatch(gitignoreSource, /store-owl-shell/);
+  assert.doesNotMatch(gitattributesSource, /store-owl-shell/);
+  assert.equal(fs.existsSync(path.join(desktopRoot, "resources", "store-owl-shell.json")), false);
+  assert.equal(fs.existsSync(path.join(desktopRoot, "resources", "store-owl-shell")), false);
 });

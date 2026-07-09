@@ -23,12 +23,10 @@ function resolveDesktopRoot(): string {
 const desktopRoot = resolveDesktopRoot();
 
 const codexCliRepository = process.env.CODEX_CLI_REPOSITORY ?? "openai/codex";
-const codexPlusPlusRepository = process.env.CODEX_PLUS_PLUS_REPOSITORY ?? "b-nnett/codex-plusplus";
 const githubApiUrl = process.env.GITHUB_API_URL ?? "https://api.github.com";
 const appVersionPattern = /^\d+\.\d+\.\d+$/;
 const buildNumberPattern = /^\d+$/;
 const releaseTagPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
-const shaPattern = /^[0-9a-f]{40}$/i;
 const maxMsixVersionSegment = 65535;
 
 type GithubRelease = {
@@ -37,27 +35,10 @@ type GithubRelease = {
   target_commitish?: string | null;
 };
 
-type GithubGitRef = {
-  object?: {
-    sha?: string | null;
-    type?: string | null;
-    url?: string | null;
-  } | null;
-};
-
-type GithubGitTag = {
-  object?: {
-    sha?: string | null;
-    type?: string | null;
-  } | null;
-};
-
 type ReleaseInputs = {
   appBuildNumber: string;
   appVersion: string;
   codexCliTag: string;
-  codexPlusPlusSha: string;
-  codexPlusPlusTag: string;
 };
 
 type AppcastRelease = {
@@ -177,14 +158,12 @@ function releaseMetadataLine(label: string, value: string): string {
 
 function releaseTracksInputs(
   release: GithubRelease,
-  { appBuildNumber, appVersion, codexCliTag, codexPlusPlusSha, codexPlusPlusTag }: ReleaseInputs,
+  { appBuildNumber, appVersion, codexCliTag }: ReleaseInputs,
 ): boolean {
   const body = release.body ?? "";
   return (
     body.includes(releaseMetadataLine("Codex app", `${appVersion} build ${appBuildNumber}`)) &&
-    body.includes(releaseMetadataLine("Codex CLI", codexCliTag)) &&
-    body.includes(releaseMetadataLine("Codex++", codexPlusPlusTag)) &&
-    body.includes(releaseMetadataLine("Codex++ commit", codexPlusPlusSha))
+    body.includes(releaseMetadataLine("Codex CLI", codexCliTag))
   );
 }
 
@@ -194,8 +173,6 @@ function resolveRepoReleaseRevision({
   currentSha,
   releases,
   codexCliTag,
-  codexPlusPlusSha,
-  codexPlusPlusTag,
 }: ResolveRepoReleaseRevisionOptions): { currentCommitReleaseTag: string; repoReleaseRevision: number } {
   let latestRevision = -1;
   let currentCommitRevision: number | undefined;
@@ -216,8 +193,6 @@ function resolveRepoReleaseRevision({
         appBuildNumber,
         appVersion,
         codexCliTag,
-        codexPlusPlusSha,
-        codexPlusPlusTag,
       })
     ) {
       if (currentCommitRevision === undefined || revision > currentCommitRevision) {
@@ -378,44 +353,6 @@ async function fetchAppcastRelease(feedName: CodexAppcastFeed): Promise<AppcastR
   return { buildNumber, feedName, version };
 }
 
-async function fetchGitTagCommitSha(repository: string, tagName: string, label: string): Promise<string> {
-  const response = await fetchPublicGithubUrl(repositoryApiUrl(repository, `/git/ref/tags/${encodeURIComponent(tagName)}`), {
-    headers: githubHeaders(),
-  });
-  if (!response.ok) {
-    fail(`Failed to resolve ${label} tag ${tagName}: ${response.status} ${response.statusText}`);
-  }
-
-  const ref = (await response.json()) as GithubGitRef;
-  const object = ref.object;
-  const sha = object?.sha ?? "";
-  if (!sha) {
-    fail(`${label} tag ${tagName} did not include an object SHA.`);
-  }
-
-  if (object?.type === "commit") {
-    return sha;
-  }
-  if (object?.type !== "tag") {
-    fail(label + " tag " + tagName + " points to a " + (object?.type ?? "unknown") + " object, expected a commit or annotated tag.");
-  }
-
-  const tagResponse = await fetchPublicGithubUrl(object.url ?? repositoryApiUrl(repository, `/git/tags/${sha}`), {
-    headers: githubHeaders(),
-  });
-  if (!tagResponse.ok) {
-    fail(`Failed to dereference ${label} tag ${tagName}: ${tagResponse.status} ${tagResponse.statusText}`);
-  }
-
-  const tag = (await tagResponse.json()) as GithubGitTag;
-  const commitSha = tag.object?.sha ?? "";
-  if (!commitSha || tag.object?.type !== "commit") {
-    fail(`${label} tag ${tagName} does not point to a commit.`);
-  }
-
-  return commitSha;
-}
-
 async function main(): Promise<void> {
   const selectedAppcastRelease = await fetchAppcastRelease("prod");
   const appVersion = selectedAppcastRelease.version;
@@ -425,20 +362,6 @@ async function main(): Promise<void> {
     await fetchLatestReleaseTag(codexCliRepository, "Codex CLI"),
     releaseTagPattern,
   );
-  const codexPlusPlusTag = assertMatches(
-    "Codex++ tag",
-    await fetchLatestReleaseTag(codexPlusPlusRepository, "Codex++"),
-    releaseTagPattern,
-  );
-  const codexPlusPlusSha = assertMatches(
-    "Codex++ commit SHA",
-    await fetchGitTagCommitSha(
-      codexPlusPlusRepository,
-      codexPlusPlusTag,
-      "Codex++",
-    ),
-    shaPattern,
-  ).toLowerCase();
   const releases = await fetchExistingReleases();
   const { currentCommitReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevision({
     appVersion,
@@ -446,8 +369,6 @@ async function main(): Promise<void> {
     currentSha: process.env.GITHUB_SHA,
     releases,
     codexCliTag: cliTag,
-    codexPlusPlusSha,
-    codexPlusPlusTag,
   });
   const releaseVersion = `${appVersion}.${repoReleaseRevision}`;
   const msixPackageVersion = msixPackageVersionForRelease(
@@ -457,16 +378,14 @@ async function main(): Promise<void> {
   );
   const releaseTag = currentCommitReleaseTag || `codex-app-${releaseVersion}`;
   const hydrationCacheInputHash = hashCacheInputs([...windowsArm64HydratedCacheInputPaths]);
-  const hydrationCacheKey = `windows-arm64-hydrated-${windowsArm64HydratedCacheKeyVersion}-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-${hydrationCacheInputHash}`;
+  const hydrationCacheKey = `windows-arm64-hydrated-${windowsArm64HydratedCacheKeyVersion}-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-inputs-${hydrationCacheInputHash}`;
   const nativeModulesCacheInputHash = hashCacheInputs([...windowsArm64NativeModuleCacheInputPaths]);
-  const nativeModulesCacheKey = `windows-arm64-native-modules-${windowsArm64NativeModulesCacheKeyVersion}-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-${nativeModulesCacheInputHash}`;
+  const nativeModulesCacheKey = `windows-arm64-native-modules-${windowsArm64NativeModulesCacheKeyVersion}-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-inputs-${nativeModulesCacheInputHash}`;
 
   githubOutput("codex_app_version", appVersion);
   githubOutput("codex_app_build", buildNumber);
   githubOutput("codex_appcast_feed", selectedAppcastRelease.feedName);
   githubOutput("codex_cli_tag", cliTag);
-  githubOutput("codex_plus_plus_tag", codexPlusPlusTag);
-  githubOutput("codex_plus_plus_sha", codexPlusPlusSha);
   githubOutput("repo_release_revision", repoReleaseRevision);
   githubOutput("release_version", releaseVersion);
   githubOutput("msix_package_version", msixPackageVersion);
@@ -482,8 +401,6 @@ async function main(): Promise<void> {
         codexAppBuild: buildNumber,
         codexAppcastFeed: selectedAppcastRelease.feedName,
         codexCliTag: cliTag,
-        codexPlusPlusTag,
-        codexPlusPlusSha,
         repoReleaseRevision,
         releaseVersion,
         msixPackageVersion,

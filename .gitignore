@@ -12,7 +12,6 @@ desktop/resources/*
 !desktop/resources/extension-host.json
 !desktop/resources/codex-computer-use.exe
 !desktop/resources/codex-computer-use.json
-!desktop/resources/store-owl-shell.json
 !desktop/resources/cua_node/
 desktop/resources/cua_node/*
 !desktop/resources/cua_node/bin/

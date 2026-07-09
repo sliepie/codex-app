@@ -62,13 +62,6 @@ const appRoot = path.join(options.outputRoot, "app");
 copyDirectory(options.packageRoot, appRoot);
 rewriteSwiftShaderIcdMetadata(appRoot);
 
-const assetsRoot = path.join(options.outputRoot, "assets");
-const msixAssetsRoot = path.join(process.cwd(), "assets", "windows", "msix");
-if (!fs.existsSync(msixAssetsRoot)) {
-  throw new Error(`Missing Windows MSIX assets: ${msixAssetsRoot}`);
-}
-copyDirectory(msixAssetsRoot, assetsRoot);
-
 fs.writeFileSync(
   path.join(options.outputRoot, "AppxManifest.xml"),
   `<?xml version="1.0" encoding="utf-8"?>

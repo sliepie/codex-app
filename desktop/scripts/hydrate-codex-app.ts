@@ -20,9 +20,6 @@ type Options = {
   version?: string;
   buildNumber?: string;
   cacheRoot: string;
-  codexPlusPlusRepo: string;
-  codexPlusPlusSha?: string;
-  codexPlusPlusTag?: string;
   force: boolean;
 };
 
@@ -122,7 +119,6 @@ const desktopRoot = resolveDesktopRoot();
 const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-node-modules");
 const electronNativeModuleCacheInputPaths = windowsArm64NativeModuleCacheInputPaths;
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
-const defaultCodexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
 const legacyBundledMarketplaceNames = ["openai-bundled-beta"] as const;
 const nodeAbi = require("node-abi") as {
@@ -158,16 +154,6 @@ function parseOptions(argv: string[]): Options {
       readOption(argv, "--build-number", "-BuildNumber") ??
       process.env.CODEX_APP_BUILD,
     cacheRoot,
-    codexPlusPlusRepo:
-      readOption(argv, "--codex-plusplus-repo", "-CodexPlusPlusRepo") ??
-      process.env.CODEX_PLUS_PLUS_REPOSITORY ??
-      defaultCodexPlusPlusRepo,
-    codexPlusPlusTag:
-      readOption(argv, "--codex-plusplus-tag", "-CodexPlusPlusTag") ??
-      process.env.CODEX_PLUS_PLUS_TAG,
-    codexPlusPlusSha:
-      readOption(argv, "--codex-plusplus-sha", "-CodexPlusPlusSha") ??
-      process.env.CODEX_PLUS_PLUS_SHA,
     force: hasFlag(argv, "--force", "-Force"),
   };
 }
@@ -760,7 +746,7 @@ export function syncCodexPlusPlusRuntimeAssets(
   sourceRoot: string,
   release: CodexPlusPlusRelease,
   destinationRoot = codexPlusPlusRoot,
-  repository = defaultCodexPlusPlusRepo,
+  repository = "b-nnett/codex-plusplus",
 ): void {
   const runtimeSourceRoot = path.join(
     sourceRoot,
@@ -1979,6 +1965,32 @@ export function pruneUnusedNativePayloads(nodeModulesRoot: string): void {
   removeDebugSymbolPayloads(nodeModulesRoot);
 }
 
+function patchNodePtySpectreMitigation(nodeModulesRoot: string): void {
+  const nodePtyRoot = packageRoot(nodeModulesRoot, "node-pty");
+  if (!fs.existsSync(nodePtyRoot)) {
+    return;
+  }
+
+  let patchedCount = 0;
+  for (const relativePath of ["binding.gyp", "deps/winpty/src/winpty.gyp"]) {
+    const filePath = path.join(nodePtyRoot, ...relativePath.split("/"));
+    if (!fs.existsSync(filePath)) {
+      continue;
+    }
+
+    const source = fs.readFileSync(filePath, "utf8");
+    const patched = source.replaceAll("'SpectreMitigation': 'Spectre'", "'SpectreMitigation': 'false'");
+    if (patched !== source) {
+      fs.writeFileSync(filePath, patched, "utf8");
+      patchedCount++;
+    }
+  }
+
+  if (patchedCount > 0) {
+    console.log("Disabled node-pty Spectre library requirement for Windows ARM64 source rebuild.");
+  }
+}
+
 function syncNativeNodeModulesTarget(
   target: NativeNodeModulesTarget,
   runtimeVersion: string,
@@ -2049,6 +2061,7 @@ function syncNativeNodeModulesTarget(
   const nativeModuleNames = nativeModules.map((nativeModule) => nativeModule.name);
   pruneUnusedNativePayloads(target.nodeModulesRoot);
   if (target.runtime === "electron") {
+    patchNodePtySpectreMitigation(target.nodeModulesRoot);
     runElectronPrebuildInstall(
       target,
       nativeModules.filter((nativeModule) => !nativeNodeModuleReady(target, nativeModule, abi)),
@@ -2092,6 +2105,7 @@ function syncNativeNodeModulesTarget(
           nodeModulesRoot: target.nodeModulesRoot,
         });
       }
+      patchNodePtySpectreMitigation(target.nodeModulesRoot);
       const rebuildEnv =
         prepareElectronHeadersForNativeRebuild(
           desktopRoot,
@@ -2697,6 +2711,67 @@ const enabledOwlFeaturesSwitchValue = enabledOwlFeatures.join(",");
 const enabledOwlFeaturesMarker = "Codex++ enable Owl Electron features";
 const messageRailStatsigGate = "2551582477";
 const messageRailStatsigGateMarker = "Codex++ enable message rail";
+const windowsPrimaryWindowTaskbarOptionsMarker = "Codex Windows primary taskbar window";
+
+export function patchRecoveredWindowsPrimaryWindowTaskbarSource(source: string): OwlFeatureBindingPatch | null {
+  if (!source.includes("case`primary`") || !source.includes("titleBarOverlay")) {
+    return null;
+  }
+
+  if (source.includes(windowsPrimaryWindowTaskbarOptionsMarker)) {
+    return { changed: false, source };
+  }
+
+  const optionsPattern = new RegExp(
+    `case\`primary\`:return (${identifierPattern})===\`darwin\`\\?(${identifierPattern})\\?\\{titleBarStyle:\`hiddenInset\`,trafficLightPosition:(${identifierPattern})\\((${identifierPattern})\\)\\}:\\{vibrancy:\`menu\`,titleBarStyle:\`hiddenInset\`,trafficLightPosition:\\3\\(\\4\\)\\}:\\1===\`win32\`\\|\\|\\1===\`linux\`\\?\\{titleBarStyle:\`hidden\`,titleBarOverlay:(${identifierPattern})\\(\\4\\)\\}:\\{titleBarStyle:\`default\`\\}`,
+  );
+  const optionsMatch = optionsPattern.exec(source);
+  if (!optionsMatch?.[1] || !optionsMatch[2] || !optionsMatch[3] || !optionsMatch[4] || !optionsMatch[5]) {
+    return null;
+  }
+
+  const [, platform, opaqueWindowSurfaceEnabled, trafficLightPosition, windowZoom, titleBarOverlay] =
+    optionsMatch;
+  return {
+    changed: true,
+    source: source.replace(
+      optionsPattern,
+      () =>
+        `case\`primary\`:return ${platform}===\`darwin\`?${opaqueWindowSurfaceEnabled}?{titleBarStyle:\`hiddenInset\`,trafficLightPosition:${trafficLightPosition}(${windowZoom})}:{vibrancy:\`menu\`,titleBarStyle:\`hiddenInset\`,trafficLightPosition:${trafficLightPosition}(${windowZoom})}:${platform}===\`win32\`||${platform}===\`linux\`?{titleBarStyle:\`hidden\`,titleBarOverlay:${titleBarOverlay}(${windowZoom}),skipTaskbar:!1,focusable:!0/* ${windowsPrimaryWindowTaskbarOptionsMarker} */}:{titleBarStyle:\`default\`}`,
+    ),
+  };
+}
+
+function patchRecoveredWindowsPrimaryWindowTaskbar(recoveredRoot: string): void {
+  const candidates = [readRecoveredOriginalMain(recoveredRoot), ...findRecoveredViteMainBundles(recoveredRoot)];
+  const seen = new Set<string>();
+  const diagnostics: string[] = [];
+
+  for (const relativePath of candidates) {
+    const normalized = relativePath.replace(/\\/g, "/").replace(/^\.\//, "");
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+
+    const filePath = path.join(recoveredRoot, normalized);
+    if (!fs.existsSync(filePath)) continue;
+
+    const source = fs.readFileSync(filePath, "utf8");
+    const patch = patchRecoveredWindowsPrimaryWindowTaskbarSource(source);
+    if (!patch) {
+      diagnostics.push(normalized);
+      continue;
+    }
+
+    if (patch.changed) {
+      fs.writeFileSync(filePath, patch.source, "utf8");
+    }
+
+    console.log("Patched Windows primary taskbar window in " + normalized);
+    return;
+  }
+
+  throw new Error("Could not patch Windows primary taskbar window. Checked: " + diagnostics.join(", "));
+}
 
 export function patchOwlFeatureBindingSource(source: string): OwlFeatureBindingPatch | null {
   if (!source.includes("electron_common_owl_features")) {
@@ -3270,13 +3345,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   const appResourcesRoot = path.dirname(appAsar);
   const nodeVersion = readBundledNodeVersion(appResourcesRoot);
   syncBundledPluginResources(appResourcesRoot);
-  await hydrateCodexPlusPlusRuntime(
-    options.cacheRoot,
-    options.codexPlusPlusRepo,
-    options.force,
-    options.codexPlusPlusTag,
-    options.codexPlusPlusSha,
-  );
 
   execFileSync(
     process.execPath,
@@ -3290,12 +3358,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     { stdio: "inherit" },
   );
   patchWindowsSelfSignedBundle(recoveredRoot);
+  patchRecoveredWindowsPrimaryWindowTaskbar(recoveredRoot);
   patchRecoveredOwlFeatureBinding(recoveredRoot);
-  patchRecoveredOwlFeatureSwitch(recoveredRoot);
-  patchRecoveredMessageRailStatsigGate(recoveredRoot);
-  patchRecoveredCodexWindowServices(recoveredRoot);
-  patchRecoveredCodexMicroService(recoveredRoot);
-  pruneWorkLouderPackages(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
   fs.writeFileSync(
