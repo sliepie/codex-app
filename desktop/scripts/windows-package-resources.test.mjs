@@ -2556,12 +2556,12 @@ test("Codex app hydration keeps Codex++ patches out while applying Electron comp
   assert.match(scriptSource, /releaseItemBuildNumber\(candidate\) === buildNumber/);
   assert.match(scriptSource, /findReleaseItem\(await appcastResponse\.text\(\), options\.version, options\.buildNumber\)/);
   assert.match(scriptSource, /syncBundledPluginResources\(appResourcesRoot\);/);
-  assert.match(scriptSource, /patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
+  assert.match(scriptSource, /patchWindowsSelfSignedBundle\(recoveredRoot\);\s+patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
   assert.match(scriptSource, /syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
   assert.doesNotMatch(scriptSource, /options\.codexPlusPlus|defaultCodexPlusPlusRepo/);
   assert.doesNotMatch(scriptSource, /CODEX_PLUS_PLUS|--codex-plusplus/);
   assert.doesNotMatch(scriptSource, /await hydrateCodexPlusPlusRuntime\(/);
-  assert.doesNotMatch(scriptSource, /^\s+patchWindowsSelfSignedBundle\(recoveredRoot\);/m);
+  assert.match(scriptSource, /^\s+patchWindowsSelfSignedBundle\(recoveredRoot\);/m);
   assert.match(scriptSource, /^\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);/m);
   assert.doesNotMatch(scriptSource, /^\s+patchRecoveredOwlFeatureSwitch\(recoveredRoot\);/m);
   assert.doesNotMatch(scriptSource, /^\s+patchRecoveredMessageRailStatsigGate\(recoveredRoot\);/m);
