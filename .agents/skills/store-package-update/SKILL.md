@@ -40,7 +40,7 @@ description: "Store helper refresh for codex-app. Use when refreshing Microsoft 
 
 ## Validation
 
-- Run `.agents/skills/store-package-update/scripts/validate-helper-refresh.ps1` from the repo root. Completion criterion: metadata exists, helper PE architectures match policy, and helper provenance is internally consistent.
+- Run `.agents/skills/store-package-update/scripts/validate-helper-refresh.ps1` from the repo root. Pass `-PackageRoot` when validating an already-built or temporary package tree outside the default output directory. Completion criterion: metadata exists, helper PE architectures match policy, and helper provenance is internally consistent.
 - Run `npm --prefix desktop run verify:windows-arm64-resource-binaries` when a Windows package root exists or can be built for the change. Completion criterion: every packaged executable is ARM64 or matches a named exception.
 - Confirm `Get-AppxPackage -Name OpenAI.Codex` is empty after a temporary Store install unless Codex was already installed before the update.
 
