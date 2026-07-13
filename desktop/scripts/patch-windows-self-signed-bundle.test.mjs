@@ -284,6 +284,23 @@ test("patches non-feature self-signed Windows bundle changes", () => {
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
+test("finds the WindowsApps relocation helper after its chunk is renamed", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const originalPath = path.join(
+    recoveredRoot,
+    ".vite",
+    "build",
+    "workspace-root-drop-handler-fixture.js",
+  );
+  const renamedPath = path.join(recoveredRoot, ".vite", "build", "src-fixture.js");
+  fs.renameSync(originalPath, renamedPath);
+
+  const result = runPatcher(recoveredRoot);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(fs.readFileSync(renamedPath, "utf8"), /process\.resourcesPath\?\.replace/);
+});
+
 test("uses collision-free locals when relocation helper names are minified", () => {
   const recoveredRoot = createRecoveredFixture();
   const workspaceRootDropHandlerPath = path.join(

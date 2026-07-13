@@ -785,11 +785,33 @@ function patchAgentSettings(recoveredRoot: string): PatchResult[] {
   return [];
 }
 
+function findWorkspaceRootDropHandlerBundle(recoveredRoot: string): string {
+  const buildRoot = path.join(recoveredRoot, ".vite", "build");
+  const filePattern = /^.*\.js$/;
+  const matches = new Set([
+    ...findFilesContaining(
+      buildRoot,
+      filePattern,
+      ["process.env.LOCALAPPDATA", "`AppData`,`Local`),..."],
+    ),
+    ...findFilesContaining(
+      buildRoot,
+      filePattern,
+      ["process.resourcesPath?.replace", "`Packages`", "`LocalCache`", "`Local`"],
+    ),
+  ]);
+
+  if (matches.size !== 1) {
+    throw new Error(
+      `Expected exactly one recovered bundle containing the WindowsApps relocation helper, found ${matches.size}.`,
+    );
+  }
+
+  return [...matches][0];
+}
+
 function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult[] {
-  const filePath = findFile(
-    path.join(recoveredRoot, ".vite", "build"),
-    /^workspace-root-drop-handler-.*\.js$/,
-  );
+  const filePath = findWorkspaceRootDropHandlerBundle(recoveredRoot);
 
   return [
     replaceWithPatchers(

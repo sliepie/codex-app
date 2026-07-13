@@ -248,7 +248,7 @@ function writeMachOFixture(filePath) {
 
 const upstreamBrowserClientNativePipeSource = [
   'function Un(){return"production"}',
-  'function fh(){let e="privileged native pipe bridge is not available; browser-client is not trusted";return Un()==="production"?e:`\${e}. Browser Use loaded stale or overwritten bundled plugins. Another Codex app may have overwritten them. Ask the user to use Debug Menu > Plugins > Reload bundled plugins, then retry.`}',
+  'function fh(){let e="privileged native pipe bridge is not available; browser-client is not trusted";return Un()==="production"?e:`\${e}. Browser Use loaded stale or overwritten bundled plugins. Another ChatGPT desktop app may have overwritten them. Ask the user to use Debug Menu > Plugins > Reload bundled plugins, then retry.`}',
   'function mh(){let e=globalThis.nodeRepl?.nativePipe;return e==null||typeof e.createConnection!="function"?null:e}',
   'var Tl=class e{constructor(t){this.socket=t}static async create(t){let r=mh();if(r!=null){let n=await r.createConnection(t);return new e(n)}throw new Error(fh())}sendMessage(t){}};',
 ].join("");
@@ -2586,6 +2586,25 @@ test("Codex app hydration makes the recovered Windows primary window focusable a
     patch.source,
     /n===`darwin`\?t\?\{titleBarStyle:`hiddenInset`,trafficLightPosition:d9\(r\)\}:\{vibrancy:`menu`,titleBarStyle:`hiddenInset`,trafficLightPosition:d9\(r\)\}/,
   );
+
+  const secondPatch = patchRecoveredWindowsPrimaryWindowTaskbarSource(patch.source);
+  assert.ok(secondPatch);
+  assert.equal(secondPatch.changed, false);
+});
+
+test("Codex app hydration keeps shared Quick Chat window options separate from primary taskbar options", () => {
+  const source =
+    "function z9({appearance:e,opaqueWindowSurfaceEnabled:t,platform:n,windowZoom:r=1}){switch(e){case`quickChat`:case`primary`:return n===`darwin`?{titleBarStyle:`hiddenInset`,trafficLightPosition:A9(r),...e===`quickChat`?{hasShadow:!0,resizable:!0,transparent:!0}:{},...t?{}:{vibrancy:`menu`}}:n===`win32`||n===`linux`?{titleBarStyle:`hidden`,titleBarOverlay:j9(r),...e===`quickChat`?{resizable:!0}:{}}:{titleBarStyle:`default`,...e===`quickChat`?{resizable:!0}:{}}}}";
+
+  const patch = patchRecoveredWindowsPrimaryWindowTaskbarSource(source);
+
+  assert.ok(patch);
+  assert.equal(patch.changed, true);
+  assert.match(
+    patch.source,
+    /n===`win32`\|\|n===`linux`\?\{titleBarStyle:`hidden`,titleBarOverlay:j9\(r\),\.\.\.e===`quickChat`\?\{resizable:!0\}:\{skipTaskbar:!1,focusable:!0\/\* Codex Windows primary taskbar window \*\/\}\}/,
+  );
+  assert.doesNotMatch(patch.source, /e===`quickChat`\?\{resizable:!0,skipTaskbar:!1/);
 
   const secondPatch = patchRecoveredWindowsPrimaryWindowTaskbarSource(patch.source);
   assert.ok(secondPatch);
