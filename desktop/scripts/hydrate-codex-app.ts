@@ -76,8 +76,10 @@ type PluginJson = {
 const browserPluginName = "browser";
 const browserClientNativePipeUnavailableMessage =
   "privileged native pipe bridge is not available; browser-client is not trusted";
-const browserClientNativePipeUnavailableDetail =
-  "Browser Use loaded stale or overwritten bundled plugins. Another Codex app may have overwritten them. Ask the user to use Debug Menu > Plugins > Reload bundled plugins, then retry.";
+const browserClientNativePipeUnavailableDetails = [
+  "Browser Use loaded stale or overwritten bundled plugins. Another Codex app may have overwritten them. Ask the user to use Debug Menu > Plugins > Reload bundled plugins, then retry.",
+  "Browser Use loaded stale or overwritten bundled plugins. Another ChatGPT desktop app may have overwritten them. Ask the user to use Debug Menu > Plugins > Reload bundled plugins, then retry.",
+];
 const identifierPattern = "[$A-Za-z_][$A-Za-z0-9_]*";
 
 type BundledMarketplaceSource = {
@@ -325,7 +327,7 @@ function patchBundledBrowserClientNativePipeTrust(
       `${JSON.stringify(browserClientNativePipeUnavailableMessage)};return ` +
       `${identifierPattern}\\(\\)===\"production\"\\?${identifierPattern}:` +
       "`\\$\\{" + identifierPattern + "\\}\\. " +
-      escapeRegExp(browserClientNativePipeUnavailableDetail) +
+      `(?:${browserClientNativePipeUnavailableDetails.map(escapeRegExp).join("|")})` +
       "`\\}",
   );
   const messageMatch = messagePattern.exec(browserClientSource);
@@ -2720,6 +2722,28 @@ export function patchRecoveredWindowsPrimaryWindowTaskbarSource(source: string):
 
   if (source.includes(windowsPrimaryWindowTaskbarOptionsMarker)) {
     return { changed: false, source };
+  }
+
+  const sharedQuickChatOptionsPattern = new RegExp(
+    `(${identifierPattern})===\`win32\`\\|\\|\\1===\`linux\`\\?\\{titleBarStyle:\`hidden\`,titleBarOverlay:(${identifierPattern})\\((${identifierPattern})\\),\\.\\.\\.(${identifierPattern})===\`quickChat\`\\?\\{resizable:!0\\}:\\{\\}\\}`,
+  );
+  const sharedQuickChatOptionsMatch = sharedQuickChatOptionsPattern.exec(source);
+  if (
+    source.includes("case`quickChat`:case`primary`") &&
+    sharedQuickChatOptionsMatch?.[1] &&
+    sharedQuickChatOptionsMatch[2] &&
+    sharedQuickChatOptionsMatch[3] &&
+    sharedQuickChatOptionsMatch[4]
+  ) {
+    const [, platform, titleBarOverlay, windowZoom, appearance] = sharedQuickChatOptionsMatch;
+    return {
+      changed: true,
+      source: source.replace(
+        sharedQuickChatOptionsPattern,
+        () =>
+          `${platform}===\`win32\`||${platform}===\`linux\`?{titleBarStyle:\`hidden\`,titleBarOverlay:${titleBarOverlay}(${windowZoom}),...${appearance}===\`quickChat\`?{resizable:!0}:{skipTaskbar:!1,focusable:!0/* ${windowsPrimaryWindowTaskbarOptionsMarker} */}}`,
+      ),
+    };
   }
 
   const optionsPattern = new RegExp(
