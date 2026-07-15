@@ -44,6 +44,10 @@ function createRecoveredFixture() {
     "export const agentSettingsFixture=true;",
   );
   writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "product-text-fixture.js"),
+    "const Brand={ChatGPT:`chatgpt`};const label=`Open ChatGPT`;const welcome=`Welcome to ChatGPT, ${Brand.ChatGPT}`;const header=`ChatGPT-Account-ID`;const headerAlias=`ChatGPT-Account-Id`;const url=`https://chatgpt.com`;",
+  );
+  writeFixture(
     path.join(recoveredRoot, "webview", "assets", "use-model-settings-fixture.js"),
     "let downloadLabel=`imagePreviewDialog.download`,closeLabel=`imagePreviewDialog.close`;function imagePreview(){return(0,Y.jsxs)(`div`,{className:`absolute top-3 right-3 z-10 flex items-center gap-2`,children:[downloadButton,closeButton]})}",
   );
@@ -86,6 +90,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
   assert.deepEqual(
     report.patches.map((patch) => patch.file),
     [
+      "webview/assets",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/primary-runtime-installer-fixture.js",
       ".vite/build/main-fixture.js",
@@ -94,6 +99,32 @@ test("writes patch report file paths relative to the recovered app root", () => 
   );
   assert.ok(report.patches.every((patch) => !path.isAbsolute(patch.file)));
   assert.ok(report.patches.every((patch) => !patch.file.includes("..")));
+});
+
+test("replaces ChatGPT renderer text without changing product identifiers or protocol values", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const productTextPath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "product-text-fixture.js",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(
+    fs.readFileSync(productTextPath, "utf8"),
+    "const Brand={ChatGPT:`chatgpt`};const label=`Open Codex`;const welcome=`Welcome to Codex, ${Brand.ChatGPT}`;const header=`ChatGPT-Account-ID`;const headerAlias=`ChatGPT-Account-Id`;const url=`https://chatgpt.com`;",
+  );
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (candidate) => candidate.name === "replace ChatGPT renderer text with Codex",
+  );
+  assert.equal(patch?.status, "applied");
+  assert.equal(patch?.file, "webview/assets");
+  assert.match(patch?.reason, /Replaced 2 product-name occurrence\(s\)/);
 });
 
 test("routes Windows ARM64 primary runtime manifest checks to GitHub Releases", () => {
@@ -285,7 +316,7 @@ test("patches non-feature self-signed Windows bundle changes", () => {
     /BrowserWindow\(\{icon:process\.platform===`win32`\?require\("node:path"\)\.join\(process\.resourcesPath,`icon\.ico`\):void 0,width:b/,
   );
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 4);
+  assert.equal(report.patches.length, 5);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -394,6 +425,7 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "product-text-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "use-model-settings-fixture.js"),
     path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
@@ -407,7 +439,7 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 4);
+  assert.equal(report.patches.length, 5);
   assert.ok(
     report.patches.every((patch) =>
       ["already-applied", "assumed-enabled"].includes(patch.status),

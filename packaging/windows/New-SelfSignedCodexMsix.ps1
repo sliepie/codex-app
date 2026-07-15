@@ -159,27 +159,36 @@ Remove-Item -Path $priConfigPath -Force -ErrorAction SilentlyContinue
 
 $makeAppx = Get-LatestWindowsSdkTool -ToolName 'makeappx.exe'
 $signTool = Get-LatestWindowsSdkTool -ToolName 'signtool.exe'
+$launcherPaths = @(
+    Get-ChildItem -LiteralPath (Join-Path $stageRoot 'app') -Filter '*.exe' -File |
+        Sort-Object FullName
+)
+if ($launcherPaths.Count -eq 0) {
+    throw 'The staged app does not contain any top-level executable launchers.'
+}
 
 $plainTextPassword = ConvertTo-PlainText -Value $CertificatePassword
 try {
-    $entryPointSignature = Get-AuthenticodeSignature -FilePath $entryPointPath
-    if ($entryPointSignature.Status -eq [System.Management.Automation.SignatureStatus]::NotSigned) {
-        & $signTool sign /fd SHA256 /f $certificateFile /p $plainTextPassword $entryPointPath
-        if ($LASTEXITCODE -ne 0) {
-            throw "signtool sign for the staged app entry point failed with exit code $LASTEXITCODE"
-        }
+    foreach ($launcherPath in $launcherPaths) {
+        $launcherSignature = Get-AuthenticodeSignature -FilePath $launcherPath.FullName
+        if ($launcherSignature.Status -eq [System.Management.Automation.SignatureStatus]::NotSigned) {
+            & $signTool sign /fd SHA256 /f $certificateFile /p $plainTextPassword $launcherPath.FullName
+            if ($LASTEXITCODE -ne 0) {
+                throw "signtool sign for staged launcher '$($launcherPath.Name)' failed with exit code $LASTEXITCODE"
+            }
 
-        $entryPointSignature = Get-AuthenticodeSignature -FilePath $entryPointPath
-        if (
-            $null -eq $entryPointSignature.SignerCertificate -or
-            $entryPointSignature.SignerCertificate.Thumbprint -ne $certificate.Thumbprint -or
-            $entryPointSignature.Status -eq [System.Management.Automation.SignatureStatus]::HashMismatch
-        ) {
-            throw "The staged app entry point did not retain the expected Authenticode signature."
+            $launcherSignature = Get-AuthenticodeSignature -FilePath $launcherPath.FullName
+            if (
+                $null -eq $launcherSignature.SignerCertificate -or
+                $launcherSignature.SignerCertificate.Thumbprint -ne $certificate.Thumbprint -or
+                $launcherSignature.Status -eq [System.Management.Automation.SignatureStatus]::HashMismatch
+            ) {
+                throw "Staged launcher '$($launcherPath.Name)' did not retain the expected Authenticode signature."
+            }
         }
-    }
-    elseif ($entryPointSignature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
-        throw "The staged app entry point has an invalid Authenticode signature status: $($entryPointSignature.Status)."
+        elseif ($launcherSignature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
+            throw "Staged launcher '$($launcherPath.Name)' has an invalid Authenticode signature status: $($launcherSignature.Status)."
+        }
     }
 
     & $makeAppx pack /d $stageRoot /p $msixPath /o

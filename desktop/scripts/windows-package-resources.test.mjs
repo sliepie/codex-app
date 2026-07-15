@@ -2534,23 +2534,28 @@ test("self-signed MSIX manifest does not declare phone extensions", () => {
   assert.doesNotMatch(scriptSource, /mp:PhoneIdentity/);
 });
 
-test("self-signed MSIX signs an unsigned desktop host before packing", () => {
+test("self-signed MSIX signs unsigned top-level launchers before packing", () => {
   const scriptSource = fs.readFileSync(
     path.join(repoRoot, "packaging", "windows", "New-SelfSignedCodexMsix.ps1"),
     "utf8",
   );
-  const signatureCheck = "$entryPointSignature = Get-AuthenticodeSignature -FilePath $entryPointPath";
-  const signOnlyUnsigned = "if ($entryPointSignature.Status -eq [System.Management.Automation.SignatureStatus]::NotSigned)";
-  const signEntryPoint = "& $signTool sign /fd SHA256 /f $certificateFile /p $plainTextPassword $entryPointPath";
+  const enumerateLaunchers = "Get-ChildItem -LiteralPath (Join-Path $stageRoot 'app') -Filter '*.exe' -File";
+  const launcherLoop = "foreach ($launcherPath in $launcherPaths)";
+  const signatureCheck = "$launcherSignature = Get-AuthenticodeSignature -FilePath $launcherPath.FullName";
+  const signOnlyUnsigned = "if ($launcherSignature.Status -eq [System.Management.Automation.SignatureStatus]::NotSigned)";
+  const signLauncher = "& $signTool sign /fd SHA256 /f $certificateFile /p $plainTextPassword $launcherPath.FullName";
   const packMsix = "& $makeAppx pack /d $stageRoot /p $msixPath /o";
   const signMsix = "& $signTool sign /fd SHA256 /f $certificateFile /p $plainTextPassword $msixPath";
 
+  assert.ok(scriptSource.includes(enumerateLaunchers));
+  assert.ok(scriptSource.includes(launcherLoop));
   assert.ok(scriptSource.includes(signatureCheck));
   assert.ok(scriptSource.includes(signOnlyUnsigned));
-  assert.ok(scriptSource.indexOf(signatureCheck) < scriptSource.indexOf(signEntryPoint));
-  assert.ok(scriptSource.indexOf(signEntryPoint) < scriptSource.indexOf(packMsix));
+  assert.ok(scriptSource.indexOf(launcherLoop) < scriptSource.indexOf(signatureCheck));
+  assert.ok(scriptSource.indexOf(signatureCheck) < scriptSource.indexOf(signLauncher));
+  assert.ok(scriptSource.indexOf(signLauncher) < scriptSource.indexOf(packMsix));
   assert.ok(scriptSource.indexOf(packMsix) < scriptSource.indexOf(signMsix));
-  assert.match(scriptSource, /signtool sign for the staged app entry point failed/);
+  assert.match(scriptSource, /signtool sign for staged launcher/);
   assert.match(scriptSource, /SignerCertificate\.Thumbprint -ne \$certificate\.Thumbprint/);
   assert.match(scriptSource, /SignatureStatus\]::HashMismatch/);
   assert.match(scriptSource, /invalid Authenticode signature status/);

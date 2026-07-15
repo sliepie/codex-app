@@ -12,8 +12,10 @@ This is a running evidence log. It records observations, commands, decisions, an
 - The installed app has a broken taskbar icon.
 - Codex++ and the repository-bundled tweaks are absent.
 - The Codex/work selector and search icon in the sidebar should be hidden.
+- Visible ChatGPT product-name text should read Codex.
 - All bundled tweaks need to be re-evaluated; stale tweaks should remain excluded rather than being enabled through fallbacks.
 - While the desktop app is running, Windows Antimalware Service consumes about 9% CPU. Running the Codex CLI alone does not cause that activity, and closing the desktop app stops it.
+- Follow-up UI adjustment: start by reducing sidebar item height by 2 px, with up to 4 px available after visual review.
 
 ## Ground rules
 
@@ -90,6 +92,14 @@ The investigation will establish one focused pass/fail command per symptom befor
 - A second no-legacy review found two older window-services strategies and a standalone-primary taskbar bundle shape. Current `26.707` uses the service-factory window-services shape and the shared Quick Chat/primary taskbar shape, so the older branches and standalone taskbar test were deleted.
 - After removing the obsolete source rewriters and dormant CSS groups, script compilation, the Windows package-resource suite, and the 11-test recovered-bundle patch suite passed locally. The follow-up must still pass the real GitHub app hydration/build job.
 
+### 2026-07-16 — package-signature comparison and static product-name rewrite
+
+- Confirmed the installed self-signed package already has a valid Developer package signature and the official Store package has a valid Store package signature. Outer MSIX signing therefore does not imply that every executable inside the package has an Authenticode signature.
+- The Store-sourced Owl shell has unsigned top-level `Codex.exe`, Chromium launchers, elevation helpers, and notification helper. The large Codex CLI, command runner, and sandbox helper under `resources` have valid OpenAI signatures. The user also reproduces the Defender load with the official app, so package signing alone and this repository's self-signed package alone cannot explain the issue.
+- Unsigned app launchers remain a shared, plausible trigger, but not a confirmed root cause. The self-signed packager now signs every top-level staged executable before packing instead of signing only the declared entry point. A live comparison and elevated Defender trace are still required to measure whether that changes scanning behavior.
+- Rejected a runtime DOM-observer approach for product naming. Hydration now rewrites capitalized `ChatGPT` product text inside renderer JavaScript string and template literals. Product identifiers, lowercase protocol values and URLs, and the `ChatGPT-Account-ID` header remain unchanged.
+- Added a repository instruction requiring explicit approval before runtime observers, DOM tree walkers, polling, timers, or other dynamic JavaScript are introduced in tweaks or source patches. Build-time rewrites and CSS are the default.
+
 ## Findings
 
 ### Confirmed
@@ -101,11 +111,12 @@ The investigation will establish one focused pass/fail command per symptom befor
 5. Defender load is on-access read scanning, not a scheduled scan and not explained by ordinary app-data write churn.
 6. The requested sidebar controls have a current locale-independent structural selector; text/ARIA matching is unnecessary.
 7. Several old UI override groups are genuinely stale, and Codex++ version/update handling will not disable them automatically.
-8. Defender activity continues with a completely stable desktop process tree, so process respawning and crash loops are ruled out. The strongest current package-level suspect is the large unsigned Electron host mapped into five processes; the signed CLI-only path does not reproduce the issue.
+8. Defender activity continues with a completely stable desktop process tree, so process respawning and crash loops are ruled out. Both the self-signed and official apps reproduce the load, both outer packages have valid signatures, and both contain unsigned app launchers. Unsigned launchers remain a shared hypothesis, not a proven cause; the signed CLI-only path still does not reproduce the issue.
 
 ### Under investigation
 
 - Exact per-file Defender attribution, which requires an elevated Defender performance recording.
+- A steady-state comparison of the current package and a package with every top-level launcher signed.
 
 ## Changes
 
@@ -115,13 +126,15 @@ The investigation will establish one focused pass/fail command per symptom befor
 - The weekly epoch deliberately recomposes unchanged upstream archives once per week so newly published ARM64 Node, npm, Python, NuGet, or PyPI substitutions are not frozen indefinitely. This reduces a six-hour schedule from as many as 28 compositions per week to one when upstream inputs remain stable.
 - The runtime builder writes provenance into `LATEST.json` and rejects source, manifest, recipe, or epoch drift between resolution and composition.
 - Added focused resolver and cached-output integrity tests, and made those tests part of the primary-runtime pull-request job.
-- The self-signed MSIX packager now Authenticode-signs an unsigned staged desktop entry point with the existing package code-signing certificate before creating and signing the outer MSIX. It preserves only a valid existing signature, rejects other invalid states, and verifies the expected signer after signing. This targets the largest evidence-backed unsigned binary without changing Defender configuration.
+- The self-signed MSIX packager now Authenticode-signs every unsigned top-level staged executable with the existing package code-signing certificate before creating and signing the outer MSIX. It preserves valid existing signatures, rejects invalid states, and verifies the expected signer after signing. This covers the desktop host and Chromium/helper launchers without changing Defender configuration.
 - Restored the previously merged Codex++ customization chain on top of the current PR #136 hydration code: release tag/SHA resolution, cache identity, workflow inputs, runtime hydration, Forge packaging, loader entry point, release metadata, and the Electron-compatible recovered-source patches.
 - Removed the obsolete OWL feature-switch, OWL binding, and message-rail rewrite implementations and tests. Current upstream owns those behaviors.
 - Removed legacy window-services repair/lifecycle strategies and the obsolete standalone-primary taskbar rewriter. Only the two current `26.707` bundle shapes remain.
 - Added the current `stop()` lifecycle method to the Codex Micro replacement service so the upstream wrapper can shut it down without a `TypeError`.
 - Restored both Windows icon paths. Payload preparation now copies the complete MSIX asset directory referenced by `AppxManifest.xml`, and recovered main-process bundles receive an explicit Windows `BrowserWindow` icon from the packaged resource directory.
 - Re-evaluated both bundled tweaks. The independent Windows menu-bar tweak remains source-backed and unchanged. The UI override is now `0.26.0`, hides the current mode/search wrapper with one locale-independent structural selector, and removes the obsolete Codex Mobile, sidebar hover/project-action, and right-panel tab code entirely.
+- Added a build-time renderer transformation that changes capitalized ChatGPT product text to Codex without runtime observers or changes to protocol identifiers.
+- Added the no-runtime-observers-without-approval rule to the repository instructions.
 
 ## Validation
 
@@ -129,10 +142,11 @@ The investigation will establish one focused pass/fail command per symptom befor
 - Runtime resolver/provenance/cache tests passed: 11/11.
 - Runtime cached-output integrity tests passed: 2/2.
 - The updated workflow parses as YAML.
-- Defender mitigation still requires a newly built package and a live CPU comparison. Inner signing is evidence-backed, but exact scan attribution and observed CPU improvement cannot be claimed from the current unelevated session.
-- Recovered-bundle patch tests passed: 11/11.
+- Defender mitigation remains unproven. The official-app reproduction and the valid outer signatures rule out package-signature state as a complete explanation; exact scan attribution and observed CPU improvement still require an elevated trace and a live package comparison.
+- Recovered-bundle patch tests passed: 12/12, including static product-name replacement and preservation of product identifiers, protocol values, URLs, and the account header.
 - Release resolver tests passed: 21/21.
 - Windows package-resource tests passed: 79/79 after obsolete patch tests were deleted, including execution of payload preparation, verification that every manifest-referenced icon exists, a Forge-to-runtime icon-path cross-check, current Codex Micro lifecycle coverage, and failure coverage for a missing recovered entry point.
 - Installed UI tweak `index.js` now hashes identically to the audited repo source; its installed-only manifest version is `0.25.2`.
 - Release-path focused suites also passed: CLI hydration 5/5, Windows ARM64 package plan 9/9, and browser-client runtime compatibility 8/8.
 - The MSIX packaging PowerShell script parses successfully after the inner-signing change.
+- A temporary-copy run against the real recovered bundle replaced 2,800 product-name string occurrences across 95 renderer assets without touching the source tree.
