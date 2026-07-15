@@ -7,7 +7,7 @@ Date: 2026-07-09
 | Artifact | Value |
 | --- | --- |
 | macOS source app | Production appcast release `Codex-darwin-arm64-26.623.141536.zip` build `4753` |
-| Windows ARM64 output | Default clean Electron testbed with Windows taskbar, Owl binding, and primary-runtime routing patches: `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64.zip` |
+| Windows ARM64 output | Electron-hosted package with Codex++ and recovered-source custom patches restored: `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64.zip` |
 | Windows package directory | `desktop/out/Codex-win32-arm64` |
 | macOS extracted app | `desktop/.cache/codex-app/extract-26.623.141536-build-4753/Codex.app` |
 | Vendored Node REPL helper | `desktop/resources/cua_node/bin/node_repl.exe` from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` |
@@ -16,7 +16,7 @@ Date: 2026-07-09
 | GitHub-release hydrated Tectonic | `tectonic-0.16.9-x86_64-pc-windows-msvc.zip` from `tectonic-typesetting/tectonic`; explicit x64 exception |
 | Resource binary exception policy | `desktop/scripts/resource-binary-exceptions.ts` enforced by `npm run verify:windows-arm64-resource-binaries` |
 | Store architecture check | Microsoft Store package `9PLM9XGG6VKS` installed `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; Node REPL and Chrome extension-host are ARM64, while Computer Use remains x64 |
-| Clean testbed policy | No Codex++ loader, no Codex++ hydration, no custom host swap, and no recovered-source feature patches except Windows taskbar, Owl binding, and primary-runtime routing patches in the default Windows package path |
+| Electron customization policy | Codex++ loader/runtime hydration is enabled on the Electron host, along with the Windows primary taskbar-window patch, self-signed bundle rewrite, OWL feature patches, message rail gate, Codex window services, and Codex Micro / Work Louder cleanup. Store/Owl host staging and shell payloads remain outside the package path. |
 
 ## Version Match
 
@@ -37,7 +37,7 @@ Date: 2026-07-09
 | Artifact | Executable count | Architecture result |
 | --- | ---: | --- |
 | macOS source app | 36 Mach-O files | 31 `arm64`, 5 Sparkle universal `fat(2)` files |
-| Windows ARM64 output | 31 PE files in the clean Electron testbed | Uses the Electron ARM64 host, Store-vendored ARM64 helpers for `resources/cua_node/bin/node_repl.exe` and Chrome plugin `extension-host.exe`, plus explicit `x64` exceptions for Computer Use `codex-computer-use.exe` and LaTeX `tectonic.exe` |
+| Windows ARM64 output | PE files in the Electron-hosted package | Uses the Electron ARM64 host, Store-vendored ARM64 helpers for `resources/cua_node/bin/node_repl.exe` and Chrome plugin `extension-host.exe`, plus explicit `x64` exceptions for Computer Use `codex-computer-use.exe` and LaTeX `tectonic.exe` |
 | Rebuilt native module cache | Electron native payloads | `better-sqlite3` and `node-pty` are rebuilt for Windows ARM64 Electron ABI `148`; `.forge-meta` is `arm64--148` |
 
 The produced Windows package contains no `.node` files in `resources/app.asar`. Native module payloads are emitted under `resources/app.asar.unpacked` only when Electron Forge unpacks them for the ARM64 build.
@@ -89,7 +89,7 @@ The Windows ARM64 package is ARM64 by default. Any x64 PE payload must match the
 
 | Relative path | PE architecture | Version |
 | --- | --- | --- |
-| `Codex.exe` | `ARM64` | Electron host executable in the default clean testbed |
+| `Codex.exe` | `ARM64` | Electron host executable in the default Windows package |
 | `d3dcompiler_47.dll` | `ARM64` | `10.0.26100.4654` |
 | `dxcompiler.dll` | `ARM64` | `1.9.2602.0` |
 | `dxil.dll` | `ARM64` | `101.7.2308.24` |

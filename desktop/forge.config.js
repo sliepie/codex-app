@@ -17,6 +17,14 @@ const recoveredNodeModulesRoot = path.join(
 const targetRuntimeArch = 'arm64';
 const targetRuntimePlatform = 'win32';
 const requiredInstalledRuntimePackageNames = new Set(['tslib']);
+const codexPlusPlusMain = 'codex-plusplus/loader.cjs';
+const requiredCodexPlusPlusPackageFiles = [
+  codexPlusPlusMain,
+  'codex-plusplus/runtime/main.js',
+  'codex-plusplus/runtime/preload.js',
+  'codex-plusplus/LICENSE',
+  'codex-plusplus/release.json',
+];
 
 function listPackageRoots(nodeModulesRoot) {
   if (!fs.existsSync(nodeModulesRoot)) {
@@ -270,6 +278,7 @@ function isPackageFile(file) {
   }
 
   return [
+    '/codex-plusplus',
     '/recovered/app-asar-extracted/.vite',
     '/recovered/app-asar-extracted/native-menu-locales',
     '/recovered/app-asar-extracted/webview',
@@ -305,10 +314,45 @@ function syncPackagedPackageJson(buildPath) {
   packageJson.codexBuildNumber =
     releaseInfo?.buildNumber ?? upstreamPackageJson.codexBuildNumber ?? packageJson.codexBuildNumber;
   packageJson.codexWindowsPackageIdentity = 'Sliepie.Codex.SelfSigned';
-  delete packageJson.__codexpp;
-  packageJson.main = recoveredOriginalMain(upstreamPackageJson);
-
+  packageJson.__codexpp = {
+    ...(packageJson.__codexpp && typeof packageJson.__codexpp === 'object'
+      ? packageJson.__codexpp
+      : {}),
+    originalMain: recoveredOriginalMain(upstreamPackageJson),
+  };
+  packageJson.main = codexPlusPlusMain;
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
+}
+
+function assertRequiredPackageFile(buildPath, relativePath) {
+  const filePath = path.join(buildPath, ...relativePath.split('/'));
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Missing required packaged Codex++ file: ${relativePath}`);
+  }
+}
+
+function assertCodexPlusPlusPackageInputs(buildPath) {
+  for (const relativePath of requiredCodexPlusPlusPackageFiles) {
+    assertRequiredPackageFile(buildPath, relativePath);
+  }
+
+  const packageJson = readPackageJson(buildPath);
+  if (packageJson.main !== codexPlusPlusMain) {
+    throw new Error(`Packaged Codex main must be ${codexPlusPlusMain}, got ${packageJson.main}`);
+  }
+
+  const originalMain = packageJson.__codexpp?.originalMain;
+  if (typeof originalMain !== 'string' || !originalMain.trim()) {
+    throw new Error('Packaged Codex++ metadata must include __codexpp.originalMain.');
+  }
+
+  const normalizedOriginalMain = originalMain.trim().replace(/\\/g, '/').replace(/^\.\//, '');
+  if (!isPackageFile('/' + normalizedOriginalMain)) {
+    throw new Error('Packaged Codex++ original main is not included: ' + originalMain);
+  }
+  if (!fs.existsSync(path.join(buildPath, ...normalizedOriginalMain.split('/')))) {
+    throw new Error('Missing packaged Codex++ original main: ' + originalMain);
+  }
 }
 
 function removeMacOSResourceDirectories(buildPath) {
@@ -362,6 +406,7 @@ const config = {
       (buildPath, _electronVersion, _platform, _arch, callback) => {
         try {
           syncPackagedPackageJson(buildPath);
+          assertCodexPlusPlusPackageInputs(buildPath);
           callback();
         } catch (error) {
           callback(error);

@@ -55,6 +55,30 @@ The investigation will establish one focused pass/fail command per symptom befor
 - Found two release-tagged commits based on current `main` that are not present on `origin/main`: `4c43e054` restores the Electron-hosted Codex++ customization path, and `38db87b6` excludes the stale sidebar action-control and right-panel tab rule groups. Their branch/PR status is being checked before reuse.
 - Confirmed current `main` deliberately rewrites the packaged entry point back to the recovered upstream bootstrap and excludes `codex-plusplus/` from Forge packaging. The missing Codex++ runtime and bundled tweaks are therefore reproducible from source configuration, not just an installed-copy problem.
 
+### 2026-07-15 — current remote and live package inspection
+
+- Refreshed remote refs and rebased this branch onto current `origin/main` at `969b7144` before implementation.
+- Live Actions evidence shows three scheduled runs (`29401592828`, `29422852917`, and `29445564797`) on the same commit and upstream bundle. Each reported an npm cache hit, then spent 365–411 seconds rebuilding and republishing the runtime. Since 2026-07-09, 28 scheduled runs used about 213.6 runner-minutes across only three source commits.
+- The three nominally identical runtime outputs had different archive sizes. This proves the published asset is being needlessly replaced and also reveals nondeterministic archive bytes that need separate containment or correction.
+- Current `origin/main` contains the latest upstream hydration fix from PR #136, but the earlier merged customization commits from PR #134 and PR #132 are no longer ancestors of `main`. This explains why the current source again excludes Codex++ and again enables the stale sidebar/right-panel rule groups.
+- Inspected the installed self-signed MSIX manifest and payload. The manifest references `assets\icon.png`, `assets\Square44x44Logo.png`, and `assets\Square150x150Logo.png`, but the installed package has no root `assets` directory. `desktop/scripts/prepare-self-signed-msix-payload.ts` writes those references without copying `desktop/assets/windows/msix/` into the payload. This is a direct cause for broken shell/taskbar icon resolution.
+- Measured Windows Defender while the desktop app remained open. Antimalware Service produced bursty reads while the desktop process tree was nearly idle. No scheduled scan was active, and a short filesystem watch observed only a handful of Sentry state writes.
+- Repeated the measurement for 29 seconds while the desktop tree stayed at exactly seven processes with no starts or exits. Antimalware Service still averaged 7.00% normalized CPU, peaked at 30.55%, averaged 329.21 MB/s of reads, and peaked at 2.80 GB/s. This rules out a child-process or crash respawn loop.
+- The installed Electron host is a 214.7 MB unsigned executable mapped by five desktop processes. The separately running 293.9 MB CLI/app-server executable has a valid OpenAI signature and is mapped by only one process. Other unsigned mapped desktop modules total about 36 MB. The recurring read bursts line up with repeated scans of the large stable desktop image and/or archive much better than with file churn.
+- The official Defender performance recorder was attempted, but Windows rejected it because the current process is not elevated. No trace file was left behind. An administrator trace remains necessary to attribute Defender scan time to an exact file; the repository must not add exclusions based on inference.
+- Microsoft documents unsigned executables and DLLs as a common cause of higher Defender CPU during real-time scanning and recommends signing internal binaries. Its supported performance analyzer is the path to exact per-file attribution and requires an elevated administrator session: [real-time protection performance troubleshooting](https://learn.microsoft.com/en-us/defender-endpoint/troubleshoot-performance-issues) and [performance analyzer reference](https://learn.microsoft.com/en-us/defender-endpoint/performance-analyzer-reference).
+
+### 2026-07-15 — installed-source tweak audit
+
+- Inspected the installed `26.707` application archive rather than guessing selectors from the older checked-in recovered bundle.
+- The new Codex/ChatGPT Work selector and compact Search button are siblings inside a dedicated `div.ml-2.flex.items-center` wrapper in the first fixed header under the existing sidebar root marker. A single locale-independent wrapper rule can hide both; localized `aria-label` text should not be used.
+- The sidebar hover/action rule group and right-panel tab rule group remain stale and must stay out of `STYLE_RULES`.
+- The old project action-rail selector is stale. Upstream now uses a different max-width/grid structure, so the old rules must not be re-enabled through fallback selectors.
+- The Codex Mobile sidebar selector is stale because that action moved to the Help menu; it should be removed from active rules.
+- Still source-backed: the app-menu marker, thread/project data markers, image preview controls, settings layout markers, invite/settings SVG markers, usage-menu rows/links, and the independent Windows menu-bar tweak.
+- The Codex++ loader does not automatically disable a tweak because selectors are stale. Installed tweaks remain enabled unless safe mode or configuration disables them, so stale behavior must be kept out by omitting/removing the affected rules.
+- The installed UI override had diverged to experimental version `0.26.1`, which would outrank the PR bundle and retain stale rules. Used the guarded repo sync flow to replace its content with the audited source while returning the installed copy to its separate main-based test track at `0.25.1`.
+
 ## Findings
 
 ### Confirmed
@@ -62,17 +86,39 @@ The investigation will establish one focused pass/fail command per symptom befor
 1. Runtime scheduled rebuilds are unconditional: the resolver checks reachability only and always publishes.
 2. Runtime output is not cached: the workflow caches npm dependencies but not the composed archive/output directory.
 3. Codex++ absence is encoded in the current package path: Forge excludes the loader/runtime and resets `package.json.main` to the recovered bootstrap.
+4. The self-signed MSIX omits the icon assets referenced by its own manifest.
+5. Defender load is on-access read scanning, not a scheduled scan and not explained by ordinary app-data write churn.
+6. The requested sidebar controls have a current locale-independent structural selector; text/ARIA matching is unnecessary.
+7. Several old UI override groups are genuinely stale, and Codex++ version/update handling will not disable them automatically.
+8. Defender activity continues with a completely stable desktop process tree, so process respawning and crash loops are ruled out. The strongest current package-level suspect is the large unsigned Electron host mapped into five processes; the signed CLI-only path does not reproduce the issue.
 
 ### Under investigation
 
-- Whether the release-tagged customization commits should be recovered as-is or adapted after current upstream hydration changes.
-- The exact taskbar-icon failure mode: executable/window icon, MSIX identity association, or shell asset resolution.
-- The exact desktop-app activity that keeps Windows Defender busy.
+- Exact per-file Defender attribution, which requires an elevated Defender performance recording.
 
 ## Changes
 
-Pending diagnosis.
+- Runtime resolver now reads the upstream and published manifests and records explicit provenance for the source archive, relevant source-manifest metadata, the deterministic build recipe, and a weekly native-substitution refresh epoch.
+- Scheduled runtime runs skip publishing only when all provenance matches, the published manifest describes a valid Windows ARM64 archive, and that archive still responds successfully. Pull requests, relevant pushes, and manual runs remain forced validation paths.
+- Runtime output is cached by source, source metadata, recipe, and refresh epoch. A restored output must pass target, size, archive-hash, source, recipe, and epoch verification before composition is skipped. Restore/save use separate run-specific keys so an invalid immutable cache rebuilds once and the repaired output becomes the newest reusable entry.
+- The weekly epoch deliberately recomposes unchanged upstream archives once per week so newly published ARM64 Node, npm, Python, NuGet, or PyPI substitutions are not frozen indefinitely. This reduces a six-hour schedule from as many as 28 compositions per week to one when upstream inputs remain stable.
+- The runtime builder writes provenance into `LATEST.json` and rejects source, manifest, recipe, or epoch drift between resolution and composition.
+- Added focused resolver and cached-output integrity tests, and made those tests part of the primary-runtime pull-request job.
+- The self-signed MSIX packager now Authenticode-signs an unsigned staged desktop entry point with the existing package code-signing certificate before creating and signing the outer MSIX. It preserves only a valid existing signature, rejects other invalid states, and verifies the expected signer after signing. This targets the largest evidence-backed unsigned binary without changing Defender configuration.
+- Restored the previously merged Codex++ customization chain on top of the current PR #136 hydration code: release tag/SHA resolution, cache identity, workflow inputs, runtime hydration, Forge packaging, loader entry point, release metadata, and the Electron-compatible recovered-source patches.
+- Restored both Windows icon paths. Payload preparation now copies the complete MSIX asset directory referenced by `AppxManifest.xml`, and recovered main-process bundles receive an explicit Windows `BrowserWindow` icon from the packaged resource directory.
+- Re-evaluated both bundled tweaks. The independent Windows menu-bar tweak remains source-backed and unchanged. The UI override is now `0.26.0`, hides the current mode/search wrapper with one locale-independent structural selector, removes the obsolete Codex Mobile rule, and keeps the stale sidebar hover/project-action and right-panel tab groups out of emitted CSS.
 
 ## Validation
 
-Pending diagnosis.
+- Runtime script compilation passed.
+- Runtime resolver/provenance/cache tests passed: 11/11.
+- Runtime cached-output integrity tests passed: 2/2.
+- The updated workflow parses as YAML.
+- Defender mitigation still requires a newly built package and a live CPU comparison. Inner signing is evidence-backed, but exact scan attribution and observed CPU improvement cannot be claimed from the current unelevated session.
+- Recovered-bundle patch tests passed: 11/11.
+- Release resolver tests passed: 21/21.
+- Windows package-resource tests passed: 85/85, including execution of payload preparation, verification that every manifest-referenced icon exists, a Forge-to-runtime icon-path cross-check, and failure coverage for a missing recovered entry point.
+- Installed UI tweak `index.js` now hashes identically to the audited repo source; its installed-only manifest version is `0.25.1`.
+- Release-path focused suites also passed: CLI hydration 5/5, Windows ARM64 package plan 9/9, and browser-client runtime compatibility 8/8.
+- The MSIX packaging PowerShell script parses successfully after the inner-signing change.

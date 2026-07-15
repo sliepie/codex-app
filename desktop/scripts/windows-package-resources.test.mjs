@@ -1346,13 +1346,13 @@ test("allows the upstream bundle to omit the browser plugin", () => {
   );
 });
 
-test("keeps generated plugin resources without Codex++ package integration", () => {
+test("keeps generated plugin resources with Codex++ package integration", () => {
   const config = require(path.join(desktopRoot, "forge.config.js"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/plugins"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
-  assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), true);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus-old/loader.cjs"), true);
-  assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), true);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);
   assert.equal(config.packagerConfig.ignore("/package.json.bak"), true);
   assert.equal(
     config.packagerConfig.ignore(
@@ -1362,17 +1362,17 @@ test("keeps generated plugin resources without Codex++ package integration", () 
   );
   assert.equal(
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-ui-overrides/manifest.json"),
-    true,
+    false,
   );
   assert.equal(
     config.packagerConfig.ignore("/codex-plusplus/tweaks/codex-app-windows-menu-bar/manifest.json"),
-    true,
+    false,
   );
 
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
   );
-  assert.equal(packageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
+  assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
 
   const loaderSource = fs.readFileSync(
     path.join(desktopRoot, "codex-plusplus", "loader.cjs"),
@@ -1391,10 +1391,11 @@ test("keeps generated plugin resources without Codex++ package integration", () 
 
   const forgeSource = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
   assert.doesNotMatch(forgeSource, /CODEX_WINDOWS_HOST_MODE|CODEX_ENABLE_CODEX_PLUSPLUS/);
-  assert.match(forgeSource, /packageJson\.main = recoveredOriginalMain\(upstreamPackageJson\)/);
+  assert.match(forgeSource, /packageJson\.main = codexPlusPlusMain/);
   assert.match(forgeSource, /path\.posix\.isAbsolute\(normalizedMain\)/);
   assert.match(forgeSource, /normalizedMain\.startsWith\('\.\.\/'\)/);
-  assert.doesNotMatch(forgeSource, /assertCodexPlusPlusPackageInputs|codex-plusplus\/loader\.cjs/);
+  assert.match(forgeSource, /assertCodexPlusPlusPackageInputs/);
+  assert.match(forgeSource, /codexPlusPlusMain = 'codex-plusplus\/loader\.cjs'/);
 });
 
 function ensureRecoveredPackageForForgeTest(t) {
@@ -1443,6 +1444,18 @@ function runForgeAfterCopyExtraResources(config, buildPath) {
   });
 }
 
+function writeCodexPlusPlusPackageFiles(buildPath) {
+  for (const relativePath of [
+    "codex-plusplus/loader.cjs",
+    "codex-plusplus/runtime/main.js",
+    "codex-plusplus/runtime/preload.js",
+    "codex-plusplus/LICENSE",
+    "codex-plusplus/release.json",
+  ]) {
+    writeFixture(path.join(buildPath, ...relativePath.split("/")), "codex-plusplus\n");
+  }
+}
+
 test("Forge package prunes macOS plugin resources before ZIP makers run", async (t) => {
   const config = require(path.join(desktopRoot, "forge.config.js"));
   const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-plugin-prune-"));
@@ -1463,20 +1476,42 @@ test("Forge package prunes macOS plugin resources before ZIP makers run", async 
   assert.equal(fs.existsSync(path.join(keptRoot, "codex-computer-use.exe")), true);
 });
 
-test("Forge package uses a plain Electron recovered main with self-signed updater identity", async (t) => {
+test("Forge package uses the Codex++ loader with self-signed updater identity", async (t) => {
   ensureRecoveredPackageForForgeTest(t);
   const config = require(path.join(desktopRoot, "forge.config.js"));
   const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-electron-testbed-"));
   t.after(() => fs.rmSync(buildPath, { recursive: true, force: true }));
 
   writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
+  writeFixture(
+    path.join(buildPath, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
+    "module.exports = {};\n",
+  );
+  writeCodexPlusPlusPackageFiles(buildPath);
 
   await runForgeAfterCopy(config, buildPath);
 
   const packageJson = JSON.parse(fs.readFileSync(path.join(buildPath, "package.json"), "utf8"));
-  assert.equal(packageJson.main, "recovered/app-asar-extracted/.vite/build/bootstrap.js");
-  assert.equal(packageJson.__codexpp, undefined);
+  assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
+  assert.deepEqual(packageJson.__codexpp, {
+    originalMain: "recovered/app-asar-extracted/.vite/build/bootstrap.js",
+  });
   assert.equal(packageJson.codexWindowsPackageIdentity, "Sliepie.Codex.SelfSigned");
+});
+
+test("Forge package rejects a missing Codex++ original main", async (t) => {
+  ensureRecoveredPackageForForgeTest(t);
+  const config = require(path.join(desktopRoot, "forge.config.js"));
+  const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-missing-main-"));
+  t.after(() => fs.rmSync(buildPath, { recursive: true, force: true }));
+
+  writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
+  writeCodexPlusPlusPackageFiles(buildPath);
+
+  await assert.rejects(
+    () => runForgeAfterCopy(config, buildPath),
+    /Missing packaged Codex\+\+ original main/,
+  );
 });
 
 function createCodexPlusPlusLoaderFixture(t) {
@@ -2134,107 +2169,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.group\/chats-section-header:is(:hover,:focus-within)>div:has(button:not([aria-hidden='true'])[aria-label])`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/projects-section-header:has([data-state='open'])>div:has(button:not([aria-hidden='true'])[aria-label])`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/chats-section-header:is(:hover,:focus-within)>div:has(button:not([aria-hidden='true'])[aria-label]) button:not([aria-hidden='true'])[aria-label]`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/chats-section-header:is(:hover,:focus-within)>div:has(button:not([aria-hidden='true'])[aria-label]) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible)`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`.group\/section-toggle:is(:hover,:focus-visible) svg,.group\/section-toggle:is(:hover,:focus-visible) .icon-2xs{opacity:1!important;visibility:visible!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0)>div:has(button[aria-haspopup='menu'][aria-label])`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) span:has(>[role='button']:not([aria-hidden='true'])[aria-label])`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label]`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label]{color:var(--color-token-description-foreground)!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row]:is(:hover,:focus-within)>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-project-row][aria-current='page']>div.flex.gap-1:has(>.relative.mr-0\.5.h-6.min-w-6.shrink-0) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible){color:var(--color-token-foreground)!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label] :is(svg,.icon-2xs,.icon-xs,.icon-sm)",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label]",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within)>:is(div,span):has(button:not([aria-hidden='true'])[aria-label]),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true']>:is(div,span):has(button:not([aria-hidden='true'])[aria-label]),[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [role='button']:not([aria-hidden='true'])[aria-label],[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [role='button']:not([aria-hidden='true'])[aria-label]{color:var(--color-token-description-foreground)!important;}",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] button:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [role='button']:not([aria-hidden='true'])[aria-label]:is(:hover,:focus-visible){color:var(--color-token-foreground)!important;}",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label])):not(:has(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label]))),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] .ml-\[3px\].flex.items-center.justify-end.gap-1>:not(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label])):not(:has(:is(button:not([aria-hidden='true'])[aria-label],[role='button']:not([aria-hidden='true'])[aria-label]))){display:none!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) .w-4 span:has(>button:not([aria-hidden='true'])[aria-label]),[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] .w-4 span:has(>button:not([aria-hidden='true'])[aria-label])`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [data-thread-title-trigger],[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [data-thread-title-trigger]{padding-right:1.1rem!important;min-width:0!important;}",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [data-thread-title-trigger]>:first-child,[data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-active='true'] [data-thread-title-trigger]>:first-child",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:normal!important;",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
         "[data-app-action-sidebar-section-heading=\"Pinned\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger],[data-app-action-sidebar-section-heading=\"Chats\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]{position:relative!important;left:-2px!important;}",
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-thread-row] button[aria-label*='stop' i],[data-app-action-sidebar-thread-row] button[title*='stop' i],[data-app-action-sidebar-thread-row] button[aria-label*='terminate' i],[data-app-action-sidebar-thread-row] button[title*='terminate' i],[data-app-action-sidebar-thread-row] [role='button'][aria-label*='stop' i],[data-app-action-sidebar-thread-row] [role='button'][title*='stop' i],[data-app-action-sidebar-thread-row] [role='button'][aria-label*='terminate' i],[data-app-action-sidebar-thread-row] [role='button'][title*='terminate' i]{display:none!important;}",
       ),
     );
     assert.ok(
@@ -2283,8 +2218,13 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is(a,button,[role='button'])[aria-label*='codex mobile' i]{display:none!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])>.relative.z-10.flex.shrink-0.flex-col.gap-2>.ml-2.flex.items-center{display:none!important;}`,
       ),
+    );
+    assert.doesNotMatch(uiSource, /CODEX_MOBILE_NAV_ITEM_SELECTORS|codex mobile/i);
+    assert.doesNotMatch(
+      uiOverrideCss,
+      /data-app-action-sidebar-project-row|data-app-shell-tab-controller|group\\\/chats-section-header|group\\\/projects-section-header/,
     );
     assert.doesNotMatch(uiOverrideCss, /aria-label\*='invite'|title\*='invite'|href\*='referral'|Invite a friend/);
     assert.ok(
@@ -2418,9 +2358,15 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
-  assert.doesNotMatch(workflowSource, /codex_plus_plus|CODEX_PLUS_PLUS/);
+  assert.match(workflowSource, /codex_plus_plus_tag: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /codex_plus_plus_sha: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ needs\.build-windows-arm64\.outputs\.codex_plus_plus_sha \}\}/);
   assert.doesNotMatch(workflowSource, /Upstream Codex appcast/);
-  assert.doesNotMatch(workflowSource, /Codex\+\+/);
+  assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
+  assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /BUILD_SHA: \$\{\{ github\.sha \}\}/);
   assert.doesNotMatch(workflowSource, /PR_HEAD_SHA/);
   assert.match(workflowSource, /\$targetSha = \$env:BUILD_SHA/);
@@ -2430,17 +2376,19 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /gh release upload \$tag \$zip\.FullName[\s\S]*--clobber/);
 });
 
-test("release workflow keeps Codex++ out of package inputs and release metadata", () => {
+test("release workflow tracks Codex++ in package inputs and release metadata", () => {
   const workflowSource = fs.readFileSync(
     path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
     "utf8",
   );
 
-  assert.doesNotMatch(workflowSource, /codex_plus_plus|CODEX_PLUS_PLUS/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_TAG: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_tag \}\}/);
+  assert.match(workflowSource, /CODEX_PLUS_PLUS_SHA: \$\{\{ steps\.upstream\.outputs\.codex_plus_plus_sha \}\}/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_FEED/);
   assert.doesNotMatch(workflowSource, /CODEX_APPCAST_URL/);
   assert.doesNotMatch(workflowSource, /Codex appcast:/);
-  assert.doesNotMatch(workflowSource, /Codex\+\+/);
+  assert.match(workflowSource, /Codex\+\+: \$env:CODEX_PLUS_PLUS_TAG/);
+  assert.match(workflowSource, /Codex\+\+ commit: \$env:CODEX_PLUS_PLUS_SHA/);
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--notes "\$notes"/);
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--notes "\$notes"/);
 });
@@ -2518,6 +2466,62 @@ test("self-signed MSIX payload rewrites shared SwiftShader ICD metadata", () => 
   assert.match(scriptSource, /rewriteSwiftShaderIcdMetadata\(appRoot\);/);
 });
 
+test("self-signed MSIX payload includes every manifest-referenced asset", (t) => {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-msix-payload-"));
+  t.after(() => fs.rmSync(fixtureRoot, { recursive: true, force: true }));
+  const packageRoot = path.join(fixtureRoot, "package");
+  const outputRoot = path.join(fixtureRoot, "output");
+  writeFixture(path.join(packageRoot, "Codex.exe"), "fixture");
+
+  execFileSync(
+    process.execPath,
+    [
+      path.join(desktopRoot, ".cache", "scripts", "prepare-self-signed-msix-payload.js"),
+      "--package-root",
+      packageRoot,
+      "--output-root",
+      outputRoot,
+    ],
+    { cwd: desktopRoot, stdio: "pipe" },
+  );
+
+  const manifest = fs.readFileSync(path.join(outputRoot, "AppxManifest.xml"), "utf8");
+  const referencedAssets = [...new Set(manifest.match(/assets\\[^<"\s]+/g) ?? [])];
+  assert.ok(referencedAssets.length > 0);
+  for (const asset of referencedAssets) {
+    assert.equal(
+      fs.existsSync(path.join(outputRoot, ...asset.split("\\"))),
+      true,
+      `Missing manifest asset ${asset}`,
+    );
+  }
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        outputRoot,
+        "assets",
+        "Square44x44Logo.targetsize-48_altform-unplated.png",
+      ),
+    ),
+    true,
+  );
+});
+
+test("Windows BrowserWindow icon uses the Forge extra-resource destination", () => {
+  const config = require(path.join(desktopRoot, "forge.config.js"));
+  assert.ok(config.packagerConfig.extraResource.includes("assets/windows/icon.ico"));
+
+  const patchSource = fs.readFileSync(
+    path.join(desktopRoot, "scripts", "patch-windows-self-signed-bundle.ts"),
+    "utf8",
+  );
+  assert.match(
+    patchSource,
+    /join\(process\.resourcesPath,`icon\.ico`\)/,
+  );
+  assert.doesNotMatch(patchSource, /process\.resourcesPath,`assets`,`windows`,`icon\.ico`/);
+});
+
 test("self-signed MSIX manifest does not declare phone extensions", () => {
   const scriptSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "prepare-self-signed-msix-payload.ts"),
@@ -2526,6 +2530,28 @@ test("self-signed MSIX manifest does not declare phone extensions", () => {
 
   assert.doesNotMatch(scriptSource, /xmlns:mp=/);
   assert.doesNotMatch(scriptSource, /mp:PhoneIdentity/);
+});
+
+test("self-signed MSIX signs an unsigned desktop host before packing", () => {
+  const scriptSource = fs.readFileSync(
+    path.join(repoRoot, "packaging", "windows", "New-SelfSignedCodexMsix.ps1"),
+    "utf8",
+  );
+  const signatureCheck = "$entryPointSignature = Get-AuthenticodeSignature -FilePath $entryPointPath";
+  const signOnlyUnsigned = "if ($entryPointSignature.Status -eq [System.Management.Automation.SignatureStatus]::NotSigned)";
+  const signEntryPoint = "& $signTool sign /fd SHA256 /f $certificateFile /p $plainTextPassword $entryPointPath";
+  const packMsix = "& $makeAppx pack /d $stageRoot /p $msixPath /o";
+  const signMsix = "& $signTool sign /fd SHA256 /f $certificateFile /p $plainTextPassword $msixPath";
+
+  assert.ok(scriptSource.includes(signatureCheck));
+  assert.ok(scriptSource.includes(signOnlyUnsigned));
+  assert.ok(scriptSource.indexOf(signatureCheck) < scriptSource.indexOf(signEntryPoint));
+  assert.ok(scriptSource.indexOf(signEntryPoint) < scriptSource.indexOf(packMsix));
+  assert.ok(scriptSource.indexOf(packMsix) < scriptSource.indexOf(signMsix));
+  assert.match(scriptSource, /signtool sign for the staged app entry point failed/);
+  assert.match(scriptSource, /SignerCertificate\.Thumbprint -ne \$certificate\.Thumbprint/);
+  assert.match(scriptSource, /SignatureStatus\]::HashMismatch/);
+  assert.match(scriptSource, /invalid Authenticode signature status/);
 });
 
 test("log cleanup helper blocks any Codex process before moving SQLite logs", () => {
@@ -2543,7 +2569,7 @@ test("log cleanup helper blocks any Codex process before moving SQLite logs", ()
   assert.match(scriptSource, /Move-Item -LiteralPath \$file\.FullName -Destination \$destination -Force/);
 });
 
-test("Codex app hydration keeps Codex++ patches out while applying Electron compatibility patches", () => {
+test("Codex app hydration restores Electron-compatible custom patches", () => {
   const scriptSource = fs.readFileSync(
     path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
     "utf8",
@@ -2556,20 +2582,24 @@ test("Codex app hydration keeps Codex++ patches out while applying Electron comp
   assert.match(scriptSource, /releaseItemBuildNumber\(candidate\) === buildNumber/);
   assert.match(scriptSource, /findReleaseItem\(await appcastResponse\.text\(\), options\.version, options\.buildNumber\)/);
   assert.match(scriptSource, /syncBundledPluginResources\(appResourcesRoot\);/);
-  assert.match(scriptSource, /patchWindowsSelfSignedBundle\(recoveredRoot\);\s+patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
+  assert.match(scriptSource, /options\.codexPlusPlusRepo/);
+  assert.match(scriptSource, /defaultCodexPlusPlusRepo = "b-nnett\/codex-plusplus"/);
+  assert.match(scriptSource, /CODEX_PLUS_PLUS|--codex-plusplus/);
+  assert.match(scriptSource, /await hydrateCodexPlusPlusRuntime\(/);
+  assert.match(
+    scriptSource,
+    /await hydrateCodexPlusPlusRuntime\([\s\S]*?options\.codexPlusPlusRepo[\s\S]*?options\.codexPlusPlusTag[\s\S]*?options\.codexPlusPlusSha[\s\S]*?\);[\s\S]*?patchWindowsSelfSignedBundle\(recoveredRoot\);[\s\S]*?patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);[\s\S]*?patchRecoveredOwlFeatureBinding\(recoveredRoot\);[\s\S]*?patchRecoveredOwlFeatureSwitch\(recoveredRoot\);[\s\S]*?patchRecoveredMessageRailStatsigGate\(recoveredRoot\);[\s\S]*?patchRecoveredCodexWindowServices\(recoveredRoot\);[\s\S]*?patchRecoveredCodexMicroService\(recoveredRoot\);[\s\S]*?pruneWorkLouderPackages\(recoveredRoot\);/,
+  );
+  assert.match(scriptSource, /patchWindowsSelfSignedBundle\(recoveredRoot\);\s+patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);\s+patchRecoveredOwlFeatureSwitch\(recoveredRoot\);\s+patchRecoveredMessageRailStatsigGate\(recoveredRoot\);\s+patchRecoveredCodexWindowServices\(recoveredRoot\);\s+patchRecoveredCodexMicroService\(recoveredRoot\);\s+pruneWorkLouderPackages\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
   assert.match(scriptSource, /syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
-  assert.doesNotMatch(scriptSource, /options\.codexPlusPlus|defaultCodexPlusPlusRepo/);
-  assert.doesNotMatch(scriptSource, /CODEX_PLUS_PLUS|--codex-plusplus/);
-  assert.doesNotMatch(scriptSource, /await hydrateCodexPlusPlusRuntime\(/);
   assert.match(scriptSource, /^\s+patchWindowsSelfSignedBundle\(recoveredRoot\);/m);
   assert.match(scriptSource, /^\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);/m);
-  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredOwlFeatureSwitch\(recoveredRoot\);/m);
-  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredMessageRailStatsigGate\(recoveredRoot\);/m);
-  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredCodexWindowServices\(recoveredRoot\);/m);
-  assert.doesNotMatch(scriptSource, /^\s+patchRecoveredCodexMicroService\(recoveredRoot\);/m);
-  assert.doesNotMatch(scriptSource, /^\s+pruneWorkLouderPackages\(recoveredRoot\);/m);
+  assert.match(scriptSource, /^\s+patchRecoveredOwlFeatureSwitch\(recoveredRoot\);/m);
+  assert.match(scriptSource, /^\s+patchRecoveredMessageRailStatsigGate\(recoveredRoot\);/m);
+  assert.match(scriptSource, /^\s+patchRecoveredCodexWindowServices\(recoveredRoot\);/m);
+  assert.match(scriptSource, /^\s+patchRecoveredCodexMicroService\(recoveredRoot\);/m);
+  assert.match(scriptSource, /^\s+pruneWorkLouderPackages\(recoveredRoot\);/m);
 });
-
 test("Codex app hydration makes the recovered Windows primary window focusable and taskbar-visible", () => {
   const source =
     "function j9({appearance:e,opaqueWindowSurfaceEnabled:t,platform:n,windowZoom:r=1}){switch(e){case`primary`:return n===`darwin`?t?{titleBarStyle:`hiddenInset`,trafficLightPosition:d9(r)}:{vibrancy:`menu`,titleBarStyle:`hiddenInset`,trafficLightPosition:d9(r)}:n===`win32`||n===`linux`?{titleBarStyle:`hidden`,titleBarOverlay:f9(r)}:{titleBarStyle:`default`};case`hud`:return{}}}";
@@ -3113,11 +3143,12 @@ test("self-signed appinstaller updates immediately on launch", () => {
   );
 });
 
-test("clean Electron package preserves self-signed Windows identity metadata", () => {
+test("Electron package enables Codex++ with self-signed Windows identity metadata", () => {
   const source = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
   assert.match(source, /packageJson\.codexWindowsPackageIdentity = 'Sliepie\.Codex\.SelfSigned';/);
   assert.doesNotMatch(source, /delete packageJson\.codexWindowsPackageIdentity;/);
-  assert.match(source, /delete packageJson\.__codexpp;/);
+  assert.match(source, /packageJson\.__codexpp = \{/);
+  assert.match(source, /originalMain: recoveredOriginalMain\(upstreamPackageJson\)/);
 });
 
 test("Store binary updater only accepts the official Store package family", () => {

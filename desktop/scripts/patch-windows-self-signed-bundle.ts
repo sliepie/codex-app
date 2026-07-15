@@ -878,6 +878,25 @@ function patchPrimaryRuntimeInstallerBundle(recoveredRoot: string): PatchResult[
   ];
 }
 
+const windowsPrimaryWindowIconOption =
+  'icon:process.platform===`win32`?require("node:path").join(process.resourcesPath,`icon.ico`):void 0,';
+const windowsPrimaryWindowIconAppliedPattern =
+  /BrowserWindow\(\{icon:process\.platform===`win32`\?require\("node:path"\)\.join\(process\.resourcesPath,`icon\.ico`\):void 0,width:/;
+
+function patchWindowsPrimaryBrowserWindowIcon(): SourcePatcher {
+  return regexPatch(
+    new RegExp(
+      String.raw`\bnew\s+(${identifierPattern})\.BrowserWindow\(\{width:${identifierPattern},height:${identifierPattern},(?:(?!\}\)).)*?title:${identifierPattern}\?\?\1\.app\.getName\(\),(?:(?!\}\)).)*?webPreferences:${identifierPattern}\}\)`,
+      "g",
+    ),
+    (match) => match[0].replace(
+      "BrowserWindow({",
+      `BrowserWindow({${windowsPrimaryWindowIconOption}`,
+    ),
+    windowsPrimaryWindowIconAppliedPattern,
+  );
+}
+
 function patchMainBundle(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(path.join(recoveredRoot, ".vite", "build"), /^main-.*\.js$/);
 
@@ -900,6 +919,22 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
           "isFocused",
           "`darwin`",
           "`win32`",
+        ],
+      },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "set Windows primary window taskbar icon",
+      [
+        alreadyAppliedPatch(windowsPrimaryWindowIconAppliedPattern),
+        patchWindowsPrimaryBrowserWindowIcon(),
+      ],
+      {
+        missingTargetMarkers: [
+          "BrowserWindow",
+          "app.getName",
+          "webPreferences",
         ],
       },
     ),

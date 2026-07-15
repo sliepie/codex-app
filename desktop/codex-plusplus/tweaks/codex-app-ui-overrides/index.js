@@ -124,12 +124,11 @@ const INVITE_FRIEND_MENU_ITEM_SELECTOR =
   ":where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.0368 1.69459'])";
 const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
+const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR}>.relative.z-10.flex.shrink-0.flex-col.gap-2>.ml-2.flex.items-center`;
 const SIDEBAR_SHOW_MORE_BUTTON_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading="Projects"] [role='list']>[role='listitem']>button`;
 const SIDEBAR_SHOW_MORE_BUTTON_DECLARATIONS = "margin-left:-1px!important;";
-const CODEX_MOBILE_NAV_ITEM_SELECTORS = [
-  `${SIDEBAR_ROOT_SELECTOR} :is(a,button,[role='button'])[aria-label*='codex mobile' i]`,
-];
 const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
   ":where(aside,nav,[role='navigation'],div):has(>[data-codexpp=\"nav-group\"])";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
@@ -172,7 +171,7 @@ function sectionHeaderStateSelectors(targets) {
 
 const BASE_STYLE_RULES = [
   cssRule(".group\\/application-menu-top-bar", "margin-inline-start:0.5rem;"),
-  cssRule(CODEX_MOBILE_NAV_ITEM_SELECTORS, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(INVITE_FRIEND_MENU_ITEM_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
 ];
 
@@ -406,8 +405,6 @@ const USAGE_MENU_STYLE_RULES = [
 const STYLE_RULES = [
   ...BASE_STYLE_RULES,
   ...SIDEBAR_PIXEL_NUDGE_STYLE_RULES,
-  ...SIDEBAR_HOVER_CONTROL_STYLE_RULES,
-  ...RIGHT_PANEL_TAB_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,
   ...CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES,
