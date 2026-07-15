@@ -72,12 +72,23 @@ The investigation will establish one focused pass/fail command per symptom befor
 
 - Inspected the installed `26.707` application archive rather than guessing selectors from the older checked-in recovered bundle.
 - The new Codex/ChatGPT Work selector and compact Search button are siblings inside a dedicated `div.ml-2.flex.items-center` wrapper in the first fixed header under the existing sidebar root marker. A single locale-independent wrapper rule can hide both; localized `aria-label` text should not be used.
-- The sidebar hover/action rule group and right-panel tab rule group remain stale and must stay out of `STYLE_RULES`.
-- The old project action-rail selector is stale. Upstream now uses a different max-width/grid structure, so the old rules must not be re-enabled through fallback selectors.
-- The Codex Mobile sidebar selector is stale because that action moved to the Help menu; it should be removed from active rules.
+- The stale sidebar hover/action and right-panel tab rule groups were removed entirely.
+- The old project action-rail selector no longer matches upstream's max-width/grid structure and was removed with its rule group.
+- The Codex Mobile sidebar selector is stale because that action moved to the Help menu; it was removed entirely.
 - Still source-backed: the app-menu marker, thread/project data markers, image preview controls, settings layout markers, invite/settings SVG markers, usage-menu rows/links, and the independent Windows menu-bar tweak.
 - The Codex++ loader does not automatically disable a tweak because selectors are stale. Installed tweaks remain enabled unless safe mode or configuration disables them, so stale behavior must be kept out by omitting/removing the affected rules.
-- The installed UI override had diverged to experimental version `0.26.1`, which would outrank the PR bundle and retain stale rules. Used the guarded repo sync flow to replace its content with the audited source while returning the installed copy to its separate main-based test track at `0.25.1`.
+- The installed UI override had diverged to experimental version `0.26.1`, which would outrank the PR bundle and retain stale rules. Used the guarded repo sync flow to replace its content with the audited source while returning the installed copy to its separate main-based test track. The first audit sync used `0.25.1`; the stale-code deletion refresh advanced it to `0.25.2`.
+
+### 2026-07-15 — first pull-request feedback loop
+
+- Primary-runtime validation passed on GitHub in 5m36s and populated the new verified cache path.
+- The first Windows ARM64 app build failed during hydration because the restored forced-all OWL feature-switch rewriter no longer had a valid target in the current bundle.
+- Inspection of the current installed `26.707` source showed that upstream now owns OWL bootstrap state, merges enable/disable feature switches, and enables its intended defaults. The obsolete forced-all and binding rewrite code was removed rather than broadened or retained as dormant compatibility code.
+- Current-source probes confirmed that the window-services and Codex Micro cleanup patches still have source-backed targets.
+- The old message-rail gate is absent from the current bundle while the rail component remains. Its wrapper would throw after scanning the bundle, so that rewrite and its tests were removed entirely.
+- The current main-process wrapper calls `stop()` on the Codex Micro service. The replacement service now implements that no-op lifecycle method while continuing to remove the unsupported Work Louder runtime dependency.
+- A second no-legacy review found two older window-services strategies and a standalone-primary taskbar bundle shape. Current `26.707` uses the service-factory window-services shape and the shared Quick Chat/primary taskbar shape, so the older branches and standalone taskbar test were deleted.
+- After removing the obsolete source rewriters and dormant CSS groups, script compilation, the Windows package-resource suite, and the 11-test recovered-bundle patch suite passed locally. The follow-up must still pass the real GitHub app hydration/build job.
 
 ## Findings
 
@@ -106,8 +117,11 @@ The investigation will establish one focused pass/fail command per symptom befor
 - Added focused resolver and cached-output integrity tests, and made those tests part of the primary-runtime pull-request job.
 - The self-signed MSIX packager now Authenticode-signs an unsigned staged desktop entry point with the existing package code-signing certificate before creating and signing the outer MSIX. It preserves only a valid existing signature, rejects other invalid states, and verifies the expected signer after signing. This targets the largest evidence-backed unsigned binary without changing Defender configuration.
 - Restored the previously merged Codex++ customization chain on top of the current PR #136 hydration code: release tag/SHA resolution, cache identity, workflow inputs, runtime hydration, Forge packaging, loader entry point, release metadata, and the Electron-compatible recovered-source patches.
+- Removed the obsolete OWL feature-switch, OWL binding, and message-rail rewrite implementations and tests. Current upstream owns those behaviors.
+- Removed legacy window-services repair/lifecycle strategies and the obsolete standalone-primary taskbar rewriter. Only the two current `26.707` bundle shapes remain.
+- Added the current `stop()` lifecycle method to the Codex Micro replacement service so the upstream wrapper can shut it down without a `TypeError`.
 - Restored both Windows icon paths. Payload preparation now copies the complete MSIX asset directory referenced by `AppxManifest.xml`, and recovered main-process bundles receive an explicit Windows `BrowserWindow` icon from the packaged resource directory.
-- Re-evaluated both bundled tweaks. The independent Windows menu-bar tweak remains source-backed and unchanged. The UI override is now `0.26.0`, hides the current mode/search wrapper with one locale-independent structural selector, removes the obsolete Codex Mobile rule, and keeps the stale sidebar hover/project-action and right-panel tab groups out of emitted CSS.
+- Re-evaluated both bundled tweaks. The independent Windows menu-bar tweak remains source-backed and unchanged. The UI override is now `0.26.0`, hides the current mode/search wrapper with one locale-independent structural selector, and removes the obsolete Codex Mobile, sidebar hover/project-action, and right-panel tab code entirely.
 
 ## Validation
 
@@ -118,7 +132,7 @@ The investigation will establish one focused pass/fail command per symptom befor
 - Defender mitigation still requires a newly built package and a live CPU comparison. Inner signing is evidence-backed, but exact scan attribution and observed CPU improvement cannot be claimed from the current unelevated session.
 - Recovered-bundle patch tests passed: 11/11.
 - Release resolver tests passed: 21/21.
-- Windows package-resource tests passed: 85/85, including execution of payload preparation, verification that every manifest-referenced icon exists, a Forge-to-runtime icon-path cross-check, and failure coverage for a missing recovered entry point.
-- Installed UI tweak `index.js` now hashes identically to the audited repo source; its installed-only manifest version is `0.25.1`.
+- Windows package-resource tests passed: 79/79 after obsolete patch tests were deleted, including execution of payload preparation, verification that every manifest-referenced icon exists, a Forge-to-runtime icon-path cross-check, current Codex Micro lifecycle coverage, and failure coverage for a missing recovered entry point.
+- Installed UI tweak `index.js` now hashes identically to the audited repo source; its installed-only manifest version is `0.25.2`.
 - Release-path focused suites also passed: CLI hydration 5/5, Windows ARM64 package plan 9/9, and browser-client runtime compatibility 8/8.
 - The MSIX packaging PowerShell script parses successfully after the inner-signing change.

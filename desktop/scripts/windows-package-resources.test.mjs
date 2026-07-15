@@ -26,10 +26,7 @@ const {
   patchCodexWindowServicesSource,
   patchMarkdownOperationDirectiveCrashSource,
   pruneWorkLouderPackages,
-  patchOwlFeatureBindingSource,
   patchRecoveredWindowsPrimaryWindowTaskbarSource,
-  patchRecoveredMessageRailStatsigGateSource,
-  patchRecoveredOwlFeatureSwitchSource,
   pruneUnusedNativePayloads,
   rewriteCodexPlusPlusRuntimePreload,
   syncCodexPlusPlusRuntimeAssets,
@@ -832,6 +829,7 @@ test("stubs recovered Codex Micro Work Louder service", () => {
   assert.equal(patch?.changed, true);
   assert.equal(patch.source.includes("@worklouder/device-kit-oai"), false);
   assert.match(patch.source, /exports\.CodexMicroService=m/);
+  assert.match(patch.source, /async stop\(\)\{\}/);
   assert.match(patch.source, /async updateLighting\(\)\{return!1\}/);
 
   const secondPatch = patchRecoveredCodexMicroServiceSource(patch.source);
@@ -2223,6 +2221,10 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.doesNotMatch(uiSource, /CODEX_MOBILE_NAV_ITEM_SELECTORS|codex mobile/i);
     assert.doesNotMatch(
+      uiSource,
+      /SIDEBAR_HOVER_CONTROL_STYLE_RULES|RIGHT_PANEL_TAB_STYLE_RULES|SIDEBAR_PROJECT_ACTION_RAIL_SELECTOR/,
+    );
+    assert.doesNotMatch(
       uiOverrideCss,
       /data-app-action-sidebar-project-row|data-app-shell-tab-controller|group\\\/chats-section-header|group\\\/projects-section-header/,
     );
@@ -2588,41 +2590,22 @@ test("Codex app hydration restores Electron-compatible custom patches", () => {
   assert.match(scriptSource, /await hydrateCodexPlusPlusRuntime\(/);
   assert.match(
     scriptSource,
-    /await hydrateCodexPlusPlusRuntime\([\s\S]*?options\.codexPlusPlusRepo[\s\S]*?options\.codexPlusPlusTag[\s\S]*?options\.codexPlusPlusSha[\s\S]*?\);[\s\S]*?patchWindowsSelfSignedBundle\(recoveredRoot\);[\s\S]*?patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);[\s\S]*?patchRecoveredOwlFeatureBinding\(recoveredRoot\);[\s\S]*?patchRecoveredOwlFeatureSwitch\(recoveredRoot\);[\s\S]*?patchRecoveredMessageRailStatsigGate\(recoveredRoot\);[\s\S]*?patchRecoveredCodexWindowServices\(recoveredRoot\);[\s\S]*?patchRecoveredCodexMicroService\(recoveredRoot\);[\s\S]*?pruneWorkLouderPackages\(recoveredRoot\);/,
+    /await hydrateCodexPlusPlusRuntime\([\s\S]*?options\.codexPlusPlusRepo[\s\S]*?options\.codexPlusPlusTag[\s\S]*?options\.codexPlusPlusSha[\s\S]*?\);[\s\S]*?patchWindowsSelfSignedBundle\(recoveredRoot\);[\s\S]*?patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);[\s\S]*?patchRecoveredCodexWindowServices\(recoveredRoot\);[\s\S]*?patchRecoveredCodexMicroService\(recoveredRoot\);[\s\S]*?pruneWorkLouderPackages\(recoveredRoot\);/,
   );
-  assert.match(scriptSource, /patchWindowsSelfSignedBundle\(recoveredRoot\);\s+patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);\s+patchRecoveredOwlFeatureSwitch\(recoveredRoot\);\s+patchRecoveredMessageRailStatsigGate\(recoveredRoot\);\s+patchRecoveredCodexWindowServices\(recoveredRoot\);\s+patchRecoveredCodexMicroService\(recoveredRoot\);\s+pruneWorkLouderPackages\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
+  assert.match(scriptSource, /patchWindowsSelfSignedBundle\(recoveredRoot\);\s+patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+patchRecoveredCodexWindowServices\(recoveredRoot\);\s+patchRecoveredCodexMicroService\(recoveredRoot\);\s+pruneWorkLouderPackages\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
   assert.match(scriptSource, /syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
   assert.match(scriptSource, /^\s+patchWindowsSelfSignedBundle\(recoveredRoot\);/m);
-  assert.match(scriptSource, /^\s+patchRecoveredOwlFeatureBinding\(recoveredRoot\);/m);
-  assert.match(scriptSource, /^\s+patchRecoveredOwlFeatureSwitch\(recoveredRoot\);/m);
-  assert.match(scriptSource, /^\s+patchRecoveredMessageRailStatsigGate\(recoveredRoot\);/m);
+  assert.doesNotMatch(scriptSource, /patch(?:Recovered)?OwlFeature/);
+  assert.doesNotMatch(scriptSource, /patchRecoveredMessageRailStatsigGate/);
+  assert.doesNotMatch(
+    scriptSource,
+    /repairMalformedMarkerAssignment|patchFromLifecycleRegistration|repair-missing-separator|lifecycle-registration-fingerprint|const optionsPattern/,
+  );
   assert.match(scriptSource, /^\s+patchRecoveredCodexWindowServices\(recoveredRoot\);/m);
   assert.match(scriptSource, /^\s+patchRecoveredCodexMicroService\(recoveredRoot\);/m);
   assert.match(scriptSource, /^\s+pruneWorkLouderPackages\(recoveredRoot\);/m);
 });
-test("Codex app hydration makes the recovered Windows primary window focusable and taskbar-visible", () => {
-  const source =
-    "function j9({appearance:e,opaqueWindowSurfaceEnabled:t,platform:n,windowZoom:r=1}){switch(e){case`primary`:return n===`darwin`?t?{titleBarStyle:`hiddenInset`,trafficLightPosition:d9(r)}:{vibrancy:`menu`,titleBarStyle:`hiddenInset`,trafficLightPosition:d9(r)}:n===`win32`||n===`linux`?{titleBarStyle:`hidden`,titleBarOverlay:f9(r)}:{titleBarStyle:`default`};case`hud`:return{}}}";
-
-  const patch = patchRecoveredWindowsPrimaryWindowTaskbarSource(source);
-
-  assert.ok(patch);
-  assert.equal(patch.changed, true);
-  assert.match(
-    patch.source,
-    /n===`win32`\|\|n===`linux`\?\{titleBarStyle:`hidden`,titleBarOverlay:f9\(r\),skipTaskbar:!1,focusable:!0\/\* Codex Windows primary taskbar window \*\/\}/,
-  );
-  assert.match(
-    patch.source,
-    /n===`darwin`\?t\?\{titleBarStyle:`hiddenInset`,trafficLightPosition:d9\(r\)\}:\{vibrancy:`menu`,titleBarStyle:`hiddenInset`,trafficLightPosition:d9\(r\)\}/,
-  );
-
-  const secondPatch = patchRecoveredWindowsPrimaryWindowTaskbarSource(patch.source);
-  assert.ok(secondPatch);
-  assert.equal(secondPatch.changed, false);
-});
-
-test("Codex app hydration keeps shared Quick Chat window options separate from primary taskbar options", () => {
+test("Codex app hydration keeps current Quick Chat window options separate from primary taskbar options", () => {
   const source =
     "function z9({appearance:e,opaqueWindowSurfaceEnabled:t,platform:n,windowZoom:r=1}){switch(e){case`quickChat`:case`primary`:return n===`darwin`?{titleBarStyle:`hiddenInset`,trafficLightPosition:A9(r),...e===`quickChat`?{hasShadow:!0,resizable:!0,transparent:!0}:{},...t?{}:{vibrancy:`menu`}}:n===`win32`||n===`linux`?{titleBarStyle:`hidden`,titleBarOverlay:j9(r),...e===`quickChat`?{resizable:!0}:{}}:{titleBarStyle:`default`,...e===`quickChat`?{resizable:!0}:{}}}}";
 
@@ -2728,89 +2711,6 @@ test("Codex app cache consumers allow beta app bundle names", () => {
   assert.doesNotMatch(verifierSource, /"Codex\.app", "Contents", "Resources", "node"/);
 });
 
-test("Codex app hydration guards missing OWL Electron feature binding", () => {
-  const source =
-    'function rn(e){return Qe().isOwlFeatureEnabled(e)}function Qe(){let e=process._linkedBinding;if(typeof e!=`function`)throw Error(`Owl feature binding is unavailable`);return Ge.parse(e.call(process,`electron_common_owl_features`))}function $e(){return Qe()}';
-
-  const patch = patchOwlFeatureBindingSource(source);
-
-  assert.ok(patch);
-  assert.equal(patch.changed, true);
-  assert.match(patch.source, /if\(typeof e!="function"\)return \{isOwlFeatureEnabled:\(\)=>!1\}/);
-  assert.match(patch.source, /try\{return Ge\.parse\(e\.call\(process,"electron_common_owl_features"\)\)\}/);
-  assert.match(patch.source, /catch\{return \{isOwlFeatureEnabled:\(\)=>!1\}\}/);
-  assert.doesNotMatch(patch.source, /throw Error\(`Owl feature binding is unavailable`\)/);
-
-  const secondPatch = patchOwlFeatureBindingSource(patch.source);
-  assert.ok(secondPatch);
-  assert.equal(secondPatch.changed, false);
-});
-
-test("Codex app hydration accepts upstream OWL binding null path", () => {
-  const source =
-    "var Ve=`electron_common_owl_features`,Ge=t.Yc({isOwlFeatureEnabled:t.Wc(e=>typeof e==`function`)});function Qe(){let e=process._linkedBinding;if(typeof e!=`function`)return null;let t;try{t=e.call(process,Ve)}catch(e){if(st(e))return null;throw e}return Ge.parse(t)}";
-
-  const patch = patchOwlFeatureBindingSource(source);
-
-  assert.ok(patch);
-  assert.equal(patch.changed, false);
-});
-
-test("Codex app hydration enables all OWL Electron features", () => {
-  const source =
-    "let i=require(`electron`),a=`;`,r=/;/,f=function(){return/;/;},g=()=>/;/.test(x),p=require(`node:path`);i.app.commandLine;a=e.o(a);";
-
-  const patch = patchRecoveredOwlFeatureSwitchSource(source);
-
-  assert.ok(patch);
-  assert.equal(patch.changed, true);
-  assert.match(
-    patch.source,
-    /__codexExistingFeatures=i\.app\.commandLine\.getSwitchValue\("enable-features"\)/,
-  );
-  assert.match(
-    patch.source,
-    /i\.app\.commandLine\.appendSwitch\("enable-features",__codexExistingFeatures\?__codexExistingFeatures\+","\+__codexOwlFeatures:__codexOwlFeatures\)/,
-  );
-  assert.match(
-    patch.source,
-    /__codexOwlFeatures="OwlAutofillAndPasswords,OwlAuth,OwlDownloads,OwlExtensions,OwlOpenAIGoLinks,OwlPermissions,OwlPrinting,OwlWebViewEnhancements"/,
-  );
-  assert.match(
-    patch.source,
-    /let i=require\(`electron`\),a=`;`,r=\/;\/,f=function\(\)\{return\/;\/;\},g=\(\)=>\/;\/\.test\(x\),p=require\(`node:path`\);try\{/,
-  );
-  assert.doesNotMatch(patch.source, /,try\{/);
-  assert.doesNotMatch(patch.source, /a=`;try\{/);
-  assert.doesNotMatch(patch.source, /return\/;try\{/);
-  assert.doesNotMatch(patch.source, /=>\/;try\{/);
-  assert.match(patch.source, /Codex\+\+ enable Owl Electron features/);
-
-  const secondPatch = patchRecoveredOwlFeatureSwitchSource(patch.source);
-  assert.ok(secondPatch);
-  assert.equal(secondPatch.changed, false);
-});
-
-test("Codex app hydration enables the message rail Statsig gate", () => {
-  const source =
-    "var rail=async()=>{let{ThreadUserMessageNavigationRail:e}=await import(`./thread-user-message-navigation-rail.js`);return e};function Bo(){return Pt(\"2551582477\")&&At('2551582477')&&client.checkGate(`2551582477`)&&client . checkGate(`2551582477`)&&enabled}";
-
-  const patch = patchRecoveredMessageRailStatsigGateSource(source);
-
-  assert.ok(patch);
-  assert.equal(patch.changed, true);
-  assert.match(patch.source, /true\/\* Codex\+\+ enable message rail \*\//);
-  assert.doesNotMatch(patch.source, /Pt\("2551582477"\)/);
-  assert.doesNotMatch(patch.source, /At\('2551582477'\)/);
-  assert.match(patch.source, /client\.checkGate\(`2551582477`\)/);
-  assert.match(patch.source, /client \. checkGate\(`2551582477`\)/);
-  assert.doesNotMatch(patch.source, /client\.true/);
-
-  const secondPatch = patchRecoveredMessageRailStatsigGateSource(patch.source);
-  assert.ok(secondPatch);
-  assert.equal(secondPatch.changed, false);
-});
-
 test("Codex++ runtime preload patch prefers Store settings panel items container", () => {
   const source = `
 function tryInject() {
@@ -2884,19 +2784,6 @@ function isSettingsSidebarCandidate(el) {
   assert.doesNotMatch(updated, /return settingsPanelNav;/);
   assert.match(updated, /return settingsItemsGroup;/);
   assert.equal(rewriteCodexPlusPlusRuntimePreload(updated), updated);
-});
-
-test("Codex app OWL feature binding patch preserves minified dollar identifiers", () => {
-  const source =
-    'function $1(){let $$=process._linkedBinding;if(typeof $$!=`function`)throw Error(`Owl feature binding is unavailable`);return $2.parse($$.call(process,`electron_common_owl_features`))}';
-
-  const patch = patchOwlFeatureBindingSource(source);
-
-  assert.ok(patch);
-  assert.equal(patch.changed, true);
-  assert.match(patch.source, /function \$1\(\)\{let \$\$=process\._linkedBinding/);
-  assert.match(patch.source, /typeof \$\$!="function"/);
-  assert.match(patch.source, /\$2\.parse\(\$\$\.call\(process,"electron_common_owl_features"\)\)/);
 });
 
 test("operational scripts resolve desktop root from script location", () => {
