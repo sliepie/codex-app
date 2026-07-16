@@ -159,3 +159,4 @@ The investigation will establish one focused pass/fail command per symptom befor
 - The MSIX packaging PowerShell script parses successfully after the inner-signing change.
 - A temporary-copy run against the real recovered bundle replaced 2,800 product-name string occurrences across 95 renderer assets without touching the source tree.
 - The simplified primary-runtime workflow parses as YAML, script compilation passes, publisher TypeScript syntax validation passes, and the focused resolver (11/11), output verifier (2/2), and Windows package-resource (79/79) suites pass.
+- PR #137 remote validation passed at `a731f837`: the shared prepare job completed in 6m49s, the write-enabled publisher correctly skipped for the pull-request event, and the Windows ARM64 app build and alpha publish jobs passed.
