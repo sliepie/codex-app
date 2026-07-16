@@ -16,3 +16,10 @@ Bundled Codex++ tweak manifests are versioned against the version currently on m
 - Before changing a tweak that depends on upstream Codex UI structure, inspect the real upstream source that ships in the app bundle.
 - If the relevant source is not already available locally, download and extract the latest macOS Codex app build, then inspect the recovered renderer bundle before choosing selectors or patch targets.
 - Treat screenshots as symptoms only. Use them to orient the investigation, not as proof of DOM structure.
+
+## Restoring Native UI Behavior
+
+- When app-owned UI or behavior hidden by a tweak must be restored, first remove or narrow the override to re-enable the native implementation.
+- Reuse existing app selectors, variables, masks, pseudo-elements, and state logic whenever possible.
+- Never add replacement CSS to imitate native behavior while the existing implementation can be reused.
+- Recreate native behavior only when reuse is impossible, and document why.
