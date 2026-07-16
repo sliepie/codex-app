@@ -39,7 +39,7 @@ const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
 const SIDEBAR_SCROLL_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-scroll]`;
 const SIDEBAR_SCROLL_DECLARATIONS =
-  "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:calc(var(--padding-row-x) + 1rem)!important;--sidebar-scroll-header-fade-start:0px!important;--sidebar-scroll-footer-edge:100%!important;";
+  "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:1rem!important;--sidebar-scroll-header-fade-start:0px!important;--sidebar-scroll-footer-edge:100%!important;";
 const SIDEBAR_TOP_TRIGGER_SELECTOR =
   ".group\\/application-menu-top-bar [data-app-shell-sidebar-trigger]";
 const SIDEBAR_TOP_TRIGGER_DECLARATIONS =

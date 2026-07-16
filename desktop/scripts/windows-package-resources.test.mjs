@@ -2232,7 +2232,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.equal(
       sidebarScrollRuleBody,
-      "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:calc(var(--padding-row-x) + 1rem)!important;--sidebar-scroll-header-fade-start:0px!important;--sidebar-scroll-footer-edge:100%!important;",
+      "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:1rem!important;--sidebar-scroll-header-fade-start:0px!important;--sidebar-scroll-footer-edge:100%!important;",
     );
     assert.doesNotMatch(sidebarScrollRuleBody, /\bmask(?:-[a-z-]+)?\s*:/i);
     assert.ok(
