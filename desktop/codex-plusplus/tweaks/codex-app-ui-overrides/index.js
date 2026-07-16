@@ -16,12 +16,16 @@ const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
 const SIDEBAR_ACTIVE_SCROLLED_HEADER_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR}>.relative.z-10.flex.shrink-0.flex-col.gap-2[class~="after:h-[0.5px]"]`;
+const SIDEBAR_PINNED_THREAD_ROW_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-pinned="true"]`;
+const SIDEBAR_PINNED_THREAD_ROW_DECLARATIONS =
+  "height:calc(var(--height-token-row) - 2px)!important;";
 const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR}>.relative.z-10.flex.shrink-0.flex-col.gap-2>.ml-2.flex.items-center`;
 const SIDEBAR_SCROLL_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-scroll]`;
 const SIDEBAR_SCROLL_DECLARATIONS =
-  "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:var(--padding-row-x)!important;-webkit-mask-image:none!important;mask-image:none!important;";
+  "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:var(--padding-row-x)!important;--sidebar-scroll-header-fade-start:0px!important;--sidebar-scroll-footer-edge:100%!important;";
 const SIDEBAR_TOP_TRIGGER_SELECTOR =
   ".group\\/application-menu-top-bar [data-app-shell-sidebar-trigger]";
 const SIDEBAR_TOP_TRIGGER_DECLARATIONS =
@@ -60,8 +64,8 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
     "padding-bottom:1px!important;",
   ),
   cssRule(
-    `${SIDEBAR_ACTIVE_SCROLLED_HEADER_SELECTOR}::after`,
-    HIDDEN_DISPLAY_DECLARATIONS,
+    SIDEBAR_PINNED_THREAD_ROW_SELECTOR,
+    SIDEBAR_PINNED_THREAD_ROW_DECLARATIONS,
   ),
 ];
 const IMAGE_PREVIEW_STYLE_RULES = [

@@ -2219,19 +2219,36 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`nav:has([data-settings-panel-slug]) .min-h-0.flex-1.overflow-y-auto.pb-2{margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;}`,
       ),
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-scroll]{margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:var(--padding-row-x)!important;-webkit-mask-image:none!important;mask-image:none!important;}`,
-      ),
+    const sidebarScrollRulePrefix =
+      String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-scroll]{`;
+    const sidebarScrollRuleStart = uiOverrideCss.indexOf(sidebarScrollRulePrefix);
+    assert.notEqual(sidebarScrollRuleStart, -1);
+    const sidebarScrollRuleBodyStart = sidebarScrollRuleStart + sidebarScrollRulePrefix.length;
+    const sidebarScrollRuleBodyEnd = uiOverrideCss.indexOf("}", sidebarScrollRuleBodyStart);
+    assert.notEqual(sidebarScrollRuleBodyEnd, -1);
+    const sidebarScrollRuleBody = uiOverrideCss.slice(
+      sidebarScrollRuleBodyStart,
+      sidebarScrollRuleBodyEnd,
     );
+    assert.equal(
+      sidebarScrollRuleBody,
+      "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:var(--padding-row-x)!important;--sidebar-scroll-header-fade-start:0px!important;--sidebar-scroll-footer-edge:100%!important;",
+    );
+    assert.doesNotMatch(sidebarScrollRuleBody, /\bmask(?:-[a-z-]+)?\s*:/i);
     assert.ok(
       uiOverrideCss.includes(
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])>.relative.z-10.flex.shrink-0.flex-col.gap-2[class~="after:h-[0.5px]"]{padding-bottom:1px!important;}`,
       ),
     );
+    assert.equal(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])>.relative.z-10.flex.shrink-0.flex-col.gap-2[class~="after:h-[0.5px]"]::after{`,
+      ),
+      false,
+    );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])>.relative.z-10.flex.shrink-0.flex-col.gap-2[class~="after:h-[0.5px]"]::after{display:none!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-pinned="true"]{height:calc(var(--height-token-row) - 2px)!important;}`,
       ),
     );
     assert.ok(
