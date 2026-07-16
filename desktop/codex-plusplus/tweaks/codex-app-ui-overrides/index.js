@@ -14,8 +14,8 @@ const INVITE_FRIEND_MENU_ITEM_SELECTOR =
   ":where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.0368 1.69459'])";
 const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
-const SIDEBAR_ACTIVE_SCROLLED_HEADER_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR}>.relative.z-10.flex.shrink-0.flex-col.gap-2[class~="after:h-[0.5px]"]`;
+const SIDEBAR_ROOT_DECLARATIONS =
+  "--sidebar-scroll-header-spacing:1px!important;";
 const SIDEBAR_PINNED_THREAD_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-pinned="true"]`;
 const SIDEBAR_PINNED_THREAD_ROW_DECLARATIONS =
@@ -58,11 +58,8 @@ const BASE_STYLE_RULES = [
 ];
 
 const SIDEBAR_SCROLL_STYLE_RULES = [
+  cssRule(SIDEBAR_ROOT_SELECTOR, SIDEBAR_ROOT_DECLARATIONS),
   cssRule(SIDEBAR_SCROLL_SELECTOR, SIDEBAR_SCROLL_DECLARATIONS),
-  cssRule(
-    SIDEBAR_ACTIVE_SCROLLED_HEADER_SELECTOR,
-    "padding-bottom:1px!important;",
-  ),
   cssRule(
     SIDEBAR_PINNED_THREAD_ROW_SELECTOR,
     SIDEBAR_PINNED_THREAD_ROW_DECLARATIONS,

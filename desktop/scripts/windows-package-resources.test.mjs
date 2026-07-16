@@ -2237,8 +2237,14 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.doesNotMatch(sidebarScrollRuleBody, /\bmask(?:-[a-z-]+)?\s*:/i);
     assert.ok(
       uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]){--sidebar-scroll-header-spacing:1px!important;}`,
+      ),
+    );
+    assert.equal(
+      uiOverrideCss.includes(
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])>.relative.z-10.flex.shrink-0.flex-col.gap-2[class~="after:h-[0.5px]"]{padding-bottom:1px!important;}`,
       ),
+      false,
     );
     assert.equal(
       uiOverrideCss.includes(
