@@ -16,9 +16,16 @@ const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
 const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR}>.relative.z-10.flex.shrink-0.flex-col.gap-2>.ml-2.flex.items-center`;
-const SIDEBAR_SHOW_MORE_BUTTON_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading="Projects"] [role='list']>[role='listitem']>button`;
-const SIDEBAR_SHOW_MORE_BUTTON_DECLARATIONS = "margin-left:-1px!important;";
+const SIDEBAR_SCROLL_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-scroll]`;
+const SIDEBAR_SCROLL_DECLARATIONS =
+  "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:var(--padding-row-x)!important;-webkit-mask-image:none!important;mask-image:none!important;";
+const SIDEBAR_TOP_TRIGGER_SELECTOR =
+  ".group\\/application-menu-top-bar [data-app-shell-sidebar-trigger]";
+const SIDEBAR_TOP_TRIGGER_DECLARATIONS =
+  "transform:translateX(2px)!important;";
+const SIDEBAR_HELP_BUTTON_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M16.585 10C16.585"])`;
 const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
   ":where(aside,nav,[role='navigation'],div):has(>[data-codexpp=\"nav-group\"])";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
@@ -39,19 +46,13 @@ function cssRule(selectors, declarations) {
 }
 
 const BASE_STYLE_RULES = [
-  cssRule(".group\\/application-menu-top-bar", "margin-inline-start:0.5rem;"),
   cssRule(SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(SIDEBAR_TOP_TRIGGER_SELECTOR, SIDEBAR_TOP_TRIGGER_DECLARATIONS),
   cssRule(INVITE_FRIEND_MENU_ITEM_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
 ];
 
-const SIDEBAR_PIXEL_NUDGE_STYLE_RULES = [
-  cssRule(
-    [
-      '[data-app-action-sidebar-section-heading="Pinned"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]',
-      '[data-app-action-sidebar-section-heading="Chats"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]',
-    ],
-    "position:relative!important;left:-2px!important;",
-  ),
+const SIDEBAR_SCROLL_STYLE_RULES = [
+  cssRule(SIDEBAR_SCROLL_SELECTOR, SIDEBAR_SCROLL_DECLARATIONS),
 ];
 const IMAGE_PREVIEW_STYLE_RULES = [
   cssRule(
@@ -116,10 +117,7 @@ const SIDEBAR_FOOTER_STYLE_RULES = [
     `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M10.6391 1.67517"]) svg`,
     "margin-right:1px!important;",
   ),
-  cssRule(
-    SIDEBAR_SHOW_MORE_BUTTON_SELECTOR,
-    SIDEBAR_SHOW_MORE_BUTTON_DECLARATIONS,
-  ),
+  cssRule(SIDEBAR_HELP_BUTTON_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
 ];
 
 const USAGE_MENU_STYLE_RULES = [
@@ -141,7 +139,7 @@ const USAGE_MENU_STYLE_RULES = [
 
 const STYLE_RULES = [
   ...BASE_STYLE_RULES,
-  ...SIDEBAR_PIXEL_NUDGE_STYLE_RULES,
+  ...SIDEBAR_SCROLL_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...REMOTE_CONVERSATION_HEADER_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,

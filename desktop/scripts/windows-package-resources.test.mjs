@@ -1828,7 +1828,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   const uiSource = fs.readFileSync(path.join(uiTweakRoot, uiManifest.main), "utf8");
   assert.doesNotMatch(uiSource, /createTreeWalker|requestAnimationFrame|setTimeout|addEventListener/);
   assert.doesNotMatch(uiSource, /hideWindowsMenuBar|codex-app-ui-hide-windows-menu-bar-setting/);
-  assert.ok(uiSource.includes('cssRule(".group\\\\/application-menu-top-bar", "margin-inline-start:0.5rem;")'));
+  assert.doesNotMatch(uiSource, /group\\\\\/application-menu-top-bar[\s\S]{0,120}margin-inline-start/);
   assert.doesNotMatch(uiSource, /application-menu-top-bar[\s\S]{0,120}display:none!important/);
   assert.doesNotMatch(uiSource, /:has\(\+\.scrollbar-stable/);
   assert.doesNotMatch(uiSource, /:window-inactive[\s\S]{0,160}app-shell-left-panel/);
@@ -2087,7 +2087,10 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
     const uiOverrideCss = appendedStyles[0].textContent;
     const menuBarCss = appendedStyles[1].textContent;
-    assert.doesNotMatch(uiOverrideCss, /sidebar-trigger/);
+    assert.doesNotMatch(
+      uiOverrideCss,
+      /\.group\\\/application-menu-top-bar\{[^}]*margin-inline-start/,
+    );
     assert.ok(
       uiOverrideCss.includes(
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M10.6391 1.67517"]) svg{margin-right:1px!important;}`,
@@ -2150,10 +2153,10 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         .getAttribute("data-state"),
       "unchecked",
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-section-heading="Projects"] [role='list']>[role='listitem']>button{margin-left:-1px!important;}`,
-      ),
+    assert.doesNotMatch(uiSource, /SIDEBAR_SHOW_MORE_BUTTON_SELECTOR|SIDEBAR_SHOW_MORE_BUTTON_DECLARATIONS/);
+    assert.doesNotMatch(
+      uiOverrideCss,
+      /data-app-action-sidebar-section-heading="Projects"[^{}]*\{[^{}]*margin-left/,
     );
     assert.ok(
       uiOverrideCss.includes(
@@ -2165,11 +2168,8 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       uiOverrideCss,
       /role=['"]listitem['"][^{}]*class~=['"]py-1['"][^{}]*margin-left|text-token-description-foreground[^{}]*margin-left/,
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        "[data-app-action-sidebar-section-heading=\"Pinned\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger],[data-app-action-sidebar-section-heading=\"Chats\"] [data-app-action-sidebar-thread-row]:not(:has(.absolute.top-0.left-1.z-10)) [data-thread-title-trigger]{position:relative!important;left:-2px!important;}",
-      ),
-    );
+    assert.doesNotMatch(uiSource, /SIDEBAR_PIXEL_NUDGE_STYLE_RULES/);
+    assert.doesNotMatch(uiOverrideCss, /position:relative!important;left:-2px!important;/);
     assert.ok(
       uiOverrideCss.includes(
         String.raw`.draggable.grid.w-full.min-w-0.items-center.gap-x-4.electron\:h-toolbar.extension\:py-row-y>.flex.items-center.justify-end.gap-1\.5>.flex.items-center.gap-2>button.shrink-0:last-child{order:-1!important;}`,
@@ -2217,6 +2217,21 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.ok(
       uiOverrideCss.includes(
         String.raw`nav:has([data-settings-panel-slug]) .min-h-0.flex-1.overflow-y-auto.pb-2{margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-scroll]{margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:var(--padding-row-x)!important;-webkit-mask-image:none!important;mask-image:none!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.group\/application-menu-top-bar [data-app-shell-sidebar-trigger]{transform:translateX(2px)!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M16.585 10C16.585"]){display:none!important;}`,
       ),
     );
     assert.ok(
