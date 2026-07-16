@@ -5,6 +5,14 @@ import * as path from "path";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import { spawnSync } from "child_process";
+import {
+  defaultPrimaryRuntimeReleaseTag,
+  defaultPrimaryRuntimeRepository,
+  defaultPrimaryRuntimeSourceManifestUrl,
+  primaryRuntimeBuildRecipeFingerprint,
+  primaryRuntimeRefreshEpoch,
+  primaryRuntimeSourceManifestFingerprint,
+} from "./primary-runtime-build-recipe.ts";
 
 type ArchiveFormat = "zip" | "tar.xz";
 
@@ -22,6 +30,10 @@ type PrimaryRuntimeManifest = {
   nodeVersion?: string;
   pythonVersion?: string;
   runtimeRootDirectoryName?: string;
+  sourceArchiveSha256?: string;
+  buildRecipeFingerprint?: string;
+  refreshEpoch?: string;
+  sourceManifestFingerprint?: string;
   targetArch?: string;
   targetPlatform?: string;
 };
@@ -29,17 +41,27 @@ type PrimaryRuntimeManifest = {
 type BuildOptions = {
   arm64NodeArchiveUrl?: string;
   arm64PythonArchiveUrl?: string;
+  expectedBuildRecipeFingerprint?: string;
+  expectedSourceArchiveSha256?: string;
+  expectedSourceManifestFingerprint?: string;
+  refreshEpoch: string;
   repository: string;
   releaseTag: string;
   outputRoot: string;
+  sourceManifestUrl: string;
+};
+
+type ReleaseProvenance = {
+  buildRecipeFingerprint?: string;
+  refreshEpoch?: string;
+  sourceArchiveSha256?: string;
+  sourceManifestFingerprint?: string;
 };
 
 const runtimeRootDirectoryName = "codex-primary-runtime";
 const targetPlatform = "win32";
 const targetArch = "arm64";
 const manifestFileName = "LATEST.json";
-const publicWindowsX64ManifestUrl =
-  "https://persistent.oaistatic.com/codex-primary-runtime/latest/win32-x64/LATEST.json";
 
 type NpmRegistryPackage = {
   versions?: Record<string, { dist?: { tarball?: string } }>;
@@ -96,10 +118,18 @@ function readOptions(argv: readonly string[]): BuildOptions {
   const repository =
     readOption(argv, ["-Repository", "--repository"]) ??
     process.env.GITHUB_REPOSITORY ??
-    "sliepie/codex-app";
+    defaultPrimaryRuntimeRepository;
   const outputRoot =
     readOption(argv, ["-OutputRoot", "--output-root"]) ??
     path.join(desktopRoot, "out", "primary-runtime", "win32-arm64");
+  const refreshEpoch = process.env.PRIMARY_RUNTIME_REFRESH_EPOCH ?? primaryRuntimeRefreshEpoch();
+  if (!/^\d+$/.test(refreshEpoch)) {
+    throw new Error("PRIMARY_RUNTIME_REFRESH_EPOCH must be a non-negative integer.");
+  }
+  const releaseTag =
+    readOption(argv, ["-ReleaseTag", "--release-tag"]) ??
+    process.env.RELEASE_TAG ??
+    defaultPrimaryRuntimeReleaseTag;
 
   return {
     arm64NodeArchiveUrl:
@@ -108,11 +138,17 @@ function readOptions(argv: readonly string[]): BuildOptions {
     arm64PythonArchiveUrl:
       readOption(argv, ["-Arm64PythonArchiveUrl", "--arm64-python-archive-url"]) ??
       process.env.PRIMARY_RUNTIME_ARM64_PYTHON_ARCHIVE_URL,
+    expectedBuildRecipeFingerprint: process.env.PRIMARY_RUNTIME_EXPECTED_BUILD_RECIPE_FINGERPRINT,
+    expectedSourceArchiveSha256: process.env.PRIMARY_RUNTIME_EXPECTED_SOURCE_ARCHIVE_SHA256,
+    expectedSourceManifestFingerprint: process.env.PRIMARY_RUNTIME_EXPECTED_SOURCE_MANIFEST_FINGERPRINT,
+    refreshEpoch,
     repository,
-    releaseTag:
-      readOption(argv, ["-ReleaseTag", "--release-tag"]) ??
-      "codex-primary-runtime-win32-arm64",
+    releaseTag,
     outputRoot,
+    sourceManifestUrl:
+      readOption(argv, ["-SourceManifestUrl", "--source-manifest-url"]) ??
+      process.env.PRIMARY_RUNTIME_SOURCE_MANIFEST_URL ??
+      defaultPrimaryRuntimeSourceManifestUrl,
   };
 }
 
@@ -926,6 +962,7 @@ async function newReleaseManifest(
   archivePath: string,
   options: BuildOptions,
   format = sourceManifest.format,
+  provenance: ReleaseProvenance = {},
 ): Promise<Record<string, unknown>> {
   const archive = await fs.promises.stat(archivePath);
   const archiveName = path.basename(archivePath);
@@ -948,6 +985,10 @@ async function newReleaseManifest(
   addManifestValue(manifest, "generatedDependencies", sourceManifest.generatedDependencies);
   addManifestValue(manifest, "nodeVersion", sourceManifest.nodeVersion);
   addManifestValue(manifest, "pythonVersion", sourceManifest.pythonVersion);
+  addManifestValue(manifest, "sourceArchiveSha256", provenance.sourceArchiveSha256);
+  addManifestValue(manifest, "sourceManifestFingerprint", provenance.sourceManifestFingerprint);
+  addManifestValue(manifest, "buildRecipeFingerprint", provenance.buildRecipeFingerprint);
+  addManifestValue(manifest, "refreshEpoch", provenance.refreshEpoch);
   return manifest;
 }
 
@@ -984,9 +1025,33 @@ async function publishMirroredArm64Bundle(manifestUrl: string, options: BuildOpt
 }
 
 async function publishComposedArm64Bundle(options: BuildOptions, workRoot: string): Promise<void> {
+  const buildRecipeFingerprint = primaryRuntimeBuildRecipeFingerprint(desktopRoot, {
+    arm64NodeArchiveUrl: options.arm64NodeArchiveUrl,
+    arm64PythonArchiveUrl: options.arm64PythonArchiveUrl,
+    repository: options.repository,
+    releaseTag: options.releaseTag,
+  });
+  if (
+    !isBlank(options.expectedBuildRecipeFingerprint) &&
+    buildRecipeFingerprint !== options.expectedBuildRecipeFingerprint.toLowerCase()
+  ) {
+    throw new Error(
+      `Build recipe changed after resolution. Expected ${options.expectedBuildRecipeFingerprint}, got ${buildRecipeFingerprint}.`,
+    );
+  }
+
   const sourceManifestPath = path.join(workRoot, "source-LATEST.json");
-  await saveUrlOrFile(publicWindowsX64ManifestUrl, sourceManifestPath);
+  await saveUrlOrFile(options.sourceManifestUrl, sourceManifestPath);
   const sourceManifest = await readJsonFile<PrimaryRuntimeManifest>(sourceManifestPath);
+  const sourceManifestFingerprint = primaryRuntimeSourceManifestFingerprint(sourceManifest);
+  if (
+    !isBlank(options.expectedSourceManifestFingerprint) &&
+    sourceManifestFingerprint !== options.expectedSourceManifestFingerprint.toLowerCase()
+  ) {
+    throw new Error(
+      `Source manifest changed after resolution. Expected ${options.expectedSourceManifestFingerprint}, got ${sourceManifestFingerprint}.`,
+    );
+  }
 
   if (sourceManifest.targetPlatform !== targetPlatform || sourceManifest.targetArch !== "x64") {
     throw new Error(
@@ -1001,6 +1066,11 @@ async function publishComposedArm64Bundle(options: BuildOptions, workRoot: strin
   const sourceHash = await sha256File(sourceArchivePath);
   if (!isBlank(sourceManifest.archiveSha256) && sourceHash !== sourceManifest.archiveSha256.toLowerCase()) {
     throw new Error(`Source archive hash mismatch. Expected ${sourceManifest.archiveSha256}, got ${sourceHash}.`);
+  }
+  if (!isBlank(options.expectedSourceArchiveSha256) && sourceHash !== options.expectedSourceArchiveSha256.toLowerCase()) {
+    throw new Error(
+      `Source archive changed after resolution. Expected ${options.expectedSourceArchiveSha256}, got ${sourceHash}.`,
+    );
   }
 
   const payloadRoot = path.join(workRoot, "payload");
@@ -1020,7 +1090,12 @@ async function publishComposedArm64Bundle(options: BuildOptions, workRoot: strin
   await fs.promises.rm(archivePath, { force: true });
   run("tar", ["-c", "-J", "-f", archivePath, "-C", payloadRoot, runtimeRootDirectoryName], `create ${archivePath}`);
 
-  const releaseManifest = await newReleaseManifest(sourceManifest, archivePath, options, "tar.xz");
+  const releaseManifest = await newReleaseManifest(sourceManifest, archivePath, options, "tar.xz", {
+    sourceArchiveSha256: sourceHash,
+    sourceManifestFingerprint,
+    buildRecipeFingerprint,
+    refreshEpoch: options.refreshEpoch,
+  });
   await writeJsonFile(path.join(options.outputRoot, manifestFileName), releaseManifest);
 }
 

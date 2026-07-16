@@ -20,6 +20,9 @@ type Options = {
   version?: string;
   buildNumber?: string;
   cacheRoot: string;
+  codexPlusPlusRepo: string;
+  codexPlusPlusSha?: string;
+  codexPlusPlusTag?: string;
   force: boolean;
 };
 
@@ -121,6 +124,7 @@ const desktopRoot = resolveDesktopRoot();
 const runtimeNodeModulesCacheRoot = path.join(desktopRoot, ".cache", "runtime-node-modules");
 const electronNativeModuleCacheInputPaths = windowsArm64NativeModuleCacheInputPaths;
 const bundledPluginsRoot = path.join(desktopRoot, "resources", "plugins");
+const defaultCodexPlusPlusRepo = "b-nnett/codex-plusplus";
 const codexPlusPlusRoot = path.join(desktopRoot, "codex-plusplus");
 const legacyBundledMarketplaceNames = ["openai-bundled-beta"] as const;
 const nodeAbi = require("node-abi") as {
@@ -156,6 +160,16 @@ function parseOptions(argv: string[]): Options {
       readOption(argv, "--build-number", "-BuildNumber") ??
       process.env.CODEX_APP_BUILD,
     cacheRoot,
+    codexPlusPlusRepo:
+      readOption(argv, "--codex-plusplus-repo", "-CodexPlusPlusRepo") ??
+      process.env.CODEX_PLUS_PLUS_REPOSITORY ??
+      defaultCodexPlusPlusRepo,
+    codexPlusPlusTag:
+      readOption(argv, "--codex-plusplus-tag", "-CodexPlusPlusTag") ??
+      process.env.CODEX_PLUS_PLUS_TAG,
+    codexPlusPlusSha:
+      readOption(argv, "--codex-plusplus-sha", "-CodexPlusPlusSha") ??
+      process.env.CODEX_PLUS_PLUS_SHA,
     force: hasFlag(argv, "--force", "-Force"),
   };
 }
@@ -748,7 +762,7 @@ export function syncCodexPlusPlusRuntimeAssets(
   sourceRoot: string,
   release: CodexPlusPlusRelease,
   destinationRoot = codexPlusPlusRoot,
-  repository = "b-nnett/codex-plusplus",
+  repository = defaultCodexPlusPlusRepo,
 ): void {
   const runtimeSourceRoot = path.join(
     sourceRoot,
@@ -2244,11 +2258,7 @@ const codexWindowServicesKey = "__codexpp_window_services__";
 type CodexWindowServicesPatch = {
   source: string;
   changed: boolean;
-  strategy:
-    | "already-patched"
-    | "repair-missing-separator"
-    | "service-factory-fingerprint"
-    | "lifecycle-registration-fingerprint";
+  strategy: "already-patched" | "service-factory-fingerprint";
   serviceVar?: string;
 };
 
@@ -2290,15 +2300,12 @@ export function patchCodexWindowServicesSource(
   source: string,
   marker = codexWindowServicesKey,
 ): CodexWindowServicesPatch | null {
-  const repaired = repairMalformedMarkerAssignment(source, marker);
-  if (repaired) return repaired;
-
   if (source.includes(markerAssignment(marker))) {
     return { source, changed: false, strategy: "already-patched" };
   }
 
   const assignment = findWindowServicesFactoryAssignment(source);
-  if (!assignment) return patchFromLifecycleRegistration(source, marker);
+  if (!assignment) return null;
 
   const statementEnd = findStatementEnd(source, assignment.callEnd + 1);
   if (statementEnd < 0) {
@@ -2395,32 +2402,6 @@ export function patchMarkdownOperationDirectiveCrashSource(
   };
 }
 
-function repairMalformedMarkerAssignment(
-  source: string,
-  marker: string,
-): CodexWindowServicesPatch | null {
-  const assignment = findWindowServicesFactoryAssignment(source);
-  if (!assignment) return null;
-
-  const assignmentText = markerAssignment(marker);
-  const markerIndex = source.indexOf(assignmentText);
-  if (markerIndex < 0) return null;
-
-  const valueIndex = markerIndex + assignmentText.length;
-  if (!source.startsWith(assignment.serviceVar, valueIndex)) return null;
-
-  const nextIndex = valueIndex + assignment.serviceVar.length;
-  if (source[nextIndex] === ";") return null;
-  if (!/[$A-Za-z_]/.test(source[nextIndex] ?? "")) return null;
-
-  return {
-    source: source.slice(0, nextIndex) + ";" + source.slice(nextIndex),
-    changed: true,
-    strategy: "repair-missing-separator",
-    serviceVar: assignment.serviceVar,
-  };
-}
-
 function findWindowServicesFactoryAssignment(source: string): ServiceFactoryAssignment | null {
   objectCallPattern.lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -2441,65 +2422,6 @@ function findWindowServicesFactoryAssignment(source: string): ServiceFactoryAssi
   return null;
 }
 
-function patchFromLifecycleRegistration(
-  source: string,
-  marker: string,
-): CodexWindowServicesPatch | null {
-  const registration = findWindowServicesLifecycleRegistration(source);
-  if (!registration) return null;
-
-  const statementEnd = findStatementEnd(source, registration.callEnd + 1);
-  if (statementEnd < 0) {
-    throw new Error("Codex window services lifecycle registration end could not be identified");
-  }
-
-  return {
-    source:
-      source.slice(0, statementEnd + 1) +
-      markerAssignment(marker) +
-      registration.serviceVar +
-      ";" +
-      source.slice(statementEnd + 1),
-    changed: true,
-    strategy: "lifecycle-registration-fingerprint",
-    serviceVar: registration.serviceVar,
-  };
-}
-
-function findWindowServicesLifecycleRegistration(source: string): ServiceFactoryAssignment | null {
-  objectCallPattern.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = objectCallPattern.exec(source)) !== null) {
-    const parenStart = match.index + match[0].indexOf("(");
-    const callEnd = findMatchingBracket(source, parenStart, "(", ")");
-    if (callEnd < 0) continue;
-
-    const callSource = source.slice(parenStart, callEnd + 1);
-    const serviceVar = windowServicesVarFromLifecycleRegistration(callSource);
-    if (!serviceVar) continue;
-
-    return { serviceVar, callEnd };
-  }
-
-  return null;
-}
-
-function windowServicesVarFromLifecycleRegistration(callSource: string): string | null {
-  const serviceVar = objectPropertyIdentifierValue(callSource, "windows");
-  if (!serviceVar) return null;
-
-  const memberRefs = [
-    "ensureHostWindow",
-    "hotkeyWindowLifecycleManager",
-    "globalDictationLifecycleManager",
-  ].filter((property) => hasObjectPropertyMemberRef(callSource, property, serviceVar)).length;
-  const standaloneProps = ["flushAndDisposeContexts", "appEvent", "errorReporter"].filter((property) =>
-    hasObjectProperty(callSource, property),
-  ).length;
-
-  return memberRefs >= 2 && standaloneProps >= 2 ? serviceVar : null;
-}
-
 function findAssignedIdentifierBefore(source: string, index: number): string | null {
   const eqIndex = skipWhitespaceBackward(source, index - 1);
   if (source[eqIndex] !== "=") return null;
@@ -2514,26 +2436,6 @@ function findAssignedIdentifierBefore(source: string, index: number): string | n
 
 function looksLikeWindowServicesFactory(callSource: string): boolean {
   return hasObjectProperty(callSource, "buildFlavor") && matchedWindowServicesFingerprints(callSource).length >= 5;
-}
-
-function objectPropertyIdentifierValue(source: string, property: string): string | null {
-  const pattern = new RegExp(
-    "(?:^|[,{}])\\s*" + escapeRegExp(property) + "\\s*:\\s*([$A-Za-z_][$A-Za-z0-9_]*)",
-  );
-  return pattern.exec(source)?.[1] ?? null;
-}
-
-function hasObjectPropertyMemberRef(source: string, property: string, objectName: string): boolean {
-  const pattern = new RegExp(
-    "(?:^|[,{}])\\s*" +
-      escapeRegExp(property) +
-      "\\s*:\\s*" +
-      escapeRegExp(objectName) +
-      "\\." +
-      escapeRegExp(property) +
-      "\\b",
-  );
-  return pattern.test(source);
 }
 
 function findStatementEnd(source: string, startIndex: number): number {
@@ -2693,29 +2595,14 @@ function findRecoveredViteMainBundles(recoveredRoot: string): string[] {
     .map((name) => path.posix.join(".vite", "build", name));
 }
 
-type OwlFeatureBindingPatch = {
+type SourcePatch = {
   changed: boolean;
   source: string;
 };
 
-const owlFeatureBindingFallback = "{isOwlFeatureEnabled:()=>!1}";
-const enabledOwlFeatures = [
-  "OwlAutofillAndPasswords",
-  "OwlAuth",
-  "OwlDownloads",
-  "OwlExtensions",
-  "OwlOpenAIGoLinks",
-  "OwlPermissions",
-  "OwlPrinting",
-  "OwlWebViewEnhancements",
-];
-const enabledOwlFeaturesSwitchValue = enabledOwlFeatures.join(",");
-const enabledOwlFeaturesMarker = "Codex++ enable Owl Electron features";
-const messageRailStatsigGate = "2551582477";
-const messageRailStatsigGateMarker = "Codex++ enable message rail";
 const windowsPrimaryWindowTaskbarOptionsMarker = "Codex Windows primary taskbar window";
 
-export function patchRecoveredWindowsPrimaryWindowTaskbarSource(source: string): OwlFeatureBindingPatch | null {
+export function patchRecoveredWindowsPrimaryWindowTaskbarSource(source: string): SourcePatch | null {
   if (!source.includes("case`primary`") || !source.includes("titleBarOverlay")) {
     return null;
   }
@@ -2746,24 +2633,7 @@ export function patchRecoveredWindowsPrimaryWindowTaskbarSource(source: string):
     };
   }
 
-  const optionsPattern = new RegExp(
-    `case\`primary\`:return (${identifierPattern})===\`darwin\`\\?(${identifierPattern})\\?\\{titleBarStyle:\`hiddenInset\`,trafficLightPosition:(${identifierPattern})\\((${identifierPattern})\\)\\}:\\{vibrancy:\`menu\`,titleBarStyle:\`hiddenInset\`,trafficLightPosition:\\3\\(\\4\\)\\}:\\1===\`win32\`\\|\\|\\1===\`linux\`\\?\\{titleBarStyle:\`hidden\`,titleBarOverlay:(${identifierPattern})\\(\\4\\)\\}:\\{titleBarStyle:\`default\`\\}`,
-  );
-  const optionsMatch = optionsPattern.exec(source);
-  if (!optionsMatch?.[1] || !optionsMatch[2] || !optionsMatch[3] || !optionsMatch[4] || !optionsMatch[5]) {
-    return null;
-  }
-
-  const [, platform, opaqueWindowSurfaceEnabled, trafficLightPosition, windowZoom, titleBarOverlay] =
-    optionsMatch;
-  return {
-    changed: true,
-    source: source.replace(
-      optionsPattern,
-      () =>
-        `case\`primary\`:return ${platform}===\`darwin\`?${opaqueWindowSurfaceEnabled}?{titleBarStyle:\`hiddenInset\`,trafficLightPosition:${trafficLightPosition}(${windowZoom})}:{vibrancy:\`menu\`,titleBarStyle:\`hiddenInset\`,trafficLightPosition:${trafficLightPosition}(${windowZoom})}:${platform}===\`win32\`||${platform}===\`linux\`?{titleBarStyle:\`hidden\`,titleBarOverlay:${titleBarOverlay}(${windowZoom}),skipTaskbar:!1,focusable:!0/* ${windowsPrimaryWindowTaskbarOptionsMarker} */}:{titleBarStyle:\`default\`}`,
-    ),
-  };
+  return null;
 }
 
 function patchRecoveredWindowsPrimaryWindowTaskbar(recoveredRoot: string): void {
@@ -2795,359 +2665,6 @@ function patchRecoveredWindowsPrimaryWindowTaskbar(recoveredRoot: string): void 
   }
 
   throw new Error("Could not patch Windows primary taskbar window. Checked: " + diagnostics.join(", "));
-}
-
-export function patchOwlFeatureBindingSource(source: string): OwlFeatureBindingPatch | null {
-  if (!source.includes("electron_common_owl_features")) {
-    return null;
-  }
-
-  if (
-    source.includes("catch{return " + owlFeatureBindingFallback + "}") ||
-    source.includes("catch{return{isOwlFeatureEnabled:()=>!1}}") ||
-    /process\._linkedBinding;if\(typeof [\w$]+!=[`'"]function[`'"]\)return null;/.test(source)
-  ) {
-    return { changed: false, source };
-  }
-
-  const pattern = new RegExp(
-    `function (${identifierPattern})\\(\\)\\{let (${identifierPattern})=process\\._linkedBinding;` +
-      `if\\(typeof \\2!=[\`'"]function[\`'"]\\)throw Error\\([\`'"]Owl feature binding is unavailable[\`'"]\\);` +
-      `return (${identifierPattern})\\.parse\\(\\2\\.call\\(process,[\`'"]electron_common_owl_features[\`'"]\\)\\)\\}`,
-  );
-  const match = pattern.exec(source);
-  if (!match?.[1] || !match[2] || !match[3]) {
-    return null;
-  }
-
-  const [, functionName, bindingName, parserName] = match;
-  return {
-    changed: true,
-    source: source.replace(
-      pattern,
-      () =>
-        `function ${functionName}(){let ${bindingName}=process._linkedBinding;if(typeof ${bindingName}!="function")return ${owlFeatureBindingFallback};try{return ${parserName}.parse(${bindingName}.call(process,"electron_common_owl_features"))}catch{return ${owlFeatureBindingFallback}}}`,
-    ),
-  };
-}
-
-function findRecoveredJavaScriptFiles(root: string): string[] {
-  const files: string[] = [];
-  const visit = (directory: string): void => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const entryPath = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        visit(entryPath);
-        continue;
-      }
-      if (entry.isFile() && entry.name.endsWith(".js")) {
-        files.push(entryPath);
-      }
-    }
-  };
-
-  visit(root);
-  return files.sort();
-}
-
-function patchRecoveredOwlFeatureBinding(recoveredRoot: string): void {
-  const diagnostics: string[] = [];
-  for (const filePath of findRecoveredJavaScriptFiles(recoveredRoot)) {
-    const source = fs.readFileSync(filePath, "utf8");
-    const patch = patchOwlFeatureBindingSource(source);
-    if (!patch) {
-      if (source.includes("electron_common_owl_features")) {
-        diagnostics.push(path.relative(recoveredRoot, filePath).replace(/\\/g, "/"));
-      }
-      continue;
-    }
-
-    if (patch.changed) {
-      fs.writeFileSync(filePath, patch.source, "utf8");
-    }
-
-    console.log(
-      "Patched OWL feature binding fallback in " +
-        path.relative(recoveredRoot, filePath).replace(/\\/g, "/"),
-    );
-    return;
-  }
-
-  if (diagnostics.length > 0) {
-    throw new Error("Could not patch OWL feature binding fallback. Checked: " + diagnostics.join(", "));
-  }
-}
-
-function findJavaScriptStatementEnd(source: string, startIndex: number): number {
-  let quote: string | null = null;
-  let escaped = false;
-  let inLineComment = false;
-  let inBlockComment = false;
-  let inRegex = false;
-  let regexCharacterClass = false;
-  let parenDepth = 0;
-  let bracketDepth = 0;
-  let braceDepth = 0;
-  let previousSignificantChar: string | null = null;
-
-  for (let index = startIndex; index < source.length; index++) {
-    const char = source[index];
-    const nextChar = source[index + 1];
-
-    if (inLineComment) {
-      if (char === "\n" || char === "\r") {
-        inLineComment = false;
-      }
-      continue;
-    }
-
-    if (inBlockComment) {
-      if (char === "*" && nextChar === "/") {
-        inBlockComment = false;
-        index++;
-      }
-      continue;
-    }
-
-    if (inRegex) {
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-      if (char === "\\") {
-        escaped = true;
-        continue;
-      }
-      if (char === "[") {
-        regexCharacterClass = true;
-        continue;
-      }
-      if (char === "]") {
-        regexCharacterClass = false;
-        continue;
-      }
-      if (char === "/" && !regexCharacterClass) {
-        inRegex = false;
-        while (/[A-Za-z]/.test(source[index + 1] ?? "")) {
-          index++;
-        }
-      }
-      continue;
-    }
-
-    if (quote) {
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-      if (char === "\\") {
-        escaped = true;
-        continue;
-      }
-      if (char === quote) {
-        quote = null;
-      }
-      continue;
-    }
-
-    if (char === "/" && nextChar === "/") {
-      inLineComment = true;
-      index++;
-      continue;
-    }
-    if (char === "/" && nextChar === "*") {
-      inBlockComment = true;
-      index++;
-      continue;
-    }
-    if (
-      char === "/" &&
-      previousSignificantChar !== null &&
-      (/[=(:,!&|?{}\[]/.test(previousSignificantChar) || followsArrowToken(source, index))
-    ) {
-      inRegex = true;
-      continue;
-    }
-    if (char === "'" || char === '"' || char === "`") {
-      quote = char;
-      continue;
-    }
-    if (char === "(") {
-      parenDepth++;
-    } else if (char === ")") {
-      parenDepth = Math.max(0, parenDepth - 1);
-    } else if (char === "[") {
-      bracketDepth++;
-    } else if (char === "]") {
-      bracketDepth = Math.max(0, bracketDepth - 1);
-    } else if (char === "{") {
-      braceDepth++;
-    } else if (char === "}") {
-      braceDepth = Math.max(0, braceDepth - 1);
-    } else if (char === ";" && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
-      return index;
-    }
-
-    if (!/\s/.test(char)) {
-      previousSignificantChar = char;
-    }
-  }
-
-  return -1;
-}
-
-function followsArrowToken(source: string, index: number): boolean {
-  let previousIndex = index - 1;
-  while (previousIndex >= 0 && /\s/.test(source[previousIndex] ?? "")) {
-    previousIndex--;
-  }
-
-  return source[previousIndex] === ">" && source[previousIndex - 1] === "=";
-}
-
-function isBareJavaScriptCall(source: string, startIndex: number): boolean {
-  for (let index = startIndex - 1; index >= 0; index--) {
-    const char = source[index];
-    if (/\s/.test(char)) {
-      continue;
-    }
-    if (/[\w$]/.test(char)) {
-      let tokenStart = index;
-      while (tokenStart > 0 && /[\w$]/.test(source[tokenStart - 1] ?? "")) {
-        tokenStart--;
-      }
-      return ["return", "throw", "yield", "await", "typeof", "void", "delete", "case"].includes(
-        source.slice(tokenStart, index + 1),
-      );
-    }
-    return char !== "." && char !== "?" && !/[\w$]/.test(char);
-  }
-
-  return true;
-}
-
-export function patchRecoveredOwlFeatureSwitchSource(source: string): OwlFeatureBindingPatch | null {
-  if (!source.includes("electron") || !source.includes("app")) {
-    return null;
-  }
-
-  if (source.includes(enabledOwlFeaturesMarker)) {
-    return { changed: false, source };
-  }
-
-  const requirePattern = new RegExp(
-    `let (${identifierPattern})=require\\([\`'"]electron[\`'"]\\)`,
-  );
-  const match = requirePattern.exec(source);
-  if (!match?.[1]) {
-    return null;
-  }
-
-  const declarationEnd = findJavaScriptStatementEnd(source, match.index + match[0].length);
-  if (declarationEnd < 0) {
-    return null;
-  }
-
-  const [, electronIdentifier] = match;
-  const declaration = source.slice(match.index, declarationEnd + 1);
-  const replacement =
-    declaration +
-    `try{let __codexOwlFeatures="${enabledOwlFeaturesSwitchValue}",__codexExistingFeatures=${electronIdentifier}.app.commandLine.getSwitchValue("enable-features");` +
-    `${electronIdentifier}.app.commandLine.appendSwitch("enable-features",__codexExistingFeatures?__codexExistingFeatures+","+__codexOwlFeatures:__codexOwlFeatures)}` +
-    `catch{}` +
-    `/* ${enabledOwlFeaturesMarker} */`;
-
-  return {
-    changed: true,
-    source: source.slice(0, match.index) + replacement + source.slice(declarationEnd + 1),
-  };
-}
-
-function patchRecoveredOwlFeatureSwitch(recoveredRoot: string): void {
-  const candidates = [readRecoveredOriginalMain(recoveredRoot), ...findRecoveredViteMainBundles(recoveredRoot)];
-  const seen = new Set<string>();
-  const diagnostics: string[] = [];
-
-  for (const relativePath of candidates) {
-    const normalized = relativePath.replace(/\\/g, "/").replace(/^\.\//, "");
-    if (seen.has(normalized)) continue;
-    seen.add(normalized);
-
-    const filePath = path.join(recoveredRoot, normalized);
-    if (!fs.existsSync(filePath)) continue;
-
-    const source = fs.readFileSync(filePath, "utf8");
-    const patch = patchRecoveredOwlFeatureSwitchSource(source);
-    if (!patch) {
-      diagnostics.push(normalized);
-      continue;
-    }
-
-    if (patch.changed) {
-      fs.writeFileSync(filePath, patch.source, "utf8");
-    }
-
-    console.log("Patched OWL feature enable switch in " + normalized);
-    return;
-  }
-
-  throw new Error("Could not patch OWL feature enable switch. Checked: " + diagnostics.join(", "));
-}
-
-export function patchRecoveredMessageRailStatsigGateSource(source: string): OwlFeatureBindingPatch | null {
-  if (source.includes(messageRailStatsigGateMarker)) {
-    return { changed: false, source };
-  }
-
-  if (!source.includes("ThreadUserMessageNavigationRail") || !source.includes(messageRailStatsigGate)) {
-    return null;
-  }
-
-  const pattern = new RegExp(`${identifierPattern}\\([\\\`'"]${messageRailStatsigGate}[\\\`'"]\\)`, "g");
-  if (!pattern.test(source)) {
-    return null;
-  }
-
-  pattern.lastIndex = 0;
-  const patchedSource = source.replace(pattern, (match, offset: number) =>
-    isBareJavaScriptCall(source, offset) ? `true/* ${messageRailStatsigGateMarker} */` : match,
-  );
-  if (patchedSource === source) {
-    return null;
-  }
-
-  return {
-    changed: true,
-    source: patchedSource + (source.endsWith("\n") ? "" : "\n"),
-  };
-}
-
-function patchRecoveredMessageRailStatsigGate(recoveredRoot: string): void {
-  const diagnostics: string[] = [];
-  for (const filePath of findRecoveredJavaScriptFiles(recoveredRoot)) {
-    const source = fs.readFileSync(filePath, "utf8");
-    const patch = patchRecoveredMessageRailStatsigGateSource(source);
-    if (!patch) {
-      if (source.includes("ThreadUserMessageNavigationRail") || source.includes(messageRailStatsigGate)) {
-        diagnostics.push(path.relative(recoveredRoot, filePath).replace(/\\/g, "/"));
-      }
-      continue;
-    }
-
-    if (patch.changed) {
-      fs.writeFileSync(filePath, patch.source, "utf8");
-    }
-
-    console.log(
-      "Patched message rail Statsig gate in " +
-        path.relative(recoveredRoot, filePath).replace(/\\/g, "/"),
-    );
-    return;
-  }
-
-  if (diagnostics.length > 0) {
-    throw new Error("Could not patch message rail Statsig gate. Checked: " + diagnostics.join(", "));
-  }
 }
 
 function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
@@ -3194,7 +2711,7 @@ function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
 }
 
 const codexMicroServiceStub =
-  "var m=class{constructor(e){this.options=e;this.deviceState={status:\"not-detected\",error:null,battery:null}}getState(){return this.deviceState}start(){}async updateLighting(){return!1}async dispose(){}};exports.CodexMicroService=m;";
+  "var m=class{constructor(e){this.options=e;this.deviceState={status:\"not-detected\",error:null,battery:null}}getState(){return this.deviceState}start(){}async stop(){}async updateLighting(){return!1}async dispose(){}};exports.CodexMicroService=m;";
 
 const codexMicroServiceDefinitionPattern =
   /var [^=]+=[^;]*?CodexMicroService[\s\S]*?@worklouder\/device-kit-oai[\s\S]*?exports\.CodexMicroService=[^;]+;/;
@@ -3369,6 +2886,13 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   const appResourcesRoot = path.dirname(appAsar);
   const nodeVersion = readBundledNodeVersion(appResourcesRoot);
   syncBundledPluginResources(appResourcesRoot);
+  await hydrateCodexPlusPlusRuntime(
+    options.cacheRoot,
+    options.codexPlusPlusRepo,
+    options.force,
+    options.codexPlusPlusTag,
+    options.codexPlusPlusSha,
+  );
 
   execFileSync(
     process.execPath,
@@ -3383,7 +2907,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   );
   patchWindowsSelfSignedBundle(recoveredRoot);
   patchRecoveredWindowsPrimaryWindowTaskbar(recoveredRoot);
-  patchRecoveredOwlFeatureBinding(recoveredRoot);
+  patchRecoveredCodexWindowServices(recoveredRoot);
+  patchRecoveredCodexMicroService(recoveredRoot);
+  pruneWorkLouderPackages(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
 
   fs.writeFileSync(

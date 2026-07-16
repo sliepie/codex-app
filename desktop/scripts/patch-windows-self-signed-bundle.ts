@@ -28,6 +28,11 @@ type SourcePatchResult = {
   matcher: string;
 };
 
+type ProductTextReplacement = {
+  source: string;
+  replacementCount: number;
+};
+
 type SourcePatcher = (source: string) => SourcePatchResult | undefined;
 type FunctionRange = {
   asyncPrefix: string;
@@ -387,6 +392,111 @@ function skipTemplateLiteral(source: string, start: number): number {
   }
 
   throw new Error("Unable to find end of template literal.");
+}
+
+function replaceChatGptProductText(value: string): ProductTextReplacement {
+  let replacementCount = 0;
+  const lowercaseValue = value.toLowerCase();
+  const source = value.replace(/ChatGPT/g, (match, offset: number) => {
+    if (lowercaseValue.startsWith("chatgpt-account-id", offset)) {
+      return match;
+    }
+    replacementCount += 1;
+    return "Codex";
+  });
+
+  return { source, replacementCount };
+}
+
+function replaceChatGptProductTextInTemplate(
+  source: string,
+  start: number,
+): ProductTextReplacement & { end: number } {
+  let output = "`";
+  let replacementCount = 0;
+  let segmentStart = start + 1;
+  let index = segmentStart;
+
+  while (index < source.length) {
+    const character = source[index];
+    if (character === "\\") {
+      index += 2;
+      continue;
+    }
+    if (character === "`") {
+      const text = replaceChatGptProductText(source.slice(segmentStart, index));
+      return {
+        source: output + text.source + "`",
+        replacementCount: replacementCount + text.replacementCount,
+        end: index + 1,
+      };
+    }
+    if (character === "$" && source[index + 1] === "{") {
+      const text = replaceChatGptProductText(source.slice(segmentStart, index));
+      const expressionEnd = skipTemplateExpression(source, index + 2);
+      const expression = replaceChatGptProductTextInJavaScriptStrings(
+        source.slice(index + 2, expressionEnd - 1),
+      );
+      output += `${text.source}\${${expression.source}}`;
+      replacementCount += text.replacementCount + expression.replacementCount;
+      index = expressionEnd;
+      segmentStart = index;
+      continue;
+    }
+    index += 1;
+  }
+
+  throw new Error("Unable to find end of template literal while replacing product text.");
+}
+
+function replaceChatGptProductTextInJavaScriptStrings(
+  source: string,
+): ProductTextReplacement {
+  let output = "";
+  let replacementCount = 0;
+  let copyStart = 0;
+  let index = 0;
+
+  while (index < source.length) {
+    const character = source[index];
+    const next = source[index + 1];
+
+    if (character === "'" || character === '"') {
+      const end = skipQuotedString(source, index);
+      const text = replaceChatGptProductText(source.slice(index + 1, end - 1));
+      output += source.slice(copyStart, index + 1) + text.source + character;
+      replacementCount += text.replacementCount;
+      copyStart = end;
+      index = end;
+      continue;
+    }
+    if (character === "`") {
+      const template = replaceChatGptProductTextInTemplate(source, index);
+      output += source.slice(copyStart, index) + template.source;
+      replacementCount += template.replacementCount;
+      copyStart = template.end;
+      index = template.end;
+      continue;
+    }
+    if (character === "/" && next === "/") {
+      index = skipLineComment(source, index);
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      index = skipBlockComment(source, index);
+      continue;
+    }
+    if (character === "/" && canStartRegex(source, index)) {
+      index = skipRegexLiteral(source, index);
+      continue;
+    }
+    index += 1;
+  }
+
+  return {
+    source: output + source.slice(copyStart),
+    replacementCount,
+  };
 }
 
 function regexPatch(
@@ -785,6 +895,60 @@ function patchAgentSettings(recoveredRoot: string): PatchResult[] {
   return [];
 }
 
+function patchRendererProductText(recoveredRoot: string): PatchResult[] {
+  const name = "replace ChatGPT renderer text with Codex";
+  const assetRoot = path.join(recoveredRoot, "webview", "assets");
+  const reportFile = toReportPath(recoveredRoot, assetRoot);
+
+  try {
+    const assetFiles = fs
+      .readdirSync(assetRoot, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
+      .map((entry) => path.join(assetRoot, entry.name))
+      .sort();
+    if (assetFiles.length === 0) {
+      throw new Error("Recovered renderer assets do not contain JavaScript bundles.");
+    }
+
+    let changedFileCount = 0;
+    let replacementCount = 0;
+    for (const filePath of assetFiles) {
+      const original = fs.readFileSync(filePath, "utf8");
+      const replacement = replaceChatGptProductTextInJavaScriptStrings(original);
+      if (replacement.replacementCount === 0) {
+        continue;
+      }
+
+      fs.writeFileSync(filePath, replacement.source, "utf8");
+      changedFileCount += 1;
+      replacementCount += replacement.replacementCount;
+    }
+
+    return [
+      {
+        file: reportFile,
+        name,
+        status: replacementCount > 0 ? "applied" : "already-applied",
+        matcher: "string-literal",
+        reason:
+          replacementCount > 0
+            ? `Replaced ${replacementCount} product-name occurrence(s) across ${changedFileCount} renderer asset(s).`
+            : "No replaceable ChatGPT renderer text remains.",
+      },
+    ];
+  } catch (error) {
+    throw new PatchFailure(
+      {
+        file: reportFile,
+        name,
+        status: "failed-required",
+        reason: errorMessage(error),
+      },
+      error,
+    );
+  }
+}
+
 function findWorkspaceRootDropHandlerBundle(recoveredRoot: string): string {
   const buildRoot = path.join(recoveredRoot, ".vite", "build");
   const filePattern = /^.*\.js$/;
@@ -878,6 +1042,25 @@ function patchPrimaryRuntimeInstallerBundle(recoveredRoot: string): PatchResult[
   ];
 }
 
+const windowsPrimaryWindowIconOption =
+  'icon:process.platform===`win32`?require("node:path").join(process.resourcesPath,`icon.ico`):void 0,';
+const windowsPrimaryWindowIconAppliedPattern =
+  /BrowserWindow\(\{icon:process\.platform===`win32`\?require\("node:path"\)\.join\(process\.resourcesPath,`icon\.ico`\):void 0,width:/;
+
+function patchWindowsPrimaryBrowserWindowIcon(): SourcePatcher {
+  return regexPatch(
+    new RegExp(
+      String.raw`\bnew\s+(${identifierPattern})\.BrowserWindow\(\{width:${identifierPattern},height:${identifierPattern},(?:(?!\}\)).)*?title:${identifierPattern}\?\?\1\.app\.getName\(\),(?:(?!\}\)).)*?webPreferences:${identifierPattern}\}\)`,
+      "g",
+    ),
+    (match) => match[0].replace(
+      "BrowserWindow({",
+      `BrowserWindow({${windowsPrimaryWindowIconOption}`,
+    ),
+    windowsPrimaryWindowIconAppliedPattern,
+  );
+}
+
 function patchMainBundle(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(path.join(recoveredRoot, ".vite", "build"), /^main-.*\.js$/);
 
@@ -900,6 +1083,22 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
           "isFocused",
           "`darwin`",
           "`win32`",
+        ],
+      },
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "set Windows primary window taskbar icon",
+      [
+        alreadyAppliedPatch(windowsPrimaryWindowIconAppliedPattern),
+        patchWindowsPrimaryBrowserWindowIcon(),
+      ],
+      {
+        missingTargetMarkers: [
+          "BrowserWindow",
+          "app.getName",
+          "webPreferences",
         ],
       },
     ),
@@ -936,6 +1135,7 @@ function main(): void {
 
   const results: PatchResult[] = [];
   try {
+    results.push(...patchRendererProductText(recoveredRoot));
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));

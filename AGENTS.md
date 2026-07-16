@@ -34,6 +34,8 @@ Scripts may be run when needed, but they must run hidden/non-disruptively: no po
 
 When a PR changes an existing bundled Codex++ tweak under `desktop/codex-plusplus/tweaks/`, bump that tweak's `manifest.json` version in the same PR so installed copies update.
 
+Do not add runtime observers, DOM tree walkers, polling, timers, or other dynamic JavaScript behavior to tweaks or source patches unless I explicitly approve it first. Prefer build-time rewrites or CSS.
+
 Files called AGENTS.md commonly appear in many places inside a container - at "/", in "~", deep within git repositories, or in any other directory; their location is not limited to version-controlled folders.
 
 Their purpose is to pass along human guidance to you, the agent. Such guidance can include coding standards, explanations of the project layout, steps for building or testing, and even wording that must accompany a GitHub pull-request description produced by the agent; all of it is to be followed.

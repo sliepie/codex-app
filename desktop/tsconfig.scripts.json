@@ -22,6 +22,7 @@
     "scripts/hydrate-codex-cli.ts",
     "scripts/patch-better-sqlite3-electron.ts",
     "scripts/patch-windows-self-signed-bundle.ts",
+    "scripts/primary-runtime-build-recipe.ts",
     "scripts/prepare-self-signed-msix-payload.ts",
     "scripts/refresh-recovered-from-dmg.ts",
     "scripts/resolve-codex-releases.ts",
@@ -30,6 +31,7 @@
     "scripts/publish-primary-runtime-release.ts",
     "scripts/verify-skills.ts",
     "scripts/verify-browser-client-runtime.ts",
+    "scripts/verify-primary-runtime-output.ts",
     "scripts/verify-windows-arm64-resource-binaries.ts",
     "scripts/windows-arm64-package-plan.ts",
     "scripts/write-self-signed-appinstaller.ts"

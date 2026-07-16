@@ -159,14 +159,43 @@ Remove-Item -Path $priConfigPath -Force -ErrorAction SilentlyContinue
 
 $makeAppx = Get-LatestWindowsSdkTool -ToolName 'makeappx.exe'
 $signTool = Get-LatestWindowsSdkTool -ToolName 'signtool.exe'
-
-& $makeAppx pack /d $stageRoot /p $msixPath /o
-if ($LASTEXITCODE -ne 0) {
-    throw "makeappx failed with exit code $LASTEXITCODE"
+$launcherPaths = @(
+    Get-ChildItem -LiteralPath (Join-Path $stageRoot 'app') -Filter '*.exe' -File |
+        Sort-Object FullName
+)
+if ($launcherPaths.Count -eq 0) {
+    throw 'The staged app does not contain any top-level executable launchers.'
 }
 
 $plainTextPassword = ConvertTo-PlainText -Value $CertificatePassword
 try {
+    foreach ($launcherPath in $launcherPaths) {
+        $launcherSignature = Get-AuthenticodeSignature -FilePath $launcherPath.FullName
+        if ($launcherSignature.Status -eq [System.Management.Automation.SignatureStatus]::NotSigned) {
+            & $signTool sign /fd SHA256 /f $certificateFile /p $plainTextPassword $launcherPath.FullName
+            if ($LASTEXITCODE -ne 0) {
+                throw "signtool sign for staged launcher '$($launcherPath.Name)' failed with exit code $LASTEXITCODE"
+            }
+
+            $launcherSignature = Get-AuthenticodeSignature -FilePath $launcherPath.FullName
+            if (
+                $null -eq $launcherSignature.SignerCertificate -or
+                $launcherSignature.SignerCertificate.Thumbprint -ne $certificate.Thumbprint -or
+                $launcherSignature.Status -eq [System.Management.Automation.SignatureStatus]::HashMismatch
+            ) {
+                throw "Staged launcher '$($launcherPath.Name)' did not retain the expected Authenticode signature."
+            }
+        }
+        elseif ($launcherSignature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
+            throw "Staged launcher '$($launcherPath.Name)' has an invalid Authenticode signature status: $($launcherSignature.Status)."
+        }
+    }
+
+    & $makeAppx pack /d $stageRoot /p $msixPath /o
+    if ($LASTEXITCODE -ne 0) {
+        throw "makeappx failed with exit code $LASTEXITCODE"
+    }
+
     & $signTool sign /fd SHA256 /f $certificateFile /p $plainTextPassword $msixPath
     if ($LASTEXITCODE -ne 0) {
         throw "signtool sign failed with exit code $LASTEXITCODE"
