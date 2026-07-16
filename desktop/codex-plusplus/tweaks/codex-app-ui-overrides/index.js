@@ -14,6 +14,8 @@ const INVITE_FRIEND_MENU_ITEM_SELECTOR =
   ":where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.0368 1.69459'])";
 const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
+const SIDEBAR_ACTIVE_SCROLLED_HEADER_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR}>.relative.z-10.flex.shrink-0.flex-col.gap-2[class~="after:h-[0.5px]"]`;
 const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR}>.relative.z-10.flex.shrink-0.flex-col.gap-2>.ml-2.flex.items-center`;
 const SIDEBAR_SCROLL_SELECTOR =
@@ -23,7 +25,7 @@ const SIDEBAR_SCROLL_DECLARATIONS =
 const SIDEBAR_TOP_TRIGGER_SELECTOR =
   ".group\\/application-menu-top-bar [data-app-shell-sidebar-trigger]";
 const SIDEBAR_TOP_TRIGGER_DECLARATIONS =
-  "transform:translateX(2px)!important;";
+  "transform:translateX(4px)!important;";
 const SIDEBAR_HELP_BUTTON_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M16.585 10C16.585"])`;
 const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
@@ -53,6 +55,14 @@ const BASE_STYLE_RULES = [
 
 const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_SCROLL_SELECTOR, SIDEBAR_SCROLL_DECLARATIONS),
+  cssRule(
+    SIDEBAR_ACTIVE_SCROLLED_HEADER_SELECTOR,
+    "padding-bottom:1px!important;",
+  ),
+  cssRule(
+    `${SIDEBAR_ACTIVE_SCROLLED_HEADER_SELECTOR}::after`,
+    HIDDEN_DISPLAY_DECLARATIONS,
+  ),
 ];
 const IMAGE_PREVIEW_STYLE_RULES = [
   cssRule(
