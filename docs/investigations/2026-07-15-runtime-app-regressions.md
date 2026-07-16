@@ -107,6 +107,12 @@ The investigation will establish one focused pass/fail command per symptom befor
 - Publishing remains a separate, small write-enabled job. It downloads the verified artifact produced by the prepare job and runs the dependency-free TypeScript publisher directly, so release credentials remain isolated from install and build steps.
 - Moved concurrency to workflow scope so the prepare and publish jobs are treated as one operation. Pull-request runs still cancel superseded work; publishing runs remain serialized without cancellation.
 
+### 2026-07-16 — remote conversation PR action alignment
+
+- Inspected the current `26.707` Store renderer. The remote conversation header emits its trailing actions in Apply, Open, PR order, which puts the PR status/number button at the right edge.
+- Added a CSS-only override that assigns the current last-child PR action `order: -1`, moving it to the left of Apply and Open without changing the DOM or introducing runtime observation.
+- Synced the audited tweak source to the installed test copy and advanced its separate local version from `0.25.2` to `0.25.3`; the bundled PR manifest remains `0.26.0`.
+
 ## Findings
 
 ### Confirmed
@@ -143,6 +149,7 @@ The investigation will establish one focused pass/fail command per symptom befor
 - Added a build-time renderer transformation that changes capitalized ChatGPT product text to Codex without runtime observers or changes to protocol identifiers.
 - Added the no-runtime-observers-without-approval rule to the repository instructions.
 - Consolidated the primary-runtime workflow into one shared cache/build pipeline plus an isolated release publisher, removing the duplicated runtime preparation logic.
+- Moved the remote conversation PR action to the left side of its header action group with a current-source-backed CSS ordering rule.
 
 ## Validation
 
@@ -154,10 +161,11 @@ The investigation will establish one focused pass/fail command per symptom befor
 - Recovered-bundle patch tests passed: 12/12, including static product-name replacement and preservation of product identifiers, protocol values, URLs, and the account header.
 - Release resolver tests passed: 21/21.
 - Windows package-resource tests passed: 79/79 after obsolete patch tests were deleted, including execution of payload preparation, verification that every manifest-referenced icon exists, a Forge-to-runtime icon-path cross-check, current Codex Micro lifecycle coverage, and failure coverage for a missing recovered entry point.
-- Installed UI tweak `index.js` now hashes identically to the audited repo source; its installed-only manifest version is `0.25.2`.
+- Installed UI tweak `index.js` now hashes identically to the audited repo source; its installed-only manifest version is `0.25.3`.
 - Release-path focused suites also passed: CLI hydration 5/5, Windows ARM64 package plan 9/9, and browser-client runtime compatibility 8/8.
 - The MSIX packaging PowerShell script parses successfully after the inner-signing change.
 - A temporary-copy run against the real recovered bundle replaced 2,800 product-name string occurrences across 95 renderer assets without touching the source tree.
 - The simplified primary-runtime workflow parses as YAML, script compilation passes, publisher TypeScript syntax validation passes, and the focused resolver (11/11), output verifier (2/2), and Windows package-resource (79/79) suites pass.
 - PR #137 remote validation passed at `a731f837`: the shared prepare job completed in 6m49s, the write-enabled publisher correctly skipped for the pull-request event, and the Windows ARM64 app build and alpha publish jobs passed.
 - The immediately following PR run at `738000ee` proved cache reuse: the prepare job completed in 26 seconds, cached-output verification passed, and both runtime composition and cache save were skipped. The Windows ARM64 app build and alpha publish jobs also passed.
+- The focused Windows package-resource suite passed 79/79 after adding the CSS-only remote PR action ordering rule.

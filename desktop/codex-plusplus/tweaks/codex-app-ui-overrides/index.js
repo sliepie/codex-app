@@ -29,6 +29,10 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTOR =
   "nav:has([data-settings-panel-slug]) .min-h-0.flex-1.overflow-y-auto.pb-2";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_DECLARATIONS =
   "margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;";
+const REMOTE_CONVERSATION_HEADER_ACTIONS_SELECTOR =
+  ".draggable.grid.w-full.min-w-0.items-center.gap-x-4.electron\\:h-toolbar.extension\\:py-row-y>.flex.items-center.justify-end.gap-1\\.5>.flex.items-center.gap-2";
+const REMOTE_CONVERSATION_PR_ACTION_SELECTOR =
+  `${REMOTE_CONVERSATION_HEADER_ACTIONS_SELECTOR}>button.shrink-0:last-child`;
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -54,6 +58,10 @@ const IMAGE_PREVIEW_STYLE_RULES = [
     ".absolute.top-3.right-3.z-10.flex.items-center.gap-2",
     "top:calc(0.75rem + 26px)!important;",
   ),
+];
+
+const REMOTE_CONVERSATION_HEADER_STYLE_RULES = [
+  cssRule(REMOTE_CONVERSATION_PR_ACTION_SELECTOR, "order:-1!important;"),
 ];
 
 const SETTINGS_STYLE_RULES = [
@@ -135,6 +143,7 @@ const STYLE_RULES = [
   ...BASE_STYLE_RULES,
   ...SIDEBAR_PIXEL_NUDGE_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
+  ...REMOTE_CONVERSATION_HEADER_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,
   ...CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES,
   ...SIDEBAR_FOOTER_STYLE_RULES,

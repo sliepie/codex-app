@@ -2172,6 +2172,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        String.raw`.draggable.grid.w-full.min-w-0.items-center.gap-x-4.electron\:h-toolbar.extension\:py-row-y>.flex.items-center.justify-end.gap-1\.5>.flex.items-center.gap-2>button.shrink-0:last-child{order:-1!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
         String.raw`main.main-surface:has(.main-surface>.draggable.flex.items-center.px-panel.electron\:h-toolbar.extension\:h-toolbar-sm)>.app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center{display:none!important;}`,
       ),
     );
