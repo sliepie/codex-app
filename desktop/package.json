@@ -61,7 +61,7 @@
     "resolve:primary-runtime-source": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/resolve-primary-runtime-source.ts",
     "verify:primary-runtime:win:arm64": "npm run build:scripts && npm run verify:primary-runtime:win:arm64:compiled",
     "verify:primary-runtime:win:arm64:compiled": "node ./.cache/scripts/verify-primary-runtime-output.js",
-    "publish:primary-runtime:win:arm64:compiled": "node ./.cache/scripts/publish-primary-runtime-release.js",
+    "publish:primary-runtime:win:arm64": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/publish-primary-runtime-release.ts",
     "update:store-package": "npm run update:node-repl",
     "update:node-repl": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-node-repl.ps1"
   },

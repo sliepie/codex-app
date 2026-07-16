@@ -40,13 +40,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('primary-runtime-windows-arm64-pr-{0}', github.ref) || 'primary-runtime-windows-arm64' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  validate-primary-runtime:
-    if: github.event_name == 'pull_request'
+  prepare-primary-runtime:
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    concurrency:
-      group: primary-runtime-windows-arm64-pr-${{ github.ref }}
-      cancel-in-progress: true
+    outputs:
+      should_publish: ${{ steps.runtime-source.outputs.should_publish }}
+    env:
+      PRIMARY_RUNTIME_ARTIFACT_NAME: ${{ github.event_name == 'pull_request' && 'codex-primary-runtime-win32-arm64-pr' || 'codex-primary-runtime-win32-arm64' }}
 
     steps:
       - name: Checkout
@@ -59,141 +64,54 @@ jobs:
           cache: npm
           cache-dependency-path: desktop/package-lock.json
 
+      - name: Resolve Windows ARM64 primary runtime inputs
+        id: runtime-source
+        working-directory: desktop
+        run: npm run resolve:primary-runtime-source
+
+      - name: Restore composed Windows ARM64 primary runtime
+        if: steps.runtime-source.outputs.should_publish == 'true'
+        id: runtime-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: desktop/out/primary-runtime/win32-arm64
+          key: primary-runtime-win32-arm64-v2-${{ steps.runtime-source.outputs.source_archive_sha256 }}-${{ steps.runtime-source.outputs.source_manifest_fingerprint }}-${{ steps.runtime-source.outputs.build_recipe_fingerprint }}-${{ steps.runtime-source.outputs.refresh_epoch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            primary-runtime-win32-arm64-v2-${{ steps.runtime-source.outputs.source_archive_sha256 }}-${{ steps.runtime-source.outputs.source_manifest_fingerprint }}-${{ steps.runtime-source.outputs.build_recipe_fingerprint }}-${{ steps.runtime-source.outputs.refresh_epoch }}-
+
       - name: Install dependencies
+        if: steps.runtime-source.outputs.should_publish == 'true'
         working-directory: desktop
         run: npm ci
 
       - name: Build desktop scripts
+        if: steps.runtime-source.outputs.should_publish == 'true'
         working-directory: desktop
         run: npm run build:scripts
 
       - name: Test Windows ARM64 primary runtime resolver
+        if: github.event_name == 'pull_request'
         working-directory: desktop
         run: npm run test:resolve-primary-runtime-source:compiled
 
       - name: Test Windows ARM64 primary runtime output verification
+        if: github.event_name == 'pull_request'
         working-directory: desktop
         run: npm run test:verify-primary-runtime-output:compiled
 
-      - name: Resolve Windows ARM64 primary runtime inputs
-        id: runtime-source
-        working-directory: desktop
-        run: npm run resolve:primary-runtime-source
-
-      - name: Restore composed Windows ARM64 primary runtime
+      - name: Export expected runtime provenance
         if: steps.runtime-source.outputs.should_publish == 'true'
-        id: runtime-cache
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: desktop/out/primary-runtime/win32-arm64
-          key: primary-runtime-win32-arm64-v2-${{ steps.runtime-source.outputs.source_archive_sha256 }}-${{ steps.runtime-source.outputs.source_manifest_fingerprint }}-${{ steps.runtime-source.outputs.build_recipe_fingerprint }}-${{ steps.runtime-source.outputs.refresh_epoch }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: |
-            primary-runtime-win32-arm64-v2-${{ steps.runtime-source.outputs.source_archive_sha256 }}-${{ steps.runtime-source.outputs.source_manifest_fingerprint }}-${{ steps.runtime-source.outputs.build_recipe_fingerprint }}-${{ steps.runtime-source.outputs.refresh_epoch }}-
+        run: |
+          echo "PRIMARY_RUNTIME_EXPECTED_SOURCE_ARCHIVE_SHA256=${{ steps.runtime-source.outputs.source_archive_sha256 }}" >> "$GITHUB_ENV"
+          echo "PRIMARY_RUNTIME_EXPECTED_SOURCE_MANIFEST_FINGERPRINT=${{ steps.runtime-source.outputs.source_manifest_fingerprint }}" >> "$GITHUB_ENV"
+          echo "PRIMARY_RUNTIME_EXPECTED_BUILD_RECIPE_FINGERPRINT=${{ steps.runtime-source.outputs.build_recipe_fingerprint }}" >> "$GITHUB_ENV"
+          echo "PRIMARY_RUNTIME_REFRESH_EPOCH=${{ steps.runtime-source.outputs.refresh_epoch }}" >> "$GITHUB_ENV"
 
       - name: Verify cached Windows ARM64 primary runtime
         if: steps.runtime-source.outputs.should_publish == 'true'
         id: cached-runtime
         continue-on-error: true
         working-directory: desktop
-        env:
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_ARCHIVE_SHA256: ${{ steps.runtime-source.outputs.source_archive_sha256 }}
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_MANIFEST_FINGERPRINT: ${{ steps.runtime-source.outputs.source_manifest_fingerprint }}
-          PRIMARY_RUNTIME_EXPECTED_BUILD_RECIPE_FINGERPRINT: ${{ steps.runtime-source.outputs.build_recipe_fingerprint }}
-          PRIMARY_RUNTIME_REFRESH_EPOCH: ${{ steps.runtime-source.outputs.refresh_epoch }}
-        run: npm run verify:primary-runtime:win:arm64:compiled
-
-      - name: Validate Windows ARM64 primary runtime feed
-        if: steps.runtime-source.outputs.should_publish == 'true' && steps.cached-runtime.outcome != 'success'
-        id: build-runtime
-        working-directory: desktop
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_ARCHIVE_SHA256: ${{ steps.runtime-source.outputs.source_archive_sha256 }}
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_MANIFEST_FINGERPRINT: ${{ steps.runtime-source.outputs.source_manifest_fingerprint }}
-          PRIMARY_RUNTIME_EXPECTED_BUILD_RECIPE_FINGERPRINT: ${{ steps.runtime-source.outputs.build_recipe_fingerprint }}
-          PRIMARY_RUNTIME_REFRESH_EPOCH: ${{ steps.runtime-source.outputs.refresh_epoch }}
-        run: npm run build:primary-runtime:win:arm64:compiled
-
-      - name: Verify Windows ARM64 primary runtime output
-        if: steps.runtime-source.outputs.should_publish == 'true'
-        working-directory: desktop
-        env:
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_ARCHIVE_SHA256: ${{ steps.runtime-source.outputs.source_archive_sha256 }}
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_MANIFEST_FINGERPRINT: ${{ steps.runtime-source.outputs.source_manifest_fingerprint }}
-          PRIMARY_RUNTIME_EXPECTED_BUILD_RECIPE_FINGERPRINT: ${{ steps.runtime-source.outputs.build_recipe_fingerprint }}
-          PRIMARY_RUNTIME_REFRESH_EPOCH: ${{ steps.runtime-source.outputs.refresh_epoch }}
-        run: npm run verify:primary-runtime:win:arm64:compiled
-
-      - name: Save composed Windows ARM64 primary runtime
-        if: steps.build-runtime.outcome == 'success'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: desktop/out/primary-runtime/win32-arm64
-          key: ${{ steps.runtime-cache.outputs.cache-primary-key }}
-
-      - name: Upload Windows ARM64 primary runtime PR artifact
-        if: steps.runtime-source.outputs.should_publish == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: codex-primary-runtime-win32-arm64-pr
-          path: desktop/out/primary-runtime/win32-arm64/*
-          if-no-files-found: error
-
-  publish-primary-runtime:
-    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main')
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    concurrency:
-      group: primary-runtime-windows-arm64
-      cancel-in-progress: false
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: .node-version
-          cache: npm
-          cache-dependency-path: desktop/package-lock.json
-
-      - name: Resolve Windows ARM64 primary runtime inputs
-        id: runtime-source
-        working-directory: desktop
-        run: npm run resolve:primary-runtime-source
-
-      - name: Restore composed Windows ARM64 primary runtime
-        if: steps.runtime-source.outputs.should_publish == 'true'
-        id: runtime-cache
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: desktop/out/primary-runtime/win32-arm64
-          key: primary-runtime-win32-arm64-v2-${{ steps.runtime-source.outputs.source_archive_sha256 }}-${{ steps.runtime-source.outputs.source_manifest_fingerprint }}-${{ steps.runtime-source.outputs.build_recipe_fingerprint }}-${{ steps.runtime-source.outputs.refresh_epoch }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: |
-            primary-runtime-win32-arm64-v2-${{ steps.runtime-source.outputs.source_archive_sha256 }}-${{ steps.runtime-source.outputs.source_manifest_fingerprint }}-${{ steps.runtime-source.outputs.build_recipe_fingerprint }}-${{ steps.runtime-source.outputs.refresh_epoch }}-
-
-      - name: Install dependencies
-        if: steps.runtime-source.outputs.should_publish == 'true'
-        working-directory: desktop
-        run: npm ci
-
-      - name: Build desktop scripts
-        if: steps.runtime-source.outputs.should_publish == 'true'
-        working-directory: desktop
-        run: npm run build:scripts
-
-      - name: Verify cached Windows ARM64 primary runtime
-        if: steps.runtime-source.outputs.should_publish == 'true'
-        id: cached-runtime
-        continue-on-error: true
-        working-directory: desktop
-        env:
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_ARCHIVE_SHA256: ${{ steps.runtime-source.outputs.source_archive_sha256 }}
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_MANIFEST_FINGERPRINT: ${{ steps.runtime-source.outputs.source_manifest_fingerprint }}
-          PRIMARY_RUNTIME_EXPECTED_BUILD_RECIPE_FINGERPRINT: ${{ steps.runtime-source.outputs.build_recipe_fingerprint }}
-          PRIMARY_RUNTIME_REFRESH_EPOCH: ${{ steps.runtime-source.outputs.refresh_epoch }}
         run: npm run verify:primary-runtime:win:arm64:compiled
 
       - name: Build Windows ARM64 primary runtime feed
@@ -202,20 +120,11 @@ jobs:
         working-directory: desktop
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_ARCHIVE_SHA256: ${{ steps.runtime-source.outputs.source_archive_sha256 }}
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_MANIFEST_FINGERPRINT: ${{ steps.runtime-source.outputs.source_manifest_fingerprint }}
-          PRIMARY_RUNTIME_EXPECTED_BUILD_RECIPE_FINGERPRINT: ${{ steps.runtime-source.outputs.build_recipe_fingerprint }}
-          PRIMARY_RUNTIME_REFRESH_EPOCH: ${{ steps.runtime-source.outputs.refresh_epoch }}
         run: npm run build:primary-runtime:win:arm64:compiled
 
       - name: Verify Windows ARM64 primary runtime output
         if: steps.runtime-source.outputs.should_publish == 'true'
         working-directory: desktop
-        env:
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_ARCHIVE_SHA256: ${{ steps.runtime-source.outputs.source_archive_sha256 }}
-          PRIMARY_RUNTIME_EXPECTED_SOURCE_MANIFEST_FINGERPRINT: ${{ steps.runtime-source.outputs.source_manifest_fingerprint }}
-          PRIMARY_RUNTIME_EXPECTED_BUILD_RECIPE_FINGERPRINT: ${{ steps.runtime-source.outputs.build_recipe_fingerprint }}
-          PRIMARY_RUNTIME_REFRESH_EPOCH: ${{ steps.runtime-source.outputs.refresh_epoch }}
         run: npm run verify:primary-runtime:win:arm64:compiled
 
       - name: Save composed Windows ARM64 primary runtime
@@ -229,16 +138,37 @@ jobs:
         if: steps.runtime-source.outputs.should_publish == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: codex-primary-runtime-win32-arm64
+          name: ${{ env.PRIMARY_RUNTIME_ARTIFACT_NAME }}
           path: desktop/out/primary-runtime/win32-arm64/*
           if-no-files-found: error
 
+  publish-primary-runtime:
+    if: github.event_name != 'pull_request' && needs.prepare-primary-runtime.outputs.should_publish == 'true'
+    needs: prepare-primary-runtime
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - name: Download Windows ARM64 primary runtime artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: codex-primary-runtime-win32-arm64
+          path: desktop/out/primary-runtime/win32-arm64
+
       - name: Publish Windows ARM64 primary runtime release
-        if: steps.runtime-source.outputs.should_publish == 'true'
         working-directory: desktop
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RELEASE_TAG: codex-primary-runtime-win32-arm64
           RELEASE_TITLE: codex-primary-runtime win32-arm64
-        run: npm run publish:primary-runtime:win:arm64:compiled
+        run: npm run publish:primary-runtime:win:arm64

@@ -248,11 +248,14 @@ test("repository, release tag, and source metadata participate in cache provenan
   );
 });
 
-test("workflow cache key is epoch-scoped and rebuilt outputs use a new save key", async () => {
+test("workflow uses one shared cache/build pipeline with an isolated publish job", async () => {
   const workflow = await readFile(workflowPath, "utf8");
 
-  assert.match(workflow, /actions\/cache\/restore@/);
-  assert.match(workflow, /actions\/cache\/save@/);
+  assert.equal(workflow.match(/actions\/cache\/restore@/g)?.length, 1);
+  assert.equal(workflow.match(/actions\/cache\/save@/g)?.length, 1);
+  assert.equal(workflow.match(/npm run build:primary-runtime:win:arm64:compiled/g)?.length, 1);
+  assert.match(workflow, /needs: prepare-primary-runtime/);
+  assert.match(workflow, /actions\/download-artifact@/);
   assert.match(workflow, /source_manifest_fingerprint/);
   assert.match(workflow, /refresh_epoch/);
   assert.match(workflow, /github\.run_id/);

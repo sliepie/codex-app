@@ -100,6 +100,13 @@ The investigation will establish one focused pass/fail command per symptom befor
 - Rejected a runtime DOM-observer approach for product naming. Hydration now rewrites capitalized `ChatGPT` product text inside renderer JavaScript string and template literals. Product identifiers, lowercase protocol values and URLs, and the `ChatGPT-Account-ID` header remain unchanged.
 - Added a repository instruction requiring explicit approval before runtime observers, DOM tree walkers, polling, timers, or other dynamic JavaScript are introduced in tweaks or source patches. Build-time rewrites and CSS are the default.
 
+### 2026-07-16 — primary-runtime workflow simplification
+
+- Reduced the primary-runtime workflow from 244 to 174 lines by replacing the duplicated validation and publishing pipelines with one read-only prepare job.
+- The prepare job now owns resolution, cache restore, dependency setup, tests, cache verification, composition, output verification, cache save, and artifact upload exactly once.
+- Publishing remains a separate, small write-enabled job. It downloads the verified artifact produced by the prepare job and runs the dependency-free TypeScript publisher directly, so release credentials remain isolated from install and build steps.
+- Moved concurrency to workflow scope so the prepare and publish jobs are treated as one operation. Pull-request runs still cancel superseded work; publishing runs remain serialized without cancellation.
+
 ## Findings
 
 ### Confirmed
@@ -135,6 +142,7 @@ The investigation will establish one focused pass/fail command per symptom befor
 - Re-evaluated both bundled tweaks. The independent Windows menu-bar tweak remains source-backed and unchanged. The UI override is now `0.26.0`, hides the current mode/search wrapper with one locale-independent structural selector, and removes the obsolete Codex Mobile, sidebar hover/project-action, and right-panel tab code entirely.
 - Added a build-time renderer transformation that changes capitalized ChatGPT product text to Codex without runtime observers or changes to protocol identifiers.
 - Added the no-runtime-observers-without-approval rule to the repository instructions.
+- Consolidated the primary-runtime workflow into one shared cache/build pipeline plus an isolated release publisher, removing the duplicated runtime preparation logic.
 
 ## Validation
 
@@ -150,3 +158,4 @@ The investigation will establish one focused pass/fail command per symptom befor
 - Release-path focused suites also passed: CLI hydration 5/5, Windows ARM64 package plan 9/9, and browser-client runtime compatibility 8/8.
 - The MSIX packaging PowerShell script parses successfully after the inner-signing change.
 - A temporary-copy run against the real recovered bundle replaced 2,800 product-name string occurrences across 95 renderer assets without touching the source tree.
+- The simplified primary-runtime workflow parses as YAML, script compilation passes, publisher TypeScript syntax validation passes, and the focused resolver (11/11), output verifier (2/2), and Windows package-resource (79/79) suites pass.
