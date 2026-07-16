@@ -790,9 +790,10 @@ function functionContainingAllPatch(
 
 function patchSidebarProjectLimit(): SourcePatcher {
   const markers = ["sidebarElectron.projectsNavLink", "showProjectHoverCard"];
-  const appliedPattern = /maxGroups\s*:\s*9999(?=\s*,\s*showProjectHoverCard\s*:)/;
+  const appliedPattern =
+    /maxGroups\s*:\s*[A-Za-z_$][\w$]*\s*\?\s*void 0\s*:\s*9999(?=\s*,\s*showProjectHoverCard\s*:)/;
   const targetPattern = new RegExp(
-    String.raw`maxGroups\s*:\s*(${identifierPattern})(?=\s*,\s*showProjectHoverCard\s*:)`,
+    String.raw`maxGroups\s*:\s*${identifierPattern}\s*\?\s*void 0\s*:\s*5(?=\s*,\s*showProjectHoverCard\s*:)`,
     "g",
   );
 
@@ -820,9 +821,10 @@ function patchSidebarProjectLimit(): SourcePatcher {
 
     const target = targets[0];
     const targetStart = target.index ?? 0;
+    const patchedTarget = target[0].replace(/5$/, "9999");
     const body =
       match.body.slice(0, targetStart) +
-      "maxGroups:9999" +
+      patchedTarget +
       match.body.slice(targetStart + target[0].length);
     const replacement = `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}`;
 

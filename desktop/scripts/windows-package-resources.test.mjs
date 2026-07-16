@@ -2091,10 +2091,13 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       uiOverrideCss,
       /\.group\\\/application-menu-top-bar\{[^}]*margin-inline-start/,
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) button:has(svg path[d^="M10.6391 1.67517"]) svg{margin-right:1px!important;}`,
-      ),
+    assert.doesNotMatch(
+      uiOverrideCss,
+      /button:has\(svg path\[d\^="M10\.6391 1\.67517"\]\) svg\{margin-right:1px!important;\}/,
+    );
+    assert.match(
+      uiOverrideCss,
+      /span\.flex\.w-4\.shrink-0\{translate:-1px 0!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
@@ -2172,7 +2175,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.doesNotMatch(uiOverrideCss, /position:relative!important;left:-2px!important;/);
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.draggable.grid.w-full.min-w-0.items-center.gap-x-4.electron\:h-toolbar.extension\:py-row-y>.flex.items-center.justify-end.gap-1\.5>.flex.items-center.gap-2>button.shrink-0:last-child{order:-1!important;}`,
+        String.raw`.draggable.grid.w-full.min-w-0.items-center.gap-x-4.electron\:h-toolbar.extension\:py-row-y>.flex.items-center.justify-end.gap-1\.5>.flex.items-center.gap-0\.5>button.shrink-0:last-child{order:-1!important;}`,
       ),
     );
     assert.ok(
@@ -2254,7 +2257,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-pinned="true"]{height:calc(var(--height-token-row) - 2px)!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row]{height:calc(var(--height-token-row) - 4px)!important;margin-right:-3px!important;}`,
       ),
     );
     assert.ok(
@@ -2279,7 +2282,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.group\/application-menu-top-bar [data-app-shell-sidebar-trigger]{transform:translateX(4px)!important;}`,
+        String.raw`.group\/application-menu-top-bar [data-app-shell-sidebar-trigger]{transform:translateX(3px)!important;}`,
       ),
     );
     assert.ok(
@@ -2304,10 +2307,25 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.doesNotMatch(uiOverrideCss, /aria-label\*='invite'|title\*='invite'|href\*='referral'|Invite a friend/);
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1,.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1~:is(div,button,[role='menuitem']):not(a[href]):has(svg){padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;}`,
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1{padding-left:calc(var(--padding-row-x) + 1.25rem + 3px)!important;padding-right:var(--padding-row-x)!important;}`,
       ),
     );
-    assert.doesNotMatch(uiOverrideCss, /USAGE_MENU_RESET_ACTION_DECLARATIONS|1\.25rem \+ 4px/);
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1>span.font-medium{font-weight:400!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>.grid.items-center.gap-y-1\.5.py-1~:is(div,button,[role='menuitem']):not(a[href]):has(svg){padding-left:calc(var(--padding-row-x) + 1.25rem + 2px)!important;padding-right:var(--padding-row-x)!important;font-weight:400!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.8124 13.516']){display:none!important;}`,
+      ),
+    );
+    assert.doesNotMatch(uiSource, /1\.25rem \+ 4px/);
     assert.doesNotMatch(uiOverrideCss, /\.grid\.items-center\.gap-y-1\\\.5\.py-1\+\*/);
     assert.doesNotMatch(uiOverrideCss, /(^|[;{])left:-?1px/);
     const uiCssRules = Array.from(uiOverrideCss.matchAll(/([^{}]+)\{([^{}]+)\}/g)).map(
@@ -2506,8 +2524,8 @@ test("release workflows scope GitHub credentials away from install and build scr
     releaseWorkflowSource.indexOf("name: Notice existing repo release") <
       releaseWorkflowSource.indexOf("name: Run targeted desktop tests"),
   );
-  assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
-  assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
+  assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:patch-windows-self-signed-bundle:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
+  assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:patch-windows-self-signed-bundle:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
   assert.match(prWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache\/restore@/);
   assert.match(releaseWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache@/);
   assert.equal(packageJson.scripts["build:scripts"], "npx -y -p typescript@rc tsc -p tsconfig.scripts.json");
