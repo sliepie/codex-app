@@ -20,6 +20,10 @@ const SIDEBAR_PINNED_THREAD_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-thread-row][data-app-action-sidebar-thread-pinned="true"]`;
 const SIDEBAR_PINNED_THREAD_ROW_DECLARATIONS =
   "height:calc(var(--height-token-row) - 2px)!important;";
+const SIDEBAR_PROJECT_TITLE_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row] span.text-fade-truncate.pr-1`;
+const SIDEBAR_PROJECT_TITLE_DECLARATIONS =
+  "transform:translateY(-1px)!important;";
 const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR}>.relative.z-10.flex.shrink-0.flex-col.gap-2>.ml-2.flex.items-center`;
 const SIDEBAR_SCROLL_SELECTOR =
@@ -64,6 +68,7 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
     SIDEBAR_PINNED_THREAD_ROW_SELECTOR,
     SIDEBAR_PINNED_THREAD_ROW_DECLARATIONS,
   ),
+  cssRule(SIDEBAR_PROJECT_TITLE_SELECTOR, SIDEBAR_PROJECT_TITLE_DECLARATIONS),
 ];
 const IMAGE_PREVIEW_STYLE_RULES = [
   cssRule(

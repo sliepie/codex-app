@@ -2259,6 +2259,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-project-row] span.text-fade-truncate.pr-1{transform:translateY(-1px)!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
         String.raw`.group\/application-menu-top-bar [data-app-shell-sidebar-trigger]{transform:translateX(4px)!important;}`,
       ),
     );
@@ -2279,7 +2284,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.doesNotMatch(
       uiOverrideCss,
-      /data-app-action-sidebar-project-row|data-app-shell-tab-controller|group\\\/chats-section-header|group\\\/projects-section-header/,
+      /data-app-shell-tab-controller|group\\\/chats-section-header|group\\\/projects-section-header/,
     );
     assert.doesNotMatch(uiOverrideCss, /aria-label\*='invite'|title\*='invite'|href\*='referral'|Invite a friend/);
     assert.ok(
