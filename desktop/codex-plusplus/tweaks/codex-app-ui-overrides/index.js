@@ -24,6 +24,10 @@ const SIDEBAR_PROJECT_TITLE_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row] span.text-fade-truncate.pr-1`;
 const SIDEBAR_PROJECT_TITLE_DECLARATIONS =
   "transform:translateY(-1px)!important;";
+const SIDEBAR_SECTION_ACTIONS_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]`;
+const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
+  "opacity:1!important;pointer-events:auto!important;";
 const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR}>.relative.z-10.flex.shrink-0.flex-col.gap-2>.ml-2.flex.items-center`;
 const SIDEBAR_SCROLL_SELECTOR =
@@ -69,6 +73,7 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
     SIDEBAR_PINNED_THREAD_ROW_DECLARATIONS,
   ),
   cssRule(SIDEBAR_PROJECT_TITLE_SELECTOR, SIDEBAR_PROJECT_TITLE_DECLARATIONS),
+  cssRule(SIDEBAR_SECTION_ACTIONS_SELECTOR, SIDEBAR_SECTION_ACTIONS_DECLARATIONS),
 ];
 const IMAGE_PREVIEW_STYLE_RULES = [
   cssRule(

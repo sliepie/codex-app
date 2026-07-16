@@ -936,7 +936,12 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
 }
 
 function patchSidebarProjectsBundle(recoveredRoot: string): PatchResult[] {
-  const markers = ["sidebarElectron.projectsNavLink", "showProjectHoverCard"];
+  const markers = [
+    "sidebarElectron.projectsNavLink",
+    "showProjectHoverCard",
+    "maxGroups:",
+    "showProjectPinAction",
+  ];
   const filePath = findFileContaining(
     path.join(recoveredRoot, "webview", "assets"),
     /^.*\.js$/,
