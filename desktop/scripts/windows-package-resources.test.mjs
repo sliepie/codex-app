@@ -2269,6 +2269,16 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]{pointer-events:none!important;cursor:default!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]>[class~="opacity-0"]{display:none!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
         String.raw`.group\/application-menu-top-bar [data-app-shell-sidebar-trigger]{transform:translateX(4px)!important;}`,
       ),
     );
