@@ -14,7 +14,13 @@ import {
   primaryRuntimeSourceManifestFingerprint,
 } from "./primary-runtime-build-recipe.ts";
 
-type ArchiveFormat = "zip" | "tar.xz";
+const archiveFormatExtensions = {
+  zip: ".zip",
+  "tar.gz": ".tar.gz",
+  "tar.xz": ".tar.xz",
+} as const;
+
+type ArchiveFormat = keyof typeof archiveFormatExtensions;
 
 type PrimaryRuntimeManifest = {
   archiveName?: string;
@@ -228,14 +234,12 @@ function getArchiveExtensionForFormat(format: string | undefined): string | unde
     return undefined;
   }
 
-  switch (format.toLowerCase()) {
-    case "zip":
-      return ".zip";
-    case "tar.xz":
-      return ".tar.xz";
-    default:
-      throw new Error(`Unsupported primary runtime archive format: ${format}`);
+  const normalizedFormat = format.toLowerCase();
+  if (Object.hasOwn(archiveFormatExtensions, normalizedFormat)) {
+    return archiveFormatExtensions[normalizedFormat as ArchiveFormat];
   }
+
+  throw new Error(`Unsupported primary runtime archive format: ${format}`);
 }
 
 function getSupportedArchiveExtension(archiveName: string | undefined): string | undefined {
@@ -244,13 +248,7 @@ function getSupportedArchiveExtension(archiveName: string | undefined): string |
   }
 
   const lowerName = archiveName.toLowerCase();
-  if (lowerName.endsWith(".tar.xz")) {
-    return ".tar.xz";
-  }
-  if (lowerName.endsWith(".zip")) {
-    return ".zip";
-  }
-  return undefined;
+  return Object.values(archiveFormatExtensions).find((extension) => lowerName.endsWith(extension));
 }
 
 function resolveArchiveName(manifest: PrimaryRuntimeManifest, defaultBaseName: string): string {
