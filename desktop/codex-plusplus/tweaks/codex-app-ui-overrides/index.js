@@ -96,15 +96,15 @@ const SIDEBAR_SECTION_ACTIONS_SELECTOR =
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
   "opacity:1!important;pointer-events:auto!important;";
 const SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Projects"]) [class~="group/nav-section-title"]`;
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Projects"]) [class~='flex'][class~='items-center'][class~='justify-between'][class~='gap-2']:has(>[class~='min-w-0'][class~='flex-1'])`;
 const SIDEBAR_PRIMARY_SECTION_TITLE_ROW_DECLARATIONS =
   "padding-right:0!important;";
 const SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR =
-  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR}>[class~='flex'][class~='shrink-0'][class~='items-center'][class~='gap-1']`;
+  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR}>[class~='flex'][class~='items-center'][class~='gap-1']`;
 const SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS =
   "translate:1px 0!important;";
 const SIDEBAR_PRIMARY_SECTION_TITLE_SELECTOR =
-  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR} [class~='font-medium']`;
+  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR}>[class~='flex'][class~='min-w-0'][class~='flex-1']`;
 const SIDEBAR_PRIMARY_SECTION_TITLE_DECLARATIONS =
   "color:var(--color-token-description-foreground)!important;font-weight:400!important;opacity:1!important;";
 const SIDEBAR_SECTION_TOGGLE_SELECTOR =
