@@ -24,10 +24,12 @@ const {
   assertNoWorkLouderRuntimeReferences,
   patchRecoveredCodexMicroServiceSource,
   patchCodexWindowServicesSource,
-  patchMarkdownOperationDirectiveCrashSource,
+  patchNodePtySpectreMitigation,
   pruneWorkLouderPackages,
   patchRecoveredWindowsPrimaryWindowTaskbarSource,
   pruneUnusedNativePayloads,
+  readRecoveredOriginalMain,
+  rewriteNodePtySpectreMitigationSource,
   rewriteCodexPlusPlusRuntimePreload,
   syncCodexPlusPlusRuntimeAssets,
   syncBundledPluginResources,
@@ -391,32 +393,6 @@ function createWindowsPluginPayloadFixture() {
   return { computerUsePath, extensionHostPath };
 }
 
-function createMarkdownDirectiveFixture() {
-  const tick = String.fromCharCode(96);
-  return [
-    "const codexDirective=\"codexDirective\";",
-    "function ar(e){return e;}",
-    "function g(e){return e;}",
-    "const c=null;",
-    "function Hr(e){return e.split(" +
-      tick +
-      "\n" +
-      tick +
-      ").filter(e=>!Ur(e)).join(" +
-      tick +
-      "\n" +
-      tick +
-      ")}",
-    "function Ur(e){let t=e.trimStart();if(!t.startsWith(\"::\")||t.startsWith(\":::\"))return!1;let n=2;for(;Wr(t.charCodeAt(n));)n+=1;return n===2?!1:s.has(t.slice(2,n))}",
-    "function Wr(e){return e>=65&&e<=90||e>=97&&e<=122||e>=48&&e<=57||e===45||e===95}",
-    "function Br(n,T){let E=n,ne=T?ar(Hr(E)):E,O=g(ne,c);return O}",
-  ].join("");
-}
-
-function evaluateMarkdownDirectiveFixture(source, operationNames = ["git-create-branch"]) {
-  return new Function("s", source + "; return { Hr, Br };")(new Set(operationNames));
-}
-
 test("generates Windows bundled plugin resources with Windows helper payloads", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
@@ -455,17 +431,18 @@ test("generates Windows bundled plugin resources with Windows helper payloads", 
     ),
     true,
   );
-  const browserClient = fs.readFileSync(
-    path.join(
-      destinationPluginsRoot,
-      "openai-bundled/plugins/browser/scripts/browser-client.mjs",
-    ),
-    "utf8",
+  const browserClientPath = path.join(
+    destinationPluginsRoot,
+    "openai-bundled/plugins/browser/scripts/browser-client.mjs",
   );
-  assert.match(browserClient, /import\.meta\.__codexNativePipe/);
-  assert.match(browserClient, /codexBrowserNetPipeConnect/);
-  assert.equal(browserClient.includes("globalThis.nodeRepl?.nativePipe"), false);
-  assert.equal(browserClient.includes("throw new Error(fh())"), false);
+  const upstreamBrowserClientPath = path.join(
+    appResourcesRoot,
+    "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+  );
+  const browserClient = fs.readFileSync(browserClientPath, "utf8");
+  assert.equal(browserClient, fs.readFileSync(upstreamBrowserClientPath, "utf8"));
+  assert.doesNotMatch(browserClient, /import\.meta\.__codexNativePipe/);
+  assert.doesNotMatch(browserClient, /codexBrowserNetPipeConnect/);
   assert.equal(
     fs.existsSync(path.join(destinationPluginsRoot, "openai-bundled/plugins/computer-use")),
     true,
@@ -906,42 +883,6 @@ test("prunes Work Louder native hardware packages from recovered app", () => {
   assert.equal(packageJson.dependencies["safe-package"], "1.0.0");
 });
 
-test("patches markdown operation directives before renderer parsing", () => {
-  const source = createMarkdownDirectiveFixture();
-
-  const result = patchMarkdownOperationDirectiveCrashSource(source);
-
-  assert.equal(result?.changed, true);
-  assert.equal(result?.strategy, "operation-directive-filter");
-  assert.match(result?.source ?? "", /E=Hr\(n\),ne=T\?ar\(E\):E/);
-
-  const patched = evaluateMarkdownDirectiveFixture(result?.source ?? "");
-  const content =
-    "before\n" +
-    "::git-create-branch{cwd=\"C:\\tmp\\foo\" branch=\"sliepie/fix\"}\n" +
-    "after";
-  assert.equal(patched.Br(content, false), "before\nafter");
-  assert.equal(patched.Br(content, true), "before\nafter");
-
-  const second = patchMarkdownOperationDirectiveCrashSource(result?.source ?? "");
-  assert.equal(second?.changed, false);
-  assert.equal(second?.strategy, "already-patched");
-});
-
-test("keeps non-operation directives and fenced operation directive examples", () => {
-  const result = patchMarkdownOperationDirectiveCrashSource(createMarkdownDirectiveFixture());
-  const patched = evaluateMarkdownDirectiveFixture(result?.source ?? "");
-  const content =
-    "alpha\n" +
-    "::note{cwd=\"C:\\tmp\\foo\"}\n" +
-    "```text\n" +
-    "::git-create-branch{cwd=\"C:\\tmp\\foo\" branch=\"sliepie/fix\"}\n" +
-    "```\n" +
-    "omega";
-
-  assert.equal(patched.Br(content, false), content);
-});
-
 test("discovers native modules copied inside bundled plugin resources", () => {
   const appResourcesRoot = createAppResourcesFixture();
   const destinationPluginsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugin-output-"));
@@ -1154,13 +1095,103 @@ test("prunes unused node-pty alternate and debug payloads", () => {
   );
 });
 
-test("Windows ARM64 hydration disables node-pty Spectre library requirement", () => {
-  const source = fs.readFileSync(path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"), "utf8");
+function nodePtySpectreGypSource(count, value = "Spectre") {
+  return Array.from(
+    { length: count },
+    (_, index) => `target-${index}: { 'SpectreMitigation': '${value}' }`,
+  ).join("\n") + "\n";
+}
 
-  assert.match(source, /function patchNodePtySpectreMitigation\(nodeModulesRoot: string\): void/);
-  assert.match(source, /"binding\.gyp", "deps\/winpty\/src\/winpty\.gyp"/);
-  assert.match(source, /"'SpectreMitigation': 'Spectre'", "'SpectreMitigation': 'false'"/);
-  assert.match(source, /patchNodePtySpectreMitigation\(target\.nodeModulesRoot\)/);
+function writeNodePtySpectreFixtures(nodeModulesRoot, { binding = "Spectre", winpty = "Spectre" } = {}) {
+  const nodePtyRoot = path.join(nodeModulesRoot, "node-pty");
+  writeFixture(path.join(nodePtyRoot, "binding.gyp"), nodePtySpectreGypSource(1, binding));
+  writeFixture(
+    path.join(nodePtyRoot, "deps", "winpty", "src", "winpty.gyp"),
+    nodePtySpectreGypSource(2, winpty),
+  );
+  return nodePtyRoot;
+}
+
+test("rewrites node-pty Spectre mitigation source and recognizes the patched state", () => {
+  const source = [
+    "{",
+    "  'SpectreMitigation': 'Spectre',",
+    "  'OtherSetting': 'enabled',",
+    "  'SpectreMitigation': 'Spectre',",
+    "}",
+  ].join("\n");
+  const expected = [
+    "{",
+    "  'SpectreMitigation': 'false',",
+    "  'OtherSetting': 'enabled',",
+    "  'SpectreMitigation': 'false',",
+    "}",
+  ].join("\n");
+
+  const rewritten = rewriteNodePtySpectreMitigationSource(source, 2);
+  const idempotent = rewriteNodePtySpectreMitigationSource(rewritten.source, 2);
+
+  assert.deepEqual(rewritten, { changed: true, source: expected });
+  assert.deepEqual(idempotent, { changed: false, source: expected });
+});
+
+test("rejects drifted node-pty Spectre mitigation source", () => {
+  assert.throws(
+    () => rewriteNodePtySpectreMitigationSource(nodePtySpectreGypSource(2, "Required"), 2),
+    /expected 2 setting\(s\).*found 0 enabled and 0 disabled/,
+  );
+  assert.throws(
+    () =>
+      rewriteNodePtySpectreMitigationSource(
+        nodePtySpectreGypSource(1, "Spectre") + nodePtySpectreGypSource(1, "false"),
+        2,
+      ),
+    /found 1 enabled and 1 disabled/,
+  );
+});
+
+test("patches every expected node-pty Spectre mitigation GYP source", (t) => {
+  const nodeModulesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-node-pty-spectre-"));
+  t.after(() => fs.rmSync(nodeModulesRoot, { recursive: true, force: true }));
+  const nodePtyRoot = writeNodePtySpectreFixtures(nodeModulesRoot);
+
+  patchNodePtySpectreMitigation(nodeModulesRoot);
+  patchNodePtySpectreMitigation(nodeModulesRoot);
+
+  assert.equal(
+    fs.readFileSync(path.join(nodePtyRoot, "binding.gyp"), "utf8"),
+    nodePtySpectreGypSource(1, "false"),
+  );
+  assert.equal(
+    fs.readFileSync(path.join(nodePtyRoot, "deps", "winpty", "src", "winpty.gyp"), "utf8"),
+    nodePtySpectreGypSource(2, "false"),
+  );
+});
+
+test("rejects missing or drifted node-pty Spectre mitigation GYP sources before writing", (t) => {
+  const missingRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-node-pty-spectre-missing-"));
+  const driftedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-node-pty-spectre-drifted-"));
+  t.after(() => fs.rmSync(missingRoot, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(driftedRoot, { recursive: true, force: true }));
+
+  writeFixture(
+    path.join(missingRoot, "node-pty", "binding.gyp"),
+    nodePtySpectreGypSource(1),
+  );
+  assert.throws(
+    () => patchNodePtySpectreMitigation(missingRoot),
+    /Missing required node-pty GYP source: deps\/winpty\/src\/winpty\.gyp/,
+  );
+
+  const driftedNodePtyRoot = writeNodePtySpectreFixtures(driftedRoot, { winpty: "Required" });
+  assert.throws(
+    () => patchNodePtySpectreMitigation(driftedRoot),
+    /Unexpected node-pty Spectre mitigation content in deps\/winpty\/src\/winpty\.gyp/,
+  );
+  assert.equal(
+    fs.readFileSync(path.join(driftedNodePtyRoot, "binding.gyp"), "utf8"),
+    nodePtySpectreGypSource(1),
+  );
 });
 
 test("Mach-O native payloads are not ready for Windows ARM64", () => {
@@ -1344,7 +1375,8 @@ test("allows the upstream bundle to omit the browser plugin", () => {
   );
 });
 
-test("keeps generated plugin resources with Codex++ package integration", () => {
+test("keeps generated plugin resources with Codex++ package integration", (t) => {
+  ensureRecoveredPackageForForgeTest(t);
   const config = require(path.join(desktopRoot, "forge.config.js"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/plugins"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
@@ -1405,18 +1437,62 @@ function ensureRecoveredPackageForForgeTest(t) {
   }
 
   const hadRecoveredRoot = fs.existsSync(recoveredRoot);
+  const recoveredMainPath = path.join(recoveredPackageRoot, ".vite", "build", "early-bootstrap.js");
+  const originalRecoveredMain = fs.existsSync(recoveredMainPath)
+    ? fs.readFileSync(recoveredMainPath)
+    : undefined;
   writeFixture(
     recoveredPackageJsonPath,
-    JSON.stringify({ main: ".vite/build/bootstrap.js", version: "0.0.0" }, null, 2) + "\n",
+    JSON.stringify({ main: ".vite/build/early-bootstrap.js", version: "0.0.0" }, null, 2) + "\n",
   );
+  writeFixture(recoveredMainPath, "module.exports = {};\n");
   t.after(() => {
     if (!hadRecoveredRoot) {
       fs.rmSync(recoveredRoot, { recursive: true, force: true });
       return;
     }
     fs.rmSync(recoveredPackageJsonPath, { force: true });
+    if (originalRecoveredMain === undefined) {
+      fs.rmSync(recoveredMainPath, { force: true });
+    } else {
+      fs.writeFileSync(recoveredMainPath, originalRecoveredMain);
+    }
   });
 }
+
+function requireForgeConfigFixture(t, recoveredPackageJson) {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-config-test-"));
+  t.after(() => fs.rmSync(fixtureRoot, { recursive: true, force: true }));
+  fs.symlinkSync(path.join(desktopRoot, "node_modules"), path.join(fixtureRoot, "node_modules"), "junction");
+  fs.copyFileSync(path.join(desktopRoot, "forge.config.js"), path.join(fixtureRoot, "forge.config.js"));
+  if (recoveredPackageJson !== undefined) {
+    writeFixture(
+      path.join(fixtureRoot, "recovered", "app-asar-extracted", "package.json"),
+      JSON.stringify(recoveredPackageJson),
+    );
+  }
+  return createRequire(path.join(fixtureRoot, "fixture.cjs"))("./forge.config.js");
+}
+
+test("Forge config rejects missing recovered package metadata", (t) => {
+  assert.throws(
+    () => requireForgeConfigFixture(t, undefined),
+    /Missing recovered Codex package metadata/,
+  );
+});
+
+test("Forge config rejects invalid recovered Electron entry metadata", (t) => {
+  for (const packageJson of [{}, { main: " " }, { main: 42 }]) {
+    assert.throws(
+      () => requireForgeConfigFixture(t, packageJson),
+      /Recovered Codex package\.json main must be a non-empty string/,
+    );
+  }
+  assert.throws(
+    () => requireForgeConfigFixture(t, { main: "../outside.js" }),
+    /Recovered Codex main must stay inside recovered\/app-asar-extracted/,
+  );
+});
 
 function runForgeAfterCopy(config, buildPath) {
   return new Promise((resolve, reject) => {
@@ -1479,12 +1555,20 @@ test("Forge package uses the Codex++ loader with self-signed updater identity", 
   const config = require(path.join(desktopRoot, "forge.config.js"));
   const buildPath = fs.mkdtempSync(path.join(os.tmpdir(), "codex-forge-electron-testbed-"));
   t.after(() => fs.rmSync(buildPath, { recursive: true, force: true }));
+  const recoveredPackageJson = JSON.parse(
+    fs.readFileSync(
+      path.join(desktopRoot, "recovered", "app-asar-extracted", "package.json"),
+      "utf8",
+    ),
+  );
+  assert.equal(typeof recoveredPackageJson.main, "string");
+  const originalMain = path.posix.join(
+    "recovered/app-asar-extracted",
+    recoveredPackageJson.main.replace(/\\/g, "/").replace(/^\.\//, ""),
+  );
 
   writeFixture(path.join(buildPath, "package.json"), JSON.stringify({ name: "codex" }, null, 2) + "\n");
-  writeFixture(
-    path.join(buildPath, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
-    "module.exports = {};\n",
-  );
+  writeFixture(path.join(buildPath, ...originalMain.split("/")), "module.exports = {};\n");
   writeCodexPlusPlusPackageFiles(buildPath);
 
   await runForgeAfterCopy(config, buildPath);
@@ -1492,7 +1576,7 @@ test("Forge package uses the Codex++ loader with self-signed updater identity", 
   const packageJson = JSON.parse(fs.readFileSync(path.join(buildPath, "package.json"), "utf8"));
   assert.equal(packageJson.main, "codex-plusplus/loader.cjs");
   assert.deepEqual(packageJson.__codexpp, {
-    originalMain: "recovered/app-asar-extracted/.vite/build/bootstrap.js",
+    originalMain,
   });
   assert.equal(packageJson.codexWindowsPackageIdentity, "Sliepie.Codex.SelfSigned");
 });
@@ -2524,8 +2608,8 @@ test("release workflows scope GitHub credentials away from install and build scr
     releaseWorkflowSource.indexOf("name: Notice existing repo release") <
       releaseWorkflowSource.indexOf("name: Run targeted desktop tests"),
   );
-  assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:patch-windows-self-signed-bundle:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
-  assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:patch-windows-self-signed-bundle:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
+  assert.match(releaseWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:patch-windows-self-signed-bundle:compiled && npm run test:verify-windows-arm64-source-patches:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
+  assert.match(prWorkflowSource, /name: Run targeted desktop tests[\s\S]*npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:patch-windows-self-signed-bundle:compiled && npm run test:verify-windows-arm64-source-patches:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled/);
   assert.match(prWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache\/restore@/);
   assert.match(releaseWorkflowSource, /name: Restore hydrated release cache[\s\S]*uses: actions\/cache@/);
   assert.equal(packageJson.scripts["build:scripts"], "npx -y -p typescript@rc tsc -p tsconfig.scripts.json");
@@ -2701,6 +2785,42 @@ test("Codex app hydration restores Electron-compatible custom patches", () => {
   assert.match(scriptSource, /^\s+patchRecoveredCodexMicroService\(recoveredRoot\);/m);
   assert.match(scriptSource, /^\s+pruneWorkLouderPackages\(recoveredRoot\);/m);
 });
+test("Codex app hydration reads the current recovered Electron entry point", (t) => {
+  const recoveredRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-recovered-current-main-"));
+  t.after(() => fs.rmSync(recoveredRoot, { recursive: true, force: true }));
+  writeFixture(
+    path.join(recoveredRoot, "package.json"),
+    JSON.stringify({ main: ".vite/build/early-bootstrap.js" }),
+  );
+
+  assert.equal(readRecoveredOriginalMain(recoveredRoot), ".vite/build/early-bootstrap.js");
+});
+
+test("Codex app hydration rejects missing or invalid recovered Electron entry metadata", (t) => {
+  const recoveredRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-recovered-main-"));
+  const packageJsonPath = path.join(recoveredRoot, "package.json");
+  t.after(() => fs.rmSync(recoveredRoot, { recursive: true, force: true }));
+
+  assert.throws(
+    () => readRecoveredOriginalMain(recoveredRoot),
+    /Missing recovered Codex package metadata/,
+  );
+
+  for (const packageJson of [{}, { main: " " }, { main: 42 }]) {
+    writeFixture(packageJsonPath, JSON.stringify(packageJson));
+    assert.throws(
+      () => readRecoveredOriginalMain(recoveredRoot),
+      /Recovered Codex package\.json main must be a non-empty string/,
+    );
+  }
+
+  writeFixture(packageJsonPath, JSON.stringify({ main: "../outside.js" }));
+  assert.throws(
+    () => readRecoveredOriginalMain(recoveredRoot),
+    /Recovered Codex main must stay inside the recovered app/,
+  );
+});
+
 test("Codex app hydration keeps current Quick Chat window options separate from primary taskbar options", () => {
   const source =
     "function z9({appearance:e,opaqueWindowSurfaceEnabled:t,platform:n,windowZoom:r=1}){switch(e){case`quickChat`:case`primary`:return n===`darwin`?{titleBarStyle:`hiddenInset`,trafficLightPosition:A9(r),...e===`quickChat`?{hasShadow:!0,resizable:!0,transparent:!0}:{},...t?{}:{vibrancy:`menu`}}:n===`win32`||n===`linux`?{titleBarStyle:`hidden`,titleBarOverlay:j9(r),...e===`quickChat`?{resizable:!0}:{}}:{titleBarStyle:`default`,...e===`quickChat`?{resizable:!0}:{}}}}";

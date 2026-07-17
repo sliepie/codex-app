@@ -35,6 +35,7 @@ test("Windows ARM64 package plan owns target ordering", () => {
     "hydrate-cli",
     "verify-browser-client-runtime",
     "package-win-arm64",
+    "verify-windows-arm64-source-patches",
     "verify-windows-arm64-resource-binaries",
     "make-win-arm64",
   ]);
@@ -44,6 +45,12 @@ test("Windows ARM64 package plan owns target ordering", () => {
     "hydrate-cli",
     "verify-browser-client-runtime",
     "package-win-arm64",
+    "verify-windows-arm64-source-patches",
+    "verify-windows-arm64-resource-binaries",
+  ]);
+  assert.deepEqual(stepIds("verify"), [
+    "verify-browser-client-runtime",
+    "verify-windows-arm64-source-patches",
     "verify-windows-arm64-resource-binaries",
   ]);
 });
@@ -87,6 +94,18 @@ test("Windows ARM64 make target zips an already verified package root", () => {
   );
 });
 
+test("Windows ARM64 source-patch verification runs against the packaged app", () => {
+  const sourcePatchStep = expandWindowsArm64Plan("package").find(
+    (step) => step.id === "verify-windows-arm64-source-patches",
+  );
+
+  assert.ok(sourcePatchStep);
+  assert.deepEqual(
+    commandForWindowsArm64PlanStep(sourcePatchStep),
+    ["npm", "run", "verify:windows-arm64-source-patches:compiled"],
+  );
+});
+
 test("Windows ARM64 package plan launches npm through a Windows-safe process adapter", () => {
   const hydrateApp = expandWindowsArm64Plan("hydrate").find((step) => step.id === "hydrate-app");
   assert.ok(hydrateApp);
@@ -115,6 +134,10 @@ test("Windows ARM64 package scripts delegate to the package plan", () => {
   assert.equal(packageJson.scripts["package:win:arm64"], "npm run build:scripts && npm run plan:win:arm64:compiled -- package");
   assert.equal(packageJson.scripts["make:win:arm64"], "npm run build:scripts && npm run plan:win:arm64:compiled -- make");
   assert.equal(packageJson.scripts["make:win:arm64:ci"], "npm run build:scripts && npm run plan:win:arm64:compiled -- make");
+  assert.equal(
+    packageJson.scripts["verify:windows-arm64-source-patches:compiled"],
+    "node ./.cache/scripts/verify-windows-arm64-source-patches.js",
+  );
 });
 
 

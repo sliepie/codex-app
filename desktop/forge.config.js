@@ -64,12 +64,17 @@ function readPackageJson(packageRoot) {
 
 function recoveredOriginalMain(upstreamPackageJson) {
   const upstreamMain =
-    typeof upstreamPackageJson.main === 'string' && upstreamPackageJson.main.trim()
+    typeof upstreamPackageJson.main === 'string'
       ? upstreamPackageJson.main.trim().replace(/\\/g, '/')
-      : '.vite/build/bootstrap.js';
+      : '';
+  if (!upstreamMain) {
+    throw new Error('Recovered Codex package.json main must be a non-empty string.');
+  }
+
   const normalizedMain = path.posix.normalize(upstreamMain.replace(/^\.\//, ''));
   if (
     path.posix.isAbsolute(normalizedMain) ||
+    normalizedMain === '.' ||
     normalizedMain === '..' ||
     normalizedMain.startsWith('../') ||
     /^[A-Za-z]:/.test(normalizedMain)
@@ -81,10 +86,13 @@ function recoveredOriginalMain(upstreamPackageJson) {
 
 function readRecoveredPackageJson() {
   const packageJsonPath = path.join(recoveredAppRoot, 'package.json');
-  return fs.existsSync(packageJsonPath) ? readPackageJson(recoveredAppRoot) : null;
+  if (!fs.existsSync(packageJsonPath)) {
+    throw new Error('Missing recovered Codex package metadata: ' + packageJsonPath);
+  }
+  return readPackageJson(recoveredAppRoot);
 }
 
-const configuredRecoveredOriginalMain = recoveredOriginalMain(readRecoveredPackageJson() ?? {});
+const configuredRecoveredOriginalMain = recoveredOriginalMain(readRecoveredPackageJson());
 
 function packageListAllowsTarget(value, target) {
   if (!value) {

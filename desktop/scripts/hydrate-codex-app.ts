@@ -76,13 +76,6 @@ type PluginJson = {
   name?: string;
 };
 
-const browserPluginName = "browser";
-const browserClientNativePipeUnavailableMessage =
-  "privileged native pipe bridge is not available; browser-client is not trusted";
-const browserClientNativePipeUnavailableDetails = [
-  "Browser Use loaded stale or overwritten bundled plugins. Another Codex app may have overwritten them. Ask the user to use Debug Menu > Plugins > Reload bundled plugins, then retry.",
-  "Browser Use loaded stale or overwritten bundled plugins. Another ChatGPT desktop app may have overwritten them. Ask the user to use Debug Menu > Plugins > Reload bundled plugins, then retry.",
-];
 const identifierPattern = "[$A-Za-z_][$A-Za-z0-9_]*";
 
 type BundledMarketplaceSource = {
@@ -315,80 +308,6 @@ function packagedPluginSourcePath(pluginName: string): string {
   return `./plugins/${pluginName}`;
 }
 
-function patchBundledBrowserClientNativePipeTrust(
-  pluginName: string,
-  destinationPluginRoot: string,
-): void {
-  if (pluginName !== browserPluginName) {
-    return;
-  }
-
-  const browserClientPath = path.join(destinationPluginRoot, "scripts", "browser-client.mjs");
-  if (!fs.existsSync(browserClientPath)) {
-    throw new Error(`Missing bundled Browser client: ${browserClientPath}`);
-  }
-
-  let browserClientSource = fs.readFileSync(browserClientPath, "utf8");
-  if (
-    browserClientSource.includes("import.meta.__codexNativePipe") &&
-    browserClientSource.includes("codexBrowserNetPipeConnect")
-  ) {
-    return;
-  }
-
-  const messagePattern = new RegExp(
-    `function (${identifierPattern})\\(\\)\\{let ${identifierPattern}=` +
-      `${JSON.stringify(browserClientNativePipeUnavailableMessage)};return ` +
-      `${identifierPattern}\\(\\)===\"production\"\\?${identifierPattern}:` +
-      "`\\$\\{" + identifierPattern + "\\}\\. " +
-      `(?:${browserClientNativePipeUnavailableDetails.map(escapeRegExp).join("|")})` +
-      "`\\}",
-  );
-  const messageMatch = messagePattern.exec(browserClientSource);
-  if (!messageMatch?.[1]) {
-    throw new Error(`Could not find bundled Browser native pipe trust message in ${browserClientPath}`);
-  }
-  const messageFunctionName = messageMatch[1];
-  browserClientSource = browserClientSource.replace(
-    messagePattern,
-    `function ${messageFunctionName}(){let e=import.meta.__codexNativePipeUnavailableMessage;return typeof e=="string"&&e.length>0?e:${JSON.stringify(browserClientNativePipeUnavailableMessage)}}`,
-  );
-
-  const nativePipePattern = new RegExp(
-    `function (${identifierPattern})\\(\\)\\{let ${identifierPattern}=globalThis\\.nodeRepl\\?\\.nativePipe;` +
-      `return ${identifierPattern}==null\\|\\|typeof ${identifierPattern}\\.createConnection!=\"function\"\\?null:${identifierPattern}\\}`,
-  );
-  const nativePipeMatch = nativePipePattern.exec(browserClientSource);
-  if (!nativePipeMatch?.[1]) {
-    throw new Error(`Could not find bundled Browser native pipe getter in ${browserClientPath}`);
-  }
-  const nativePipeFunctionName = nativePipeMatch[1];
-  browserClientSource = browserClientSource.replace(
-    nativePipePattern,
-    `function ${nativePipeFunctionName}(){let e=import.meta.__codexNativePipe;return e==null||typeof e.createConnection!="function"?null:e}async function codexBrowserNetPipeConnect(e){let{connect:t}=await import("node:net");return t(e)}`,
-  );
-
-  const createPattern = new RegExp(
-    `static async create\\((${identifierPattern})\\)\\{let (${identifierPattern})=${escapeRegExp(nativePipeFunctionName)}\\(\\);` +
-      `if\\(\\2!=null\\)\\{let (${identifierPattern})=await \\2\\.createConnection\\(\\1\\);return new (${identifierPattern})\\(\\3\\)\\}` +
-      `throw new Error\\(${escapeRegExp(messageFunctionName)}\\(\\)\\)\\}`,
-  );
-  if (!createPattern.test(browserClientSource)) {
-    throw new Error(`Could not find bundled Browser native pipe create fallback in ${browserClientPath}`);
-  }
-  browserClientSource = browserClientSource.replace(
-    createPattern,
-    (
-      _match,
-      pipePath: string,
-      nativePipe: string,
-      socket: string,
-      transportClass: string,
-    ) =>
-      `static async create(${pipePath}){let ${nativePipe}=${nativePipeFunctionName}();if(${nativePipe}!=null){let ${socket}=await ${nativePipe}.createConnection(${pipePath});return new ${transportClass}(${socket})}let ${socket}=await codexBrowserNetPipeConnect(${pipePath});return new ${transportClass}(${socket})}`,
-  );
-  fs.writeFileSync(browserClientPath, browserClientSource, "utf8");
-}
 
 function findBundledMarketplaceSource(appResourcesRoot: string): BundledMarketplaceSource {
   const candidates = openAiBundledMarketplaceNames.map((name) => {
@@ -464,7 +383,6 @@ export function syncBundledPluginResources(
     const destinationPluginRoot = path.join(destinationMarketplaceRoot, "plugins", pluginName);
     fs.cpSync(sourcePluginRoot, destinationPluginRoot, { recursive: true, force: true });
     syncBundledPluginWindowsPayloads(pluginName, destinationPluginRoot, options);
-    patchBundledBrowserClientNativePipeTrust(pluginName, destinationPluginRoot);
     destinationPlugins.push({
       ...plugin,
       source: {
@@ -1981,25 +1899,67 @@ export function pruneUnusedNativePayloads(nodeModulesRoot: string): void {
   removeDebugSymbolPayloads(nodeModulesRoot);
 }
 
-function patchNodePtySpectreMitigation(nodeModulesRoot: string): void {
+const nodePtySpectreMitigationEnabled = "'SpectreMitigation': 'Spectre'";
+const nodePtySpectreMitigationDisabled = "'SpectreMitigation': 'false'";
+const nodePtySpectreMitigationSources = [
+  { expectedOccurrences: 1, relativePath: "binding.gyp" },
+  { expectedOccurrences: 2, relativePath: "deps/winpty/src/winpty.gyp" },
+] as const;
+
+function countOccurrences(source: string, value: string): number {
+  return source.split(value).length - 1;
+}
+
+export function rewriteNodePtySpectreMitigationSource(
+  source: string,
+  expectedOccurrences: number,
+): { changed: boolean; source: string } {
+  const enabledCount = countOccurrences(source, nodePtySpectreMitigationEnabled);
+  const disabledCount = countOccurrences(source, nodePtySpectreMitigationDisabled);
+  if (enabledCount === expectedOccurrences && disabledCount === 0) {
+    return {
+      changed: true,
+      source: source.replaceAll(nodePtySpectreMitigationEnabled, nodePtySpectreMitigationDisabled),
+    };
+  }
+  if (enabledCount === 0 && disabledCount === expectedOccurrences) {
+    return { changed: false, source };
+  }
+
+  throw new Error(
+    `expected ${expectedOccurrences} setting(s) in one state, found ${enabledCount} enabled and ${disabledCount} disabled`,
+  );
+}
+
+export function patchNodePtySpectreMitigation(nodeModulesRoot: string): void {
   const nodePtyRoot = packageRoot(nodeModulesRoot, "node-pty");
   if (!fs.existsSync(nodePtyRoot)) {
     return;
   }
 
-  let patchedCount = 0;
-  for (const relativePath of ["binding.gyp", "deps/winpty/src/winpty.gyp"]) {
+  const patches = nodePtySpectreMitigationSources.map(({ expectedOccurrences, relativePath }) => {
     const filePath = path.join(nodePtyRoot, ...relativePath.split("/"));
     if (!fs.existsSync(filePath)) {
-      continue;
+      throw new Error(`Missing required node-pty GYP source: ${relativePath}`);
     }
 
     const source = fs.readFileSync(filePath, "utf8");
-    const patched = source.replaceAll("'SpectreMitigation': 'Spectre'", "'SpectreMitigation': 'false'");
-    if (patched !== source) {
-      fs.writeFileSync(filePath, patched, "utf8");
-      patchedCount++;
+    try {
+      return {
+        filePath,
+        patch: rewriteNodePtySpectreMitigationSource(source, expectedOccurrences),
+      };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new Error(`Unexpected node-pty Spectre mitigation content in ${relativePath}: ${detail}`);
     }
+  });
+
+  let patchedCount = 0;
+  for (const { filePath, patch } of patches) {
+    if (!patch.changed) continue;
+    fs.writeFileSync(filePath, patch.source, "utf8");
+    patchedCount++;
   }
 
   if (patchedCount > 0) {
@@ -2192,67 +2152,6 @@ function patchWindowsSelfSignedBundle(recoveredRoot: string): void {
   );
 }
 
-function findRecoveredWebviewJavaScriptAssets(recoveredRoot: string): string[] {
-  const assetsRoot = path.join(recoveredRoot, "webview", "assets");
-  if (!fs.existsSync(assetsRoot)) return [];
-
-  const assets: string[] = [];
-  const visit = (current: string): void => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const entryPath = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        visit(entryPath);
-        continue;
-      }
-      if (!entry.isFile() || !entry.name.endsWith(".js")) continue;
-      assets.push(path.relative(recoveredRoot, entryPath).replace(/\\/g, "/"));
-    }
-  };
-
-  visit(assetsRoot);
-  return assets.sort();
-}
-
-function patchRecoveredMarkdownOperationDirectives(recoveredRoot: string): void {
-  const diagnostics: string[] = [];
-  let matchedDirectiveBundle = false;
-
-  for (const relativePath of findRecoveredWebviewJavaScriptAssets(recoveredRoot)) {
-    const filePath = path.join(recoveredRoot, relativePath);
-    const source = fs.readFileSync(filePath, "utf8");
-    if (!source.includes("codexDirective") || !source.includes("function Ur(")) continue;
-
-    matchedDirectiveBundle = true;
-    const patch = patchMarkdownOperationDirectiveCrashSource(source);
-    if (!patch) {
-      diagnostics.push(relativePath);
-      continue;
-    }
-
-    if (patch.changed) {
-      fs.writeFileSync(filePath, patch.source, "utf8");
-    }
-    console.log(
-      (patch.changed ? "Patched" : "Verified") +
-        " recovered Codex markdown operation directive filter in " +
-        relativePath +
-        " (" +
-        patch.strategy +
-        ").",
-    );
-  }
-
-  if (diagnostics.length > 0) {
-    throw new Error(
-      "Codex markdown operation directive filter could not be patched in " + diagnostics.join(", ") + ".",
-    );
-  }
-
-  if (!matchedDirectiveBundle) {
-    console.log("Recovered Codex markdown operation directive filter was not found; no renderer directive patch was needed.");
-  }
-}
-
 const codexWindowServicesKey = "__codexpp_window_services__";
 
 type CodexWindowServicesPatch = {
@@ -2260,12 +2159,6 @@ type CodexWindowServicesPatch = {
   changed: boolean;
   strategy: "already-patched" | "service-factory-fingerprint";
   serviceVar?: string;
-};
-
-type MarkdownOperationDirectivePatch = {
-  source: string;
-  changed: boolean;
-  strategy: "already-patched" | "operation-directive-filter";
 };
 
 type CodexWindowServicesSourceDiagnostics = {
@@ -2335,70 +2228,6 @@ export function describeCodexWindowServicesSource(
     objectCalls: countObjectCalls(source),
     matchedFingerprints: matchedWindowServicesFingerprints(source),
     snippet: diagnosticSnippet(source),
-  };
-}
-
-const markdownTemplateTick = String.fromCharCode(96);
-const markdownDirectiveFilterOriginal =
-  "function Hr(e){return e.split(" +
-  markdownTemplateTick +
-  "\n" +
-  markdownTemplateTick +
-  ").filter(e=>!Ur(e)).join(" +
-  markdownTemplateTick +
-  "\n" +
-  markdownTemplateTick +
-  ")}";
-const markdownDirectiveFilterReplacement =
-  "function Hr(e){let t=!1;return e.split(" +
-  markdownTemplateTick +
-  "\n" +
-  markdownTemplateTick +
-  ").filter(e=>{let n=e.trimStart(),r=t;return n.startsWith(\"```\")&&(t=!t),r||!Ur(e)}).join(" +
-  markdownTemplateTick +
-  "\n" +
-  markdownTemplateTick +
-  ")}";
-const markdownDirectiveInputOriginal = "E=n,ne=T?ar(Hr(E)):E";
-const markdownDirectiveInputReplacement = "E=Hr(n),ne=T?ar(E):E";
-
-export function patchMarkdownOperationDirectiveCrashSource(
-  source: string,
-): MarkdownOperationDirectivePatch | null {
-  if (!source.includes("codexDirective") || !source.includes("function Ur(")) return null;
-
-  const alreadyPatched =
-    source.includes(markdownDirectiveFilterReplacement) &&
-    source.includes(markdownDirectiveInputReplacement);
-  if (alreadyPatched) {
-    return { source, changed: false, strategy: "already-patched" };
-  }
-
-  if (
-    !source.includes(markdownDirectiveFilterReplacement) &&
-    !source.includes(markdownDirectiveFilterOriginal)
-  ) {
-    return null;
-  }
-  if (
-    !source.includes(markdownDirectiveInputReplacement) &&
-    !source.includes(markdownDirectiveInputOriginal)
-  ) {
-    return null;
-  }
-
-  let patched = source;
-  if (!patched.includes(markdownDirectiveFilterReplacement)) {
-    patched = patched.replace(markdownDirectiveFilterOriginal, markdownDirectiveFilterReplacement);
-  }
-  if (!patched.includes(markdownDirectiveInputReplacement)) {
-    patched = patched.replace(markdownDirectiveInputOriginal, markdownDirectiveInputReplacement);
-  }
-
-  return {
-    source: patched,
-    changed: patched !== source,
-    strategy: "operation-directive-filter",
   };
 }
 
@@ -2569,15 +2398,29 @@ function escapeRegExp(value: string): string {
   return value.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&");
 }
 
-function readRecoveredOriginalMain(recoveredRoot: string): string {
+export function readRecoveredOriginalMain(recoveredRoot: string): string {
   const packageJsonPath = path.join(recoveredRoot, "package.json");
   if (!fs.existsSync(packageJsonPath)) {
-    return ".vite/build/bootstrap.js";
+    throw new Error(`Missing recovered Codex package metadata: ${packageJsonPath}`);
   }
 
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as PackageJson;
   const main = typeof packageJson.main === "string" ? packageJson.main.trim() : "";
-  return main ? main.replace(/\\/g, "/").replace(/^\.\//, "") : ".vite/build/bootstrap.js";
+  if (!main) {
+    throw new Error("Recovered Codex package.json main must be a non-empty string.");
+  }
+
+  const normalizedMain = path.posix.normalize(main.replace(/\\/g, "/").replace(/^\.\//, ""));
+  if (
+    path.posix.isAbsolute(normalizedMain) ||
+    normalizedMain === "." ||
+    normalizedMain === ".." ||
+    normalizedMain.startsWith("../") ||
+    /^[A-Za-z]:/.test(normalizedMain)
+  ) {
+    throw new Error(`Recovered Codex main must stay inside the recovered app: ${main}`);
+  }
+  return normalizedMain;
 }
 
 function findRecoveredViteMainBundles(recoveredRoot: string): string[] {

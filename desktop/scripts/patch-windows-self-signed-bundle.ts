@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+  findJavaScriptBlockEnd,
+  replaceChatGptProductTextInJavaScriptStrings,
+} from "./javascript-product-text.ts";
 
-type PatchStatus = "applied" | "already-applied" | "assumed-enabled" | "failed-required";
+type PatchStatus = "applied" | "already-applied" | "failed-required";
 
 type PatchResult = {
   file: string;
@@ -28,11 +32,6 @@ type SourcePatchResult = {
   matcher: string;
 };
 
-type ProductTextReplacement = {
-  source: string;
-  replacementCount: number;
-};
-
 type SourcePatcher = (source: string) => SourcePatchResult | undefined;
 type FunctionRange = {
   asyncPrefix: string;
@@ -41,11 +40,6 @@ type FunctionRange = {
   body: string;
   start: number;
   end: number;
-};
-
-type ReplaceWithPatchersOptions = {
-  missingTargetMarkers?: string[];
-  required?: boolean;
 };
 
 class PatchFailure extends Error {
@@ -208,294 +202,6 @@ function exactPatch(target: string, replacement: string): SourcePatcher {
       status: "applied",
       matcher: "exact",
     };
-  };
-}
-
-function skipQuotedString(source: string, start: number): number {
-  const quote = source[start];
-  let index = start + 1;
-
-  while (index < source.length) {
-    const character = source[index];
-    if (character === "\\") {
-      index += 2;
-      continue;
-    }
-    if (character === quote) {
-      return index + 1;
-    }
-    index += 1;
-  }
-
-  throw new Error("Unable to find end of string literal.");
-}
-
-function skipLineComment(source: string, start: number): number {
-  const end = source.indexOf("\n", start + 2);
-  return end === -1 ? source.length : end + 1;
-}
-
-function skipBlockComment(source: string, start: number): number {
-  const end = source.indexOf("*/", start + 2);
-  if (end === -1) {
-    throw new Error("Unable to find end of block comment.");
-  }
-  return end + 2;
-}
-
-function skipRegexLiteral(source: string, start: number): number {
-  let escaped = false;
-  let inCharacterClass = false;
-  let index = start + 1;
-
-  while (index < source.length) {
-    const character = source[index];
-    if (escaped) {
-      escaped = false;
-      index += 1;
-      continue;
-    }
-    if (character === "\\") {
-      escaped = true;
-      index += 1;
-      continue;
-    }
-    if (character === "[") {
-      inCharacterClass = true;
-      index += 1;
-      continue;
-    }
-    if (character === "]") {
-      inCharacterClass = false;
-      index += 1;
-      continue;
-    }
-    if (character === "/" && !inCharacterClass) {
-      index += 1;
-      while (/[A-Za-z]/.test(source[index] ?? "")) {
-        index += 1;
-      }
-      return index;
-    }
-    index += 1;
-  }
-
-  throw new Error("Unable to find end of regex literal.");
-}
-
-const regexPrefixKeywords = new Set([
-  "await",
-  "case",
-  "delete",
-  "else",
-  "in",
-  "instanceof",
-  "of",
-  "return",
-  "throw",
-  "typeof",
-  "void",
-  "yield",
-]);
-
-function previousSignificantToken(source: string, index: number): string | undefined {
-  let cursor = index - 1;
-  while (cursor >= 0 && /\s/.test(source[cursor] ?? "")) {
-    cursor -= 1;
-  }
-  if (cursor < 0) {
-    return undefined;
-  }
-
-  const character = source[cursor];
-  if (/[A-Za-z0-9_$]/.test(character ?? "")) {
-    let start = cursor;
-    while (start > 0 && /[A-Za-z0-9_$]/.test(source[start - 1] ?? "")) {
-      start -= 1;
-    }
-    return source.slice(start, cursor + 1);
-  }
-
-  return character;
-}
-
-function canStartRegex(source: string, index: number): boolean {
-  const previousToken = previousSignificantToken(source, index);
-  return (
-    previousToken == null ||
-    regexPrefixKeywords.has(previousToken) ||
-    "({[=,:;!&|?+-*~^<>".includes(previousToken)
-  );
-}
-
-function skipTemplateExpression(source: string, start: number): number {
-  let depth = 1;
-  let index = start;
-
-  while (index < source.length && depth > 0) {
-    const character = source[index];
-    const next = source[index + 1];
-
-    if (character === "'" || character === "\"") {
-      index = skipQuotedString(source, index);
-      continue;
-    }
-    if (character === "`") {
-      index = skipTemplateLiteral(source, index);
-      continue;
-    }
-    if (character === "/" && next === "/") {
-      index = skipLineComment(source, index);
-      continue;
-    }
-    if (character === "/" && next === "*") {
-      index = skipBlockComment(source, index);
-      continue;
-    }
-    if (character === "/" && canStartRegex(source, index)) {
-      index = skipRegexLiteral(source, index);
-      continue;
-    }
-
-    if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-    }
-    index += 1;
-  }
-
-  if (depth !== 0) {
-    throw new Error("Unable to find end of template expression.");
-  }
-
-  return index;
-}
-
-function skipTemplateLiteral(source: string, start: number): number {
-  let index = start + 1;
-
-  while (index < source.length) {
-    const character = source[index];
-    if (character === "\\") {
-      index += 2;
-      continue;
-    }
-    if (character === "`") {
-      return index + 1;
-    }
-    if (character === "$" && source[index + 1] === "{") {
-      index = skipTemplateExpression(source, index + 2);
-      continue;
-    }
-    index += 1;
-  }
-
-  throw new Error("Unable to find end of template literal.");
-}
-
-function replaceChatGptProductText(value: string): ProductTextReplacement {
-  let replacementCount = 0;
-  const lowercaseValue = value.toLowerCase();
-  const source = value.replace(/ChatGPT/g, (match, offset: number) => {
-    if (lowercaseValue.startsWith("chatgpt-account-id", offset)) {
-      return match;
-    }
-    replacementCount += 1;
-    return "Codex";
-  });
-
-  return { source, replacementCount };
-}
-
-function replaceChatGptProductTextInTemplate(
-  source: string,
-  start: number,
-): ProductTextReplacement & { end: number } {
-  let output = "`";
-  let replacementCount = 0;
-  let segmentStart = start + 1;
-  let index = segmentStart;
-
-  while (index < source.length) {
-    const character = source[index];
-    if (character === "\\") {
-      index += 2;
-      continue;
-    }
-    if (character === "`") {
-      const text = replaceChatGptProductText(source.slice(segmentStart, index));
-      return {
-        source: output + text.source + "`",
-        replacementCount: replacementCount + text.replacementCount,
-        end: index + 1,
-      };
-    }
-    if (character === "$" && source[index + 1] === "{") {
-      const text = replaceChatGptProductText(source.slice(segmentStart, index));
-      const expressionEnd = skipTemplateExpression(source, index + 2);
-      const expression = replaceChatGptProductTextInJavaScriptStrings(
-        source.slice(index + 2, expressionEnd - 1),
-      );
-      output += `${text.source}\${${expression.source}}`;
-      replacementCount += text.replacementCount + expression.replacementCount;
-      index = expressionEnd;
-      segmentStart = index;
-      continue;
-    }
-    index += 1;
-  }
-
-  throw new Error("Unable to find end of template literal while replacing product text.");
-}
-
-function replaceChatGptProductTextInJavaScriptStrings(
-  source: string,
-): ProductTextReplacement {
-  let output = "";
-  let replacementCount = 0;
-  let copyStart = 0;
-  let index = 0;
-
-  while (index < source.length) {
-    const character = source[index];
-    const next = source[index + 1];
-
-    if (character === "'" || character === '"') {
-      const end = skipQuotedString(source, index);
-      const text = replaceChatGptProductText(source.slice(index + 1, end - 1));
-      output += source.slice(copyStart, index + 1) + text.source + character;
-      replacementCount += text.replacementCount;
-      copyStart = end;
-      index = end;
-      continue;
-    }
-    if (character === "`") {
-      const template = replaceChatGptProductTextInTemplate(source, index);
-      output += source.slice(copyStart, index) + template.source;
-      replacementCount += template.replacementCount;
-      copyStart = template.end;
-      index = template.end;
-      continue;
-    }
-    if (character === "/" && next === "/") {
-      index = skipLineComment(source, index);
-      continue;
-    }
-    if (character === "/" && next === "*") {
-      index = skipBlockComment(source, index);
-      continue;
-    }
-    if (character === "/" && canStartRegex(source, index)) {
-      index = skipRegexLiteral(source, index);
-      continue;
-    }
-    index += 1;
-  }
-
-  return {
-    source: output + source.slice(copyStart),
-    replacementCount,
   };
 }
 
@@ -706,41 +412,8 @@ function findFunctionRanges(source: string): FunctionRange[] {
   let match: RegExpExecArray | null;
 
   while ((match = functionPattern.exec(source)) !== null) {
-    let depth = 1;
-    let index = functionPattern.lastIndex;
-    while (index < source.length && depth > 0) {
-      const character = source[index];
-      const next = source[index + 1];
-      if (character === "'" || character === "\"") {
-        index = skipQuotedString(source, index);
-        continue;
-      }
-      if (character === "`") {
-        index = skipTemplateLiteral(source, index);
-        continue;
-      }
-      if (character === "/" && next === "/") {
-        index = skipLineComment(source, index);
-        continue;
-      }
-      if (character === "/" && next === "*") {
-        index = skipBlockComment(source, index);
-        continue;
-      }
-      if (character === "/" && canStartRegex(source, index)) {
-        index = skipRegexLiteral(source, index);
-        continue;
-      }
-
-      if (character === "{") {
-        depth += 1;
-      } else if (character === "}") {
-        depth -= 1;
-      }
-      index += 1;
-    }
-
-    if (depth !== 0) {
+    const index = findJavaScriptBlockEnd(source, functionPattern.lastIndex);
+    if (index === undefined) {
       throw new Error(`Unable to find end of function ${match[2]}.`);
     }
 
@@ -841,7 +514,6 @@ function replaceWithPatchers(
   filePath: string,
   name: string,
   patchers: SourcePatcher[],
-  options: ReplaceWithPatchersOptions = {},
 ): PatchResult {
   const reportFile = toReportPath(recoveredRoot, filePath);
   const original = fs.readFileSync(filePath, "utf8");
@@ -876,36 +548,13 @@ function replaceWithPatchers(
     };
   }
 
-  const missingTargetMarkers = options.missingTargetMarkers ?? [];
-  if (options.required) {
-    const result = {
-      file: reportFile,
-      name,
-      status: "failed-required" as const,
-      reason: "Required patch target was not found.",
-    };
-    throw new PatchFailure(result, result.reason);
-  }
-
-  if (
-    missingTargetMarkers.length > 0 &&
-    missingTargetMarkers.every((marker) => original.includes(marker))
-  ) {
-    const result = {
-      file: reportFile,
-      name,
-      status: "failed-required" as const,
-      reason: `Gate target was not found, but required marker(s) are still present: ${missingTargetMarkers.join(", ")}`,
-    };
-    throw new PatchFailure(result, result.reason);
-  }
-
-  return {
+  const result = {
     file: reportFile,
     name,
-    status: "assumed-enabled",
-    reason: "Gate target was not found; assuming upstream removed or enabled this gate.",
+    status: "failed-required" as const,
+    reason: "Required patch target was not found.",
   };
+  throw new PatchFailure(result, result.reason);
 }
 
 function patchSettingsPage(recoveredRoot: string): PatchResult[] {
@@ -956,7 +605,6 @@ function patchSidebarProjectsBundle(recoveredRoot: string): PatchResult[] {
       filePath,
       "raise sidebar project limit",
       [patchSidebarProjectLimit()],
-      { required: true },
     ),
   ];
 }
@@ -1080,7 +728,6 @@ function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult
           packageLocalCacheRelocationAppliedPattern,
         ),
       ],
-      { missingTargetMarkers: ["process.env.LOCALAPPDATA", "`AppData`,`Local`"] },
     ),
   ];
 }
@@ -1090,14 +737,13 @@ function patchPrimaryRuntimeInstallerBundle(recoveredRoot: string): PatchResult[
   const patchName = "route Windows ARM64 primary runtime manifest to GitHub release";
 
   if (filePath == null) {
-    return [
-      {
-        file: ".vite/build",
-        name: patchName,
-        status: "assumed-enabled",
-        reason: "Primary runtime manifest target was not found; assuming upstream removed or enabled this route.",
-      },
-    ];
+    const result = {
+      file: ".vite/build",
+      name: patchName,
+      status: "failed-required" as const,
+      reason: "Required primary runtime manifest bundle was not found.",
+    };
+    throw new PatchFailure(result, result.reason);
   }
 
   return [
@@ -1109,7 +755,6 @@ function patchPrimaryRuntimeInstallerBundle(recoveredRoot: string): PatchResult[
         alreadyAppliedPatch(windowsArm64PrimaryRuntimeManifestUrlPattern),
         patchWindowsArm64PrimaryRuntimeManifestUrl(),
       ],
-      { missingTargetMarkers: ["latest-alpha", "oaisidekickupdates.blob.core.windows.net/owl"] },
     ),
   ];
 }
@@ -1148,15 +793,6 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
         ),
         patchInactiveWindowsMicaBackdrop(),
       ],
-      {
-        missingTargetMarkers: [
-          "setBackgroundMaterial",
-          "backgroundMaterial",
-          "isFocused",
-          "`darwin`",
-          "`win32`",
-        ],
-      },
     ),
     replaceWithPatchers(
       recoveredRoot,
@@ -1166,13 +802,6 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
         alreadyAppliedPatch(windowsPrimaryWindowIconAppliedPattern),
         patchWindowsPrimaryBrowserWindowIcon(),
       ],
-      {
-        missingTargetMarkers: [
-          "BrowserWindow",
-          "app.getName",
-          "webPreferences",
-        ],
-      },
     ),
   ];
 }
