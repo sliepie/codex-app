@@ -95,17 +95,17 @@ const SIDEBAR_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]`;
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
   "opacity:1!important;pointer-events:auto!important;";
-const SIDEBAR_PROJECTS_SECTION_TITLE_ROW_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading="Projects"] [class~="group/nav-section-title"]`;
-const SIDEBAR_PROJECTS_SECTION_TITLE_ROW_DECLARATIONS =
+const SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Projects"]) [class~="group/nav-section-title"]`;
+const SIDEBAR_PRIMARY_SECTION_TITLE_ROW_DECLARATIONS =
   "padding-right:0!important;";
-const SIDEBAR_PROJECTS_SECTION_ACTIONS_SELECTOR =
-  `${SIDEBAR_PROJECTS_SECTION_TITLE_ROW_SELECTOR}>[class~='flex'][class~='shrink-0'][class~='items-center'][class~='gap-1']`;
-const SIDEBAR_PROJECTS_SECTION_ACTIONS_DECLARATIONS =
+const SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR =
+  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR}>[class~='flex'][class~='shrink-0'][class~='items-center'][class~='gap-1']`;
+const SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS =
   "translate:1px 0!important;";
-const SIDEBAR_PROJECTS_SECTION_TITLE_SELECTOR =
-  `${SIDEBAR_PROJECTS_SECTION_TITLE_ROW_SELECTOR}>[class~='min-w-0'][class~='flex-1'][class~='font-medium']`;
-const SIDEBAR_PROJECTS_SECTION_TITLE_DECLARATIONS =
+const SIDEBAR_PRIMARY_SECTION_TITLE_SELECTOR =
+  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR}>[class~='min-w-0'][class~='flex-1'][class~='font-medium']`;
+const SIDEBAR_PRIMARY_SECTION_TITLE_DECLARATIONS =
   "color:var(--color-token-description-foreground)!important;font-weight:400!important;opacity:1!important;";
 const SIDEBAR_SECTION_TOGGLE_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]`;
@@ -173,9 +173,9 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_SELECTOR, SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_CONTROLS_SELECTOR, SIDEBAR_PROJECT_ROW_CONTROLS_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_ACTIONS_SELECTOR, SIDEBAR_SECTION_ACTIONS_DECLARATIONS),
-  cssRule(SIDEBAR_PROJECTS_SECTION_TITLE_ROW_SELECTOR, SIDEBAR_PROJECTS_SECTION_TITLE_ROW_DECLARATIONS),
-  cssRule(SIDEBAR_PROJECTS_SECTION_ACTIONS_SELECTOR, SIDEBAR_PROJECTS_SECTION_ACTIONS_DECLARATIONS),
-  cssRule(SIDEBAR_PROJECTS_SECTION_TITLE_SELECTOR, SIDEBAR_PROJECTS_SECTION_TITLE_DECLARATIONS),
+  cssRule(SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR, SIDEBAR_PRIMARY_SECTION_TITLE_ROW_DECLARATIONS),
+  cssRule(SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR, SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS),
+  cssRule(SIDEBAR_PRIMARY_SECTION_TITLE_SELECTOR, SIDEBAR_PRIMARY_SECTION_TITLE_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_SELECTOR, SIDEBAR_SECTION_TOGGLE_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
 ];
