@@ -11,6 +11,7 @@ on:
       - "desktop/package-lock.json"
       - "desktop/tsconfig.scripts.json"
       - "desktop/scripts/build-primary-runtime-win-arm64.ts"
+      - "desktop/scripts/build-primary-runtime-win-arm64.test.mjs"
       - "desktop/scripts/primary-runtime-build-recipe.ts"
       - "desktop/scripts/publish-primary-runtime-release.ts"
       - "desktop/scripts/resolve-primary-runtime-source.ts"
@@ -30,6 +31,7 @@ on:
       - "desktop/package-lock.json"
       - "desktop/tsconfig.scripts.json"
       - "desktop/scripts/build-primary-runtime-win-arm64.ts"
+      - "desktop/scripts/build-primary-runtime-win-arm64.test.mjs"
       - "desktop/scripts/primary-runtime-build-recipe.ts"
       - "desktop/scripts/publish-primary-runtime-release.ts"
       - "desktop/scripts/resolve-primary-runtime-source.ts"
@@ -93,6 +95,11 @@ jobs:
         if: github.event_name == 'pull_request'
         working-directory: desktop
         run: npm run test:resolve-primary-runtime-source:compiled
+
+      - name: Test Windows ARM64 primary runtime builder
+        if: github.event_name == 'pull_request'
+        working-directory: desktop
+        run: npm run test:build-primary-runtime-win-arm64:compiled
 
       - name: Test Windows ARM64 primary runtime output verification
         if: github.event_name == 'pull_request'

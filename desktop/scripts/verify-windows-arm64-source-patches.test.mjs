@@ -28,6 +28,8 @@ const localCacheRelocation =
   "process.resourcesPath?.replace(/\\//g,`\\\\`)+`Packages`+`LocalCache`+`Local`";
 const inactiveWindowsMica =
   "function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&n===`darwin`}";
+const sidebarProjectLimit =
+  "const projects={label:`sidebarElectron.projectsNavLink`,maxGroups:u?void 0:9999,showProjectHoverCard:true};";
 const settingsPreloadMarkers = [
   "const sidebarRoot = itemsGroup;",
   "state.sidebarRoot = sidebarRoot",
@@ -51,7 +53,7 @@ const defaultPreloadSource = `${settingsPreloadMarkers.join("\n")}\n`;
 const defaultRendererSource =
   "const Brand={ChatGPT:`chatgpt`};const label=`Open Codex`;const welcome=`Welcome to Codex, ${Brand.ChatGPT}`;" +
   "const header=`ChatGPT-Account-ID`;const headerAlias=`ChatGPT-Account-Id`;const url=`https://chatgpt.com`;" +
-  "const matcher=/ChatGPT/;/* ChatGPT product migration */";
+  "const matcher=/ChatGPT/;/* ChatGPT product migration */" + sidebarProjectLimit;
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -207,6 +209,11 @@ test("rejects each missing packaged source-patch postcondition", async (t) => {
         ),
       },
       error: /inactive Windows Mica behavior/,
+    },
+    {
+      name: "sidebar project limit",
+      options: { rendererSource: defaultRendererSource.replace(":9999,", ":5,") },
+      error: /sidebar project limit/,
     },
     {
       name: "Windows ARM64 primary runtime manifest route",

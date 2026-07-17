@@ -55,6 +55,8 @@ const windowsAppsLocalCacheRelocationPattern =
   /process\.resourcesPath\?\.replace[\s\S]*?`Packages`[\s\S]*?`LocalCache`[\s\S]*?`Local`/;
 const inactiveWindowsMicaBackdropPattern =
   /\bfunction\s+[A-Za-z_$][\w$]*\(\{appearance:([A-Za-z_$][\w$]*),isFocused:([A-Za-z_$][\w$]*),platform:([A-Za-z_$][\w$]*)\}\)\{return!\2&&![A-Za-z_$][\w$]*\(\1\)&&\3===`darwin`\}/;
+const sidebarProjectLimitAppliedPattern =
+  /maxGroups\s*:\s*[A-Za-z_$][\w$]*\s*\?\s*void 0\s*:\s*9999(?=\s*,\s*showProjectHoverCard\s*:)/;
 const workLouderRuntimeReferencePattern = /@worklouder\//i;
 function resolveDesktopRoot(): string {
   return path.basename(__dirname) === "scripts" && path.basename(path.dirname(__dirname)) === ".cache"
@@ -142,7 +144,7 @@ function readPackagedRendererJavaScript(archivePath: string): PackagedJavaScript
   return files;
 }
 
-function requireViteBuildMatch(
+function requirePackagedJavaScriptMatch(
   files: PackagedJavaScript[],
   description: string,
   predicate: (source: string) => boolean,
@@ -233,40 +235,48 @@ export function verifyWindowsArm64SourcePatches(
 
   verifyBrowserClient(options.desktopRoot, options.packageRoot);
   const viteBuildFiles = readPackagedJavaScript(appAsarPath);
+  const rendererFiles = readPackagedRendererJavaScript(appAsarPath);
 
-  requireViteBuildMatch(
+  requirePackagedJavaScriptMatch(
     viteBuildFiles,
     "primary taskbar-window marker",
     (source) => source.includes(windowsPrimaryTaskbarMarker),
   );
-  requireViteBuildMatch(
+  requirePackagedJavaScriptMatch(
     viteBuildFiles,
     "Codex window-services export",
     (source) => source.includes(codexWindowServicesMarker),
   );
-  requireViteBuildMatch(
+  requirePackagedJavaScriptMatch(
     viteBuildFiles,
     "Windows primary BrowserWindow icon",
     (source) => windowsPrimaryBrowserWindowIconPattern.test(source),
   );
-  requireViteBuildMatch(
+  requirePackagedJavaScriptMatch(
     viteBuildFiles,
     "WindowsApps LocalCache relocation",
     (source) => windowsAppsLocalCacheRelocationPattern.test(source),
   );
-  requireViteBuildMatch(
+  requirePackagedJavaScriptMatch(
     viteBuildFiles,
     "inactive Windows Mica behavior",
     (source) => inactiveWindowsMicaBackdropPattern.test(source),
   );
-  requireViteBuildMatch(
+  requirePackagedJavaScriptMatch(
+    rendererFiles,
+    "sidebar project limit",
+    (source) =>
+      source.includes("sidebarElectron.projectsNavLink") &&
+      sidebarProjectLimitAppliedPattern.test(source),
+  );
+  requirePackagedJavaScriptMatch(
     viteBuildFiles,
     "Windows ARM64 primary runtime manifest route",
     (source) => source.includes(windowsArm64PrimaryRuntimeManifestUrl),
   );
   verifyCodexPlusPlusSettingsPreload(appAsarPath);
   verifyNoWorkLouderRuntimeReferences(viteBuildFiles);
-  verifyRendererProductText(readPackagedRendererJavaScript(appAsarPath));
+  verifyRendererProductText(rendererFiles);
 
   return {
     appAsarPath,
