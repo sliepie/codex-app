@@ -1,6 +1,6 @@
 # Codex App Executable Inventory
 
-Date: 2026-07-09
+Date: 2026-07-17
 
 ## Source Artifacts
 
@@ -10,12 +10,12 @@ Date: 2026-07-09
 | Windows ARM64 output | Electron-hosted package with Codex++ and recovered-source custom patches restored: `desktop/out/make/zip/win32/arm64/codex-app-windows-arm64.zip` |
 | Windows package directory | `desktop/out/Codex-win32-arm64` |
 | macOS extracted app | `desktop/.cache/codex-app/extract-26.623.141536-build-4753/Codex.app` |
-| Vendored Node REPL helper | `desktop/resources/cua_node/bin/node_repl.exe` from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` |
-| Vendored Chrome extension host helper | `desktop/resources/extension-host.exe` from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` |
-| Vendored Computer Use helper | `desktop/resources/codex-computer-use.exe` from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; explicit x64 exception |
+| Vendored Node REPL helper | `desktop/resources/cua_node/bin/node_repl.exe` from `OpenAI.Codex_26.715.2305.0_arm64__2p2nqsd0c76g0` |
+| Vendored Chrome extension host helper | `desktop/resources/extension-host.exe` from `OpenAI.Codex_26.715.2305.0_arm64__2p2nqsd0c76g0` |
+| Vendored Computer Use helper | `desktop/resources/codex-computer-use.exe` from `OpenAI.Codex_26.715.2305.0_arm64__2p2nqsd0c76g0`; explicit x64 exception |
 | GitHub-release hydrated Tectonic | `tectonic-0.16.9-x86_64-pc-windows-msvc.zip` from `tectonic-typesetting/tectonic`; explicit x64 exception |
 | Resource binary exception policy | `desktop/scripts/resource-binary-exceptions.ts` enforced by `npm run verify:windows-arm64-resource-binaries` |
-| Store architecture check | Microsoft Store package `9PLM9XGG6VKS` installed `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; Node REPL and Chrome extension-host are ARM64, while Computer Use remains x64 |
+| Store architecture check | Microsoft Store package `9PLM9XGG6VKS` installed `OpenAI.Codex_26.715.2305.0_arm64__2p2nqsd0c76g0`; Node REPL and Chrome extension-host are ARM64, while Computer Use remains x64 |
 | Electron customization policy | Codex++ loader/runtime hydration is enabled on the Electron host, along with the Windows primary taskbar-window patch, self-signed bundle rewrite, Codex window services, and Codex Micro / Work Louder cleanup. OWL and message-rail behavior remain upstream-owned and are not rewritten. Store/Owl host staging and shell payloads remain outside the package path. |
 
 ## Version Match
@@ -27,9 +27,9 @@ Date: 2026-07-09
 | Electron | npm registry latest stable checked = `43.0.0` | `desktop/package.json` dependency = `43.0.0` | Match |
 | Codex CLI | release payload = `rust-v0.143.0` | `resources/codex.exe --version` = `codex-cli 0.143.0` | Match |
 | CLI helper binaries | release payload = `rust-v0.143.0` | Windows helper payloads from `rust-v0.143.0` | Match |
-| Node REPL helper | Store package `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` | `resources/cua_node/bin/node_repl.exe` SHA-256 = `3e2fb244544c834730108caeea4fdafe3e8c3353fb611b71832b2c5897cfaac6` | Store-vendored ARM64 helper |
-| Chrome extension host helper | Store package `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` | `resources/extension-host.exe` SHA-256 = `585ad4fb9e91e2d683a6ef42a9dc37f7fb3bfdb703bcc42a3e3d22d02750c0cc` | Store-vendored ARM64 helper |
-| Computer Use helper | Store package `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0` | `resources/codex-computer-use.exe` SHA-256 = `f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03` | Explicit x64 exception |
+| Node REPL helper | Store package `OpenAI.Codex_26.715.2305.0_arm64__2p2nqsd0c76g0` | `resources/cua_node/bin/node_repl.exe` SHA-256 = `978d05cf23ff91c49656f852da03ec5ac4ef763f9c1a1f3a031b76ce89ebeb0d` | Store-vendored ARM64 helper |
+| Chrome extension host helper | Store package `OpenAI.Codex_26.715.2305.0_arm64__2p2nqsd0c76g0` | `resources/extension-host.exe` SHA-256 = `17de9379832213a8486ba94166956efdc475e1b37ce742ca393fb40d0381519b` | Store-vendored ARM64 helper |
+| Computer Use helper | Store package `OpenAI.Codex_26.715.2305.0_arm64__2p2nqsd0c76g0` | `resources/codex-computer-use.exe` SHA-256 = `f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03` | Explicit x64 exception |
 | Tectonic | Public release `tectonic@0.16.9` | `tectonic.exe` SHA-256 = `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb`; asset digest = `sha256:131a24604785a9600989a3d91225f597df52ac06f00aeffe86fd529f99ee5cdd` | `hydrate:cli` x64 exception |
 
 ## Architecture Summary
@@ -98,9 +98,9 @@ The Windows ARM64 package is ARM64 by default. Any x64 PE payload must match the
 | `resources/codex-command-runner.exe` | `ARM64` | From `rust-v0.143.0` release payload |
 | `resources/codex-windows-sandbox-setup.exe` | `ARM64` | From `rust-v0.143.0` release payload |
 | `resources/codex.exe` | `ARM64` | From `rust-v0.143.0` release payload; CLI reports `codex-cli 0.143.0` |
-| `resources/cua_node/bin/node_repl.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; SHA-256 `3e2fb244544c834730108caeea4fdafe3e8c3353fb611b71832b2c5897cfaac6` |
-| `resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; copied to the ARM64 plugin lookup path because the bundled installer uses `os.arch()`; SHA-256 `585ad4fb9e91e2d683a6ef42a9dc37f7fb3bfdb703bcc42a3e3d22d02750c0cc` |
-| `resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe` | `x64` | Vendored from `OpenAI.Codex_26.623.19656.0_arm64__2p2nqsd0c76g0`; SHA-256 `f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03` |
+| `resources/cua_node/bin/node_repl.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.715.2305.0_arm64__2p2nqsd0c76g0`; SHA-256 `978d05cf23ff91c49656f852da03ec5ac4ef763f9c1a1f3a031b76ce89ebeb0d` |
+| `resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.715.2305.0_arm64__2p2nqsd0c76g0`; copied to the ARM64 plugin lookup path because the bundled installer uses `os.arch()`; SHA-256 `17de9379832213a8486ba94166956efdc475e1b37ce742ca393fb40d0381519b` |
+| `resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe` | `x64` | Vendored from `OpenAI.Codex_26.715.2305.0_arm64__2p2nqsd0c76g0`; SHA-256 `f2b2f56fcd1699b0fa32dec3214a56a1d36b937a2ecf58cc822ab4a904551e03` |
 | `resources/plugins/openai-bundled/plugins/latex/bin/tectonic.exe` or `resources/plugins/openai-bundled/plugins/latex-tectonic/bin/tectonic.exe` | `x64` | Downloaded by `hydrate:cli` from `tectonic-typesetting/tectonic` release `tectonic@0.16.9`; SHA-256 `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb` |
 | `vk_swiftshader.dll` | `ARM64` | `5.0.0` |
 | `vulkan-1.dll` | `ARM64` | Vulkan Loader |
