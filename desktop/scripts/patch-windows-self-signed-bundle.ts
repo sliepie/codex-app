@@ -788,6 +788,54 @@ function functionContainingAllPatch(
   };
 }
 
+function patchSidebarProjectLimit(): SourcePatcher {
+  const markers = ["sidebarElectron.projectsNavLink", "showProjectHoverCard"];
+  const appliedPattern =
+    /maxGroups\s*:\s*[A-Za-z_$][\w$]*\s*\?\s*void 0\s*:\s*9999(?=\s*,\s*showProjectHoverCard\s*:)/;
+  const targetPattern = new RegExp(
+    String.raw`maxGroups\s*:\s*${identifierPattern}\s*\?\s*void 0\s*:\s*5(?=\s*,\s*showProjectHoverCard\s*:)`,
+    "g",
+  );
+
+  return (source) => {
+    const matches = findFunctionRanges(source).filter((range) =>
+      markers.every((marker) => range.body.includes(marker)),
+    );
+    if (matches.length === 0) {
+      return undefined;
+    }
+    if (matches.length !== 1) {
+      throw new Error(
+        `Expected exactly one sidebar Projects function containing ${markers.join(", ")}, found ${matches.length}.`,
+      );
+    }
+
+    const match = matches[0];
+    const targets = Array.from(match.body.matchAll(targetPattern));
+    if (targets.length === 0 && appliedPattern.test(match.body)) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+    if (targets.length !== 1) {
+      throw new Error(`Expected exactly one sidebar Projects maxGroups target, found ${targets.length}.`);
+    }
+
+    const target = targets[0];
+    const targetStart = target.index ?? 0;
+    const patchedTarget = target[0].replace(/5$/, "9999");
+    const body =
+      match.body.slice(0, targetStart) +
+      patchedTarget +
+      match.body.slice(targetStart + target[0].length);
+    const replacement = `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}`;
+
+    return {
+      source: source.slice(0, match.start) + replacement + source.slice(match.end),
+      status: "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
 function replaceWithPatchers(
   recoveredRoot: string,
   filePath: string,
@@ -887,6 +935,30 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
   findFileContaining(path.join(recoveredRoot, ".vite", "build"), /^main-.*\.js$/, markers);
 
   return [];
+}
+
+function patchSidebarProjectsBundle(recoveredRoot: string): PatchResult[] {
+  const markers = [
+    "sidebarElectron.projectsNavLink",
+    "showProjectHoverCard",
+    "maxGroups:",
+    "showProjectPinAction",
+  ];
+  const filePath = findFileContaining(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^.*\.js$/,
+    markers,
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "raise sidebar project limit",
+      [patchSidebarProjectLimit()],
+      { required: true },
+    ),
+  ];
 }
 
 function patchAgentSettings(recoveredRoot: string): PatchResult[] {
@@ -1138,6 +1210,7 @@ function main(): void {
     results.push(...patchRendererProductText(recoveredRoot));
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
+    results.push(...patchSidebarProjectsBundle(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
     results.push(...patchPrimaryRuntimeInstallerBundle(recoveredRoot));
