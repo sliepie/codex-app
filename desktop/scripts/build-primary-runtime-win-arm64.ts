@@ -14,7 +14,7 @@ import {
   primaryRuntimeSourceManifestFingerprint,
 } from "./primary-runtime-build-recipe.ts";
 
-type ArchiveFormat = "zip" | "tar.xz";
+type ArchiveFormat = "zip" | "tar.gz" | "tar.xz";
 
 type PrimaryRuntimeManifest = {
   archiveName?: string;
@@ -233,6 +233,8 @@ function getArchiveExtensionForFormat(format: string | undefined): string | unde
       return ".zip";
     case "tar.xz":
       return ".tar.xz";
+    case "tar.gz":
+      return ".tar.gz";
     default:
       throw new Error(`Unsupported primary runtime archive format: ${format}`);
   }
@@ -246,6 +248,9 @@ function getSupportedArchiveExtension(archiveName: string | undefined): string |
   const lowerName = archiveName.toLowerCase();
   if (lowerName.endsWith(".tar.xz")) {
     return ".tar.xz";
+  }
+  if (lowerName.endsWith(".tar.gz")) {
+    return ".tar.gz";
   }
   if (lowerName.endsWith(".zip")) {
     return ".zip";

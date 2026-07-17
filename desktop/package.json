@@ -19,6 +19,8 @@
     "test:resolve-codex-releases:compiled": "node --test scripts/resolve-codex-releases.test.mjs",
     "test:resolve-primary-runtime-source": "npm run build:scripts && npm run test:resolve-primary-runtime-source:compiled",
     "test:resolve-primary-runtime-source:compiled": "node --test scripts/resolve-primary-runtime-source.test.mjs",
+    "test:build-primary-runtime-win-arm64": "npm run build:scripts && npm run test:build-primary-runtime-win-arm64:compiled",
+    "test:build-primary-runtime-win-arm64:compiled": "node --test scripts/build-primary-runtime-win-arm64.test.mjs",
     "test:verify-primary-runtime-output": "npm run build:scripts && npm run test:verify-primary-runtime-output:compiled",
     "test:verify-primary-runtime-output:compiled": "node --test scripts/verify-primary-runtime-output.test.mjs",
     "test:hydrate-codex-cli": "npm run build:scripts && node --test scripts/hydrate-codex-cli.test.mjs",
