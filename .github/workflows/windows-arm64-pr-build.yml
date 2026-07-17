@@ -67,7 +67,7 @@ jobs:
 
       - name: Run targeted desktop tests
         working-directory: desktop
-        run: npm run verify:skills:compiled && npm run test:verify-skills:compiled && npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled
+        run: npm run verify:skills:compiled && npm run test:verify-skills:compiled && npm run test:resolve-codex-releases:compiled && npm run test:hydrate-codex-cli:compiled && npm run test:windows-arm64-package-plan:compiled && npm run test:patch-windows-self-signed-bundle:compiled && npm run test:verify-windows-arm64-source-patches:compiled && npm run test:windows-package-resources:compiled && npm run test:verify-browser-client-runtime:compiled
 
       - name: Restore hydrated release cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5

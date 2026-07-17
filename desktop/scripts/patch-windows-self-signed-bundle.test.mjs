@@ -79,6 +79,14 @@ function runPatcher(recoveredRoot, reportPath) {
   });
 }
 
+function assertRequiredPatchFailure(result, reportPath, patchName) {
+  assert.notEqual(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find((candidate) => candidate.name === patchName);
+  assert.equal(patch?.status, "failed-required");
+  return patch;
+}
+
 test("writes patch report file paths relative to the recovered app root", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -125,6 +133,41 @@ test("replaces ChatGPT renderer text without changing product identifiers or pro
   assert.equal(patch?.status, "applied");
   assert.equal(patch?.file, "webview/assets");
   assert.match(patch?.reason, /Replaced 2 product-name occurrence\(s\)/);
+});
+
+test("replaces product text only in JavaScript string and template text", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const productTextPath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "product-text-fixture.js",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+  const source = [
+    "const ChatGPT={name:`chatgpt`};",
+    "const regex=/ChatGPT/g;",
+    "// ChatGPT",
+    "/* ChatGPT */",
+    'const quoted="ChatGPT";',
+    'const template=`ChatGPT ${"ChatGPT"} ${ChatGPT}`;',
+    "const header=`ChatGPT-Account-ID`;",
+    "const headerAlias=`ChatGPT-Account-Id`;",
+  ].join("\n");
+  const expected = source
+    .replace('const quoted="ChatGPT";', 'const quoted="Codex";')
+    .replace('const template=`ChatGPT ${"ChatGPT"} ${ChatGPT}`;', 'const template=`Codex ${"Codex"} ${ChatGPT}`;');
+  fs.writeFileSync(productTextPath, source, "utf8");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(fs.readFileSync(productTextPath, "utf8"), expected);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (candidate) => candidate.name === "replace ChatGPT renderer text with Codex",
+  );
+  assert.match(patch?.reason, /Replaced 3 product-name occurrence\(s\)/);
 });
 
 test("routes Windows ARM64 primary runtime manifest checks to GitHub Releases", () => {
@@ -214,7 +257,7 @@ test("routes legacy Windows ARM64 primary runtime manifest helpers outside insta
   assert.equal(patch?.file, ".vite/build/workspace-root-drop-handler-fixture.js");
 });
 
-test("assumes primary runtime manifest route is enabled when target bundle is absent", () => {
+test("fails when the primary runtime manifest bundle is absent", () => {
   const recoveredRoot = createRecoveredFixture();
   fs.unlinkSync(
     path.join(recoveredRoot, ".vite", "build", "primary-runtime-installer-fixture.js"),
@@ -223,14 +266,84 @@ test("assumes primary runtime manifest route is enabled when target bundle is ab
 
   const result = runPatcher(recoveredRoot, reportPath);
 
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  const patch = report.patches.find(
-    (patch) => patch.name === "route Windows ARM64 primary runtime manifest to GitHub release",
+  const patch = assertRequiredPatchFailure(
+    result,
+    reportPath,
+    "route Windows ARM64 primary runtime manifest to GitHub release",
   );
-  assert.equal(patch?.status, "assumed-enabled");
   assert.equal(patch?.file, ".vite/build");
-  assert.match(patch?.reason, /Primary runtime manifest target was not found/);
+  assert.match(patch?.reason, /Required primary runtime manifest bundle was not found/);
+});
+
+test("fails when the WindowsApps LocalCache relocation target drifts", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const workspaceRootDropHandlerPath = path.join(
+    recoveredRoot,
+    ".vite",
+    "build",
+    "workspace-root-drop-handler-fixture.js",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  fs.writeFileSync(
+    workspaceRootDropHandlerPath,
+    "function localBin(parts){return (0,path.join)(process.env.LOCALAPPDATA??(0,path.join)((0,os.homedir)(),`AppData`,`Local`),...parts)}",
+    "utf8",
+  );
+
+  const result = runPatcher(recoveredRoot, reportPath);
+  const patch = assertRequiredPatchFailure(
+    result,
+    reportPath,
+    "relocate WindowsApps helper executables into package LocalCache",
+  );
+
+  assert.match(patch?.reason, /Required patch target was not found/);
+});
+
+test("fails when the inactive Windows Mica target drifts", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const mainBundlePath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  fs.writeFileSync(
+    mainBundlePath,
+    fs.readFileSync(mainBundlePath, "utf8").replace(
+      "function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&(n===`darwin`||n===`win32`)}",
+      "function D2({appearance:e,isFocused:t,platform:n}){return !t&&!w2(e)&&(n===`darwin`||n===`win32`)}",
+    ),
+    "utf8",
+  );
+
+  const result = runPatcher(recoveredRoot, reportPath);
+  const patch = assertRequiredPatchFailure(
+    result,
+    reportPath,
+    "keep Mica enabled for inactive Windows windows",
+  );
+
+  assert.match(patch?.reason, /Required patch target was not found/);
+});
+
+test("fails when the Windows primary window icon target drifts", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const mainBundlePath = path.join(recoveredRoot, ".vite", "build", "main-fixture.js");
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  fs.writeFileSync(
+    mainBundlePath,
+    fs.readFileSync(mainBundlePath, "utf8").replace("width:b,height:x", "width:b, height:x"),
+    "utf8",
+  );
+
+  const result = runPatcher(recoveredRoot, reportPath);
+  const patch = assertRequiredPatchFailure(
+    result,
+    reportPath,
+    "set Windows primary window taskbar icon",
+  );
+
+  assert.match(patch?.reason, /Required patch target was not found/);
 });
 
 test("keeps Mica enabled for inactive Windows windows", () => {
@@ -406,7 +519,7 @@ test("accepts desktop feature markers in the recovered main bundle", () => {
   );
   fs.writeFileSync(
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
-    `${indexFeatureTargets}var dM=\`#00000000\`,vM=36,yM=\`#1f1f1f\`,bM=\`#ffffff\`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===\`win32\`?{titleBarStyle:\`hidden\`,titleBarOverlay:xM()}:null}function w2(appearance){return appearance===\`dark\`}function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&(n===\`darwin\`||n===\`win32\`)}function applyWindowBackdrop(window,backgroundMaterial){window.setBackgroundMaterial(backgroundMaterial);return{backgroundMaterial}}`,
+    `${indexFeatureTargets}var dM=\`#00000000\`,vM=36,yM=\`#1f1f1f\`,bM=\`#ffffff\`;function xM(){return{color:dM,symbolColor:n.nativeTheme.shouldUseDarkColors?bM:yM,height:vM}}function IM(platform){return platform===\`win32\`?{titleBarStyle:\`hidden\`,titleBarOverlay:xM()}:null}function w2(appearance){return appearance===\`dark\`}function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&(n===\`darwin\`||n===\`win32\`)}function applyWindowBackdrop(window,backgroundMaterial){window.setBackgroundMaterial(backgroundMaterial);return{backgroundMaterial}}function createMainWindow(){return new n.BrowserWindow({width:b,height:x,title:q??n.app.getName(),webPreferences:k})}`,
     "utf8",
   );
 
@@ -440,9 +553,5 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   assert.equal(report.patches.length, 5);
-  assert.ok(
-    report.patches.every((patch) =>
-      ["already-applied", "assumed-enabled"].includes(patch.status),
-    ),
-  );
+  assert.ok(report.patches.every((patch) => patch.status === "already-applied"));
 });

@@ -9,6 +9,7 @@ export type WindowsArm64PlanStepId =
   | "make-win-arm64"
   | "package-win-arm64"
   | "verify-browser-client-runtime"
+  | "verify-windows-arm64-source-patches"
   | "verify-windows-arm64-resource-binaries";
 
 export type WindowsArm64PlanStep = {
@@ -68,6 +69,11 @@ export const windowsArm64PackagePlan: WindowsArm64PlanStep[] = [
   },
   {
     forwardsGitHubToken: false,
+    id: "verify-windows-arm64-source-patches",
+    label: "Verify Windows ARM64 packaged source patches",
+  },
+  {
+    forwardsGitHubToken: false,
     id: "make-win-arm64",
     label: "Make Windows ARM64 ZIP",
   },
@@ -89,6 +95,7 @@ const targetSteps: Record<WindowsArm64PlanTarget, WindowsArm64PlanStepId[]> = {
     "hydrate-cli",
     "verify-browser-client-runtime",
     "package-win-arm64",
+    "verify-windows-arm64-source-patches",
     "verify-windows-arm64-resource-binaries",
   ],
   make: [
@@ -97,10 +104,15 @@ const targetSteps: Record<WindowsArm64PlanTarget, WindowsArm64PlanStepId[]> = {
     "hydrate-cli",
     "verify-browser-client-runtime",
     "package-win-arm64",
+    "verify-windows-arm64-source-patches",
     "verify-windows-arm64-resource-binaries",
     "make-win-arm64",
   ],
-  verify: ["verify-browser-client-runtime", "verify-windows-arm64-resource-binaries"],
+  verify: [
+    "verify-browser-client-runtime",
+    "verify-windows-arm64-source-patches",
+    "verify-windows-arm64-resource-binaries",
+  ],
 };
 
 export function expandWindowsArm64Plan(target: WindowsArm64PlanTarget): WindowsArm64PlanStep[] {
@@ -143,6 +155,8 @@ export function commandForWindowsArm64PlanStep(step: WindowsArm64PlanStep, env =
       return [npmCommand(), "run", "verify:browser-client-runtime:compiled"];
     case "package-win-arm64":
       return [npmCommand(), "run", "package:win:arm64:compiled"];
+    case "verify-windows-arm64-source-patches":
+      return [npmCommand(), "run", "verify:windows-arm64-source-patches:compiled"];
     case "make-win-arm64":
       return [npmCommand(), "run", "make:win:arm64:compiled", "--", "--skip-package"];
     case "verify-windows-arm64-resource-binaries":
