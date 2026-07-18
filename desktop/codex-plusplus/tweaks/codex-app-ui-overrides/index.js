@@ -104,7 +104,7 @@ const SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR =
 const SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS =
   "translate:1px 0!important;";
 const SIDEBAR_PRIMARY_SECTION_TITLE_SELECTOR =
-  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR}>[class~='flex'][class~='min-w-0'][class~='flex-1']`;
+  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR} [data-app-action-sidebar-section-toggle]`;
 const SIDEBAR_PRIMARY_SECTION_TITLE_DECLARATIONS =
   "color:var(--color-token-description-foreground)!important;font-weight:400!important;opacity:1!important;";
 const SIDEBAR_SECTION_TOGGLE_SELECTOR =
