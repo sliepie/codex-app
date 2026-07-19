@@ -2366,7 +2366,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [class~="group/chats-section-header"] svg:has(>path[d^="M6.33325 1.88379"]){translate:0 -1px!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [class~="group/chats-section-header"] svg:has(>path[d^="M6.33325 1.88379"]){translate:0 -4px!important;}`,
       ),
     );
     assert.ok(

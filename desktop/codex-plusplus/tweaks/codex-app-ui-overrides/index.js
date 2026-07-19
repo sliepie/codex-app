@@ -117,7 +117,7 @@ const SIDEBAR_CHATS_SECTION_ACTIONS_DECLARATIONS =
 const SIDEBAR_CHATS_NEW_CHAT_ICON_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [class~="group/chats-section-header"] svg:has(>path[d^="M6.33325 1.88379"])`;
 const SIDEBAR_CHATS_NEW_CHAT_ICON_DECLARATIONS =
-  "translate:0 -1px!important;";
+  "translate:0 -4px!important;";
 const SIDEBAR_PRIMARY_SECTION_TITLE_SELECTOR =
   `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR}>[class~='min-w-0'][class~='flex-1']`;
 const SIDEBAR_PRIMARY_SECTION_TITLE_DECLARATIONS =
