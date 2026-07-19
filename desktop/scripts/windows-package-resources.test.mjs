@@ -2416,11 +2416,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`[data-radix-popper-content-wrapper]:has(:where([role='menu']) [role='menuitem'] svg path[d^='M10.6391 1.67517']):has(:where([role='menu']) .flex.flex-col.text-sm>.grid.items-center.gap-y-1\.5.py-1){translate:0 -58px!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
         String.raw`:where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.8124 13.516']){display:none!important;}`,
       ),
     );

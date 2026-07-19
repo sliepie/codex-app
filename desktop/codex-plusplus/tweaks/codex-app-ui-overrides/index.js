@@ -28,9 +28,6 @@ const PROFILE_MENU_SELECTOR =
   `:where([role='menu']):has(${PROFILE_MENU_IDENTITY_SELECTOR})`;
 const PROFILE_MENU_DECLARATIONS =
   "width:calc(var(--radix-dropdown-menu-trigger-width,var(--radix-popper-anchor-width)) - 2px)!important;";
-const PROFILE_MENU_EXPANDED_SELECTOR =
-  `[data-radix-popper-content-wrapper]:has(:where([role='menu']) ${PROFILE_MENU_IDENTITY_SELECTOR}):has(:where([role='menu']) ${USAGE_MENU_CONTENT_CLASS_SELECTOR}>${USAGE_MENU_RATE_ROWS_CLASS_SELECTOR})`;
-const PROFILE_MENU_EXPANDED_DECLARATIONS = "translate:0 -58px!important;";
 const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
 const SIDEBAR_ROOT_DECLARATIONS =
@@ -152,7 +149,6 @@ const BASE_STYLE_RULES = [
   cssRule(INVITE_FRIEND_MENU_ITEM_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(PET_MENU_ITEM_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(PROFILE_MENU_SELECTOR, PROFILE_MENU_DECLARATIONS),
-  cssRule(PROFILE_MENU_EXPANDED_SELECTOR, PROFILE_MENU_EXPANDED_DECLARATIONS),
 ];
 
 const SIDEBAR_SCROLL_STYLE_RULES = [
