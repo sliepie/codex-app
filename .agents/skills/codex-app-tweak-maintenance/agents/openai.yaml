@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex App Tweak Maintenance"
-  short_description: "Maintain bundled and installed Codex++ tweaks"
-  default_prompt: "Use $codex-app-tweak-maintenance to fix a Codex app UI tweak and keep the installed copy in sync."
+  short_description: "Trace, patch, and sync Codex++ UI tweaks"
+  default_prompt: "Use $codex-app-tweak-maintenance to trace an upstream UI change, patch the bundled tweak, and sync the installed copy."
