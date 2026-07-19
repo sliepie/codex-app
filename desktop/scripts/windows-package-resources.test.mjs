@@ -2447,6 +2447,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.deepEqual(usageLinkHideRule.selector.split(","), [
       String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href="https://openai.com/chatgpt/pricing"]`,
       String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
+      String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://chatgpt.com/codex/purchase/"]`,
     ]);
     assert.doesNotMatch(usageLinkHideRule.selector, /nth-last-child|\+\*\+\*|M16\.834/);
     assert.doesNotMatch(uiOverrideCss, /nth-last-child|M16\.834/);
