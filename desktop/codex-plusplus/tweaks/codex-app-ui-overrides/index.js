@@ -109,11 +109,11 @@ const SIDEBAR_PRIMARY_SECTION_TITLE_ROW_DECLARATIONS =
 const SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_PRIMARY_SECTION_HEADER_SELECTOR}>[class~='flex'][class~='items-center'][class~='gap-1']`;
 const SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS =
-  "translate:1px 0!important;";
+  "translate:7px 0!important;";
 const SIDEBAR_CHATS_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [class~="group/chats-section-header"]>[class~='flex'][class~='items-center'][class~='gap-1']`;
 const SIDEBAR_CHATS_SECTION_ACTIONS_DECLARATIONS =
-  "translate:7px 0!important;";
+  "translate:13px 0!important;";
 const SIDEBAR_PRIMARY_SECTION_TITLE_SELECTOR =
   `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR}>[class~='min-w-0'][class~='flex-1']`;
 const SIDEBAR_PRIMARY_SECTION_TITLE_DECLARATIONS =
