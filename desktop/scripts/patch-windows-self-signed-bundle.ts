@@ -509,6 +509,56 @@ function patchSidebarProjectLimit(): SourcePatcher {
   };
 }
 
+function patchSidebarChatsHeading(): SourcePatcher {
+  const markers = [
+    "sidebarElectron.recentChats",
+    "sidebarElectron.newThread",
+    "sectionKind:`chats`",
+  ];
+  const targetPattern =
+    /([A-Za-z_$][\w$]*)\.sidebarSection\(\{collapsed:([A-Za-z_$][\w$]*),heading:`Tasks`\}\)/g;
+  const appliedPattern =
+    /([A-Za-z_$][\w$]*)\.sidebarSection\(\{collapsed:([A-Za-z_$][\w$]*),heading:`Chats`\}\)/;
+
+  return (source) => {
+    const matches = findFunctionRanges(source).filter((range) =>
+      markers.every((marker) => range.body.includes(marker)),
+    );
+    if (matches.length === 0) {
+      return undefined;
+    }
+    if (matches.length !== 1) {
+      throw new Error(
+        `Expected exactly one sidebar Chats function containing ${markers.join(", ")}, found ${matches.length}.`,
+      );
+    }
+
+    const match = matches[0];
+    const targets = Array.from(match.body.matchAll(targetPattern));
+    if (targets.length === 0 && appliedPattern.test(match.body)) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+    if (targets.length !== 1) {
+      throw new Error(`Expected exactly one sidebar Chats heading target, found ${targets.length}.`);
+    }
+
+    const target = targets[0];
+    const targetStart = target.index ?? 0;
+    const patchedTarget = target[0].replace("heading:`Tasks`", "heading:`Chats`");
+    const body =
+      match.body.slice(0, targetStart) +
+      patchedTarget +
+      match.body.slice(targetStart + target[0].length);
+    const replacement = `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}`;
+
+    return {
+      source: source.slice(0, match.start) + replacement + source.slice(match.end),
+      status: "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
 function replaceWithPatchers(
   recoveredRoot: string,
   filePath: string,
@@ -605,6 +655,28 @@ function patchSidebarProjectsBundle(recoveredRoot: string): PatchResult[] {
       filePath,
       "raise sidebar project limit",
       [patchSidebarProjectLimit()],
+    ),
+  ];
+}
+
+function patchSidebarChatsBundle(recoveredRoot: string): PatchResult[] {
+  const markers = [
+    "sidebarElectron.recentChats",
+    "sidebarElectron.newThread",
+    "sectionKind:`chats`",
+  ];
+  const filePath = findFileContaining(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^.*\.js$/,
+    markers,
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "normalize sidebar Chats heading marker",
+      [patchSidebarChatsHeading()],
     ),
   ];
 }
@@ -840,6 +912,7 @@ function main(): void {
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
     results.push(...patchSidebarProjectsBundle(recoveredRoot));
+    results.push(...patchSidebarChatsBundle(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
     results.push(...patchPrimaryRuntimeInstallerBundle(recoveredRoot));

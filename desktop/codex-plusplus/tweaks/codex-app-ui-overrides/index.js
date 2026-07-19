@@ -34,11 +34,11 @@ const PROFILE_MENU_EXPANDED_DECLARATIONS = "translate:0 -58px!important;";
 const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
 const SIDEBAR_ROOT_DECLARATIONS =
-  "--sidebar-scroll-header-spacing:1px!important;";
+  "--sidebar-scroll-header-spacing:1px!important;--codexpp-sidebar-action-column-offset:3px!important;";
 const SIDEBAR_COMPACT_THREAD_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-thread-row]`;
 const SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS =
-  "height:calc(var(--height-token-row) - 4px)!important;margin-right:-3px!important;";
+  "height:calc(var(--height-token-row) - 4px)!important;margin-right:calc(0px - var(--codexpp-sidebar-action-column-offset))!important;";
 const SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row]`;
 const SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS =
@@ -95,31 +95,22 @@ const SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_DECLARATIONS =
 const SIDEBAR_PROJECT_ROW_CONTROLS_SELECTOR =
   `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}>[class~='flex'][class~='max-w-[50%]'][class~='gap-1']`;
 const SIDEBAR_PROJECT_ROW_CONTROLS_DECLARATIONS =
-  "translate:3px 0!important;align-items:center!important;";
+  "translate:var(--codexpp-sidebar-action-column-offset) 0!important;align-items:center!important;";
 const SIDEBAR_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]`;
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
   "opacity:1!important;pointer-events:auto!important;";
-const SIDEBAR_PRIMARY_SECTION_HEADER_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is([class~="group/chats-section-header"],[class~="group/projects-section-header"])`;
+// "Tasks" keeps installed packages from before the build-time Chats normalization compatible.
+const SIDEBAR_PRIMARY_SECTION_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])`;
 const SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [class~="group/nav-section-title"]:has(:is([class~="group/chats-section-header"],[class~="group/projects-section-header"]))`;
-const SIDEBAR_PRIMARY_SECTION_TITLE_ROW_DECLARATIONS =
-  "padding-right:0!important;";
+  `${SIDEBAR_PRIMARY_SECTION_SELECTOR}>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"]`;
 const SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR =
-  `${SIDEBAR_PRIMARY_SECTION_HEADER_SELECTOR}>[class~='flex'][class~='items-center'][class~='gap-1']`;
+  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR} [class~="pointer-events-none"][class~="opacity-0"]>[class~='flex'][class~='items-center'][class~='gap-1']`;
 const SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS =
-  "translate:7px 0!important;";
-const SIDEBAR_CHATS_SECTION_ACTIONS_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [class~="group/chats-section-header"]>[class~='flex'][class~='items-center'][class~='gap-1']`;
-const SIDEBAR_CHATS_SECTION_ACTIONS_DECLARATIONS =
-  "translate:13px 0!important;";
-const SIDEBAR_PRIMARY_SECTION_TITLE_SELECTOR =
-  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR}>[class~='min-w-0'][class~='flex-1']`;
-const SIDEBAR_PRIMARY_SECTION_TITLE_DECLARATIONS =
-  "color:var(--color-token-description-foreground)!important;font-weight:400!important;opacity:1!important;";
+  "translate:var(--codexpp-sidebar-action-column-offset) 0!important;";
 const SIDEBAR_SECTION_TOGGLE_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]`;
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]`;
 const SIDEBAR_SECTION_TOGGLE_DECLARATIONS =
   "pointer-events:none!important;cursor:default!important;";
 const SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR =
@@ -184,10 +175,7 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_SELECTOR, SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_CONTROLS_SELECTOR, SIDEBAR_PROJECT_ROW_CONTROLS_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_ACTIONS_SELECTOR, SIDEBAR_SECTION_ACTIONS_DECLARATIONS),
-  cssRule(SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR, SIDEBAR_PRIMARY_SECTION_TITLE_ROW_DECLARATIONS),
   cssRule(SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR, SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS),
-  cssRule(SIDEBAR_CHATS_SECTION_ACTIONS_SELECTOR, SIDEBAR_CHATS_SECTION_ACTIONS_DECLARATIONS),
-  cssRule(SIDEBAR_PRIMARY_SECTION_TITLE_SELECTOR, SIDEBAR_PRIMARY_SECTION_TITLE_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_SELECTOR, SIDEBAR_SECTION_TOGGLE_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
 ];
