@@ -95,16 +95,18 @@ const SIDEBAR_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]`;
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
   "opacity:1!important;pointer-events:auto!important;";
+const SIDEBAR_PRIMARY_SECTION_HEADER_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} :is([class~="group/chats-section-header"],[class~="group/projects-section-header"])`;
 const SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Projects"]) [class~='flex'][class~='items-center'][class~='justify-between'][class~='gap-2']:has(>[class~='min-w-0'][class~='flex-1'])`;
+  `${SIDEBAR_ROOT_SELECTOR} [class~="group/nav-section-title"]:has(:is([class~="group/chats-section-header"],[class~="group/projects-section-header"]))`;
 const SIDEBAR_PRIMARY_SECTION_TITLE_ROW_DECLARATIONS =
   "padding-right:0!important;";
 const SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR =
-  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR}>[class~='flex'][class~='items-center'][class~='gap-1']`;
+  `${SIDEBAR_PRIMARY_SECTION_HEADER_SELECTOR}>[class~='flex'][class~='items-center'][class~='gap-1']`;
 const SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS =
   "translate:1px 0!important;";
 const SIDEBAR_CHATS_SECTION_ACTIONS_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading="Chats"] [class~='flex'][class~='items-center'][class~='justify-between'][class~='gap-2']:has(>[class~='min-w-0'][class~='flex-1'])>[class~='flex'][class~='items-center'][class~='gap-1']`;
+  `${SIDEBAR_ROOT_SELECTOR} [class~="group/chats-section-header"]>[class~='flex'][class~='items-center'][class~='gap-1']`;
 const SIDEBAR_CHATS_SECTION_ACTIONS_DECLARATIONS =
   "translate:7px 0!important;";
 const SIDEBAR_PRIMARY_SECTION_TITLE_SELECTOR =

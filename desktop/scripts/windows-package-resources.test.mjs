@@ -2356,17 +2356,17 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Projects"]) [class~='flex'][class~='items-center'][class~='justify-between'][class~='gap-2']:has(>[class~='min-w-0'][class~='flex-1']){padding-right:0!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [class~="group/nav-section-title"]:has(:is([class~="group/chats-section-header"],[class~="group/projects-section-header"])){padding-right:0!important;}`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-section-heading="Chats"] [class~='flex'][class~='items-center'][class~='justify-between'][class~='gap-2']:has(>[class~='min-w-0'][class~='flex-1'])>[class~='flex'][class~='items-center'][class~='gap-1']{translate:7px 0!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [class~="group/chats-section-header"]>[class~='flex'][class~='items-center'][class~='gap-1']{translate:7px 0!important;}`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Projects"]) [class~='flex'][class~='items-center'][class~='justify-between'][class~='gap-2']:has(>[class~='min-w-0'][class~='flex-1'])>[class~='min-w-0'][class~='flex-1']{color:var(--color-token-description-foreground)!important;font-weight:400!important;opacity:1!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [class~="group/nav-section-title"]:has(:is([class~="group/chats-section-header"],[class~="group/projects-section-header"]))>[class~='min-w-0'][class~='flex-1']{color:var(--color-token-description-foreground)!important;font-weight:400!important;opacity:1!important;}`,
       ),
     );
     assert.ok(
