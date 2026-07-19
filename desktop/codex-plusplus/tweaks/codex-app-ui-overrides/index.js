@@ -52,8 +52,12 @@ const SIDEBAR_PROJECT_TITLE_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row] span.text-fade-truncate.pr-1`;
 const SIDEBAR_PROJECT_TITLE_DECLARATIONS =
   "transform:translateY(-1px)!important;";
+const SIDEBAR_NAV_ROW_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} :is(button,[role='button']):has(>.flex.min-w-0.items-center.text-base.gap-2)`;
+const SIDEBAR_NAV_ROW_DECLARATIONS =
+  "height:calc(var(--height-token-row) - 2px)!important;";
 const SIDEBAR_NAV_LEADING_ICON_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is(button,[role='button'])>.flex.min-w-0.items-center.text-base.gap-2>span.flex.w-4.shrink-0`;
+  `${SIDEBAR_NAV_ROW_SELECTOR}>.flex.min-w-0.items-center.text-base.gap-2>span.flex.w-4.shrink-0`;
 const SIDEBAR_PROJECT_LEADING_ICON_SELECTOR =
   `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}>div:first-child>span:first-child`;
 const SIDEBAR_LEADING_ICON_DECLARATIONS = "translate:-1px 0!important;";
@@ -165,6 +169,7 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
     SIDEBAR_PROJECT_CONTENT_WITH_SHOW_MORE_DECLARATIONS,
   ),
   cssRule(SIDEBAR_PROJECT_TITLE_SELECTOR, SIDEBAR_PROJECT_TITLE_DECLARATIONS),
+  cssRule(SIDEBAR_NAV_ROW_SELECTOR, SIDEBAR_NAV_ROW_DECLARATIONS),
   cssRule(SIDEBAR_NAV_LEADING_ICON_SELECTOR, SIDEBAR_LEADING_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_LEADING_ICON_SELECTOR, SIDEBAR_LEADING_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_ACTION_SELECTOR, SIDEBAR_PROJECT_ROW_ACTION_DECLARATIONS),
