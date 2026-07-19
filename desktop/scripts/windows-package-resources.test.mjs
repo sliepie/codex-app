@@ -2185,7 +2185,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is(button,[role='button']):has(>.flex.min-w-0.items-center.text-base.gap-2){height:calc(var(--height-token-row) - 4px)!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])>[class~='relative'][class~='z-10'][class~='shrink-0'][class~='flex-col'][class~='gap-2'][class~='px-row-x'] :is(button,div)[class~='relative'][class~='h-[var(--height-token-row)]'][class~='py-row-y'],:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-scroll]>[class~='flex'][class~='shrink-0'][class~='flex-col'][class~='gap-2'] :is(button,div)[class~='relative'][class~='h-[var(--height-token-row)]'][class~='py-row-y']{height:calc(var(--height-token-row) - 4px)!important;}`,
       ),
     );
     assert.match(

@@ -52,12 +52,20 @@ const SIDEBAR_PROJECT_TITLE_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row] span.text-fade-truncate.pr-1`;
 const SIDEBAR_PROJECT_TITLE_DECLARATIONS =
   "transform:translateY(-1px)!important;";
-const SIDEBAR_NAV_ROW_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is(button,[role='button']):has(>.flex.min-w-0.items-center.text-base.gap-2)`;
+const SIDEBAR_NAV_ROW_SHELL_SELECTOR =
+  ":is(button,div)[class~='relative'][class~='h-[var(--height-token-row)]'][class~='py-row-y']";
+const SIDEBAR_NAV_ROW_SELECTOR = [
+  `${SIDEBAR_ROOT_SELECTOR}>[class~='relative'][class~='z-10'][class~='shrink-0'][class~='flex-col'][class~='gap-2'][class~='px-row-x'] ${SIDEBAR_NAV_ROW_SHELL_SELECTOR}`,
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-scroll]>[class~='flex'][class~='shrink-0'][class~='flex-col'][class~='gap-2'] ${SIDEBAR_NAV_ROW_SHELL_SELECTOR}`,
+];
 const SIDEBAR_NAV_ROW_DECLARATIONS =
   "height:calc(var(--height-token-row) - 4px)!important;";
-const SIDEBAR_NAV_LEADING_ICON_SELECTOR =
-  `${SIDEBAR_NAV_ROW_SELECTOR}>.flex.min-w-0.items-center.text-base.gap-2>span.flex.w-4.shrink-0`;
+const SIDEBAR_NAV_LEADING_ICON_SELECTOR = SIDEBAR_NAV_ROW_SELECTOR.flatMap(
+  (selector) => [
+    `${selector}>.flex.min-w-0.items-center.text-base.gap-2>span.flex.w-4.shrink-0`,
+    `${selector}>button>.flex.min-w-0.items-center.text-base.gap-2>span.flex.w-4.shrink-0`,
+  ],
+);
 const SIDEBAR_PROJECT_LEADING_ICON_SELECTOR =
   `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}>div:first-child>span:first-child`;
 const SIDEBAR_LEADING_ICON_DECLARATIONS = "translate:-1px 0!important;";
