@@ -243,9 +243,8 @@ const USAGE_MENU_STYLE_RULES = [
   cssRule(USAGE_MENU_RESET_ACTION_SELECTOR, USAGE_MENU_RESET_ACTION_DECLARATIONS),
   cssRule(
     [
-      `${USAGE_MENU_CONTENT_SELECTOR}>a[href="https://openai.com/chatgpt/pricing"]`,
+      `${USAGE_MENU_CONTENT_SELECTOR}>a[href*="highlight_plan="][href$="#pricing"]`,
       `${USAGE_MENU_CONTENT_SELECTOR}>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
-      `${USAGE_MENU_CONTENT_SELECTOR}>a[href^="https://chatgpt.com/codex/purchase/"]`,
     ],
     USAGE_MENU_LINK_DECLARATIONS,
   ),
