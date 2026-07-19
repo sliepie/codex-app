@@ -55,7 +55,7 @@ const SIDEBAR_PROJECT_TITLE_DECLARATIONS =
 const SIDEBAR_NAV_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} :is(button,[role='button']):has(>.flex.min-w-0.items-center.text-base.gap-2)`;
 const SIDEBAR_NAV_ROW_DECLARATIONS =
-  "height:calc(var(--height-token-row) - 2px)!important;";
+  "height:calc(var(--height-token-row) - 4px)!important;";
 const SIDEBAR_NAV_LEADING_ICON_SELECTOR =
   `${SIDEBAR_NAV_ROW_SELECTOR}>.flex.min-w-0.items-center.text-base.gap-2>span.flex.w-4.shrink-0`;
 const SIDEBAR_PROJECT_LEADING_ICON_SELECTOR =
@@ -112,7 +112,7 @@ const SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS =
   "translate:var(--codexpp-sidebar-action-column-offset) 0!important;";
 const SIDEBAR_SECTION_CONTENT_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"]+[class~='overflow-hidden']>[class~='flex'][class~='flex-col'][class~='gap-px'][class~='pt-1']`;
-const SIDEBAR_SECTION_CONTENT_DECLARATIONS = "padding-top:2px!important;";
+const SIDEBAR_SECTION_CONTENT_DECLARATIONS = "padding-top:0!important;";
 const SIDEBAR_SECTION_TOGGLE_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]`;
 const SIDEBAR_SECTION_TOGGLE_DECLARATIONS =
