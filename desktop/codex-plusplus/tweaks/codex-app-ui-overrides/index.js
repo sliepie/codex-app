@@ -110,6 +110,9 @@ const SIDEBAR_SECTION_TOGGLE_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]`;
 const SIDEBAR_SECTION_TOGGLE_DECLARATIONS =
   "pointer-events:none!important;cursor:default!important;";
+const SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"]) [data-app-action-sidebar-section-toggle]`;
+const SIDEBAR_OFFSET_SECTION_TITLE_DECLARATIONS = "translate:-1px 0!important;";
 const SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR =
   `${SIDEBAR_SECTION_TOGGLE_SELECTOR}>[class~="opacity-0"]`;
 const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
@@ -173,6 +176,7 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_SECTION_ACTIONS_SELECTOR, SIDEBAR_SECTION_ACTIONS_DECLARATIONS),
   cssRule(SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR, SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_SELECTOR, SIDEBAR_SECTION_TOGGLE_DECLARATIONS),
+  cssRule(SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR, SIDEBAR_OFFSET_SECTION_TITLE_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
 ];
 const IMAGE_PREVIEW_STYLE_RULES = [
