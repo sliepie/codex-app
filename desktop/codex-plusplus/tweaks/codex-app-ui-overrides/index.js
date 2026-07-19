@@ -1,10 +1,13 @@
 const STYLE_ID = "codex-app-ui-overrides-style";
 
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
+const USAGE_MENU_CONTENT_CLASS_SELECTOR = ".flex.flex-col.text-sm";
+const USAGE_MENU_RATE_ROWS_CLASS_SELECTOR =
+  ".grid.items-center.gap-y-1\\.5.py-1";
 const USAGE_MENU_CONTENT_SELECTOR =
-  ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
+  `${USAGE_MENU_CONTENT_CLASS_SELECTOR}:has(>${USAGE_MENU_RATE_ROWS_CLASS_SELECTOR})`;
 const USAGE_MENU_RATE_ROWS_SELECTOR =
-  `${USAGE_MENU_CONTENT_SELECTOR}>.grid.items-center.gap-y-1\\.5.py-1`;
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_RATE_ROWS_CLASS_SELECTOR}`;
 const USAGE_MENU_RATE_LABEL_SELECTOR =
   `${USAGE_MENU_RATE_ROWS_SELECTOR}>span.font-medium`;
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -19,12 +22,14 @@ const INVITE_FRIEND_MENU_ITEM_SELECTOR =
   ":where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.0368 1.69459'])";
 const PET_MENU_ITEM_SELECTOR =
   ":where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.8124 13.516'])";
+const PROFILE_MENU_IDENTITY_SELECTOR =
+  "[role='menuitem'] svg path[d^='M10.6391 1.67517']";
 const PROFILE_MENU_SELECTOR =
-  ":where([role='menu']):has([role='menuitem'] svg path[d^='M10.6391 1.67517'])";
+  `:where([role='menu']):has(${PROFILE_MENU_IDENTITY_SELECTOR})`;
 const PROFILE_MENU_DECLARATIONS =
   "width:calc(var(--radix-dropdown-menu-trigger-width,var(--radix-popper-anchor-width)) - 2px)!important;";
 const PROFILE_MENU_EXPANDED_SELECTOR =
-  `[data-radix-popper-content-wrapper]:has(${PROFILE_MENU_SELECTOR} ${USAGE_MENU_CONTENT_SELECTOR})`;
+  `[data-radix-popper-content-wrapper]:has(:where([role='menu']) ${PROFILE_MENU_IDENTITY_SELECTOR}):has(:where([role='menu']) ${USAGE_MENU_CONTENT_CLASS_SELECTOR}>${USAGE_MENU_RATE_ROWS_CLASS_SELECTOR})`;
 const PROFILE_MENU_EXPANDED_DECLARATIONS = "translate:0 -58px!important;";
 const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
