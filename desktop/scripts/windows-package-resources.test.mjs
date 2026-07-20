@@ -2401,7 +2401,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]>[class~='flex'][class~='items-center'][class~='gap-1']{translate:var(--codexpp-sidebar-action-column-offset) 0!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]>[class~='flex'][class~='items-center'][class~='gap-1']{flex:0 0 52px!important;width:52px!important;min-width:52px!important;max-width:52px!important;justify-content:flex-end!important;translate:var(--codexpp-sidebar-action-column-offset) 0!important;}`,
       ),
     );
     assert.ok(
@@ -2411,7 +2411,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-project-row]>[class~='flex'][class~='max-w-[50%]'][class~='gap-1']{translate:var(--codexpp-sidebar-action-column-offset) 0!important;align-items:center!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-project-row]>[class~='flex'][class~='max-w-[50%]'][class~='gap-1']{flex:0 0 52px!important;width:52px!important;min-width:52px!important;max-width:52px!important;justify-content:flex-end!important;translate:var(--codexpp-sidebar-action-column-offset) 0!important;align-items:center!important;}`,
       ),
     );
     assert.ok(

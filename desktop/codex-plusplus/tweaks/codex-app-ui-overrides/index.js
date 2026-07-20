@@ -32,6 +32,9 @@ const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
 const SIDEBAR_ROOT_DECLARATIONS =
   "--sidebar-scroll-header-spacing:1px!important;--codexpp-sidebar-action-column-offset:3px!important;";
+const SIDEBAR_ACTION_COLUMN_WIDTH = "52px";
+const SIDEBAR_ACTION_COLUMN_DECLARATIONS =
+  `flex:0 0 ${SIDEBAR_ACTION_COLUMN_WIDTH}!important;width:${SIDEBAR_ACTION_COLUMN_WIDTH}!important;min-width:${SIDEBAR_ACTION_COLUMN_WIDTH}!important;max-width:${SIDEBAR_ACTION_COLUMN_WIDTH}!important;justify-content:flex-end!important;`;
 const SIDEBAR_COMPACT_THREAD_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-thread-row]`;
 const SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS =
@@ -109,17 +112,10 @@ const SIDEBAR_PROJECT_ROW_MENU_ICON_SELECTOR =
   SIDEBAR_PROJECT_ROW_MENU_SELECTOR.map((selector) => `${selector} svg`);
 const SIDEBAR_PROJECT_ROW_MENU_DECLARATIONS =
   "width:auto!important;overflow:visible!important;opacity:1!important;visibility:visible!important;";
-const SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_SELECTOR =
-  SIDEBAR_INTERACTIVE_PROJECT_ROW_SELECTORS.map(
-    (selector) =>
-      `${selector}>[class~='flex'][class~='max-w-[50%]'][class~='gap-1']>div:has(button[aria-haspopup='menu'])`,
-  );
-const SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_DECLARATIONS =
-  "translate:2px 0!important;";
 const SIDEBAR_PROJECT_ROW_CONTROLS_SELECTOR =
   `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}>[class~='flex'][class~='max-w-[50%]'][class~='gap-1']`;
 const SIDEBAR_PROJECT_ROW_CONTROLS_DECLARATIONS =
-  "translate:var(--codexpp-sidebar-action-column-offset) 0!important;align-items:center!important;";
+  `${SIDEBAR_ACTION_COLUMN_DECLARATIONS}translate:var(--codexpp-sidebar-action-column-offset) 0!important;align-items:center!important;`;
 const SIDEBAR_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]`;
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
@@ -132,7 +128,7 @@ const SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR =
 const SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR} [class~="pointer-events-none"][class~="opacity-0"]>[class~='flex'][class~='items-center'][class~='gap-1']`;
 const SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS =
-  "translate:var(--codexpp-sidebar-action-column-offset) 0!important;";
+  `${SIDEBAR_ACTION_COLUMN_DECLARATIONS}translate:var(--codexpp-sidebar-action-column-offset) 0!important;`;
 const SIDEBAR_SECTION_CONTENT_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"]+[class~='overflow-hidden']>[class~='flex'][class~='flex-col'][class~='gap-px'][class~='pt-1']`;
 const SIDEBAR_SECTION_CONTENT_DECLARATIONS = "padding-top:0!important;";
@@ -212,7 +208,6 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_PROJECT_ROW_ACTION_ICON_SELECTOR, SIDEBAR_HOVER_ACTION_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_MENU_SELECTOR, SIDEBAR_PROJECT_ROW_MENU_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_MENU_ICON_SELECTOR, SIDEBAR_HOVER_ACTION_ICON_DECLARATIONS),
-  cssRule(SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_SELECTOR, SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_CONTROLS_SELECTOR, SIDEBAR_PROJECT_ROW_CONTROLS_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_ACTIONS_SELECTOR, SIDEBAR_SECTION_ACTIONS_DECLARATIONS),
   cssRule(SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR, SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS),
