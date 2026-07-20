@@ -57,12 +57,21 @@ const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS =
 const SIDEBAR_THREAD_ROW_FLOATING_STATUS_WITH_ACTIONS_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [role='listitem']:has([data-app-action-sidebar-project-row]) [data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='min-w-[52px]']`;
 
-// Hover title spacing: reserve one native action slot so the existing text-fade-truncate
-// layer fades the title before the visible pin/archive controls.
+// Hover layout normalization: OAI appends an empty 0/24/52px spacer based on resting
+// status icons. Remove that variable spacer before reserving the fixed two-action rail,
+// otherwise spinner-only and PR-plus-spinner rows receive different hover title widths.
+const SIDEBAR_THREAD_ROW_RESTING_STATUS_SPACER_SELECTOR =
+  `${SIDEBAR_INTERACTIVE_THREAD_ROW_SELECTOR}>[class~='flex'][class~='h-full'][class~='w-full'][class~='items-center']>[class~='shrink-0']:last-child:empty`;
+const SIDEBAR_THREAD_ROW_RESTING_STATUS_SPACER_DECLARATIONS =
+  "display:none!important;";
+
+// Hover title boundary: every chat exposes pin/unpin plus archive, so reserve OAI's full
+// 52px two-control rail after removing the resting spacer. This lets the title's native
+// overflow observer enable text-fade-truncate at the action boundary instead of under it.
 const SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_SELECTOR =
   `${SIDEBAR_INTERACTIVE_THREAD_ROW_SELECTOR}:has([class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']) [class~='flex'][class~='min-w-0'][class~='flex-1'][class~='items-center'][class~='gap-2']:has(>[data-thread-title-trigger])`;
 const SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_DECLARATIONS =
-  "padding-right:24px!important;";
+  "padding-right:52px!important;";
 
 // Project rows: compact project headers and nested-list spacing while retaining overflow
 // needed by the native project controls.
@@ -202,6 +211,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(
     SIDEBAR_THREAD_ROW_FLOATING_STATUS_WITH_ACTIONS_SELECTOR,
     HIDDEN_DISPLAY_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_THREAD_ROW_RESTING_STATUS_SPACER_SELECTOR,
+    SIDEBAR_THREAD_ROW_RESTING_STATUS_SPACER_DECLARATIONS,
   ),
   cssRule(
     SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_SELECTOR,
