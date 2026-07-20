@@ -33,6 +33,7 @@ const SIDEBAR_ROOT_SELECTOR =
 const SIDEBAR_ROOT_DECLARATIONS =
   "--sidebar-scroll-header-spacing:1px!important;--codexpp-sidebar-action-column-offset:3px!important;";
 const SIDEBAR_ACTION_COLUMN_WIDTH = "52px";
+const SIDEBAR_PROJECT_ACTION_COLUMN_CORRECTION = "4px";
 const SIDEBAR_ACTION_COLUMN_DECLARATIONS =
   `flex:0 0 ${SIDEBAR_ACTION_COLUMN_WIDTH}!important;width:${SIDEBAR_ACTION_COLUMN_WIDTH}!important;min-width:${SIDEBAR_ACTION_COLUMN_WIDTH}!important;max-width:${SIDEBAR_ACTION_COLUMN_WIDTH}!important;justify-content:flex-end!important;`;
 const SIDEBAR_COMPACT_THREAD_ROW_SELECTOR =
@@ -115,7 +116,7 @@ const SIDEBAR_PROJECT_ROW_MENU_DECLARATIONS =
 const SIDEBAR_PROJECT_ROW_CONTROLS_SELECTOR =
   `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}>[class~='flex'][class~='max-w-[50%]'][class~='gap-1']`;
 const SIDEBAR_PROJECT_ROW_CONTROLS_DECLARATIONS =
-  `${SIDEBAR_ACTION_COLUMN_DECLARATIONS}translate:var(--codexpp-sidebar-action-column-offset) 0!important;align-items:center!important;`;
+  `${SIDEBAR_ACTION_COLUMN_DECLARATIONS}translate:calc(var(--codexpp-sidebar-action-column-offset) + ${SIDEBAR_PROJECT_ACTION_COLUMN_CORRECTION}) 0!important;align-items:center!important;`;
 const SIDEBAR_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]`;
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
