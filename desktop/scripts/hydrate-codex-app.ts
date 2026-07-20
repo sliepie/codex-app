@@ -2556,8 +2556,10 @@ function patchRecoveredCodexWindowServices(recoveredRoot: string): void {
 const codexMicroServiceStub =
   "var m=class{constructor(e){this.options=e;this.deviceState={status:\"not-detected\",error:null,battery:null}}getState(){return this.deviceState}start(){}async stop(){}async updateLighting(){return!1}async dispose(){}};exports.CodexMicroService=m;";
 
-const codexMicroServiceDefinitionPattern =
-  /var [^=]+=[^;]*?CodexMicroService[\s\S]*?@worklouder\/device-kit-oai[\s\S]*?exports\.CodexMicroService=[^;]+;/;
+// Upstream can load Work Louder helpers before declaring CodexMicroService, so
+// replace the dedicated Vite module instead of only the service definition.
+const codexMicroServiceModulePattern =
+  /^[\s\S]*?var [^=]+=[^;]*?CodexMicroService[\s\S]*?@worklouder\/device-kit-oai[\s\S]*?exports\.CodexMicroService=[^;]+;[\s\S]*$/;
 
 export function patchRecoveredCodexMicroServiceSource(source: string): {
   changed: boolean;
@@ -2566,11 +2568,11 @@ export function patchRecoveredCodexMicroServiceSource(source: string): {
   if (source.includes(codexMicroServiceStub)) {
     return { source, changed: false };
   }
-  if (!codexMicroServiceDefinitionPattern.test(source)) {
+  if (!codexMicroServiceModulePattern.test(source)) {
     return undefined;
   }
 
-  const patched = source.replace(codexMicroServiceDefinitionPattern, codexMicroServiceStub);
+  const patched = source.replace(codexMicroServiceModulePattern, codexMicroServiceStub);
   if (patched === source || patched.includes("@worklouder/device-kit-oai")) {
     throw new Error("Could not patch recovered Codex Micro Work Louder service.");
   }

@@ -813,6 +813,21 @@ test("stubs recovered Codex Micro Work Louder service", () => {
   assert.equal(secondPatch?.changed, false);
 });
 
+test("stubs an upstream Codex Micro module with Work Louder imports before its service tracer", () => {
+  const tick = String.fromCharCode(96);
+  const source = [
+    "const e=require(" + tick + "./src-C7E6KJ89.js" + tick + "),s=require(" + tick + "node:module" + tick + ");",
+    "var v=(0,s.createRequire)(__filename),y=(0,s.createRequire)(v.resolve(" + tick + "@worklouder/device-kit-oai" + tick + ")),{ConnectionType:b}=v(" + tick + "@worklouder/device-kit-oai" + tick + ");",
+    "function T(){return(0,s.createRequire)(y.resolve(" + tick + "@worklouder/wl-device-kit" + tick + "))(" + tick + "node-hid" + tick + ")}var E=e.i(" + tick + "CodexMicroService" + tick + "),{WLDeviceCommImpl:A}=(0,s.createRequire)(__filename)(" + tick + "@worklouder/device-kit-oai" + tick + "),U=class{};exports.CodexMicroService=U;\n//# sourceMappingURL=codex-micro-service-DyGGZ-q3.js.map\n",
+  ].join("");
+
+  const patch = patchRecoveredCodexMicroServiceSource(source);
+
+  assert.equal(patch?.changed, true);
+  assert.equal(patch.source.includes("@worklouder/"), false);
+  assert.match(patch.source, /exports\.CodexMicroService=m/);
+});
+
 test("skips recovered chunks that only reference Codex Micro service", () => {
   const tick = String.fromCharCode(96);
   const source =
