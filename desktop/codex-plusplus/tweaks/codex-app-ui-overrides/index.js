@@ -47,6 +47,10 @@ const SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR =
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within) [class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']`;
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
+const SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:has([class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']) [class~='flex'][class~='min-w-0'][class~='flex-1'][class~='items-center'][class~='gap-2']:has(>[data-thread-title-trigger])`;
+const SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_DECLARATIONS =
+  "padding-right:calc(52px + var(--codexpp-sidebar-action-column-offset))!important;";
 const SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row]`;
 const SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS =
@@ -189,6 +193,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(
     SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR,
     SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_SELECTOR,
+    SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_DECLARATIONS,
   ),
   cssRule(SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR, SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_PROJECT_CONTENT_SELECTOR, SIDEBAR_COMPACT_PROJECT_CONTENT_DECLARATIONS),
