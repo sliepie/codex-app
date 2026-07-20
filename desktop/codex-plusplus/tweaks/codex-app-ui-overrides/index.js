@@ -93,12 +93,18 @@ const SIDEBAR_PROJECT_TITLE_DECLARATIONS =
   "transform:translateY(-1px)!important;";
 const SIDEBAR_NAV_ROW_SHELL_SELECTOR =
   ":is(button,div)[class~='relative'][class~='h-[var(--height-token-row)]'][class~='py-row-y']";
+const SIDEBAR_PRIMARY_NAV_ROW_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR}>[class~='relative'][class~='z-10'][class~='shrink-0'][class~='flex-col'][class~='gap-2'][class~='px-row-x'] ${SIDEBAR_NAV_ROW_SHELL_SELECTOR}`;
 const SIDEBAR_NAV_ROW_SELECTOR = [
-  `${SIDEBAR_ROOT_SELECTOR}>[class~='relative'][class~='z-10'][class~='shrink-0'][class~='flex-col'][class~='gap-2'][class~='px-row-x'] ${SIDEBAR_NAV_ROW_SHELL_SELECTOR}`,
+  SIDEBAR_PRIMARY_NAV_ROW_SELECTOR,
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-scroll]>[class~='flex'][class~='shrink-0'][class~='flex-col'][class~='gap-2'] ${SIDEBAR_NAV_ROW_SHELL_SELECTOR}`,
 ];
 const SIDEBAR_NAV_ROW_DECLARATIONS =
   "height:calc(var(--height-token-row) - 4px)!important;";
+const SIDEBAR_PRIMARY_NAV_ACTION_SELECTOR =
+  `${SIDEBAR_PRIMARY_NAV_ROW_SELECTOR}[class~='group']:is(:hover,:focus-within)>[class~='pointer-events-none'][class~='shrink-0'][class~='opacity-0']`;
+const SIDEBAR_PRIMARY_NAV_ACTION_DECLARATIONS =
+  "opacity:1!important;pointer-events:auto!important;";
 const SIDEBAR_NAV_LEADING_ICON_SELECTOR = SIDEBAR_NAV_ROW_SELECTOR.flatMap(
   (selector) => [
     `${selector}>.flex.min-w-0.items-center.text-base.gap-2>span.flex.w-4.shrink-0`,
@@ -228,6 +234,7 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   ),
   cssRule(SIDEBAR_PROJECT_TITLE_SELECTOR, SIDEBAR_PROJECT_TITLE_DECLARATIONS),
   cssRule(SIDEBAR_NAV_ROW_SELECTOR, SIDEBAR_NAV_ROW_DECLARATIONS),
+  cssRule(SIDEBAR_PRIMARY_NAV_ACTION_SELECTOR, SIDEBAR_PRIMARY_NAV_ACTION_DECLARATIONS),
   cssRule(SIDEBAR_NAV_LEADING_ICON_SELECTOR, SIDEBAR_LEADING_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_LEADING_ICON_SELECTOR, SIDEBAR_LEADING_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_ACTION_SELECTOR, SIDEBAR_PROJECT_ROW_ACTION_DECLARATIONS),

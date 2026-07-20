@@ -2194,6 +2194,10 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.equal(appendedStyles[0].id, "codex-app-ui-overrides-style");
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
     assert.match(
+      appendedStyles[0].textContent,
+      /\[class~='group'\]:is\(:hover,:focus-within\)>\[class~='pointer-events-none'\]\[class~='shrink-0'\]\[class~='opacity-0'\]\{opacity:1!important;pointer-events:auto!important;\}/,
+    );
+    assert.match(
       appendedStyles[1].textContent,
       /application-menu-top-bar\{position:fixed!important;inset-inline-start:0!important;top:0!important;width:max-content!important;padding-inline-end:0!important;\}/,
     );
