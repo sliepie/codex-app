@@ -186,6 +186,10 @@ const REMOTE_CONVERSATION_HEADER_ACTIONS_SELECTOR =
   ".draggable.grid.w-full.min-w-0.items-center.gap-x-4.electron\\:h-toolbar.extension\\:py-row-y>.flex.items-center.justify-end.gap-1\\.5>.flex.items-center.gap-0\\.5";
 const REMOTE_CONVERSATION_PR_ACTION_SELECTOR =
   `${REMOTE_CONVERSATION_HEADER_ACTIONS_SELECTOR}>button.shrink-0:last-child`;
+const EMPTY_APP_HEADER_SELECTOR =
+  ".app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center:not(:has([data-testid='app-shell-header-context-menu-surface']>*)):not(:has(.no-drag.pointer-events-auto))";
+const EMPTY_APP_HEADER_MAIN_SELECTOR =
+  `main.main-surface:has(>${EMPTY_APP_HEADER_SELECTOR})`;
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -254,15 +258,15 @@ const REMOTE_CONVERSATION_HEADER_STYLE_RULES = [
 
 const SETTINGS_STYLE_RULES = [
   cssRule(
-    "main.main-surface:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)>.app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center",
+    `${EMPTY_APP_HEADER_MAIN_SELECTOR}>${EMPTY_APP_HEADER_SELECTOR}`,
     "display:none!important;",
   ),
   cssRule(
-    ".app-shell-main-content-viewport:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)",
+    `${EMPTY_APP_HEADER_MAIN_SELECTOR} .app-shell-main-content-viewport`,
     "--app-shell-main-content-frame-top-offset:0px!important;",
   ),
   cssRule(
-    ".app-shell-main-content-frame:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)",
+    `${EMPTY_APP_HEADER_MAIN_SELECTOR} .app-shell-main-content-frame`,
     "border-top-width:0!important;",
   ),
 
