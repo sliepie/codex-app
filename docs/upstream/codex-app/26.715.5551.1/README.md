@@ -1,6 +1,6 @@
 # Codex 26.715.5551.1 renderer sidebar bundles
 
-This directory contains the renderer chunks copied byte-for-byte from the currently installed self-signed package. They are used to audit and maintain the sidebar build patches and Codex++ CSS selectors.
+This directory records provenance and selector findings from local inspection of the installed self-signed package. Extracted renderer bundles are deliberately not retained in the repository.
 
 Source package:
 
@@ -9,7 +9,7 @@ Source package:
 - Archive SHA-256: `48A7E3FAD33A5DF2BAA8FE27B67BE1B7697BFE13FC179CFBCC9A07D02075FCA9`
 - Verified: `2026-07-19`
 
-Retained entries:
+Inspected entries (metadata only):
 
 - Sidebar implementation: `app-initial~app-main~appgen-settings-page~page~appgen-library-page~appgen-page~appgen-setti~ogh9jurw-Ccxu2qV_.js`
   - Archive entry: `recovered/app-asar-extracted/webview/assets/app-initial~app-main~appgen-settings-page~page~appgen-library-page~appgen-page~appgen-setti~ogh9jurw-Ccxu2qV_.js`
@@ -34,4 +34,4 @@ The sidebar imports the shared row component as `uM`. Its outer shell carries `r
 
 Thread lists import the thread orchestration component as `NA`. It attaches the semantic `sidebarThreadRow` data attributes, then delegates the visible row to `Wr`. The visible title is the block-level `[data-thread-title]` span inside a self-stretching, centered flex container; title-only optical corrections should target that span instead of moving the row or action rail.
 
-Only the renderer chunks needed for the sidebar implementation, shared row/section structure, and thread-title ownership chain are retained. The full `app.asar` is 326 MB and contains unrelated runtime and media assets.
+The extracted entries and full `app.asar` remain local inspection artifacts. Only their provenance, hashes, and relevant ownership findings belong in repository history.
