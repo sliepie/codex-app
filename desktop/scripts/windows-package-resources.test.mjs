@@ -1942,6 +1942,8 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   assert.ok(menuSource.includes("top:0!important"));
   assert.ok(menuSource.includes("padding-inline-end:var(--spacing-token-safe-header-right)!important"));
   assert.ok(menuSource.includes("app-shell-floating-left-panel"));
+  assert.ok(menuSource.includes("data-settings-panel-slug"));
+  assert.ok(menuSource.includes("app-shell-header-context-menu-surface"));
   const appendedStyles = [];
   const removedStyleIds = new Set();
   const storageValues = new Map();
@@ -2199,6 +2201,18 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       /padding-inline-end:var\(--spacing-token-safe-header-right\)!important;/,
     );
     assert.match(appendedStyles[1].textContent, /app-shell-floating-left-panel/);
+    assert.match(
+      appendedStyles[1].textContent,
+      /main-surface:not\(:has\(\[data-settings-panel-slug\]\)\)[\s\S]*app-header-tint[\s\S]*:not\(:has\(\[data-testid="app-shell-header-context-menu-surface"\]>\*\)\)[\s\S]*:not\(:has\(\.no-drag\.pointer-events-auto\)\)\{display:none!important;\}/,
+    );
+    assert.match(
+      appendedStyles[1].textContent,
+      /main-surface:not\(:has\(\[data-settings-panel-slug\]\)\):has\(>[\s\S]*app-header-tint[\s\S]*\) \.app-shell-main-content-frame\{--app-shell-main-content-frame-top-offset:0px!important;border-top:0!important;\}/,
+    );
+    assert.doesNotMatch(
+      appendedStyles[1].textContent,
+      /main-surface:has\(\[data-settings-panel-slug\]\)[\s\S]*display:none!important/,
+    );
     settingsSections[0].render(settingsSurface);
     const settingRow = settingsSurface.querySelector(
       '[data-codex-app-ui-setting="hide-windows-menu-bar"]',

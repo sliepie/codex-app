@@ -9,6 +9,12 @@ const LOWER_APP_HEADER_SELECTOR =
   ".app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center.right-0.top-toolbar-sm";
 const LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR =
   `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${LOWER_APP_HEADER_SELECTOR}`;
+const EMPTY_LOWER_APP_HEADER_SELECTOR =
+  `${LOWER_APP_HEADER_SELECTOR}:not(:has([data-testid="app-shell-header-context-menu-surface"]>*)):not(:has(.no-drag.pointer-events-auto))`;
+const EMPTY_LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR =
+  `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] .main-surface:not(:has([data-settings-panel-slug])) ${EMPTY_LOWER_APP_HEADER_SELECTOR}`;
+const EMPTY_LOWER_APP_HEADER_MAIN_FRAME_SELECTOR =
+  `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] .main-surface:not(:has([data-settings-panel-slug])):has(>${EMPTY_LOWER_APP_HEADER_SELECTOR}) .app-shell-main-content-frame`;
 const FLOATING_LEFT_PANEL_SELECTOR =
   '[data-pip-obstacle="app-shell-floating-left-panel"]';
 const FLOATING_LEFT_PANEL_HIDDEN_MENU_SELECTOR =
@@ -16,6 +22,9 @@ const FLOATING_LEFT_PANEL_HIDDEN_MENU_SELECTOR =
 const WINDOWS_MENU_TOP_BAR_DECLARATIONS = "display:none!important;";
 const LOWER_APP_HEADER_DECLARATIONS =
   "top:0!important;padding-inline-end:var(--spacing-token-safe-header-right)!important;";
+const EMPTY_LOWER_APP_HEADER_DECLARATIONS = "display:none!important;";
+const EMPTY_LOWER_APP_HEADER_MAIN_FRAME_DECLARATIONS =
+  "--app-shell-main-content-frame-top-offset:0px!important;border-top:0!important;";
 const FLOATING_LEFT_PANEL_DECLARATIONS = "top:0!important;";
 const WINDOWS_MENU_BAR_STORAGE_KEY = "hideWindowsMenuBar";
 const WINDOWS_MENU_BAR_FALLBACK_STORAGE_KEY =
@@ -45,6 +54,14 @@ const STYLE_RULES = [
     WINDOWS_MENU_TOP_BAR_DECLARATIONS,
   ),
   cssRule(LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR, LOWER_APP_HEADER_DECLARATIONS),
+  cssRule(
+    EMPTY_LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR,
+    EMPTY_LOWER_APP_HEADER_DECLARATIONS,
+  ),
+  cssRule(
+    EMPTY_LOWER_APP_HEADER_MAIN_FRAME_SELECTOR,
+    EMPTY_LOWER_APP_HEADER_MAIN_FRAME_DECLARATIONS,
+  ),
   cssRule(FLOATING_LEFT_PANEL_HIDDEN_MENU_SELECTOR, FLOATING_LEFT_PANEL_DECLARATIONS),
 ];
 
