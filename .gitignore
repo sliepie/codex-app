@@ -33,6 +33,9 @@ desktop/.git/
 desktop/tmp/
 desktop/.tmp-tests/
 docs/linux/parity-captures/
+/docs/upstream/codex-app/**/*.js
+/docs/upstream/codex-app/**/*.js.map
+/docs/upstream/codex-app/**/*.asar
 codex-3-12/
 /bootstrap*.js
 /main-*.js

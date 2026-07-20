@@ -2183,6 +2183,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       uiOverrideCss,
       /span\.flex\.w-4\.shrink-0\{translate:-1px 0!important;\}/,
     );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])>[class~='relative'][class~='z-10'][class~='shrink-0'][class~='flex-col'][class~='gap-2'][class~='px-row-x'] :is(button,div)[class~='relative'][class~='h-[var(--height-token-row)]'][class~='py-row-y'],:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-scroll]>[class~='flex'][class~='shrink-0'][class~='flex-col'][class~='gap-2'] :is(button,div)[class~='relative'][class~='h-[var(--height-token-row)]'][class~='py-row-y']{height:calc(var(--height-token-row) - 4px)!important;}`,
+      ),
+    );
     assert.match(
       appendedStyles[0].textContent,
       /top:calc\(0\.75rem \+ 26px\)!important/,
@@ -2324,7 +2329,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.doesNotMatch(sidebarScrollRuleBody, /\bmask(?:-[a-z-]+)?\s*:/i);
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]){--sidebar-scroll-header-spacing:1px!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]){--sidebar-scroll-header-spacing:1px!important;--codexpp-sidebar-action-column-offset:3px!important;}`,
       ),
     );
     assert.equal(
@@ -2341,7 +2346,17 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row]{height:calc(var(--height-token-row) - 4px)!important;margin-right:-3px!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row]{height:calc(var(--height-token-row) - 4px)!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row] [data-thread-title]{translate:0 -1px!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row] [class~='ml-[3px]'][class~='flex'][class~='items-center'][class~='justify-end'][class~='gap-1']{translate:var(--codexpp-sidebar-action-column-offset) 0!important;}`,
       ),
     );
     assert.ok(
@@ -2356,12 +2371,32 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]{pointer-events:none!important;cursor:default!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]>[class~='flex'][class~='items-center'][class~='gap-1']{translate:var(--codexpp-sidebar-action-column-offset) 0!important;}`,
       ),
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]>[class~="opacity-0"]{display:none!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"]+[class~='overflow-hidden']>[class~='flex'][class~='flex-col'][class~='gap-px'][class~='pt-1']{padding-top:0!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-project-row]>[class~='flex'][class~='max-w-[50%]'][class~='gap-1']{translate:var(--codexpp-sidebar-action-column-offset) 0!important;align-items:center!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]{pointer-events:none!important;cursor:default!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"]) [data-app-action-sidebar-section-toggle]{translate:-1px 0!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]>[class~="opacity-0"]{display:none!important;}`,
       ),
     );
     assert.ok(
@@ -2421,11 +2456,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     const usageLinkHideRule = uiCssRules.find(
       ({ selector, declarations }) =>
         declarations === "display:none!important;" &&
-        selector.includes('a[href="https://openai.com/chatgpt/pricing"]'),
+        selector.includes('a[href*="highlight_plan="][href$="#pricing"]'),
     );
     assert.ok(usageLinkHideRule);
     assert.deepEqual(usageLinkHideRule.selector.split(","), [
-      String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href="https://openai.com/chatgpt/pricing"]`,
+      String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href*="highlight_plan="][href$="#pricing"]`,
       String.raw`.flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\.5.py-1)>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
     ]);
     assert.doesNotMatch(usageLinkHideRule.selector, /nth-last-child|\+\*\+\*|M16\.834/);

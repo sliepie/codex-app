@@ -20,6 +20,8 @@ const sidebarPixelTargets =
   "function Sidebar(){let A=C.formatMessage({id:`sidebarElectron.recentChats`,defaultMessage:`Chats`}),rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,className:`-translate-x-px`,itemClassName:`after:block after:h-px after:content-[''] last:after:hidden`,itemWrapper:ke?Tg:void 0,emptyState:(0,$.jsx)(Y,{id:`sidebarElectron.noRecentChats`,defaultMessage:`No chats`,description:`Empty state for projectless chats in the sidebar`}),emptyStateClassName:`text-token-description-foreground p-2 text-base opacity-50`,rowOptions:{hideRemoteHostEnvIcon:!1,showPinActionOnHover:!0,getSectionContextMenuItems:Kt}}),ar=bt?(0,$.jsx)(`div`,{className:`px-row-x`,...ne.sidebarSection({collapsed:At.chats,heading:`Chats`}),children:(0,$.jsx)(Zd,{title:rr})}):null;return[rr,ir,ar]}function Row(){return(0,$.jsx)(L_,{conversationId:N,isAutomationRun:i,hasPendingChildApproval:c,isActive:u,forceLoadingIndicator:t&&l,className:s?`opacity-50`:void 0,rowContentClassName:Dc(t&&(D?`ml-10`:`ml-5`),g&&`pr-3 group-focus-within:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)] group-hover:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)]`),envIconLocation:`end`,dataAttributes:ne.sidebarThreadRow({kind:`local`,title:H})})}function vy(){let C=(0,$.jsx)(`div`,{className:`min-w-0 flex-1`,children:(0,$.jsx)(cn,{triggerButton:(0,$.jsx)(Qd,{icon:b,label:x,onClick:yy,trailing:S,iconClassName:`icon-sm`})})});return C}let settingsLabel={id:`codex.profileFooter.signedInFallback`};";
 const projectsSectionTargets =
   "function Projects(){let u=false;return(0,$.jsx)(ProjectGroups,{label:`sidebarElectron.projectsNavLink`,maxGroups:u?void 0:5,showProjectHoverCard:true,showProjectPinAction:true,maxItems:11,maxThreads:5})}function GenericList(){return{maxGroups:G,maxItems:3,maxThreads:2}}";
+const chatsSectionTargets =
+  "function Chats(){let A=false,R=`sidebarElectron.recentChats`,N=`sidebarElectron.newThread`,H=ji.sidebarSection({collapsed:A,heading:`Tasks`});return(0,$.jsx)(Section,{...H,className:`group/chats-section-header`,sectionKind:`chats`,label:R,newThreadLabel:N})}";
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -40,6 +42,10 @@ function createRecoveredFixture() {
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "projects-section-fixture.js"),
     projectsSectionTargets,
+  );
+  writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "chats-section-fixture.js"),
+    chatsSectionTargets,
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "project-hover-card-fixture.js"),
@@ -110,6 +116,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
     [
       "webview/assets",
       "webview/assets/projects-section-fixture.js",
+      "webview/assets/chats-section-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/primary-runtime-installer-fixture.js",
       ".vite/build/main-fixture.js",
@@ -223,6 +230,75 @@ test("fails without changing a drifted sidebar project limit target", () => {
   assertRequiredPatchFailure(result, reportPath, "raise sidebar project limit");
 
   assert.equal(fs.readFileSync(projectsPath, "utf8"), driftedSource);
+});
+
+test("normalizes the obsolete Tasks sidebar heading marker to Chats", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const chatsPath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "chats-section-fixture.js",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const source = fs.readFileSync(chatsPath, "utf8");
+  assert.match(source, /sidebarSection\(\{collapsed:A,heading:`Chats`\}\)/);
+  assert.doesNotMatch(source, /sidebarSection\(\{collapsed:A,heading:`Tasks`\}\)/);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (candidate) => candidate.name === "normalize sidebar Chats heading marker",
+  );
+  assert.equal(patch?.status, "applied");
+  assert.equal(patch?.file, "webview/assets/chats-section-fixture.js");
+});
+
+test("accepts an upstream-native Chats sidebar heading marker", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const chatsPath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "chats-section-fixture.js",
+  );
+  fs.writeFileSync(
+    chatsPath,
+    fs.readFileSync(chatsPath, "utf8").replace("heading:`Tasks`", "heading:`Chats`"),
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (candidate) => candidate.name === "normalize sidebar Chats heading marker",
+  );
+  assert.equal(patch?.status, "already-applied");
+});
+
+test("fails without changing a drifted sidebar Chats heading marker", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const chatsPath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "chats-section-fixture.js",
+  );
+  const driftedSource = fs
+    .readFileSync(chatsPath, "utf8")
+    .replace("heading:`Tasks`", "heading:`Recent`");
+  fs.writeFileSync(chatsPath, driftedSource, "utf8");
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assertRequiredPatchFailure(result, reportPath, "normalize sidebar Chats heading marker");
+  assert.equal(fs.readFileSync(chatsPath, "utf8"), driftedSource);
 });
 
 test("routes Windows ARM64 primary runtime manifest checks to GitHub Releases", () => {
@@ -484,7 +560,7 @@ test("patches non-feature self-signed Windows bundle changes", () => {
     /BrowserWindow\(\{icon:process\.platform===`win32`\?require\("node:path"\)\.join\(process\.resourcesPath,`icon\.ico`\):void 0,width:b/,
   );
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 6);
+  assert.equal(report.patches.length, 7);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -592,6 +668,7 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "projects-section-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "chats-section-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "product-text-fixture.js"),
@@ -608,6 +685,6 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 6);
+  assert.equal(report.patches.length, 7);
   assert.ok(report.patches.every((patch) => patch.status === "already-applied"));
 });

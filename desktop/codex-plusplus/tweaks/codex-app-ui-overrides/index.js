@@ -1,10 +1,13 @@
 const STYLE_ID = "codex-app-ui-overrides-style";
 
 const HIDDEN_DISPLAY_DECLARATIONS = "display:none!important;";
+const USAGE_MENU_CONTENT_CLASS_SELECTOR = ".flex.flex-col.text-sm";
+const USAGE_MENU_RATE_ROWS_CLASS_SELECTOR =
+  ".grid.items-center.gap-y-1\\.5.py-1";
 const USAGE_MENU_CONTENT_SELECTOR =
-  ".flex.flex-col.text-sm:has(>.grid.items-center.gap-y-1\\.5.py-1)";
+  `${USAGE_MENU_CONTENT_CLASS_SELECTOR}:has(>${USAGE_MENU_RATE_ROWS_CLASS_SELECTOR})`;
 const USAGE_MENU_RATE_ROWS_SELECTOR =
-  `${USAGE_MENU_CONTENT_SELECTOR}>.grid.items-center.gap-y-1\\.5.py-1`;
+  `${USAGE_MENU_CONTENT_SELECTOR}>${USAGE_MENU_RATE_ROWS_CLASS_SELECTOR}`;
 const USAGE_MENU_RATE_LABEL_SELECTOR =
   `${USAGE_MENU_RATE_ROWS_SELECTOR}>span.font-medium`;
 const USAGE_MENU_RATE_ROWS_DECLARATIONS =
@@ -19,21 +22,27 @@ const INVITE_FRIEND_MENU_ITEM_SELECTOR =
   ":where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.0368 1.69459'])";
 const PET_MENU_ITEM_SELECTOR =
   ":where([role='menu'],[data-radix-popper-content-wrapper]) [role='menuitem']:has(svg path[d^='M12.8124 13.516'])";
+const PROFILE_MENU_IDENTITY_SELECTOR =
+  "[role='menuitem'] svg path[d^='M10.6391 1.67517']";
 const PROFILE_MENU_SELECTOR =
-  ":where([role='menu']):has([role='menuitem'] svg path[d^='M10.6391 1.67517'])";
+  `:where([role='menu']):has(${PROFILE_MENU_IDENTITY_SELECTOR})`;
 const PROFILE_MENU_DECLARATIONS =
   "width:calc(var(--radix-dropdown-menu-trigger-width,var(--radix-popper-anchor-width)) - 2px)!important;";
-const PROFILE_MENU_EXPANDED_SELECTOR =
-  `[data-radix-popper-content-wrapper]:has(${PROFILE_MENU_SELECTOR} ${USAGE_MENU_CONTENT_SELECTOR})`;
-const PROFILE_MENU_EXPANDED_DECLARATIONS = "translate:0 -58px!important;";
 const SIDEBAR_ROOT_SELECTOR =
   ':where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading])';
 const SIDEBAR_ROOT_DECLARATIONS =
-  "--sidebar-scroll-header-spacing:1px!important;";
+  "--sidebar-scroll-header-spacing:1px!important;--codexpp-sidebar-action-column-offset:3px!important;";
 const SIDEBAR_COMPACT_THREAD_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-thread-row]`;
 const SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS =
-  "height:calc(var(--height-token-row) - 4px)!important;margin-right:-3px!important;";
+  "height:calc(var(--height-token-row) - 4px)!important;";
+const SIDEBAR_THREAD_TITLE_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR} [data-thread-title]`;
+const SIDEBAR_THREAD_TITLE_DECLARATIONS = "translate:0 -1px!important;";
+const SIDEBAR_THREAD_ROW_CONTROLS_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR} [class~='ml-[3px]'][class~='flex'][class~='items-center'][class~='justify-end'][class~='gap-1']`;
+const SIDEBAR_THREAD_ROW_CONTROLS_DECLARATIONS =
+  "translate:var(--codexpp-sidebar-action-column-offset) 0!important;";
 const SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row]`;
 const SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS =
@@ -50,8 +59,20 @@ const SIDEBAR_PROJECT_TITLE_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row] span.text-fade-truncate.pr-1`;
 const SIDEBAR_PROJECT_TITLE_DECLARATIONS =
   "transform:translateY(-1px)!important;";
-const SIDEBAR_NAV_LEADING_ICON_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is(button,[role='button'])>.flex.min-w-0.items-center.text-base.gap-2>span.flex.w-4.shrink-0`;
+const SIDEBAR_NAV_ROW_SHELL_SELECTOR =
+  ":is(button,div)[class~='relative'][class~='h-[var(--height-token-row)]'][class~='py-row-y']";
+const SIDEBAR_NAV_ROW_SELECTOR = [
+  `${SIDEBAR_ROOT_SELECTOR}>[class~='relative'][class~='z-10'][class~='shrink-0'][class~='flex-col'][class~='gap-2'][class~='px-row-x'] ${SIDEBAR_NAV_ROW_SHELL_SELECTOR}`,
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-scroll]>[class~='flex'][class~='shrink-0'][class~='flex-col'][class~='gap-2'] ${SIDEBAR_NAV_ROW_SHELL_SELECTOR}`,
+];
+const SIDEBAR_NAV_ROW_DECLARATIONS =
+  "height:calc(var(--height-token-row) - 4px)!important;";
+const SIDEBAR_NAV_LEADING_ICON_SELECTOR = SIDEBAR_NAV_ROW_SELECTOR.flatMap(
+  (selector) => [
+    `${selector}>.flex.min-w-0.items-center.text-base.gap-2>span.flex.w-4.shrink-0`,
+    `${selector}>button>.flex.min-w-0.items-center.text-base.gap-2>span.flex.w-4.shrink-0`,
+  ],
+);
 const SIDEBAR_PROJECT_LEADING_ICON_SELECTOR =
   `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}>div:first-child>span:first-child`;
 const SIDEBAR_LEADING_ICON_DECLARATIONS = "translate:-1px 0!important;";
@@ -90,27 +111,30 @@ const SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_DECLARATIONS =
 const SIDEBAR_PROJECT_ROW_CONTROLS_SELECTOR =
   `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}>[class~='flex'][class~='max-w-[50%]'][class~='gap-1']`;
 const SIDEBAR_PROJECT_ROW_CONTROLS_DECLARATIONS =
-  "translate:3px 0!important;align-items:center!important;";
+  "translate:var(--codexpp-sidebar-action-column-offset) 0!important;align-items:center!important;";
 const SIDEBAR_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]`;
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
   "opacity:1!important;pointer-events:auto!important;";
-const SIDEBAR_PROJECTS_SECTION_TITLE_ROW_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading="Projects"] [class~="group/nav-section-title"]`;
-const SIDEBAR_PROJECTS_SECTION_TITLE_ROW_DECLARATIONS =
-  "padding-right:0!important;";
-const SIDEBAR_PROJECTS_SECTION_ACTIONS_SELECTOR =
-  `${SIDEBAR_PROJECTS_SECTION_TITLE_ROW_SELECTOR}>[class~='flex'][class~='shrink-0'][class~='items-center'][class~='gap-1']`;
-const SIDEBAR_PROJECTS_SECTION_ACTIONS_DECLARATIONS =
-  "translate:1px 0!important;";
-const SIDEBAR_PROJECTS_SECTION_TITLE_SELECTOR =
-  `${SIDEBAR_PROJECTS_SECTION_TITLE_ROW_SELECTOR}>[class~='min-w-0'][class~='flex-1'][class~='font-medium']`;
-const SIDEBAR_PROJECTS_SECTION_TITLE_DECLARATIONS =
-  "color:var(--color-token-description-foreground)!important;font-weight:400!important;opacity:1!important;";
+// "Tasks" keeps installed packages from before the build-time Chats normalization compatible.
+const SIDEBAR_PRIMARY_SECTION_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])`;
+const SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR =
+  `${SIDEBAR_PRIMARY_SECTION_SELECTOR}>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"]`;
+const SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR =
+  `${SIDEBAR_PRIMARY_SECTION_TITLE_ROW_SELECTOR} [class~="pointer-events-none"][class~="opacity-0"]>[class~='flex'][class~='items-center'][class~='gap-1']`;
+const SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS =
+  "translate:var(--codexpp-sidebar-action-column-offset) 0!important;";
+const SIDEBAR_SECTION_CONTENT_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"]+[class~='overflow-hidden']>[class~='flex'][class~='flex-col'][class~='gap-px'][class~='pt-1']`;
+const SIDEBAR_SECTION_CONTENT_DECLARATIONS = "padding-top:0!important;";
 const SIDEBAR_SECTION_TOGGLE_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]`;
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]`;
 const SIDEBAR_SECTION_TOGGLE_DECLARATIONS =
   "pointer-events:none!important;cursor:default!important;";
+const SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"]) [data-app-action-sidebar-section-toggle]`;
+const SIDEBAR_OFFSET_SECTION_TITLE_DECLARATIONS = "translate:-1px 0!important;";
 const SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR =
   `${SIDEBAR_SECTION_TOGGLE_SELECTOR}>[class~="opacity-0"]`;
 const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
@@ -150,13 +174,14 @@ const BASE_STYLE_RULES = [
   cssRule(INVITE_FRIEND_MENU_ITEM_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(PET_MENU_ITEM_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(PROFILE_MENU_SELECTOR, PROFILE_MENU_DECLARATIONS),
-  cssRule(PROFILE_MENU_EXPANDED_SELECTOR, PROFILE_MENU_EXPANDED_DECLARATIONS),
 ];
 
 const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_ROOT_SELECTOR, SIDEBAR_ROOT_DECLARATIONS),
   cssRule(SIDEBAR_SCROLL_SELECTOR, SIDEBAR_SCROLL_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_THREAD_ROW_SELECTOR, SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS),
+  cssRule(SIDEBAR_THREAD_TITLE_SELECTOR, SIDEBAR_THREAD_TITLE_DECLARATIONS),
+  cssRule(SIDEBAR_THREAD_ROW_CONTROLS_SELECTOR, SIDEBAR_THREAD_ROW_CONTROLS_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR, SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_PROJECT_CONTENT_SELECTOR, SIDEBAR_COMPACT_PROJECT_CONTENT_DECLARATIONS),
   cssRule(
@@ -164,6 +189,7 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
     SIDEBAR_PROJECT_CONTENT_WITH_SHOW_MORE_DECLARATIONS,
   ),
   cssRule(SIDEBAR_PROJECT_TITLE_SELECTOR, SIDEBAR_PROJECT_TITLE_DECLARATIONS),
+  cssRule(SIDEBAR_NAV_ROW_SELECTOR, SIDEBAR_NAV_ROW_DECLARATIONS),
   cssRule(SIDEBAR_NAV_LEADING_ICON_SELECTOR, SIDEBAR_LEADING_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_LEADING_ICON_SELECTOR, SIDEBAR_LEADING_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_ACTION_SELECTOR, SIDEBAR_PROJECT_ROW_ACTION_DECLARATIONS),
@@ -173,10 +199,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_SELECTOR, SIDEBAR_PROJECT_ROW_MENU_ALIGNMENT_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_CONTROLS_SELECTOR, SIDEBAR_PROJECT_ROW_CONTROLS_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_ACTIONS_SELECTOR, SIDEBAR_SECTION_ACTIONS_DECLARATIONS),
-  cssRule(SIDEBAR_PROJECTS_SECTION_TITLE_ROW_SELECTOR, SIDEBAR_PROJECTS_SECTION_TITLE_ROW_DECLARATIONS),
-  cssRule(SIDEBAR_PROJECTS_SECTION_ACTIONS_SELECTOR, SIDEBAR_PROJECTS_SECTION_ACTIONS_DECLARATIONS),
-  cssRule(SIDEBAR_PROJECTS_SECTION_TITLE_SELECTOR, SIDEBAR_PROJECTS_SECTION_TITLE_DECLARATIONS),
+  cssRule(SIDEBAR_PRIMARY_SECTION_ACTIONS_SELECTOR, SIDEBAR_PRIMARY_SECTION_ACTIONS_DECLARATIONS),
+  cssRule(SIDEBAR_SECTION_CONTENT_SELECTOR, SIDEBAR_SECTION_CONTENT_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_SELECTOR, SIDEBAR_SECTION_TOGGLE_DECLARATIONS),
+  cssRule(SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR, SIDEBAR_OFFSET_SECTION_TITLE_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
 ];
 const IMAGE_PREVIEW_STYLE_RULES = [
@@ -247,7 +273,7 @@ const USAGE_MENU_STYLE_RULES = [
   cssRule(USAGE_MENU_RESET_ACTION_SELECTOR, USAGE_MENU_RESET_ACTION_DECLARATIONS),
   cssRule(
     [
-      `${USAGE_MENU_CONTENT_SELECTOR}>a[href="https://openai.com/chatgpt/pricing"]`,
+      `${USAGE_MENU_CONTENT_SELECTOR}>a[href*="highlight_plan="][href$="#pricing"]`,
       `${USAGE_MENU_CONTENT_SELECTOR}>a[href^="https://help.openai.com/en/articles/11369540-using-codex"]`,
     ],
     USAGE_MENU_LINK_DECLARATIONS,
