@@ -2344,7 +2344,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.doesNotMatch(sidebarScrollRuleBody, /\bmask(?:-[a-z-]+)?\s*:/i);
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]){--sidebar-scroll-header-spacing:1px!important;--codexpp-sidebar-action-column-offset:3px!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]){--sidebar-scroll-header-spacing:1px!important;}`,
       ),
     );
     assert.equal(
@@ -2371,7 +2371,17 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row] [class~='ml-[3px]'][class~='flex'][class~='items-center'][class~='justify-end'][class~='gap-1']{translate:var(--codexpp-sidebar-action-column-offset) 0!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']{opacity:1!important;visibility:visible!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row]:is(:hover,:focus-within):has([class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']) [class~='flex'][class~='min-w-[24px]'][class~='items-center'][class~='justify-end'][class~='gap-2'][class~='overflow-hidden']:has(>[data-hover-card-open-immediately]){display:none!important;}`,
+      ),
+    );
+    assert.ok(
+      uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row]:has([class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']) [class~='flex'][class~='min-w-0'][class~='flex-1'][class~='items-center'][class~='gap-2']:has(>[data-thread-title-trigger]){padding-right:52px!important;}`,
       ),
     );
     assert.ok(
@@ -2381,12 +2391,7 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]{opacity:1!important;pointer-events:auto!important;}`,
-      ),
-    );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]>[class~='flex'][class~='items-center'][class~='gap-1']{translate:var(--codexpp-sidebar-action-column-offset) 0!important;}`,
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-project-row] [data-sidebar-project-drop-zone='project-icon'] > :first-child{translate:-1px 0!important;}`,
       ),
     );
     assert.ok(
@@ -2394,11 +2399,8 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"]+[class~='overflow-hidden']>[class~='flex'][class~='flex-col'][class~='gap-px'][class~='pt-1']{padding-top:0!important;}`,
       ),
     );
-    assert.ok(
-      uiOverrideCss.includes(
-        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-project-row]>[class~='flex'][class~='max-w-[50%]'][class~='gap-1']{translate:var(--codexpp-sidebar-action-column-offset) 0!important;align-items:center!important;}`,
-      ),
-    );
+    assert.doesNotMatch(uiSource, /SIDEBAR_(?:ACTION_COLUMN|THREAD_ROW_CONTROLS|PROJECT_ROW_ACTION|PROJECT_ROW_MENU|SECTION_ACTIONS|PRIMARY_SECTION_ACTIONS)/);
+    assert.doesNotMatch(uiOverrideCss, /codexpp-sidebar-action-column-offset/);
     assert.ok(
       uiOverrideCss.includes(
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]{pointer-events:none!important;cursor:default!important;}`,
