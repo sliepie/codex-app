@@ -1942,8 +1942,9 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   assert.ok(menuSource.includes("top:0!important"));
   assert.ok(menuSource.includes("padding-inline-end:var(--spacing-token-safe-header-right)!important"));
   assert.ok(menuSource.includes("app-shell-floating-left-panel"));
-  assert.ok(menuSource.includes("data-settings-panel-slug"));
+  assert.ok(menuSource.includes('button[aria-haspopup="menu"][aria-expanded]'));
   assert.ok(menuSource.includes("app-shell-header-context-menu-surface"));
+  assert.doesNotMatch(menuSource, /data-settings-panel-slug/);
   const appendedStyles = [];
   const removedStyleIds = new Set();
   const storageValues = new Map();
@@ -2194,7 +2195,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
     assert.match(
       appendedStyles[1].textContent,
-      /application-menu-top-bar[\s\S]*display:none!important;/,
+      /application-menu-top-bar\{position:fixed!important;inset-inline-start:0!important;top:0!important;width:max-content!important;padding-inline-end:0!important;\}/,
+    );
+    assert.match(
+      appendedStyles[1].textContent,
+      /application-menu-top-bar>div:has\(>button\[aria-haspopup="menu"\]\[aria-expanded\]\)\{display:none!important;\}/,
     );
     assert.match(
       appendedStyles[1].textContent,
@@ -2203,15 +2208,15 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.match(appendedStyles[1].textContent, /app-shell-floating-left-panel/);
     assert.match(
       appendedStyles[1].textContent,
-      /main-surface:not\(:has\(\[data-settings-panel-slug\]\)\)[\s\S]*app-header-tint[\s\S]*:not\(:has\(\[data-testid="app-shell-header-context-menu-surface"\]>\*\)\)[\s\S]*:not\(:has\(\.no-drag\.pointer-events-auto\)\)\{display:none!important;\}/,
+      /main\.main-surface>[\s\S]*app-header-tint[\s\S]*:not\(:has\(\[data-testid="app-shell-header-context-menu-surface"\]>\*\)\)[\s\S]*:not\(:has\(\.no-drag\.pointer-events-auto\)\)\{display:none!important;\}/,
     );
     assert.match(
       appendedStyles[1].textContent,
-      /main-surface:not\(:has\(\[data-settings-panel-slug\]\)\):has\(>[\s\S]*app-header-tint[\s\S]*\) \.app-shell-main-content-frame\{--app-shell-main-content-frame-top-offset:0px!important;border-top:0!important;\}/,
+      /main\.main-surface:has\(>[\s\S]*app-header-tint[\s\S]*\) \.app-shell-main-content-frame\{--app-shell-main-content-frame-top-offset:0px!important;border-top:0!important;\}/,
     );
     assert.doesNotMatch(
       appendedStyles[1].textContent,
-      /main-surface:has\(\[data-settings-panel-slug\]\)[\s\S]*display:none!important/,
+      /data-settings-panel-slug/,
     );
     settingsSections[0].render(settingsSurface);
     const settingRow = settingsSurface.querySelector(
