@@ -43,6 +43,8 @@ const SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR =
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within) [class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']`;
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
+const SIDEBAR_THREAD_ROW_INLINE_BADGES_WITH_ACTIONS_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within):has([class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']) [class~='flex'][class~='min-w-[24px]'][class~='items-center'][class~='justify-end'][class~='gap-2'][class~='overflow-hidden']:has(>[data-hover-card-open-immediately])`;
 const SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_SELECTOR =
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:has([class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']) [class~='flex'][class~='min-w-0'][class~='flex-1'][class~='items-center'][class~='gap-2']:has(>[data-thread-title-trigger])`;
 const SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_DECLARATIONS =
@@ -139,6 +141,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(
     SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR,
     SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_THREAD_ROW_INLINE_BADGES_WITH_ACTIONS_SELECTOR,
+    HIDDEN_DISPLAY_DECLARATIONS,
   ),
   cssRule(
     SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_SELECTOR,
