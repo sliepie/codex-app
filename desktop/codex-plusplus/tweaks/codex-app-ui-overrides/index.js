@@ -35,10 +35,14 @@ const SIDEBAR_ROOT_DECLARATIONS =
 const SIDEBAR_COMPACT_THREAD_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-thread-row]`;
 const SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS =
-  "height:calc(var(--height-token-row) - 4px)!important;margin-right:calc(0px - var(--codexpp-sidebar-action-column-offset))!important;";
+  "height:calc(var(--height-token-row) - 4px)!important;";
 const SIDEBAR_THREAD_TITLE_SELECTOR =
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR} [data-thread-title]`;
 const SIDEBAR_THREAD_TITLE_DECLARATIONS = "translate:0 -1px!important;";
+const SIDEBAR_THREAD_ROW_CONTROLS_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR} [class~='ml-[3px]'][class~='flex'][class~='items-center'][class~='justify-end'][class~='gap-1']`;
+const SIDEBAR_THREAD_ROW_CONTROLS_DECLARATIONS =
+  "translate:var(--codexpp-sidebar-action-column-offset) 0!important;";
 const SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row]`;
 const SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS =
@@ -177,6 +181,7 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_SCROLL_SELECTOR, SIDEBAR_SCROLL_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_THREAD_ROW_SELECTOR, SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS),
   cssRule(SIDEBAR_THREAD_TITLE_SELECTOR, SIDEBAR_THREAD_TITLE_DECLARATIONS),
+  cssRule(SIDEBAR_THREAD_ROW_CONTROLS_SELECTOR, SIDEBAR_THREAD_ROW_CONTROLS_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR, SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_PROJECT_CONTENT_SELECTOR, SIDEBAR_COMPACT_PROJECT_CONTENT_DECLARATIONS),
   cssRule(
