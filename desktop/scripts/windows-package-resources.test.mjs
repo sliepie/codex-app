@@ -1931,16 +1931,17 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   assert.doesNotMatch(uiSource, /application-menu-top-bar[\s\S]{0,120}display:none!important/);
   assert.doesNotMatch(uiSource, /:has\(\+\.scrollbar-stable/);
   assert.doesNotMatch(uiSource, /:window-inactive[\s\S]{0,160}app-shell-left-panel/);
-  assert.match(
-    uiSource,
-    /app-header-tint\.draggable\.pointer-events-none\.fixed\.z-30[\s\S]*data-testid='app-shell-header-context-menu-surface'[\s\S]*no-drag\.pointer-events-auto/,
-  );
-  assert.match(uiSource, /--app-shell-main-content-frame-top-offset:0px!important;/);
+  assert.doesNotMatch(uiSource, /app-header-tint[\s\S]{0,240}display:none!important/);
+  assert.doesNotMatch(uiSource, /--app-shell-main-content-frame-top-offset:0px!important/);
 
   const menuTweakRoot = path.join(desktopRoot, "codex-plusplus", "tweaks", "codex-app-windows-menu-bar");
   const menuManifest = JSON.parse(fs.readFileSync(path.join(menuTweakRoot, "manifest.json"), "utf8"));
   const menuSource = fs.readFileSync(path.join(menuTweakRoot, menuManifest.main), "utf8");
   assert.doesNotMatch(menuSource, /createTreeWalker|requestAnimationFrame|setTimeout|MutationObserver/);
+  assert.ok(menuSource.includes("application-menu-top-bar"));
+  assert.ok(menuSource.includes("top:0!important"));
+  assert.ok(menuSource.includes("padding-inline-end:var(--spacing-token-safe-header-right)!important"));
+  assert.ok(menuSource.includes("app-shell-floating-left-panel"));
   const appendedStyles = [];
   const removedStyleIds = new Set();
   const storageValues = new Map();
@@ -2188,15 +2189,16 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     assert.equal(settingsSections[0].title, "Windows menu bar");
     assert.equal(appendedStyles.length, 2);
     assert.equal(appendedStyles[0].id, "codex-app-ui-overrides-style");
-    assert.match(
-      appendedStyles[0].textContent,
-      /app-header-tint\.draggable\.pointer-events-none[\s\S]*display:none!important;/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /--app-shell-main-content-frame-top-offset:0px!important;/,
-    );
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
+    assert.match(
+      appendedStyles[1].textContent,
+      /application-menu-top-bar[\s\S]*display:none!important;/,
+    );
+    assert.match(
+      appendedStyles[1].textContent,
+      /padding-inline-end:var\(--spacing-token-safe-header-right\)!important;/,
+    );
+    assert.match(appendedStyles[1].textContent, /app-shell-floating-left-panel/);
     settingsSections[0].render(settingsSurface);
     const settingRow = settingsSurface.querySelector(
       '[data-codex-app-ui-setting="hide-windows-menu-bar"]',

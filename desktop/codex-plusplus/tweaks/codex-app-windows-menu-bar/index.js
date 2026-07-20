@@ -1,12 +1,22 @@
 const STYLE_ID = "codex-app-windows-menu-bar-style";
 
-const WINDOWS_MENU_ROW_SELECTOR =
-  '.group\\/application-menu-top-bar>div:has(>button[aria-haspopup="menu"][aria-expanded])';
+const WINDOWS_MENU_TOP_BAR_SELECTOR = ".group\\/application-menu-top-bar";
 const WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE =
   "data-codex-app-ui-hide-windows-menu-bar";
-const WINDOWS_MENU_ROW_HIDDEN_SELECTOR =
-  `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${WINDOWS_MENU_ROW_SELECTOR}`;
-const WINDOWS_MENU_ROW_DECLARATIONS = "display:none!important;";
+const WINDOWS_MENU_TOP_BAR_HIDDEN_SELECTOR =
+  `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${WINDOWS_MENU_TOP_BAR_SELECTOR}`;
+const LOWER_APP_HEADER_SELECTOR =
+  ".app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center.right-0.top-toolbar-sm";
+const LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR =
+  `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${LOWER_APP_HEADER_SELECTOR}`;
+const FLOATING_LEFT_PANEL_SELECTOR =
+  '[data-pip-obstacle="app-shell-floating-left-panel"]';
+const FLOATING_LEFT_PANEL_HIDDEN_MENU_SELECTOR =
+  `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${FLOATING_LEFT_PANEL_SELECTOR}`;
+const WINDOWS_MENU_TOP_BAR_DECLARATIONS = "display:none!important;";
+const LOWER_APP_HEADER_DECLARATIONS =
+  "top:0!important;padding-inline-end:var(--spacing-token-safe-header-right)!important;";
+const FLOATING_LEFT_PANEL_DECLARATIONS = "top:0!important;";
 const WINDOWS_MENU_BAR_STORAGE_KEY = "hideWindowsMenuBar";
 const WINDOWS_MENU_BAR_FALLBACK_STORAGE_KEY =
   "codex-app-ui-overrides:hideWindowsMenuBar";
@@ -30,7 +40,12 @@ function cssRule(selectors, declarations) {
 }
 
 const STYLE_RULES = [
-  cssRule(WINDOWS_MENU_ROW_HIDDEN_SELECTOR, WINDOWS_MENU_ROW_DECLARATIONS),
+  cssRule(
+    WINDOWS_MENU_TOP_BAR_HIDDEN_SELECTOR,
+    WINDOWS_MENU_TOP_BAR_DECLARATIONS,
+  ),
+  cssRule(LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR, LOWER_APP_HEADER_DECLARATIONS),
+  cssRule(FLOATING_LEFT_PANEL_HIDDEN_MENU_SELECTOR, FLOATING_LEFT_PANEL_DECLARATIONS),
 ];
 
 function installStyle() {
