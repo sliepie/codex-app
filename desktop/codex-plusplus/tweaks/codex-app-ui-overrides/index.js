@@ -43,6 +43,10 @@ const SIDEBAR_THREAD_ROW_CONTROLS_SELECTOR =
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR} [class~='ml-[3px]'][class~='flex'][class~='items-center'][class~='justify-end'][class~='gap-1']`;
 const SIDEBAR_THREAD_ROW_CONTROLS_DECLARATIONS =
   "translate:var(--codexpp-sidebar-action-column-offset) 0!important;";
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within) [class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']`;
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS =
+  "opacity:1!important;visibility:visible!important;";
 const SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row]`;
 const SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS =
@@ -74,7 +78,7 @@ const SIDEBAR_NAV_LEADING_ICON_SELECTOR = SIDEBAR_NAV_ROW_SELECTOR.flatMap(
   ],
 );
 const SIDEBAR_PROJECT_LEADING_ICON_SELECTOR =
-  `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}>div:first-child>span:first-child`;
+  `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR} [data-sidebar-project-drop-zone='project-icon'] > :first-child`;
 const SIDEBAR_LEADING_ICON_DECLARATIONS = "translate:-1px 0!important;";
 const SIDEBAR_ACTIVE_PROJECT_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [role='listitem']:has([data-app-action-sidebar-project-row]):has([data-app-action-sidebar-thread-active='true']) [data-app-action-sidebar-project-row]`;
@@ -182,6 +186,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_COMPACT_THREAD_ROW_SELECTOR, SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS),
   cssRule(SIDEBAR_THREAD_TITLE_SELECTOR, SIDEBAR_THREAD_TITLE_DECLARATIONS),
   cssRule(SIDEBAR_THREAD_ROW_CONTROLS_SELECTOR, SIDEBAR_THREAD_ROW_CONTROLS_DECLARATIONS),
+  cssRule(
+    SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR,
+    SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS,
+  ),
   cssRule(SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR, SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_PROJECT_CONTENT_SELECTOR, SIDEBAR_COMPACT_PROJECT_CONTENT_DECLARATIONS),
   cssRule(
