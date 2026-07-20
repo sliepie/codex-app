@@ -2376,8 +2376,14 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.ok(
       uiOverrideCss.includes(
+        String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [role='listitem']:has([data-app-action-sidebar-project-row]) [data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='min-w-[52px]']{display:none!important;}`,
+      ),
+    );
+    assert.ok(
+      !uiOverrideCss.includes(
         String.raw`:where(aside,nav,[role="navigation"]):has([data-app-action-sidebar-section-heading]) [data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='min-w-[52px]']{display:none!important;}`,
       ),
+      "Pinned and Chats rows must retain OAI's min-w-[52px] hover pin layer",
     );
     assert.ok(
       uiOverrideCss.includes(
