@@ -39,9 +39,6 @@ const SIDEBAR_COMPACT_THREAD_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-thread-row]`;
 const SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS =
   "height:calc(var(--height-token-row) - 4px)!important;";
-const SIDEBAR_THREAD_TITLE_SELECTOR =
-  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR} [data-thread-title]`;
-const SIDEBAR_THREAD_TITLE_DECLARATIONS = "translate:0 -1px!important;";
 const SIDEBAR_INTERACTIVE_THREAD_ROW_SELECTOR =
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within)`;
 
@@ -171,7 +168,16 @@ const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
 const SIDEBAR_SCROLL_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-scroll]`;
 const SIDEBAR_SCROLL_DECLARATIONS =
-  "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:1rem!important;--sidebar-scroll-header-fade-start:0px!important;--sidebar-scroll-footer-edge:100%!important;";
+  "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:4px!important;--sidebar-scroll-header-fade-start:0px!important;--sidebar-scroll-footer-edge:100%!important;";
+const SIDEBAR_LEFT_PANEL_SELECTOR = ".app-shell-left-panel";
+const SIDEBAR_FOOTER_SEPARATOR_PATH =
+  `[aria-hidden='true'][class~='pointer-events-none'][class~='absolute'][class~='inset-x-0'][class~='top-0'][class~='z-10'][class~='h-[0.5px]'][class~='bg-token-foreground/10']`;
+const SIDEBAR_FOOTER_SEPARATOR_SELECTOR =
+  `${SIDEBAR_LEFT_PANEL_SELECTOR} ${SIDEBAR_FOOTER_SEPARATOR_PATH}`;
+const SIDEBAR_PROFILE_TOOLBAR_SELECTOR =
+  `${SIDEBAR_FOOTER_SEPARATOR_SELECTOR}~[class~='flex'][class~='h-toolbar'][class~='items-center'][class~='gap-2'][class~='px-row-x']`;
+const SIDEBAR_PROFILE_TOOLBAR_DECLARATIONS =
+  "height:auto!important;align-items:flex-start!important;padding-top:6px!important;padding-bottom:8px!important;";
 const SIDEBAR_TOP_TRIGGER_SELECTOR =
   ".group\\/application-menu-top-bar [data-app-shell-sidebar-trigger]";
 const SIDEBAR_TOP_TRIGGER_DECLARATIONS =
@@ -196,6 +202,9 @@ const FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR =
   '[data-testid="app-shell-header-context-menu-surface"][aria-hidden="true"]';
 const FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS =
   "visibility:visible!important;";
+const MAIN_SURFACE_SELECTOR = "main.main-surface";
+const MAIN_SURFACE_BOTTOM_LEFT_RADIUS_DECLARATIONS =
+  "border-bottom-left-radius:var(--radius-lg)!important;";
 const RIGHT_PANEL_SELECTOR =
   'aside[data-app-shell-focus-area="right-panel"]';
 const WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE =
@@ -222,8 +231,9 @@ const BASE_STYLE_RULES = [
 const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_ROOT_SELECTOR, SIDEBAR_ROOT_DECLARATIONS),
   cssRule(SIDEBAR_SCROLL_SELECTOR, SIDEBAR_SCROLL_DECLARATIONS),
+  cssRule(SIDEBAR_FOOTER_SEPARATOR_SELECTOR, "opacity:0!important;"),
+  cssRule(SIDEBAR_PROFILE_TOOLBAR_SELECTOR, SIDEBAR_PROFILE_TOOLBAR_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_THREAD_ROW_SELECTOR, SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS),
-  cssRule(SIDEBAR_THREAD_TITLE_SELECTOR, SIDEBAR_THREAD_TITLE_DECLARATIONS),
   cssRule(
     SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR,
     SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS,
@@ -273,6 +283,10 @@ const APP_SHELL_STYLE_RULES = [
   cssRule(
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR,
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS,
+  ),
+  cssRule(
+    MAIN_SURFACE_SELECTOR,
+    MAIN_SURFACE_BOTTOM_LEFT_RADIUS_DECLARATIONS,
   ),
   cssRule(RIGHT_PANEL_HEADER_SPACER_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(
