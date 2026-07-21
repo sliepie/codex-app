@@ -192,6 +192,12 @@ const REMOTE_CONVERSATION_HEADER_ACTIONS_SELECTOR =
   ".draggable.grid.w-full.min-w-0.items-center.gap-x-4.electron\\:h-toolbar.extension\\:py-row-y>.flex.items-center.justify-end.gap-1\\.5>.flex.items-center.gap-0\\.5";
 const REMOTE_CONVERSATION_PR_ACTION_SELECTOR =
   `${REMOTE_CONVERSATION_HEADER_ACTIONS_SELECTOR}>button.shrink-0:last-child`;
+const FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR =
+  '[data-testid="app-shell-header-context-menu-surface"][aria-hidden="true"]';
+const FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS =
+  "visibility:visible!important;";
+const RIGHT_PANEL_HEADER_SPACER_SELECTOR =
+  'aside[data-app-shell-focus-area="right-panel"] [data-testid="right-panel-tab-bar-header-spacer"]';
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -255,11 +261,32 @@ const IMAGE_PREVIEW_STYLE_RULES = [
   ),
 ];
 
+const APP_SHELL_STYLE_RULES = [
+  cssRule(
+    FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR,
+    FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS,
+  ),
+  cssRule(RIGHT_PANEL_HEADER_SPACER_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+];
+
 const REMOTE_CONVERSATION_HEADER_STYLE_RULES = [
   cssRule(REMOTE_CONVERSATION_PR_ACTION_SELECTOR, "order:-1!important;"),
 ];
 
 const SETTINGS_STYLE_RULES = [
+  cssRule(
+    "main.main-surface:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)>.app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center",
+    "display:none!important;",
+  ),
+  cssRule(
+    ".app-shell-main-content-viewport:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)",
+    "--app-shell-main-content-frame-top-offset:0px!important;",
+  ),
+  cssRule(
+    ".app-shell-main-content-frame:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)",
+    "border-top-width:0!important;",
+  ),
+
   cssRule(
     ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*))",
     "display:none!important;",
@@ -313,6 +340,7 @@ const USAGE_MENU_STYLE_RULES = [
 const STYLE_RULES = [
   ...BASE_STYLE_RULES,
   ...SIDEBAR_SCROLL_STYLE_RULES,
+  ...APP_SHELL_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...REMOTE_CONVERSATION_HEADER_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,
