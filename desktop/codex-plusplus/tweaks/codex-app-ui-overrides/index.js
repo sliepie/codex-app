@@ -196,8 +196,16 @@ const FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR =
   '[data-testid="app-shell-header-context-menu-surface"][aria-hidden="true"]';
 const FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS =
   "visibility:visible!important;";
+const RIGHT_PANEL_SELECTOR =
+  'aside[data-app-shell-focus-area="right-panel"]';
+const WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE =
+  "data-codex-app-ui-hide-windows-menu-bar";
 const RIGHT_PANEL_HEADER_SPACER_SELECTOR =
-  'aside[data-app-shell-focus-area="right-panel"] [data-testid="right-panel-tab-bar-header-spacer"]';
+  `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${RIGHT_PANEL_SELECTOR} [data-testid="right-panel-tab-bar-header-spacer"]`;
+const RIGHT_PANEL_TAB_TOOLBAR_SELECTOR =
+  `${RIGHT_PANEL_SELECTOR} [data-app-shell-tabs="true"]>:has(>[data-app-shell-tab-strip-controller])`;
+const RIGHT_PANEL_TAB_TOOLBAR_DECLARATIONS =
+  "border-bottom:1px solid var(--color-token-border)!important;";
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -267,6 +275,10 @@ const APP_SHELL_STYLE_RULES = [
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS,
   ),
   cssRule(RIGHT_PANEL_HEADER_SPACER_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(
+    RIGHT_PANEL_TAB_TOOLBAR_SELECTOR,
+    RIGHT_PANEL_TAB_TOOLBAR_DECLARATIONS,
+  ),
 ];
 
 const REMOTE_CONVERSATION_HEADER_STYLE_RULES = [
