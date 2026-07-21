@@ -93,12 +93,18 @@ const SIDEBAR_PROJECT_TITLE_DECLARATIONS =
   "transform:translateY(-1px)!important;";
 const SIDEBAR_NAV_ROW_SHELL_SELECTOR =
   ":is(button,div)[class~='relative'][class~='h-[var(--height-token-row)]'][class~='py-row-y']";
+const SIDEBAR_PRIMARY_NAV_ROW_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR}>[class~='relative'][class~='z-10'][class~='shrink-0'][class~='flex-col'][class~='gap-2'][class~='px-row-x'] ${SIDEBAR_NAV_ROW_SHELL_SELECTOR}`;
 const SIDEBAR_NAV_ROW_SELECTOR = [
-  `${SIDEBAR_ROOT_SELECTOR}>[class~='relative'][class~='z-10'][class~='shrink-0'][class~='flex-col'][class~='gap-2'][class~='px-row-x'] ${SIDEBAR_NAV_ROW_SHELL_SELECTOR}`,
+  SIDEBAR_PRIMARY_NAV_ROW_SELECTOR,
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-scroll]>[class~='flex'][class~='shrink-0'][class~='flex-col'][class~='gap-2'] ${SIDEBAR_NAV_ROW_SHELL_SELECTOR}`,
 ];
 const SIDEBAR_NAV_ROW_DECLARATIONS =
   "height:calc(var(--height-token-row) - 4px)!important;";
+const SIDEBAR_PRIMARY_NAV_ACTION_SELECTOR =
+  `${SIDEBAR_PRIMARY_NAV_ROW_SELECTOR}[class~='group']:is(:hover,:focus-within)>[class~='pointer-events-none'][class~='shrink-0'][class~='opacity-0']`;
+const SIDEBAR_PRIMARY_NAV_ACTION_DECLARATIONS =
+  "opacity:1!important;pointer-events:auto!important;";
 const SIDEBAR_NAV_LEADING_ICON_SELECTOR = SIDEBAR_NAV_ROW_SELECTOR.flatMap(
   (selector) => [
     `${selector}>.flex.min-w-0.items-center.text-base.gap-2>span.flex.w-4.shrink-0`,
@@ -186,6 +192,20 @@ const REMOTE_CONVERSATION_HEADER_ACTIONS_SELECTOR =
   ".draggable.grid.w-full.min-w-0.items-center.gap-x-4.electron\\:h-toolbar.extension\\:py-row-y>.flex.items-center.justify-end.gap-1\\.5>.flex.items-center.gap-0\\.5";
 const REMOTE_CONVERSATION_PR_ACTION_SELECTOR =
   `${REMOTE_CONVERSATION_HEADER_ACTIONS_SELECTOR}>button.shrink-0:last-child`;
+const FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR =
+  '[data-testid="app-shell-header-context-menu-surface"][aria-hidden="true"]';
+const FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS =
+  "visibility:visible!important;";
+const RIGHT_PANEL_SELECTOR =
+  'aside[data-app-shell-focus-area="right-panel"]';
+const WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE =
+  "data-codex-app-ui-hide-windows-menu-bar";
+const RIGHT_PANEL_HEADER_SPACER_SELECTOR =
+  `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${RIGHT_PANEL_SELECTOR} [data-testid="right-panel-tab-bar-header-spacer"]`;
+const RIGHT_PANEL_TAB_TOOLBAR_SELECTOR =
+  `${RIGHT_PANEL_SELECTOR} [data-app-shell-tabs="true"]>:has(>[data-app-shell-tab-strip-controller])`;
+const RIGHT_PANEL_TAB_TOOLBAR_DECLARATIONS =
+  "border-bottom:1px solid var(--color-token-border)!important;";
 function cssRule(selectors, declarations) {
   const selector = Array.isArray(selectors) ? selectors.join(",") : selectors;
   return `${selector}{${declarations}}`;
@@ -228,6 +248,7 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   ),
   cssRule(SIDEBAR_PROJECT_TITLE_SELECTOR, SIDEBAR_PROJECT_TITLE_DECLARATIONS),
   cssRule(SIDEBAR_NAV_ROW_SELECTOR, SIDEBAR_NAV_ROW_DECLARATIONS),
+  cssRule(SIDEBAR_PRIMARY_NAV_ACTION_SELECTOR, SIDEBAR_PRIMARY_NAV_ACTION_DECLARATIONS),
   cssRule(SIDEBAR_NAV_LEADING_ICON_SELECTOR, SIDEBAR_LEADING_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_LEADING_ICON_SELECTOR, SIDEBAR_LEADING_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_ACTION_SELECTOR, SIDEBAR_PROJECT_ROW_ACTION_DECLARATIONS),
@@ -245,6 +266,18 @@ const IMAGE_PREVIEW_STYLE_RULES = [
   cssRule(
     ".absolute.top-3.right-3.z-10.flex.items-center.gap-2",
     "top:calc(0.75rem + 26px)!important;",
+  ),
+];
+
+const APP_SHELL_STYLE_RULES = [
+  cssRule(
+    FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR,
+    FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS,
+  ),
+  cssRule(RIGHT_PANEL_HEADER_SPACER_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(
+    RIGHT_PANEL_TAB_TOOLBAR_SELECTOR,
+    RIGHT_PANEL_TAB_TOOLBAR_DECLARATIONS,
   ),
 ];
 
@@ -319,6 +352,7 @@ const USAGE_MENU_STYLE_RULES = [
 const STYLE_RULES = [
   ...BASE_STYLE_RULES,
   ...SIDEBAR_SCROLL_STYLE_RULES,
+  ...APP_SHELL_STYLE_RULES,
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...REMOTE_CONVERSATION_HEADER_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,

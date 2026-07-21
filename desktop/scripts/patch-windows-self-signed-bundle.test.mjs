@@ -121,6 +121,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
       ".vite/build/primary-runtime-installer-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
+      ".vite/build/main-fixture.js",
     ],
   );
   assert.ok(report.patches.every((patch) => !path.isAbsolute(patch.file)));
@@ -549,7 +550,7 @@ test("patches non-feature self-signed Windows bundle changes", () => {
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
-    /vM=36/,
+    /vM=46/,
   );
   assert.match(
     fs.readFileSync(path.join(recoveredRoot, ".vite", "build", "main-fixture.js"), "utf8"),
@@ -560,7 +561,7 @@ test("patches non-feature self-signed Windows bundle changes", () => {
     /BrowserWindow\(\{icon:process\.platform===`win32`\?require\("node:path"\)\.join\(process\.resourcesPath,`icon\.ico`\):void 0,width:b/,
   );
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 7);
+  assert.equal(report.patches.length, 8);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -685,6 +686,6 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 7);
+  assert.equal(report.patches.length, 8);
   assert.ok(report.patches.every((patch) => patch.status === "already-applied"));
 });

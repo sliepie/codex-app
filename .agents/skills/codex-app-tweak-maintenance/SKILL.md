@@ -1,6 +1,6 @@
 ---
 name: codex-app-tweak-maintenance
-description: Trace and maintain Codex++ UI tweaks in sliepie/codex-app. Use for bundled tweak changes, selector drift, upstream renderer inspection, manifest or focused-test updates, installed-copy refreshes, and PR feedback under desktop/codex-plusplus/tweaks.
+description: Trace and maintain Codex++ UI tweaks in sliepie/codex-app. Use for bundled tweak changes, selector drift, upstream renderer inspection, manifest updates, installed-copy refreshes, user-owned visual validation, and PR feedback under desktop/codex-plusplus/tweaks.
 ---
 
 # Codex App Tweak Maintenance
@@ -41,24 +41,22 @@ Complete this step only when current source proves the property owner, selector 
 4. Compare the bundled manifest with `origin/main`:
    - if the branch still has main's version, apply the next version required by `desktop/codex-plusplus/tweaks/README.md`;
    - if the current PR already contains that bump, keep it for follow-up commits.
-5. Update the exact focused serialization/assertion coverage in `desktop/scripts/windows-package-resources.test.mjs`.
+5. Do not add CSS serialization, selector-string, or rendered-shape assertions unless the user explicitly requests tests. Only change an existing test when the implementation otherwise makes that test fail.
 
-Complete this step only when the diff contains the narrow behavior change, one correct PR-level manifest bump when required, focused coverage, and any newly required upstream evidence.
+Complete this step only when the diff contains the narrow behavior change, one correct PR-level manifest bump when required, and any newly required upstream evidence.
 
-## 4. Verify
+## 4. Prepare the local candidate
 
-1. Run:
+1. Run only the cheap structural check during UI iteration:
 
    ```powershell
-   node --test desktop/scripts/windows-package-resources.test.mjs
    git diff --check
    ```
 
-   If `node` is unavailable, locate the repository's bundled Node runtime and run the same test.
-2. Inspect the generated CSS assertion and the final diff. Reconfirm that the selector targets the source-proven owner in every relevant variant.
-3. Treat tests as serialization and packaging proof, not rendered-DOM proof.
+2. Inspect the final diff and reconfirm that the selector targets the source-proven owner.
+3. Do not run UI Automation, screenshots, browser automation, test suites, builds, CI, or other visual checks unless the user explicitly requests them. The user owns visual validation for tweak iterations.
 
-Complete this step only when the focused suite passes, the diff is clean, and each selector claim is backed by current bundle/component evidence.
+Complete this step when the local diff is clean and each selector claim is backed by current bundle/component evidence.
 
 ## 5. Sync the installed copy
 
@@ -73,13 +71,17 @@ When discovery is ambiguous, pass `-InstalledTweakPath` with the verified target
 
 Verify the repository and installed `index.js` hashes match, confirm the installed manifest version advanced, and tell the user to reload or restart the app because an existing renderer retains its injected stylesheet.
 
-Complete this step only when the installed target, version transition, file parity, and reload requirement are explicit.
+After syncing, stop and ask the user to visually validate the running app. Do not commit, push, edit or create a PR, start a build, run CI, or poll checks until the user explicitly confirms the UI result.
+
+Complete this step only when the installed target, version transition, file parity, reload requirement, and pending user visual gate are explicit.
 
 ## 6. Close the PR loop
+
+Enter this step only after the user explicitly confirms the visual result.
 
 1. Commit and push follow-up work to the existing PR branch.
 2. Recheck that the pushed head matches local `HEAD` and is zero commits behind `origin/main`.
 3. Query live, thread-aware PR review state. Address every safe actionable current comment and still-relevant outdated comment; reply to or resolve threads only when the user asks.
-4. Wait for every required check, including downstream publish jobs, to finish on the exact pushed head.
+4. Take one final required-check snapshot. Do not repeatedly poll or wait for CI unless the user explicitly asks.
 
-Complete the task only when the working tree is clean, the PR is mergeable on the latest base, required checks pass, and no actionable review feedback remains.
+Complete the task when the working tree is clean, the PR is current and mergeable, no actionable review feedback remains, and the latest check state has been reported without polling.

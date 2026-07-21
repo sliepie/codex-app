@@ -850,6 +850,67 @@ function patchWindowsPrimaryBrowserWindowIcon(): SourcePatcher {
   );
 }
 
+function patchWindowsTitleBarOverlayHeight(): SourcePatcher {
+  return (source) => {
+    const overlayHelpers = Array.from(
+      source.matchAll(new RegExp(`titleBarOverlay:(${identifierPattern})\\(`, "g")),
+      (match) => match[1],
+    );
+    const uniqueOverlayHelpers = [...new Set(overlayHelpers)];
+    if (uniqueOverlayHelpers.length !== 1) {
+      return undefined;
+    }
+
+    const helperName = uniqueOverlayHelpers[0];
+    const helperPattern = new RegExp(
+      `function\\s+${escapeRegExp(helperName)}\\([^)]*\\)\\{return\\{([^{}]*)\\}\\}`,
+    );
+    const helperMatch = helperPattern.exec(source);
+    if (!helperMatch?.[1]) {
+      return undefined;
+    }
+
+    const heightMatch = /height:([^,}]+)/.exec(helperMatch[1]);
+    if (!heightMatch?.[1]) {
+      return undefined;
+    }
+
+    const heightExpression = heightMatch[1];
+    if (/\b46\b/.test(heightExpression)) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+    if (/\b36\b/.test(heightExpression)) {
+      return {
+        source: source.replace(helperPattern, (match) => match.replace(/\b36\b/, "46")),
+        status: "applied",
+        matcher: "semantic",
+      };
+    }
+
+    const heightIdentifiers = heightExpression.match(new RegExp(identifierPattern, "g")) ?? [];
+    const uniqueHeightIdentifiers = [...new Set(heightIdentifiers)];
+    const alreadyPatchedConstants = uniqueHeightIdentifiers
+      .map((identifier) => new RegExp(`\\b${escapeRegExp(identifier)}=46\\b`))
+      .filter((pattern) => pattern.test(source));
+    if (alreadyPatchedConstants.length === 1) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+
+    const constants = uniqueHeightIdentifiers
+      .map((identifier) => new RegExp(`\\b${escapeRegExp(identifier)}=36\\b`))
+      .filter((pattern) => pattern.test(source));
+    if (constants.length !== 1) {
+      throw new Error("Could not identify the Windows title bar overlay height constant.");
+    }
+
+    return {
+      source: source.replace(constants[0], (match) => match.replace("36", "46")),
+      status: "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
 function patchMainBundle(recoveredRoot: string): PatchResult[] {
   const filePath = findFile(path.join(recoveredRoot, ".vite", "build"), /^main-.*\.js$/);
 
@@ -874,6 +935,12 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
         alreadyAppliedPatch(windowsPrimaryWindowIconAppliedPattern),
         patchWindowsPrimaryBrowserWindowIcon(),
       ],
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "set Windows title bar overlay height to 46px",
+      [patchWindowsTitleBarOverlayHeight()],
     ),
   ];
 }
