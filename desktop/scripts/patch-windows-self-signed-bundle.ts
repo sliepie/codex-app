@@ -888,7 +888,15 @@ function patchWindowsTitleBarOverlayHeight(): SourcePatcher {
     }
 
     const heightIdentifiers = heightExpression.match(new RegExp(identifierPattern, "g")) ?? [];
-    const constants = [...new Set(heightIdentifiers)]
+    const uniqueHeightIdentifiers = [...new Set(heightIdentifiers)];
+    const alreadyPatchedConstants = uniqueHeightIdentifiers
+      .map((identifier) => new RegExp(`\\b${escapeRegExp(identifier)}=46\\b`))
+      .filter((pattern) => pattern.test(source));
+    if (alreadyPatchedConstants.length === 1) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+
+    const constants = uniqueHeightIdentifiers
       .map((identifier) => new RegExp(`\\b${escapeRegExp(identifier)}=36\\b`))
       .filter((pattern) => pattern.test(source));
     if (constants.length !== 1) {

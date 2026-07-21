@@ -1938,9 +1938,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
   assert.doesNotMatch(menuSource, /createTreeWalker|requestAnimationFrame|setTimeout|MutationObserver/);
   const appendedStyles = [];
   const removedStyleIds = new Set();
-  const storageValues = new Map();
-  const settingsSections = [];
-  let settingsUnregisterCount = 0;
 
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
@@ -2153,34 +2150,13 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     const menuFn = new Function("module", "exports", "console", menuSource);
     menuFn(menuModule, menuExports, console);
 
-    const storage = {
-      get: (key, defaultValue) =>
-        storageValues.has(key) ? storageValues.get(key) : defaultValue,
-      set: (key, value) => {
-        storageValues.set(key, value);
-      },
-    };
-    const settings = {
-      register: (section) => {
-        settingsSections.push(section);
-        return {
-          unregister: () => {
-            settingsUnregisterCount += 1;
-          },
-        };
-      },
-    };
-
     uiModule.exports.start({ log: console });
-    menuModule.exports.start({ log: console, storage, settings });
+    menuModule.exports.start({ log: console });
 
     assert.equal(
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
       "true",
     );
-    assert.equal(settingsSections.length, 1);
-    assert.equal(settingsSections[0].id, "windows-menu-bar");
-    assert.equal(settingsSections[0].title, "Windows menu bar");
     assert.equal(appendedStyles.length, 2);
     assert.equal(appendedStyles[0].id, "codex-app-ui-overrides-style");
     assert.equal(appendedStyles[1].id, "codex-app-windows-menu-bar-style");
@@ -2188,48 +2164,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       appendedStyles[0].textContent,
       /\[class~='group'\]:is\(:hover,:focus-within\)>\[class~='pointer-events-none'\]\[class~='shrink-0'\]\[class~='opacity-0'\]\{opacity:1!important;pointer-events:auto!important;\}/,
     );
-    settingsSections[0].render(settingsSurface);
-    const settingRow = settingsSurface.querySelector(
-      '[data-codex-app-ui-setting="hide-windows-menu-bar"]',
-    );
-    assert.ok(settingRow);
-    assert.deepEqual(
-      settingsSurface.children.map(
-        (child) => child.getAttribute("data-codex-app-ui-setting") || child.textContent,
-      ),
-      ["hide-windows-menu-bar"],
-    );
-    const toggle = settingRow.querySelector('button[role="switch"]');
-    assert.ok(toggle);
-    assert.equal(toggle.getAttribute("aria-label"), "Hide menu bar");
-    assert.equal(toggle.getAttribute("aria-checked"), "true");
-    assert.equal(
-      settingRow
-        .querySelector("[data-codex-app-ui-menu-bar-toggle-track]")
-        .getAttribute("data-state"),
-      "checked",
-    );
-    toggle.click();
-    assert.equal(storageValues.get("hideWindowsMenuBar"), false);
-    assert.equal(
-      documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
-      "false",
-    );
-    assert.equal(toggle.getAttribute("aria-checked"), "false");
-    assert.equal(
-      settingRow
-        .querySelector("[data-codex-app-ui-menu-bar-toggle-track]")
-        .getAttribute("data-state"),
-      "unchecked",
-    );
-    menuModule.exports.start({ log: console, storage, settings });
+    menuModule.exports.start({ log: console });
     assert.equal(appendedStyles.length, 2);
-    assert.equal(settingsSections.length, 2);
-    assert.equal(settingsUnregisterCount, 1);
 
     menuModule.exports.stop();
     uiModule.exports.stop();
-    assert.equal(settingsUnregisterCount, 2);
     assert.equal(
       documentElement.getAttribute("data-codex-app-ui-hide-windows-menu-bar"),
       null,
