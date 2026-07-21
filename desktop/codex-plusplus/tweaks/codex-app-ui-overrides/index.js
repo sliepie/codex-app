@@ -196,6 +196,9 @@ const FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR =
   '[data-testid="app-shell-header-context-menu-surface"][aria-hidden="true"]';
 const FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS =
   "visibility:visible!important;";
+const MAIN_SURFACE_SELECTOR = "main.main-surface";
+const MAIN_SURFACE_BOTTOM_LEFT_RADIUS_DECLARATIONS =
+  "border-bottom-left-radius:var(--radius-lg)!important;";
 const RIGHT_PANEL_SELECTOR =
   'aside[data-app-shell-focus-area="right-panel"]';
 const WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE =
@@ -273,6 +276,10 @@ const APP_SHELL_STYLE_RULES = [
   cssRule(
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR,
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS,
+  ),
+  cssRule(
+    MAIN_SURFACE_SELECTOR,
+    MAIN_SURFACE_BOTTOM_LEFT_RADIUS_DECLARATIONS,
   ),
   cssRule(RIGHT_PANEL_HEADER_SPACER_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(
