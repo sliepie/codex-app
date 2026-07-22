@@ -1,5 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+  browserClientRuntimeBridgeRelativePath,
+  browserClientUsesRuntimeBridge,
+} from "./browser-client-runtime-bridge";
 
 type PackageJson = {
   dependencies?: Record<string, string>;
@@ -413,6 +417,14 @@ export async function verifyBrowserClientRuntime({
   const browserClientPath = path.join(browserPluginRoot, "scripts", "browser-client.mjs");
   if (!fs.existsSync(browserClientPath)) {
     throw new Error(`Missing browser client: ${browserClientPath}`);
+  }
+
+  const browserClientSource = fs.readFileSync(browserClientPath, "utf8");
+  if (browserClientUsesRuntimeBridge(browserClientSource)) {
+    const bridgePath = path.join(browserPluginRoot, browserClientRuntimeBridgeRelativePath);
+    if (!fs.existsSync(bridgePath) || !fs.statSync(bridgePath).isFile()) {
+      throw new Error(`Missing Browser client runtime bridge: ${bridgePath}`);
+    }
   }
 
   const classicLevelRoot = path.join(

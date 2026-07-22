@@ -15,6 +15,7 @@
   "include": [
     "scripts/decode-self-signed-pfx.ts",
     "scripts/build-primary-runtime-win-arm64.ts",
+    "scripts/browser-client-runtime-bridge.ts",
     "scripts/bundled-plugin-windows-payloads.ts",
     "scripts/codex-appcast-feeds.ts",
     "scripts/github-release-assets.ts",

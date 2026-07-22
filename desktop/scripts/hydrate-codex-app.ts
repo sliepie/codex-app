@@ -14,6 +14,11 @@ import {
   openAiBundledMarketplaceNames,
   syncBundledPluginWindowsPayloads,
 } from "./bundled-plugin-windows-payloads";
+import {
+  browserClientRuntimeBridgeRelativePath,
+  browserClientRuntimeBridgeSource,
+  browserClientUsesRuntimeBridge,
+} from "./browser-client-runtime-bridge";
 import { windowsArm64NativeModuleCacheInputPaths } from "./windows-arm64-package-plan";
 
 type Options = {
@@ -308,6 +313,29 @@ function packagedPluginSourcePath(pluginName: string): string {
   return `./plugins/${pluginName}`;
 }
 
+export function ensureBundledBrowserClientRuntimeBridge(destinationPluginRoot: string): void {
+  const browserClientPath = path.join(destinationPluginRoot, "scripts", "browser-client.mjs");
+  if (!fs.existsSync(browserClientPath)) {
+    return;
+  }
+
+  const browserClientSource = fs.readFileSync(browserClientPath, "utf8");
+  if (!browserClientUsesRuntimeBridge(browserClientSource)) {
+    return;
+  }
+
+  const bridgePath = path.join(destinationPluginRoot, browserClientRuntimeBridgeRelativePath);
+  if (fs.existsSync(bridgePath)) {
+    if (!fs.statSync(bridgePath).isFile()) {
+      throw new Error(`Bundled Browser runtime bridge is not a file: ${bridgePath}`);
+    }
+    return;
+  }
+
+  fs.mkdirSync(path.dirname(bridgePath), { recursive: true });
+  fs.writeFileSync(bridgePath, browserClientRuntimeBridgeSource, "utf8");
+  console.log("Added the bundled Browser classic-level runtime bridge.");
+}
 
 function findBundledMarketplaceSource(appResourcesRoot: string): BundledMarketplaceSource {
   const candidates = openAiBundledMarketplaceNames.map((name) => {
@@ -382,6 +410,9 @@ export function syncBundledPluginResources(
 
     const destinationPluginRoot = path.join(destinationMarketplaceRoot, "plugins", pluginName);
     fs.cpSync(sourcePluginRoot, destinationPluginRoot, { recursive: true, force: true });
+    if (pluginName === "browser") {
+      ensureBundledBrowserClientRuntimeBridge(destinationPluginRoot);
+    }
     syncBundledPluginWindowsPayloads(pluginName, destinationPluginRoot, options);
     destinationPlugins.push({
       ...plugin,
@@ -2756,6 +2787,14 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   patchRecoveredCodexMicroService(recoveredRoot);
   pruneWorkLouderPackages(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
+  ensureBundledBrowserClientRuntimeBridge(
+    path.join(
+      bundledPluginsRoot,
+      openAiBundledMarketplaceNames[0],
+      "plugins",
+      "browser",
+    ),
+  );
 
   fs.writeFileSync(
     releaseInfoPath,
