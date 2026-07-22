@@ -16,6 +16,8 @@ const patcherPath = path.join(
 );
 const indexFeatureTargets =
   "var YA=[`apps`,`memories`,`plugins`,`tool_call_mcp_elicitation`,`tool_search`,`tool_suggest`,kr];function QA(){J.dispatchMessage(`electron-desktop-features-changed`,{avatarOverlay:n,ambientSuggestions:r,artifactsPane:!0,browserAgent:a.available,browserAgentAvailable:a.available,browserPane:i,computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,multiWindow:d})}";
+const browserMultiTabFeatureTargets =
+  "var dP,fP,pP,mP,hP,gP=e((()=>{nP=[`owl-feature-enabled`],dP=w(T,()=>({})),fP=d(T,({get:e})=>e(aP,gt).data===!0),pP=fP,mP=p(T,(e,{get:t})=>t(dP)[e]??[])}));function TP(e,t){t.captureBrowserUseSessionRoute({...e.get(pP)===!0?{multiTabBrowserUseEnabled:!0}:{}})}const routeMessage=`browser-use-session-route-capture`;";
 const sidebarPixelTargets =
   "function Sidebar(){let A=C.formatMessage({id:`sidebarElectron.recentChats`,defaultMessage:`Chats`}),rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,className:`-translate-x-px`,itemClassName:`after:block after:h-px after:content-[''] last:after:hidden`,itemWrapper:ke?Tg:void 0,emptyState:(0,$.jsx)(Y,{id:`sidebarElectron.noRecentChats`,defaultMessage:`No chats`,description:`Empty state for projectless chats in the sidebar`}),emptyStateClassName:`text-token-description-foreground p-2 text-base opacity-50`,rowOptions:{hideRemoteHostEnvIcon:!1,showPinActionOnHover:!0,getSectionContextMenuItems:Kt}}),ar=bt?(0,$.jsx)(`div`,{className:`px-row-x`,...ne.sidebarSection({collapsed:At.chats,heading:`Chats`}),children:(0,$.jsx)(Zd,{title:rr})}):null;return[rr,ir,ar]}function Row(){return(0,$.jsx)(L_,{conversationId:N,isAutomationRun:i,hasPendingChildApproval:c,isActive:u,forceLoadingIndicator:t&&l,className:s?`opacity-50`:void 0,rowContentClassName:Dc(t&&(D?`ml-10`:`ml-5`),g&&`pr-3 group-focus-within:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)] group-hover:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)]`),envIconLocation:`end`,dataAttributes:ne.sidebarThreadRow({kind:`local`,title:H})})}function vy(){let C=(0,$.jsx)(`div`,{className:`min-w-0 flex-1`,children:(0,$.jsx)(cn,{triggerButton:(0,$.jsx)(Qd,{icon:b,label:x,onClick:yy,trailing:S,iconClassName:`icon-sm`})})});return C}let settingsLabel={id:`codex.profileFooter.signedInFallback`};";
 const projectsSectionTargets =
@@ -38,6 +40,10 @@ function createRecoveredFixture() {
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
     `${indexFeatureTargets}${sidebarPixelTargets}`,
+  );
+  writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "browser-multi-tab-feature-fixture.js"),
+    browserMultiTabFeatureTargets,
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "projects-section-fixture.js"),
@@ -115,6 +121,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
     report.patches.map((patch) => patch.file),
     [
       "webview/assets",
+      "webview/assets/browser-multi-tab-feature-fixture.js",
       "webview/assets/projects-section-fixture.js",
       "webview/assets/chats-section-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
@@ -152,6 +159,27 @@ test("replaces ChatGPT renderer text without changing product identifiers or pro
   assert.equal(patch?.status, "applied");
   assert.equal(patch?.file, "webview/assets");
   assert.match(patch?.reason, /Replaced 2 product-name occurrence\(s\)/);
+});
+
+test("enables Browser multi-tab route mode in the Electron bundle", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(
+    path.join(recoveredRoot, "webview", "assets", "browser-multi-tab-feature-fixture.js"),
+    "utf8",
+  );
+  assert.match(bundle, /pP=d\(T,\(\)=>!0\)/);
+  assert.doesNotMatch(bundle, /pP=fP/);
+
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (candidate) => candidate.name === "enable Electron Browser multi-tab route mode",
+  );
+  assert.equal(patch?.status, "applied");
 });
 
 test("replaces product text only in JavaScript string and template text", () => {
@@ -561,7 +589,7 @@ test("patches non-feature self-signed Windows bundle changes", () => {
     /BrowserWindow\(\{icon:process\.platform===`win32`\?require\("node:path"\)\.join\(process\.resourcesPath,`icon\.ico`\):void 0,width:b/,
   );
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 8);
+  assert.equal(report.patches.length, 9);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -674,6 +702,7 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "product-text-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "use-model-settings-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "browser-multi-tab-feature-fixture.js"),
     path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
   ];
@@ -686,6 +715,6 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 8);
+  assert.equal(report.patches.length, 9);
   assert.ok(report.patches.every((patch) => patch.status === "already-applied"));
 });

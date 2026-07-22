@@ -26,6 +26,7 @@ const windowsArm64PrimaryRuntimeManifestUrl =
 const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
   escapeRegExp(windowsArm64PrimaryRuntimeManifestUrl),
 );
+const browserMultiTabFeatureGateAppliedPattern = /\bpP=d\(T,\(\)=>!0\)/;
 type SourcePatchResult = {
   source: string;
   status: PatchStatus;
@@ -636,6 +637,34 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
   return [];
 }
 
+function patchBrowserMultiTabFeatureGate(recoveredRoot: string): PatchResult[] {
+  const markers = [
+    "owl-feature-enabled",
+    "multiTabBrowserUseEnabled",
+    "browser-use-session-route-capture",
+  ];
+  const filePath = findFileContaining(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^.*\.js$/,
+    markers,
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "enable Electron Browser multi-tab route mode",
+      [
+        regexPatch(
+          /\bpP=fP\b/g,
+          "pP=d(T,()=>!0)",
+          browserMultiTabFeatureGateAppliedPattern,
+        ),
+      ],
+    ),
+  ];
+}
+
 function patchSidebarProjectsBundle(recoveredRoot: string): PatchResult[] {
   const markers = [
     "sidebarElectron.projectsNavLink",
@@ -978,6 +1007,7 @@ function main(): void {
     results.push(...patchRendererProductText(recoveredRoot));
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
+    results.push(...patchBrowserMultiTabFeatureGate(recoveredRoot));
     results.push(...patchSidebarProjectsBundle(recoveredRoot));
     results.push(...patchSidebarChatsBundle(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
