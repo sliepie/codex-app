@@ -313,14 +313,7 @@ function packagedPluginSourcePath(pluginName: string): string {
   return `./plugins/${pluginName}`;
 }
 
-function ensureBundledBrowserClientRuntimeBridge(
-  pluginName: string,
-  destinationPluginRoot: string,
-): void {
-  if (pluginName !== "browser") {
-    return;
-  }
-
+export function ensureBundledBrowserClientRuntimeBridge(destinationPluginRoot: string): void {
   const browserClientPath = path.join(destinationPluginRoot, "scripts", "browser-client.mjs");
   if (!fs.existsSync(browserClientPath)) {
     return;
@@ -417,7 +410,9 @@ export function syncBundledPluginResources(
 
     const destinationPluginRoot = path.join(destinationMarketplaceRoot, "plugins", pluginName);
     fs.cpSync(sourcePluginRoot, destinationPluginRoot, { recursive: true, force: true });
-    ensureBundledBrowserClientRuntimeBridge(pluginName, destinationPluginRoot);
+    if (pluginName === "browser") {
+      ensureBundledBrowserClientRuntimeBridge(destinationPluginRoot);
+    }
     syncBundledPluginWindowsPayloads(pluginName, destinationPluginRoot, options);
     destinationPlugins.push({
       ...plugin,
@@ -2792,6 +2787,14 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   patchRecoveredCodexMicroService(recoveredRoot);
   pruneWorkLouderPackages(recoveredRoot);
   syncNativeNodeModules(recoveredRoot, nodeVersion);
+  ensureBundledBrowserClientRuntimeBridge(
+    path.join(
+      bundledPluginsRoot,
+      openAiBundledMarketplaceNames[0],
+      "plugins",
+      "browser",
+    ),
+  );
 
   fs.writeFileSync(
     releaseInfoPath,

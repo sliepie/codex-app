@@ -22,6 +22,7 @@ const {
   findAppAsar,
   hasArm64RuntimePayload,
   assertNoWorkLouderRuntimeReferences,
+  ensureBundledBrowserClientRuntimeBridge,
   patchRecoveredCodexMicroServiceSource,
   patchCodexWindowServicesSource,
   patchNodePtySpectreMitigation,
@@ -448,6 +449,12 @@ test("generates Windows bundled plugin resources with Windows helper payloads", 
   );
   assert.equal(fs.existsSync(browserClientRuntimeBridgePath), true);
   assert.match(fs.readFileSync(browserClientRuntimeBridgePath, "utf8"), /ClassicLevel/);
+
+  fs.rmSync(browserClientRuntimeBridgePath);
+  ensureBundledBrowserClientRuntimeBridge(
+    path.join(destinationPluginsRoot, "openai-bundled/plugins/browser"),
+  );
+  assert.equal(fs.existsSync(browserClientRuntimeBridgePath), true);
   assert.doesNotMatch(browserClient, /import\.meta\.__codexNativePipe/);
   assert.doesNotMatch(browserClient, /codexBrowserNetPipeConnect/);
   assert.equal(
@@ -2502,7 +2509,10 @@ test("Codex app hydration restores Electron-compatible custom patches", () => {
     /await hydrateCodexPlusPlusRuntime\([\s\S]*?options\.codexPlusPlusRepo[\s\S]*?options\.codexPlusPlusTag[\s\S]*?options\.codexPlusPlusSha[\s\S]*?\);[\s\S]*?patchWindowsSelfSignedBundle\(recoveredRoot\);[\s\S]*?patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);[\s\S]*?patchRecoveredCodexWindowServices\(recoveredRoot\);[\s\S]*?patchRecoveredCodexMicroService\(recoveredRoot\);[\s\S]*?pruneWorkLouderPackages\(recoveredRoot\);/,
   );
   assert.match(scriptSource, /patchWindowsSelfSignedBundle\(recoveredRoot\);\s+patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+patchRecoveredCodexWindowServices\(recoveredRoot\);\s+patchRecoveredCodexMicroService\(recoveredRoot\);\s+pruneWorkLouderPackages\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
-  assert.match(scriptSource, /syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
+  assert.match(
+    scriptSource,
+    /syncNativeNodeModules\(recoveredRoot, nodeVersion\);[\s\S]*?ensureBundledBrowserClientRuntimeBridge\(/,
+  );
   assert.match(scriptSource, /^\s+patchWindowsSelfSignedBundle\(recoveredRoot\);/m);
   assert.doesNotMatch(scriptSource, /patch(?:Recovered)?OwlFeature/);
   assert.doesNotMatch(scriptSource, /patchRecoveredMessageRailStatsigGate/);
