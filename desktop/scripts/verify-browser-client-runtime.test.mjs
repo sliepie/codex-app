@@ -24,7 +24,11 @@ function writePeFixture(filePath, versionText, machine = 0xaa64) {
   fs.writeFileSync(filePath, bytes);
 }
 
-function createDesktopFixture({ appBundleName = "Codex.app", marketplaceName = "openai-bundled" } = {}) {
+function createDesktopFixture({
+  appBundleName = "Codex.app",
+  includeClassicLevelBridge = true,
+  marketplaceName = "openai-bundled",
+} = {}) {
   const desktopRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-browser-runtime-"));
   const appVersion = "26.506.21252";
   const appBuildNumber = "61741";
@@ -67,7 +71,16 @@ function createDesktopFixture({ appBundleName = "Codex.app", marketplaceName = "
     path.join(desktopRoot, "resources", "cua_node", "bin", "node.exe"),
     "fake windows node v24.14.0 v24.14.0",
   );
-  writeFixture(path.join(browserPluginRoot, "scripts", "browser-client.mjs"), "export {};\n");
+  writeFixture(
+    path.join(browserPluginRoot, "scripts", "browser-client.mjs"),
+    'import{ClassicLevel as mH}from"./node_modules/classic-level.mjs";\n',
+  );
+  if (includeClassicLevelBridge) {
+    writeFixture(
+      path.join(browserPluginRoot, "scripts", "node_modules", "classic-level.mjs"),
+      'export { ClassicLevel } from "./classic-level/index.js";\n',
+    );
+  }
   writeFixture(
     path.join(classicLevelRoot, "package.json"),
     `${JSON.stringify({ name: "classic-level", version: "3.0.0" }, null, 2)}\n`,
@@ -120,6 +133,34 @@ test("accepts browser client native payload metadata matching the bundled Node A
   assert.equal(result.abi, "137");
   assert.equal(result.browserPluginPresent, true);
   assert.equal(result.classicLevelVersion, "3.0.0");
+});
+
+test("rejects a browser client that is missing its runtime bridge", async () => {
+  const { classicLevelRoot, desktopRoot } = createDesktopFixture({
+    includeClassicLevelBridge: false,
+  });
+  writeFixture(
+    path.join(classicLevelRoot, "build", "Release", ".codex-runtime-meta.json"),
+    `${JSON.stringify(
+      {
+        abi: "137",
+        arch: "arm64",
+        platform: "win32",
+        runtime: "node",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  writePeFixture(
+    path.join(classicLevelRoot, "build", "Release", "classic-level.node"),
+    "native payload",
+  );
+
+  await assert.rejects(
+    () => verifyBrowserClientRuntime({ desktopRoot }),
+    /Missing Browser client runtime bridge/,
+  );
 });
 
 test("ignores beta bundled plugin resource names", async () => {
