@@ -26,7 +26,10 @@ const windowsArm64PrimaryRuntimeManifestUrl =
 const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
   escapeRegExp(windowsArm64PrimaryRuntimeManifestUrl),
 );
-const browserMultiTabFeatureGateAppliedPattern = /\bpP=d\(T,\(\)=>!0\)/;
+const browserMultiTabFeatureGateTargetPattern =
+  /\bfP=(?:d\(T,\(\{get:e\}\)=>e\(aP,gt\)\.data===!0\)|d\(T,\(\)=>!0\)),pP=(?:fP|d\(T,\(\)=>!0\)),/g;
+const browserMultiTabFeatureGateAppliedPattern =
+  /\bfP=d\(T,\(\)=>!0\),pP=d\(T,\(\)=>!0\),/;
 type SourcePatchResult = {
   source: string;
   status: PatchStatus;
@@ -653,11 +656,11 @@ function patchBrowserMultiTabFeatureGate(recoveredRoot: string): PatchResult[] {
     replaceWithPatchers(
       recoveredRoot,
       filePath,
-      "enable Electron Browser multi-tab route mode",
+      "enable Electron Browser multi-tab mode",
       [
         regexPatch(
-          /\bpP=fP\b/g,
-          "pP=d(T,()=>!0)",
+          browserMultiTabFeatureGateTargetPattern,
+          "fP=d(T,()=>!0),pP=d(T,()=>!0),",
           browserMultiTabFeatureGateAppliedPattern,
         ),
       ],

@@ -161,7 +161,7 @@ test("replaces ChatGPT renderer text without changing product identifiers or pro
   assert.match(patch?.reason, /Replaced 2 product-name occurrence\(s\)/);
 });
 
-test("enables Browser multi-tab route mode in the Electron bundle", () => {
+test("enables Browser multi-tab UI and route mode in the Electron bundle", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
 
@@ -172,12 +172,13 @@ test("enables Browser multi-tab route mode in the Electron bundle", () => {
     path.join(recoveredRoot, "webview", "assets", "browser-multi-tab-feature-fixture.js"),
     "utf8",
   );
+  assert.match(bundle, /fP=d\(T,\(\)=>!0\)/);
   assert.match(bundle, /pP=d\(T,\(\)=>!0\)/);
   assert.doesNotMatch(bundle, /pP=fP/);
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   const patch = report.patches.find(
-    (candidate) => candidate.name === "enable Electron Browser multi-tab route mode",
+    (candidate) => candidate.name === "enable Electron Browser multi-tab mode",
   );
   assert.equal(patch?.status, "applied");
 });
