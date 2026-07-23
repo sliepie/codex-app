@@ -26,14 +26,15 @@ const windowsArm64PrimaryRuntimeManifestUrl =
 const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
   escapeRegExp(windowsArm64PrimaryRuntimeManifestUrl),
 );
-const realtimeVoiceRolloutConfig = "2380644311";
-const realtimeVoiceEntitlementIdentifier = "jln";
-const realtimeVoiceDebugDisabledIdentifier = "$9n";
 const realtimeVoiceFeatureGateMarkers = [
-  realtimeVoiceRolloutConfig,
-  realtimeVoiceEntitlementIdentifier,
-  realtimeVoiceDebugDisabledIdentifier,
+  "2380644311",
+  "jln",
+  "$9n",
 ];
+const realtimeVoiceFeatureGatePattern =
+  /function [A-Za-z_$][\w$]*\(\)\{let ([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(`2380644311`\),([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(jln\),([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(\$9n\);return \1&&\3&&!\5\}/g;
+const realtimeVoiceFeatureGateAppliedPattern =
+  /function [A-Za-z_$][\w$]*\(\)\{let ([A-Za-z_$][\w$]*)=[A-Za-z_$][\w$]*\(`2380644311`\),([A-Za-z_$][\w$]*)=[A-Za-z_$][\w$]*\(jln\),([A-Za-z_$][\w$]*)=[A-Za-z_$][\w$]*\(\$9n\);return \2&&!\3\}/;
 type SourcePatchResult = {
   source: string;
   status: PatchStatus;
@@ -666,7 +667,23 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
 }
 
 function patchRealtimeVoiceFeatureGate(recoveredRoot: string): PatchResult[] {
-  const patcher = patchRealtimeVoiceFeatureGateInSource();
+  const patcher = regexPatch(
+    realtimeVoiceFeatureGatePattern,
+    (match) => {
+      const rolloutGate = match[1];
+      const accountEntitled = match[3];
+      const debugDisabled = match[5];
+      if (!rolloutGate || !accountEntitled || !debugDisabled) {
+        throw new Error("Unable to identify Codex Voice rollout gate locals.");
+      }
+
+      return match[0].replace(
+        `return ${rolloutGate}&&${accountEntitled}&&!${debugDisabled}`,
+        `return ${accountEntitled}&&!${debugDisabled}`,
+      );
+    },
+    realtimeVoiceFeatureGateAppliedPattern,
+  );
   const filePath = findFileForPatcher(
     path.join(recoveredRoot, "webview", "assets"),
     /^.*\.js$/,
@@ -683,70 +700,6 @@ function patchRealtimeVoiceFeatureGate(recoveredRoot: string): PatchResult[] {
       [patcher],
     ),
   ];
-}
-
-function patchRealtimeVoiceFeatureGateInSource(): SourcePatcher {
-  return (source) => {
-    const matches = findFunctionRanges(source).filter((range) =>
-      realtimeVoiceFeatureGateMarkers.every((marker) => range.body.includes(marker)),
-    );
-    if (matches.length === 0) {
-      return undefined;
-    }
-    if (matches.length !== 1) {
-      throw new Error(
-        `Expected exactly one Codex Voice rollout gate function containing ${realtimeVoiceFeatureGateMarkers.join(", ")}, found ${matches.length}.`,
-      );
-    }
-
-    const match = matches[0];
-    const declarationPattern = new RegExp(
-      String.raw`(?:let|const)\s+(${identifierPattern})\s*=\s*[A-Za-z_$][\w$]*\(\s*\`${escapeRegExp(realtimeVoiceRolloutConfig)}\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*[A-Za-z_$][\w$]*\(\s*${escapeRegExp(realtimeVoiceEntitlementIdentifier)}\s*\)\s*,\s*(${identifierPattern})\s*=\s*[A-Za-z_$][\w$]*\(\s*${escapeRegExp(realtimeVoiceDebugDisabledIdentifier)}\s*\)`,
-    );
-    const declarationMatch = match.body.match(declarationPattern);
-    if (!declarationMatch?.[1] || !declarationMatch[2] || !declarationMatch[3]) {
-      throw new Error("Unable to identify Codex Voice rollout gate locals.");
-    }
-
-    const [, rolloutGate, accountEntitled, debugDisabled] = declarationMatch;
-    const returnPattern = new RegExp(
-      String.raw`return\s*${escapeRegExp(rolloutGate)}\s*&&\s*${escapeRegExp(accountEntitled)}\s*&&\s*!\s*${escapeRegExp(debugDisabled)}`,
-    );
-    const returnMatch = match.body.match(returnPattern);
-    if (!returnMatch) {
-      const alreadyAppliedPattern = new RegExp(
-        String.raw`return\s*${escapeRegExp(accountEntitled)}\s*&&\s*!\s*${escapeRegExp(debugDisabled)}`,
-      );
-      if (alreadyAppliedPattern.test(match.body)) {
-        return { source, status: "already-applied", matcher: "semantic" };
-      }
-
-      throw new Error("Unable to identify the Codex Voice rollout gate return expression.");
-    }
-
-    const returnPrefixPattern = new RegExp(
-      String.raw`^return\s*${escapeRegExp(rolloutGate)}\s*&&\s*`,
-    );
-    const patchedReturn = returnMatch[0].replace(returnPrefixPattern, (prefix) => {
-      const returnPrefix = prefix.match(/^return\s*/)?.[0];
-      if (!returnPrefix) {
-        throw new Error("Unable to preserve the Codex Voice rollout gate return prefix.");
-      }
-      return returnPrefix;
-    });
-    const targetStart = returnMatch.index ?? 0;
-    const body =
-      match.body.slice(0, targetStart) +
-      patchedReturn +
-      match.body.slice(targetStart + returnMatch[0].length);
-    const replacement = `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}`;
-
-    return {
-      source: source.slice(0, match.start) + replacement + source.slice(match.end),
-      status: "applied",
-      matcher: "semantic",
-    };
-  };
 }
 
 function patchBrowserMultiTabFeatureGate(recoveredRoot: string): PatchResult[] {
