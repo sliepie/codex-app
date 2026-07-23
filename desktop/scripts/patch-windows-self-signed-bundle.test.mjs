@@ -17,7 +17,7 @@ const patcherPath = path.join(
 const indexFeatureTargets =
   "var YA=[`apps`,`memories`,`plugins`,`tool_call_mcp_elicitation`,`tool_search`,`tool_suggest`,kr];function QA(){J.dispatchMessage(`electron-desktop-features-changed`,{avatarOverlay:n,ambientSuggestions:r,artifactsPane:!0,browserAgent:a.available,browserAgentAvailable:a.available,browserPane:i,computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,multiWindow:d})}";
 const browserMultiTabFeatureTargets =
-  "var dP,fP,pP,mP,hP,gP=e((()=>{nP=[`owl-feature-enabled`],dP=w(T,()=>({})),fP=d(T,({get:e})=>e(aP,gt).data===!0),pP=fP,mP=p(T,(e,{get:t})=>t(dP)[e]??[])}));function TP(e,t){t.captureBrowserUseSessionRoute({...e.get(pP)===!0?{multiTabBrowserUseEnabled:!0}:{}})}const routeMessage=`browser-use-session-route-capture`;";
+  "var JJn,YJn,XJn=e((()=>{JJn=[`owl-feature-enabled`],YJn=[`owl-features-state`]})),ET,ZJn=e((()=>{OT=Pa(Q,({get:e})=>e(ET,KTe).data===!0),kT=OT,nYn=0}));function fYn(e,t){t.captureBrowserUseSessionRoute({...e.get(kT)===!0?{multiTabBrowserUseEnabled:!0}:{}})}const routeMessage=`browser-use-session-route-capture`;";
 const browserDownloadsFeatureTargets =
   "function zy(){let r=i(ni,re),f=r.data===!0,p;e[3]!==r.isLoading||e[4]!==f?(p={enabled:f,isLoading:r.isLoading},e[3]=r.isLoading,e[4]=f,e[5]=p):p=e[5];return{contactInfo:d,downloads:p,extensions:g,history:v,passwordManager:d,siteSettings:x}}";
 const sidebarPixelTargets =
@@ -86,6 +86,10 @@ function createRecoveredFixture() {
   writeFixture(
     path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
     "function localBin(parts){return(0,path.join)(process.env.LOCALAPPDATA??(0,path.join)((0,os.homedir)(),`AppData`,`Local`),...parts)}",
+  );
+  writeFixture(
+    path.join(recoveredRoot, ".vite", "build", "drop-handler-marker-distractor-fixture.js"),
+    "var localAppData=process.env.LOCALAPPDATA??(0,path.join)((0,os.homedir)(),`AppData`,`Local`),windowsApps=(0,path.join)(localAppData,`Microsoft`,`WindowsApps`);",
   );
   writeFixture(
     path.join(recoveredRoot, ".vite", "build", "primary-runtime-installer-fixture.js"),
@@ -183,15 +187,41 @@ test("enables Browser multi-tab UI and route mode in the Electron bundle", () =>
     path.join(recoveredRoot, "webview", "assets", "browser-multi-tab-feature-fixture.js"),
     "utf8",
   );
-  assert.match(bundle, /fP=d\(T,\(\)=>!0\)/);
-  assert.match(bundle, /pP=d\(T,\(\)=>!0\)/);
-  assert.doesNotMatch(bundle, /pP=fP/);
+  assert.match(bundle, /OT=Pa\(Q,\(\)=>!0\)/);
+  assert.match(bundle, /kT=Pa\(Q,\(\)=>!0\)/);
+  assert.doesNotMatch(bundle, /kT=OT/);
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   const patch = report.patches.find(
     (candidate) => candidate.name === "enable Electron Browser multi-tab mode",
   );
   assert.equal(patch?.status, "applied");
+});
+
+test("enables Browser multi-tab mode when the route gate uses an independent selector", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const browserMultiTabPath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "browser-multi-tab-feature-fixture.js",
+  );
+  fs.writeFileSync(
+    browserMultiTabPath,
+    browserMultiTabFeatureTargets.replace(
+      "kT=OT,nYn=0",
+      "kT=Pa(Q,({get:e})=>e(ET,KTe).data===!0),nYn=0",
+    ),
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(browserMultiTabPath, "utf8");
+  assert.match(bundle, /OT=Pa\(Q,\(\)=>!0\)/);
+  assert.match(bundle, /kT=Pa\(Q,\(\)=>!0\)/);
 });
 
 test("enables Browser downloads in the Electron bundle", () => {
