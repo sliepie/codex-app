@@ -668,6 +668,107 @@ function patchBrowserMultiTabFeatureGate(recoveredRoot: string): PatchResult[] {
   ];
 }
 
+function patchBrowserDownloadsFeatureGate(recoveredRoot: string): PatchResult[] {
+  const selectorMarkers = ["contactInfo:", "downloads:", "passwordManager:", "siteSettings:"];
+  const fileMarkers = [
+    "function ny(){",
+    ...selectorMarkers,
+  ];
+  const filePath = findFileContaining(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^.*\.js$/,
+    fileMarkers,
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "enable Electron Browser downloads",
+      [patchBrowserDownloadsFeatureGateInFunction(selectorMarkers)],
+    ),
+  ];
+}
+
+function patchBrowserDownloadsFeatureGateInFunction(markers: string[]): SourcePatcher {
+  return (source) => {
+    const matches = findFunctionRanges(source).filter((range) => {
+      if (!markers.every((marker) => range.body.includes(marker))) {
+        return false;
+      }
+
+      const downloadsStateMatch = range.body.match(
+        new RegExp(String.raw`\bdownloads:(${identifierPattern})\b`),
+      );
+      if (!downloadsStateMatch?.[1]) {
+        return false;
+      }
+
+      const stateIdentifier = downloadsStateMatch[1];
+      return (
+        new RegExp(
+          String.raw`\b${escapeRegExp(stateIdentifier)}=\{enabled:${identifierPattern},isLoading:${identifierPattern}\.isLoading\}`,
+        ).test(range.body) ||
+        new RegExp(
+          String.raw`\b${escapeRegExp(stateIdentifier)}=\{enabled:!0,isLoading:!1\}`,
+        ).test(range.body)
+      );
+    });
+    if (matches.length === 0) {
+      return undefined;
+    }
+    if (matches.length !== 1) {
+      throw new Error(
+        `Expected exactly one Browser download feature selector containing ${markers.join(", ")}, found ${matches.length}.`,
+      );
+    }
+
+    const match = matches[0];
+    const downloadsStateMatch = match.body.match(
+      new RegExp(String.raw`\bdownloads:(${identifierPattern})\b`),
+    );
+    if (!downloadsStateMatch?.[1]) {
+      throw new Error("Unable to identify the Browser downloads feature state.");
+    }
+
+    const stateIdentifier = downloadsStateMatch[1];
+    const appliedPattern = new RegExp(
+      String.raw`\b${escapeRegExp(stateIdentifier)}=\{enabled:!0,isLoading:!1\}`,
+    );
+    if (appliedPattern.test(match.body)) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+
+    const targetPattern = new RegExp(
+      String.raw`\b${escapeRegExp(stateIdentifier)}=\{enabled:${identifierPattern},isLoading:${identifierPattern}\.isLoading\}`,
+      "g",
+    );
+    const targets = Array.from(match.body.matchAll(targetPattern));
+    if (targets.length !== 1) {
+      throw new Error(
+        `Expected exactly one Browser downloads feature state target, found ${targets.length}.`,
+      );
+    }
+
+    const target = targets[0];
+    const targetStart = target.index ?? 0;
+    const replacement = `${stateIdentifier}={enabled:!0,isLoading:!1}`;
+    const body =
+      match.body.slice(0, targetStart) +
+      replacement +
+      match.body.slice(targetStart + target[0].length);
+
+    return {
+      source:
+        source.slice(0, match.start) +
+        `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}` +
+        source.slice(match.end),
+      status: "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
 function patchSidebarProjectsBundle(recoveredRoot: string): PatchResult[] {
   const markers = [
     "sidebarElectron.projectsNavLink",
@@ -1011,6 +1112,7 @@ function main(): void {
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
     results.push(...patchBrowserMultiTabFeatureGate(recoveredRoot));
+    results.push(...patchBrowserDownloadsFeatureGate(recoveredRoot));
     results.push(...patchSidebarProjectsBundle(recoveredRoot));
     results.push(...patchSidebarChatsBundle(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
