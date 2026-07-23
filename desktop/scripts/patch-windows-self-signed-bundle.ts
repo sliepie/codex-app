@@ -670,14 +670,10 @@ function patchBrowserMultiTabFeatureGate(recoveredRoot: string): PatchResult[] {
 
 function patchBrowserDownloadsFeatureGate(recoveredRoot: string): PatchResult[] {
   const selectorMarkers = ["contactInfo:", "downloads:", "passwordManager:", "siteSettings:"];
-  const fileMarkers = [
-    "function ny(){",
-    ...selectorMarkers,
-  ];
   const filePath = findFileContaining(
     path.join(recoveredRoot, "webview", "assets"),
     /^.*\.js$/,
-    fileMarkers,
+    selectorMarkers,
   );
 
   return [
