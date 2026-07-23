@@ -52,6 +52,10 @@ function createRecoveredFixture() {
     browserDownloadsFeatureTargets,
   );
   writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "browser-downloads-marker-distractor-fixture.js"),
+    "const browserSettings={contactInfo:d,downloads:p,passwordManager:d,siteSettings:x};",
+  );
+  writeFixture(
     path.join(recoveredRoot, "webview", "assets", "projects-section-fixture.js"),
     projectsSectionTargets,
   );

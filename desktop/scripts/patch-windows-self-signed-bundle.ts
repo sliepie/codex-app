@@ -139,6 +139,27 @@ function findFileContaining(root: string, pattern: RegExp, markers: string[]): s
   return matches[0];
 }
 
+function findFileForPatcher(
+  root: string,
+  pattern: RegExp,
+  markers: string[],
+  patcher: SourcePatcher,
+  targetName: string,
+): string {
+  const candidates = findFilesContaining(root, pattern, markers);
+  const matches = candidates.filter((filePath) =>
+    patcher(fs.readFileSync(filePath, "utf8")) !== undefined,
+  );
+
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected exactly one recovered bundle file containing ${markers.join(", ")} with ${targetName}, found ${matches.length}.`,
+    );
+  }
+
+  return matches[0];
+}
+
 function findFilesContaining(root: string, pattern: RegExp, markers: string[]): string[] {
   const matches: string[] = [];
   const pending = [root];
@@ -670,10 +691,13 @@ function patchBrowserMultiTabFeatureGate(recoveredRoot: string): PatchResult[] {
 
 function patchBrowserDownloadsFeatureGate(recoveredRoot: string): PatchResult[] {
   const selectorMarkers = ["contactInfo:", "downloads:", "passwordManager:", "siteSettings:"];
-  const filePath = findFileContaining(
+  const patcher = patchBrowserDownloadsFeatureGateInFunction(selectorMarkers);
+  const filePath = findFileForPatcher(
     path.join(recoveredRoot, "webview", "assets"),
     /^.*\.js$/,
     selectorMarkers,
+    patcher,
+    "Browser downloads feature selector",
   );
 
   return [
@@ -681,7 +705,7 @@ function patchBrowserDownloadsFeatureGate(recoveredRoot: string): PatchResult[] 
       recoveredRoot,
       filePath,
       "enable Electron Browser downloads",
-      [patchBrowserDownloadsFeatureGateInFunction(selectorMarkers)],
+      [patcher],
     ),
   ];
 }
