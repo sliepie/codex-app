@@ -247,6 +247,27 @@ test("accepts benign Codex Voice bundle formatting changes", () => {
   assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s+t\s*&&\s*!\s*n/);
 });
 
+test("accepts Codex Voice minifier identifier changes", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const voiceGatePath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "realtime-voice-feature-gate-fixture.js",
+  );
+  fs.writeFileSync(
+    voiceGatePath,
+    "function mts(){let e=kh(`2380644311`),t=Y(Xln),n=Y(yer);return e&&t&&!n}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s+t\s*&&\s*!\s*n/);
+});
+
 test("enables Browser multi-tab mode when the route gate uses an independent selector", () => {
   const recoveredRoot = createRecoveredFixture();
   const browserMultiTabPath = path.join(
