@@ -31,10 +31,13 @@ const realtimeVoiceFeatureGateMarkers = [
   "jln",
   "$9n",
 ];
-const realtimeVoiceFeatureGatePattern =
-  /function [A-Za-z_$][\w$]*\(\)\{let ([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(`2380644311`\),([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(jln\),([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(\$9n\);return \1&&\3&&!\5\}/g;
-const realtimeVoiceFeatureGateAppliedPattern =
-  /function [A-Za-z_$][\w$]*\(\)\{let ([A-Za-z_$][\w$]*)=[A-Za-z_$][\w$]*\(`2380644311`\),([A-Za-z_$][\w$]*)=[A-Za-z_$][\w$]*\(jln\),([A-Za-z_$][\w$]*)=[A-Za-z_$][\w$]*\(\$9n\);return \2&&!\3\}/;
+const realtimeVoiceFeatureGatePattern = new RegExp(
+  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*jln\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${escapeRegExp("$9n")}\s*\)\s*;\s*return\s*\1\s*&&\s*\2\s*&&\s*!\s*\3\s*\}`,
+  "g",
+);
+const realtimeVoiceFeatureGateAppliedPattern = new RegExp(
+  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*jln\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${escapeRegExp("$9n")}\s*\)\s*;\s*return\s*\2\s*&&\s*!\s*\3\s*\}`,
+);
 type SourcePatchResult = {
   source: string;
   status: PatchStatus;
@@ -671,15 +674,13 @@ function patchRealtimeVoiceFeatureGate(recoveredRoot: string): PatchResult[] {
     realtimeVoiceFeatureGatePattern,
     (match) => {
       const rolloutGate = match[1];
-      const accountEntitled = match[3];
-      const debugDisabled = match[5];
-      if (!rolloutGate || !accountEntitled || !debugDisabled) {
+      if (!rolloutGate) {
         throw new Error("Unable to identify Codex Voice rollout gate locals.");
       }
 
       return match[0].replace(
-        `return ${rolloutGate}&&${accountEntitled}&&!${debugDisabled}`,
-        `return ${accountEntitled}&&!${debugDisabled}`,
+        new RegExp(String.raw`return(\s*)${escapeRegExp(rolloutGate)}\s*&&\s*`),
+        "return$1",
       );
     },
     realtimeVoiceFeatureGateAppliedPattern,

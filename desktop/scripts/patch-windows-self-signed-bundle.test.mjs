@@ -226,6 +226,27 @@ test("enables Codex Voice while preserving account entitlement and the local kil
   assert.equal(patch?.status, "applied");
 });
 
+test("accepts benign Codex Voice bundle formatting changes", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const voiceGatePath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "realtime-voice-feature-gate-fixture.js",
+  );
+  fs.writeFileSync(
+    voiceGatePath,
+    "function mts(voice){const e = Rh( `2380644311` ), t=Y(jln), n = Y( $9n ); return e && t && ! n }",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s+t\s*&&\s*!\s*n/);
+});
+
 test("enables Browser multi-tab mode when the route gate uses an independent selector", () => {
   const recoveredRoot = createRecoveredFixture();
   const browserMultiTabPath = path.join(
