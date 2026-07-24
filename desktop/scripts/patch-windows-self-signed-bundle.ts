@@ -26,6 +26,18 @@ const windowsArm64PrimaryRuntimeManifestUrl =
 const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
   escapeRegExp(windowsArm64PrimaryRuntimeManifestUrl),
 );
+const realtimeVoiceFeatureGateMarkers = [
+  "2380644311",
+  "jln",
+  "$9n",
+];
+const realtimeVoiceFeatureGatePattern = new RegExp(
+  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*jln\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${escapeRegExp("$9n")}\s*\)\s*;\s*return\s*\1\s*&&\s*\2\s*&&\s*!\s*\3\s*\}`,
+  "g",
+);
+const realtimeVoiceFeatureGateAppliedPattern = new RegExp(
+  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*jln\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${escapeRegExp("$9n")}\s*\)\s*;\s*return\s*\2\s*&&\s*!\s*\3\s*\}`,
+);
 type SourcePatchResult = {
   source: string;
   status: PatchStatus;
@@ -655,6 +667,40 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
   findFileContaining(path.join(recoveredRoot, ".vite", "build"), /^main-.*\.js$/, markers);
 
   return [];
+}
+
+function patchRealtimeVoiceFeatureGate(recoveredRoot: string): PatchResult[] {
+  const patcher = regexPatch(
+    realtimeVoiceFeatureGatePattern,
+    (match) => {
+      const rolloutGate = match[1];
+      if (!rolloutGate) {
+        throw new Error("Unable to identify Codex Voice rollout gate locals.");
+      }
+
+      return match[0].replace(
+        new RegExp(String.raw`return(\s*)${escapeRegExp(rolloutGate)}\s*&&\s*`),
+        "return$1",
+      );
+    },
+    realtimeVoiceFeatureGateAppliedPattern,
+  );
+  const filePath = findFileForPatcher(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^.*\.js$/,
+    realtimeVoiceFeatureGateMarkers,
+    patcher,
+    "Codex Voice rollout gate",
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "enable Codex Voice rollout gate",
+      [patcher],
+    ),
+  ];
 }
 
 function patchBrowserMultiTabFeatureGate(recoveredRoot: string): PatchResult[] {
@@ -1288,6 +1334,7 @@ function main(): void {
     results.push(...patchRendererProductText(recoveredRoot));
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
+    results.push(...patchRealtimeVoiceFeatureGate(recoveredRoot));
     results.push(...patchBrowserMultiTabFeatureGate(recoveredRoot));
     results.push(...patchBrowserDownloadsFeatureGate(recoveredRoot));
     results.push(...patchSidebarProjectsBundle(recoveredRoot));
