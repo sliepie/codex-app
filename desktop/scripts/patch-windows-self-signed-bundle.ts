@@ -26,17 +26,13 @@ const windowsArm64PrimaryRuntimeManifestUrl =
 const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
   escapeRegExp(windowsArm64PrimaryRuntimeManifestUrl),
 );
-const realtimeVoiceFeatureGateMarkers = [
-  "2380644311",
-  "jln",
-  "$9n",
-];
+const realtimeVoiceFeatureGateMarkers = ["2380644311"];
 const realtimeVoiceFeatureGatePattern = new RegExp(
-  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*jln\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${escapeRegExp("$9n")}\s*\)\s*;\s*return\s*\1\s*&&\s*\2\s*&&\s*!\s*\3\s*\}`,
+  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*;\s*return\s*\1\s*&&\s*\2\s*&&\s*!\s*\3\s*\}`,
   "g",
 );
 const realtimeVoiceFeatureGateAppliedPattern = new RegExp(
-  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*jln\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${escapeRegExp("$9n")}\s*\)\s*;\s*return\s*\2\s*&&\s*!\s*\3\s*\}`,
+  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*;\s*return\s*\2\s*&&\s*!\s*\3\s*\}`,
 );
 type SourcePatchResult = {
   source: string;
