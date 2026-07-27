@@ -2306,40 +2306,54 @@ test("release workflow tracks Codex++ in package inputs and release metadata", (
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--notes "\$notes"/);
 });
 
-test("release workflow skips complete existing releases before packaging", () => {
+test("release workflow stops duplicate builds before packaging", () => {
   const workflowSource = fs.readFileSync(
     path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
     "utf8",
   );
-  const readinessIndex = workflowSource.indexOf("- name: Check existing repo release completeness");
+  const noticeIndex = workflowSource.indexOf("- name: Notice existing repo release");
   const cacheIndex = workflowSource.indexOf("- name: Restore npm cache");
-  assert.ok(readinessIndex >= 0);
-  assert.ok(readinessIndex < cacheIndex);
+  assert.ok(noticeIndex >= 0);
+  assert.ok(noticeIndex < cacheIndex);
+  assert.match(workflowSource, /already has repo release \$env:CURRENT_COMMIT_RELEASE_TAG for this commit; stopping before packaging/);
+  assert.doesNotMatch(workflowSource, /release-readiness|skip_build|gh api|Invoke-WebRequest/);
 
-  const readinessBlock = workflowSource.slice(readinessIndex, cacheIndex);
-  assert.match(readinessBlock, /id: release-readiness/);
-  assert.match(
-    readinessBlock,
-    /gh api "repos\/\$env:GITHUB_REPOSITORY\/releases\/tags\/\$env:RELEASE_TAG"/,
-  );
-  assert.match(readinessBlock, /codex-app-windows-arm64\.zip/);
-  assert.match(readinessBlock, /Codex-\$env:PACKAGE_ARCHITECTURE-self-signed\.msix/);
-  assert.match(readinessBlock, /Invoke-WebRequest/);
-  assert.match(readinessBlock, /skip_build=/);
-  assert.doesNotMatch(readinessBlock, /npm ci|plan:win:arm64/);
-
-  assert.match(
-    workflowSource,
-    /- name: Restore npm cache\r?\n\s+if: steps\.release-readiness\.outputs\.skip_build != 'true'/,
-  );
-  assert.match(
-    workflowSource,
-    /- name: Make Windows ARM64 ZIP\r?\n\s+if: steps\.release-readiness\.outputs\.skip_build != 'true'/,
-  );
-  assert.match(
-    workflowSource,
-    /- name: Publish GitHub release\r?\n\s+if: env\.IS_RELEASE_EVENT == 'true' && steps\.release-readiness\.outputs\.skip_build != 'true'/,
-  );
+  const guardedStepNames = [
+    "Restore npm cache",
+    "Restore Electron cache",
+    "Install dependencies",
+    "Build desktop scripts",
+    "Run targeted desktop tests",
+    "Restore hydrated release cache",
+    "Prepare native Node module cache directory",
+    "Restore native Node module cache",
+    "Restore native updater cache",
+    "Make Windows ARM64 ZIP",
+    "Upload Windows ARM64 artifact",
+    "Publish GitHub release",
+    "Validate self-signed MSIX inputs",
+    "Decode self-signed PFX",
+    "Prepare self-signed MSIX payload",
+    "Build self-signed MSIX",
+    "Remove temporary PFX",
+    "Generate self-signed App Installer file",
+    "Upload self-signed MSIX artifacts",
+    "Publish self-signed GitHub release assets",
+    "Archive self-signed Pages artifact",
+    "Upload self-signed Pages artifact",
+    "Deploy self-signed update channel to Pages",
+  ];
+  for (const stepName of guardedStepNames) {
+    const stepIndex = workflowSource.indexOf(`- name: ${stepName}`);
+    assert.ok(stepIndex >= 0, `missing workflow step: ${stepName}`);
+    const nextStepIndex = workflowSource.indexOf("\n      - name:", stepIndex + 1);
+    const stepBlock = workflowSource.slice(stepIndex, nextStepIndex === -1 ? undefined : nextStepIndex);
+    assert.match(
+      stepBlock,
+      /steps\.upstream\.outputs\.current_commit_release_tag == ''/,
+      `step is not skipped for duplicate builds: ${stepName}`,
+    );
+  }
 });
 
 test("release workflows scope GitHub credentials away from install and build scripts", () => {
