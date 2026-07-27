@@ -2306,6 +2306,42 @@ test("release workflow tracks Codex++ in package inputs and release metadata", (
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--notes "\$notes"/);
 });
 
+test("release workflow skips complete existing releases before packaging", () => {
+  const workflowSource = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
+    "utf8",
+  );
+  const readinessIndex = workflowSource.indexOf("- name: Check existing repo release completeness");
+  const cacheIndex = workflowSource.indexOf("- name: Restore npm cache");
+  assert.ok(readinessIndex >= 0);
+  assert.ok(readinessIndex < cacheIndex);
+
+  const readinessBlock = workflowSource.slice(readinessIndex, cacheIndex);
+  assert.match(readinessBlock, /id: release-readiness/);
+  assert.match(
+    readinessBlock,
+    /gh api "repos\/\$env:GITHUB_REPOSITORY\/releases\/tags\/\$env:RELEASE_TAG"/,
+  );
+  assert.match(readinessBlock, /codex-app-windows-arm64\.zip/);
+  assert.match(readinessBlock, /Codex-\$env:PACKAGE_ARCHITECTURE-self-signed\.msix/);
+  assert.match(readinessBlock, /Invoke-WebRequest/);
+  assert.match(readinessBlock, /skip_build=/);
+  assert.doesNotMatch(readinessBlock, /npm ci|plan:win:arm64/);
+
+  assert.match(
+    workflowSource,
+    /- name: Restore npm cache\r?\n\s+if: steps\.release-readiness\.outputs\.skip_build != 'true'/,
+  );
+  assert.match(
+    workflowSource,
+    /- name: Make Windows ARM64 ZIP\r?\n\s+if: steps\.release-readiness\.outputs\.skip_build != 'true'/,
+  );
+  assert.match(
+    workflowSource,
+    /- name: Publish GitHub release\r?\n\s+if: env\.IS_RELEASE_EVENT == 'true' && steps\.release-readiness\.outputs\.skip_build != 'true'/,
+  );
+});
+
 test("release workflows scope GitHub credentials away from install and build scripts", () => {
   const releaseWorkflowSource = fs.readFileSync(
     path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
