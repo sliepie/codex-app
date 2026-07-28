@@ -27,6 +27,11 @@ const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
   escapeRegExp(windowsArm64PrimaryRuntimeManifestUrl),
 );
 const realtimeVoiceFeatureGateMarkers = ["2380644311"];
+const usageRemainingMarkers = [
+  "composer.mode.rateLimit.heading",
+  "composer.mode.rateLimit.resetsAvailable",
+  "composer.mode.rateLimit.loading",
+];
 const realtimeVoiceFeatureGatePattern = new RegExp(
   String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*;\s*return\s*(?:(?:\1\s*&&\s*)?\2\s*&&\s*!\s*\3|!\s*\3)\s*\}`,
   "g",
@@ -48,6 +53,17 @@ type FunctionRange = {
   body: string;
   start: number;
   end: number;
+};
+type JavaScriptObjectProperty = {
+  key: string;
+  value: string;
+};
+type JsxObjectCall = {
+  start: number;
+  assignedIdentifier?: string;
+  objectStart: number;
+  objectEnd: number;
+  properties: JavaScriptObjectProperty[];
 };
 
 class PatchFailure extends Error {
@@ -459,6 +475,233 @@ function findFunctionRanges(source: string): FunctionRange[] {
   return ranges;
 }
 
+function skipJavaScriptQuotedValue(source: string, start: number): number {
+  const quote = source[start];
+  let index = start + 1;
+  while (index < source.length) {
+    if (source[index] === "\\") {
+      index += 2;
+      continue;
+    }
+    if (source[index] === quote) {
+      return index + 1;
+    }
+    index += 1;
+  }
+  return source.length;
+}
+
+function skipJavaScriptComment(source: string, start: number): number {
+  if (source[start + 1] === "/") {
+    const lineEnd = source.indexOf("\n", start + 2);
+    return lineEnd === -1 ? source.length : lineEnd + 1;
+  }
+  const blockEnd = source.indexOf("*/", start + 2);
+  return blockEnd === -1 ? source.length : blockEnd + 2;
+}
+
+function findTopLevelDelimiter(
+  source: string,
+  start: number,
+  delimiter: string,
+): number | undefined {
+  let parentheses = 0;
+  let brackets = 0;
+  let braces = 0;
+
+  for (let index = start; index < source.length; index += 1) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (character === "'" || character === '"' || character === "`") {
+      index = skipJavaScriptQuotedValue(source, index) - 1;
+      continue;
+    }
+    if (character === "/" && (next === "/" || next === "*")) {
+      index = skipJavaScriptComment(source, index) - 1;
+      continue;
+    }
+
+    if (character === "(") {
+      parentheses += 1;
+    } else if (character === ")") {
+      parentheses -= 1;
+    } else if (character === "[") {
+      brackets += 1;
+    } else if (character === "]") {
+      brackets -= 1;
+    } else if (character === "{") {
+      braces += 1;
+    } else if (character === "}") {
+      braces -= 1;
+    } else if (
+      character === delimiter &&
+      parentheses === 0 &&
+      brackets === 0 &&
+      braces === 0
+    ) {
+      return index;
+    }
+  }
+
+  return undefined;
+}
+
+function findTopLevelObjectProperties(
+  source: string,
+  start: number,
+  end: number,
+): JavaScriptObjectProperty[] {
+  const properties: JavaScriptObjectProperty[] = [];
+  let propertyStart = start;
+  let colonIndex: number | undefined;
+  let parentheses = 0;
+  let brackets = 0;
+  let braces = 0;
+
+  const addProperty = (propertyEnd: number) => {
+    if (colonIndex === undefined) {
+      return;
+    }
+
+    const key = source.slice(propertyStart, colonIndex).trim();
+    if (new RegExp(`^${identifierPattern}$`).test(key)) {
+      properties.push({
+        key,
+        value: source.slice(colonIndex + 1, propertyEnd).trim(),
+      });
+    }
+  };
+
+  for (let index = start; index < end; index += 1) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (character === "'" || character === '"' || character === "`") {
+      index = skipJavaScriptQuotedValue(source, index) - 1;
+      continue;
+    }
+    if (character === "/" && (next === "/" || next === "*")) {
+      index = skipJavaScriptComment(source, index) - 1;
+      continue;
+    }
+
+    if (character === "(") {
+      parentheses += 1;
+    } else if (character === ")") {
+      parentheses -= 1;
+    } else if (character === "[") {
+      brackets += 1;
+    } else if (character === "]") {
+      brackets -= 1;
+    } else if (character === "{") {
+      braces += 1;
+    } else if (character === "}") {
+      braces -= 1;
+    } else if (parentheses === 0 && brackets === 0 && braces === 0) {
+      if (character === ":" && colonIndex === undefined) {
+        colonIndex = index;
+      } else if (character === ",") {
+        addProperty(index);
+        propertyStart = index + 1;
+        colonIndex = undefined;
+      }
+    }
+  }
+  addProperty(end);
+
+  return properties;
+}
+
+function findJsxObjectCalls(source: string): JsxObjectCall[] {
+  const calls: JsxObjectCall[] = [];
+  const callPattern = new RegExp(
+    String.raw`(?:\(\s*0\s*,\s*${identifierPattern}\.(?:jsx|jsxs|jsxDEV)\)|\b${identifierPattern}\.(?:jsx|jsxs|jsxDEV)|\b(?:jsx|jsxs|jsxDEV))\(`,
+    "g",
+  );
+  let match: RegExpExecArray | null;
+
+  while ((match = callPattern.exec(source)) !== null) {
+    const argumentSeparator = findTopLevelDelimiter(
+      source,
+      callPattern.lastIndex,
+      ",",
+    );
+    if (argumentSeparator === undefined) {
+      throw new Error("Unable to find the JSX component argument separator.");
+    }
+
+    let objectStart = argumentSeparator + 1;
+    while (/\s/.test(source[objectStart] ?? "")) {
+      objectStart += 1;
+    }
+    if (source[objectStart] !== "{") {
+      continue;
+    }
+
+    const objectEndExclusive = findJavaScriptBlockEnd(source, objectStart + 1);
+    if (objectEndExclusive === undefined) {
+      throw new Error("Unable to find the end of a JSX props object.");
+    }
+
+    const objectEnd = objectEndExclusive - 1;
+    const assignment = new RegExp(
+      String.raw`(${identifierPattern})\s*=\s*$`,
+    ).exec(source.slice(0, match.index));
+    calls.push({
+      start: match.index,
+      assignedIdentifier: assignment?.[1],
+      objectStart,
+      objectEnd,
+      properties: findTopLevelObjectProperties(source, objectStart + 1, objectEnd),
+    });
+  }
+
+  return calls;
+}
+
+function findIdentifierAssignmentPositions(source: string, identifier: string): number[] {
+  const pattern = new RegExp(`\\b${escapeRegExp(identifier)}\\s*=`, "g");
+  return Array.from(source.matchAll(pattern), (match) => match.index ?? -1).filter(
+    (index) => index >= 0,
+  );
+}
+
+function findUniqueObjectProperty(
+  call: JsxObjectCall,
+  key: string,
+): JavaScriptObjectProperty | undefined {
+  const matches = call.properties.filter((property) => property.key === key);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function hasObjectProperties(call: JsxObjectCall, keys: string[]): boolean {
+  return keys.every((key) => findUniqueObjectProperty(call, key) !== undefined);
+}
+
+function appendObjectProperty(
+  source: string,
+  call: JsxObjectCall,
+  property: string,
+): { index: number; value: string } {
+  let index = call.objectEnd;
+  while (index > call.objectStart + 1 && /\s/.test(source[index - 1] ?? "")) {
+    index -= 1;
+  }
+
+  const body = source.slice(call.objectStart + 1, index);
+  const separator = body.trim().endsWith(",") || body.trim() === "" ? "" : ",";
+  return { index, value: `${separator}${property}` };
+}
+
+function isPreventDefaultHandler(value: string): boolean {
+  return /^\(?([A-Za-z_$][\w$]*)\)?=>\{?\1\.preventDefault\(\);?\}?$/.test(
+    value.replace(/\s+/g, ""),
+  );
+}
+
+function isAlwaysOpenValue(value: string): boolean {
+  return /^(?:!0|true)$/.test(value.replace(/\s+/g, ""));
+}
+
 function functionContainingAllPatch(
   markers: string[],
   alreadyApplied: RegExp,
@@ -666,90 +909,153 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
 }
 
 function patchUsageRemainingAlwaysExpanded(): SourcePatcher {
-  const markers = [
-    "composer.mode.rateLimit.heading",
-    "composer.mode.rateLimit.resetsAvailable",
-    "rate limit summary submenu",
-  ];
-  const triggerTargetPattern = new RegExp(
-    String.raw`\(\s*0\s*,\s*${identifierPattern}\.jsx\)\(\s*${identifierPattern}\s*,\s*\{LeftIcon:\s*${identifierPattern}\s*,\s*RightIcon:\s*${identifierPattern}\s*,\s*tooltipSide:\s*${identifierPattern}\s*,\s*children:\s*(${identifierPattern})\s*\}\s*\)`,
-    "g",
-  );
-  const triggerAppliedPattern = new RegExp(
-    String.raw`\(\s*0\s*,\s*${identifierPattern}\.jsx\)\(\s*${identifierPattern}\s*,\s*\{LeftIcon:\s*${identifierPattern}\s*,\s*RightIcon:\s*${identifierPattern}\s*,\s*tooltipSide:\s*${identifierPattern}\s*,\s*children:\s*${identifierPattern}\s*,\s*onSelect:\s*${identifierPattern}\s*=>\s*${identifierPattern}\.preventDefault\(\)\s*\}\s*\)`,
-  );
-  const submenuTargetPattern = new RegExp(
-    String.raw`\(\s*0\s*,\s*${identifierPattern}\.jsx\)\(\s*${identifierPattern}\s*,\s*\{trigger:\s*${identifierPattern}\s*,\s*children:\s*(${identifierPattern})\s*\}\s*\)`,
-    "g",
-  );
-  const submenuAppliedPattern = new RegExp(
-    String.raw`\(\s*0\s*,\s*${identifierPattern}\.jsx\)\(\s*${identifierPattern}\s*,\s*\{trigger:\s*${identifierPattern}\s*,\s*children:\s*${identifierPattern}\s*,\s*isDefaultOpen:\s*!0\s*\}\s*\)`,
-  );
-
   return (source) => {
     const matches = findFunctionRanges(source).filter((range) =>
-      markers.every((marker) => range.body.includes(marker)),
+      usageRemainingMarkers.every((marker) => range.body.includes(marker)),
     );
     if (matches.length === 0) {
       return undefined;
     }
     if (matches.length !== 1) {
       throw new Error(
-        `Expected exactly one Usage remaining submenu function containing ${markers.join(", ")}, found ${matches.length}.`,
+        `Expected exactly one Usage remaining submenu function containing ${usageRemainingMarkers.join(", ")}, found ${matches.length}.`,
       );
     }
 
     const match = matches[0];
-    triggerTargetPattern.lastIndex = 0;
-    submenuTargetPattern.lastIndex = 0;
-    const triggerTargets = Array.from(match.body.matchAll(triggerTargetPattern));
-    const submenuTargets = Array.from(match.body.matchAll(submenuTargetPattern));
-    if (
-      triggerTargets.length === 0 &&
-      submenuTargets.length === 0 &&
-      triggerAppliedPattern.test(match.body) &&
-      submenuAppliedPattern.test(match.body)
-    ) {
-      return { source, status: "already-applied", matcher: "semantic" };
-    }
+    const calls = findJsxObjectCalls(match.body);
+    const triggerTargets = calls.filter((call) =>
+      hasObjectProperties(call, ["LeftIcon", "RightIcon", "tooltipSide", "children"]),
+    );
+    const submenuTargets = calls.filter((call) =>
+      hasObjectProperties(call, ["trigger", "children"]),
+    );
     if (triggerTargets.length !== 1) {
-      throw new Error(`Expected exactly one Usage remaining submenu trigger target, found ${triggerTargets.length}.`);
+      throw new Error(
+        `Expected exactly one Usage remaining submenu trigger target, found ${triggerTargets.length}.`,
+      );
     }
     if (submenuTargets.length !== 1) {
-      throw new Error(`Expected exactly one Usage remaining submenu target, found ${submenuTargets.length}.`);
+      throw new Error(
+        `Expected exactly one Usage remaining submenu target, found ${submenuTargets.length}.`,
+      );
     }
 
     const triggerTarget = triggerTargets[0];
     const submenuTarget = submenuTargets[0];
-    if (!triggerTarget?.[1] || !submenuTarget?.[1]) {
-      throw new Error("Unable to identify Usage remaining submenu child expressions.");
+    if (!triggerTarget || !submenuTarget) {
+      throw new Error("Unable to identify Usage remaining submenu JSX targets.");
+    }
+
+    const submenuTrigger = findUniqueObjectProperty(submenuTarget, "trigger");
+    if (
+      !triggerTarget.assignedIdentifier ||
+      !submenuTrigger ||
+      submenuTrigger.value !== triggerTarget.assignedIdentifier
+    ) {
+      throw new Error(
+        "Usage remaining submenu is not connected to its identified trigger.",
+      );
+    }
+
+    const submenuChildren = findUniqueObjectProperty(submenuTarget, "children");
+    if (!submenuChildren || !new RegExp(`^${identifierPattern}$`).test(submenuChildren.value)) {
+      throw new Error("Unable to identify Usage remaining submenu content.");
+    }
+    const contentAssignments = findIdentifierAssignmentPositions(
+      match.body,
+      submenuChildren.value,
+    );
+    if (
+      contentAssignments.length === 0 ||
+      !contentAssignments.some((index) => index < submenuTarget.start)
+    ) {
+      throw new Error(
+        "Unable to prove the Usage remaining submenu content belongs to this function.",
+      );
+    }
+
+    const triggerOnSelect = findUniqueObjectProperty(triggerTarget, "onSelect");
+    const triggerNeedsPatch = triggerOnSelect === undefined;
+    if (triggerOnSelect && !isPreventDefaultHandler(triggerOnSelect.value)) {
+      throw new Error(
+        "Usage remaining trigger already defines an unsupported onSelect handler.",
+      );
+    }
+
+    const submenuDefaultOpen = findUniqueObjectProperty(
+      submenuTarget,
+      "isDefaultOpen",
+    );
+    const submenuNeedsPatch = submenuDefaultOpen === undefined;
+    if (submenuDefaultOpen && !isAlwaysOpenValue(submenuDefaultOpen.value)) {
+      throw new Error(
+        "Usage remaining submenu already defines an unsupported isDefaultOpen value.",
+      );
+    }
+
+    if (!triggerNeedsPatch && !submenuNeedsPatch) {
+      return { source, status: "already-applied", matcher: "semantic" };
     }
 
     const replacements = [
-      {
-        start: triggerTarget.index ?? 0,
-        end: (triggerTarget.index ?? 0) + triggerTarget[0].length,
-        value: triggerTarget[0].replace(
-          `children:${triggerTarget[1]}`,
-          `children:${triggerTarget[1]},onSelect:e=>e.preventDefault()`,
-        ),
-      },
-      {
-        start: submenuTarget.index ?? 0,
-        end: (submenuTarget.index ?? 0) + submenuTarget[0].length,
-        value: submenuTarget[0].replace(
-          `children:${submenuTarget[1]}`,
-          `children:${submenuTarget[1]},isDefaultOpen:!0`,
-        ),
-      },
-    ].sort((left, right) => right.start - left.start);
+      triggerNeedsPatch
+        ? {
+            ...appendObjectProperty(
+              match.body,
+              triggerTarget,
+              "onSelect:e=>e.preventDefault()",
+            ),
+          }
+        : undefined,
+      submenuNeedsPatch
+        ? {
+            ...appendObjectProperty(
+              match.body,
+              submenuTarget,
+              "isDefaultOpen:!0",
+            ),
+          }
+        : undefined,
+    ]
+      .filter((replacement): replacement is { index: number; value: string } =>
+        replacement !== undefined,
+      )
+      .sort((left, right) => right.index - left.index);
 
     let patchedBody = match.body;
     for (const replacement of replacements) {
       patchedBody =
-        patchedBody.slice(0, replacement.start) +
+        patchedBody.slice(0, replacement.index) +
         replacement.value +
-        patchedBody.slice(replacement.end);
+        patchedBody.slice(replacement.index);
+    }
+
+    const patchedCalls = findJsxObjectCalls(patchedBody);
+    const patchedTriggerTargets = patchedCalls.filter((call) =>
+      hasObjectProperties(call, ["LeftIcon", "RightIcon", "tooltipSide", "children"]),
+    );
+    const patchedSubmenuTargets = patchedCalls.filter((call) =>
+      hasObjectProperties(call, ["trigger", "children"]),
+    );
+    const patchedTrigger = patchedTriggerTargets[0];
+    const patchedSubmenu = patchedSubmenuTargets[0];
+    const patchedHandler = patchedTrigger
+      ? findUniqueObjectProperty(patchedTrigger, "onSelect")
+      : undefined;
+    const patchedDefaultOpen = patchedSubmenu
+      ? findUniqueObjectProperty(patchedSubmenu, "isDefaultOpen")
+      : undefined;
+    if (
+      patchedTriggerTargets.length !== 1 ||
+      patchedSubmenuTargets.length !== 1 ||
+      !patchedHandler ||
+      !isPreventDefaultHandler(patchedHandler.value) ||
+      !patchedDefaultOpen ||
+      !isAlwaysOpenValue(patchedDefaultOpen.value) ||
+      patchedBody === match.body
+    ) {
+      throw new Error("Usage remaining patch postcondition failed.");
     }
 
     return {
@@ -764,16 +1070,11 @@ function patchUsageRemainingAlwaysExpanded(): SourcePatcher {
 }
 
 function patchUsageRemainingBundle(recoveredRoot: string): PatchResult[] {
-  const markers = [
-    "composer.mode.rateLimit.heading",
-    "composer.mode.rateLimit.resetsAvailable",
-    "rate limit summary submenu",
-  ];
   const patcher = patchUsageRemainingAlwaysExpanded();
   const filePath = findFileForPatcher(
     path.join(recoveredRoot, "webview", "assets"),
     /^.*\.js$/,
-    markers,
+    usageRemainingMarkers,
     patcher,
     "Usage remaining submenu",
   );

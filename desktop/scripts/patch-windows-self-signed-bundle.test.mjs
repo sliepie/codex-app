@@ -29,7 +29,9 @@ const chatsSectionTargets =
 const realtimeVoiceFeatureGateTargets =
   "function mts(){let e=Rh(`2380644311`),t=Y(jln),n=Y($9n);return e&&t&&!n}";
 const usageRemainingTargets =
-  "function n1l(e){let heading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.heading`,defaultMessage:`Usage remaining`,description:`Rate limit summary heading`}),resets=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.resetsAvailable`,defaultMessage:`# available resets`}),loading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.loading`,defaultMessage:`Loading usage…`,description:`Loading state for the rate limit summary submenu`}),k=(0,u7.jsx)(v,{LeftIcon:E,RightIcon:D,tooltipSide:S,children:O});return(0,u7.jsx)(y,{trigger:k,children:A})}";
+  "function n1l(e){let heading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.heading`,defaultMessage:`Usage remaining`,description:`Rate limit summary heading`}),resets=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.resetsAvailable`,defaultMessage:`# available resets`}),loading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.loading`,defaultMessage:`Loading usage…`,description:`Loading state for the rate limit summary submenu`}),k=(0,u7.jsx)(v,{LeftIcon:E,RightIcon:D,tooltipSide:S,children:O});let A=(0,u7.jsx)(V,{children:heading});return(0,u7.jsx)(y,{trigger:k,children:A})}";
+const usageRemainingCompilerShapeTargets =
+  "function jn(e){let j;t[0]?(j=(0,Z.jsx)(Item,{LeftIcon:O,RightIcon:k,tooltipSide:C,children:A}),t[1]=j):j=t[1];let M;t[2]?(M=(0,Z.jsxs)(`div`,{className:`flex flex-col text-sm`,children:[(0,Z.jsx)(w,{id:`composer.mode.rateLimit.heading`,children:A}),(0,Z.jsx)(w,{id:`composer.mode.rateLimit.resetsAvailable`,children:A}),(0,Z.jsx)(w,{id:`composer.mode.rateLimit.loading`,children:A})]}),t[3]=M):M=t[3];return(0,Z.jsx)(Submenu,{trigger:j,children:M})}";
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -252,6 +254,86 @@ test("keeps Usage remaining expanded in the rate-limit summary", () => {
     (candidate) => candidate.name === "keep Usage remaining expanded",
   );
   assert.equal(patch?.status, "applied");
+});
+
+test("handles the compiler memo-cache shape of the rate-limit summary", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const usagePath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "usage-remaining-fixture.js",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+  fs.writeFileSync(usagePath, usageRemainingCompilerShapeTargets, "utf8");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(usagePath, "utf8");
+  assert.match(bundle, /children:A,onSelect:e=>e\.preventDefault\(\)/);
+  assert.match(bundle, /trigger:j,children:M,isDefaultOpen:!0/);
+});
+
+test("accepts Usage remaining prop reordering and additional props", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const usagePath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "usage-remaining-fixture.js",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+  fs.writeFileSync(
+    usagePath,
+    usageRemainingTargets
+      .replace(
+        "(0,u7.jsx)(v,{LeftIcon:E,RightIcon:D,tooltipSide:S,children:O})",
+        "(0,u7.jsxs)(v,{ children: O, className: T, tooltipSide: S, RightIcon: D, LeftIcon: E })",
+      )
+      .replace(
+        "(0,u7.jsx)(y,{trigger:k,children:A})",
+        "(0,u7.jsxs)(y,{ children: A, trigger: k, className: T })",
+      ),
+    "utf8",
+  );
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(usagePath, "utf8");
+  assert.match(
+    bundle,
+    /children:\s*O\s*,\s*className:\s*T\s*,\s*tooltipSide:\s*S\s*,\s*RightIcon:\s*D\s*,\s*LeftIcon:\s*E\s*,\s*onSelect:e=>e\.preventDefault\(\)/,
+  );
+  assert.match(
+    bundle,
+    /children:\s*A\s*,\s*trigger:\s*k\s*,\s*className:\s*T\s*,\s*isDefaultOpen:!0/,
+  );
+});
+
+test("preserves a compatible Usage remaining trigger handler", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const usagePath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "usage-remaining-fixture.js",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+  const original = fs.readFileSync(usagePath, "utf8");
+  const conflictedSource = original.replace(
+    "(0,u7.jsx)(v,{LeftIcon:E,RightIcon:D,tooltipSide:S,children:O})",
+    "(0,u7.jsx)(v,{LeftIcon:E,RightIcon:D,tooltipSide:S,children:O,onSelect:evt=>evt.preventDefault()})",
+  );
+  fs.writeFileSync(usagePath, conflictedSource, "utf8");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(usagePath, "utf8");
+  assert.equal((bundle.match(/onSelect:evt=>evt\.preventDefault\(\)/g) ?? []).length, 1);
+  assert.match(bundle, /children:A,isDefaultOpen:!0/);
 });
 
 test("accepts benign Codex Voice bundle formatting changes", () => {
