@@ -53,12 +53,14 @@ const SIDEBAR_THREAD_ROW_HOVER_SELECTOR =
 const SIDEBAR_THREAD_ROW_HOVER_DECLARATIONS =
   "background-color:var(--color-token-list-hover-background)!important;";
 // Sidebar rich hover cards are body-level portals. Hide that portal for the whole
-// hovered sidebar surface so it cannot flicker between task and project rows without
-// suppressing unrelated rich cards after a sidebar control retains focus.
+// hovered sidebar surface so it cannot flicker between task and project rows, but
+// preserve a rich tooltip opened by keyboard focus outside the sidebar.
 const SIDEBAR_HOVER_CARD_SURFACE_SELECTOR =
   "[data-app-action-sidebar-scroll]:hover";
+const SIDEBAR_OUTSIDE_FOCUS_VISIBLE_SELECTOR =
+  `:focus-visible:not(${SIDEBAR_ROOT_SELECTOR} *)`;
 const SIDEBAR_HOVER_CARD_SELECTOR =
-  `body:has(${SIDEBAR_HOVER_CARD_SURFACE_SELECTOR}) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']`;
+  `body:has(${SIDEBAR_HOVER_CARD_SURFACE_SELECTOR}):not(:has(${SIDEBAR_OUTSIDE_FOCUS_VISIBLE_SELECTOR})) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']`;
 // OAI renders pin/archive in an absolute 52px rail. Use the button-bearing selector
 // only to style that rail directly; use the class-only selector inside the row-level
 // :has(), because nesting the button selector's :has() would invalidate the CSS.
