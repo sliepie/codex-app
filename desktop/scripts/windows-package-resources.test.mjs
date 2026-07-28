@@ -2329,7 +2329,10 @@ test("release workflow stops duplicate builds before packaging", () => {
   assert.ok(pagesArtifactIndex < publishIndex);
   assert.ok(publishIndex < pagesJobIndex);
   assert.match(workflowSource, /gh release upload \$tag @assets/);
-  assert.match(workflowSource, /gh release create \$tag @assets/);
+  assert.match(workflowSource, /gh release create \$tag @assets[\s\S]*--draft/);
+  assert.match(workflowSource, /gh release view \$tag --repo "\$repo" --json isDraft,assets/);
+  assert.match(workflowSource, /gh release edit \$tag --repo "\$repo" --draft=false/);
+  assert.match(workflowSource, /missingAssets/);
   assert.match(workflowSource, /out\/windows\/self-signed\/release-assets/);
   assert.match(workflowSource, /pages_artifact_ready: \$\{\{ steps\.pages_artifact_ready\.outputs\.ready \}\}/);
   assert.match(

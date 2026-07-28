@@ -33,6 +33,7 @@ const maxMsixVersionSegment = 65535;
 
 type GithubRelease = {
   body?: string | null;
+  draft?: boolean | null;
   tag_name?: string | null;
   target_commitish?: string | null;
 };
@@ -202,6 +203,10 @@ function resolveRepoReleaseRevision({
   let currentCommitReleaseTag = "";
 
   for (const release of releases) {
+    if (release.draft) {
+      continue;
+    }
+
     const tagName = release.tag_name ?? "";
     const revision = releaseRevisionFromTag(tagName, appVersion);
     if (revision === undefined) {
