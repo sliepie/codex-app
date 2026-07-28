@@ -2317,6 +2317,25 @@ test("release workflow stops duplicate builds before packaging", () => {
   assert.ok(noticeIndex < cacheIndex);
   assert.match(workflowSource, /already has repo release \$env:CURRENT_COMMIT_RELEASE_TAG for this commit; stopping before packaging/);
   assert.doesNotMatch(workflowSource, /release-readiness|skip_build|gh api|Invoke-WebRequest/);
+  assert.doesNotMatch(workflowSource, /name: Publish self-signed GitHub release assets/);
+
+  const packageIndex = workflowSource.indexOf("- name: Build self-signed MSIX");
+  const appInstallerIndex = workflowSource.indexOf("- name: Generate self-signed App Installer file");
+  const pagesArtifactIndex = workflowSource.indexOf("- name: Upload self-signed Pages artifact");
+  const publishIndex = workflowSource.indexOf("- name: Publish GitHub release");
+  const pagesJobIndex = workflowSource.indexOf("\n  publish-pages:");
+  assert.ok(packageIndex < publishIndex);
+  assert.ok(appInstallerIndex < publishIndex);
+  assert.ok(pagesArtifactIndex < publishIndex);
+  assert.ok(publishIndex < pagesJobIndex);
+  assert.match(workflowSource, /gh release upload \$tag @assets/);
+  assert.match(workflowSource, /gh release create \$tag @assets/);
+  assert.match(workflowSource, /out\/windows\/self-signed\/release-assets/);
+  assert.match(workflowSource, /pages_artifact_ready: \$\{\{ steps\.pages_artifact_ready\.outputs\.ready \}\}/);
+  assert.match(
+    workflowSource,
+    /publish-pages:\r?\n\s+name: Deploy self-signed update channel to Pages[\s\S]*needs: build-windows-arm64[\s\S]*if: always\(\) && needs\['build-windows-arm64'\]\.outputs\.pages_artifact_ready == 'true'/,
+  );
 
   const guardedStepNames = [
     "Restore npm cache",
@@ -2338,10 +2357,9 @@ test("release workflow stops duplicate builds before packaging", () => {
     "Remove temporary PFX",
     "Generate self-signed App Installer file",
     "Upload self-signed MSIX artifacts",
-    "Publish self-signed GitHub release assets",
     "Archive self-signed Pages artifact",
     "Upload self-signed Pages artifact",
-    "Deploy self-signed update channel to Pages",
+    "Mark self-signed Pages artifact ready",
   ];
   for (const stepName of guardedStepNames) {
     const stepIndex = workflowSource.indexOf(`- name: ${stepName}`);
