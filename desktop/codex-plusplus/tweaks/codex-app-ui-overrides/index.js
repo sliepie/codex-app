@@ -39,6 +39,7 @@ const SIDEBAR_COMPACT_THREAD_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-thread-row]`;
 const SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS =
   "height:calc(var(--height-token-row) - 4px)!important;";
+// Keep overflowing titles stationary while preserving OAI's native right-edge fade.
 const SIDEBAR_THREAD_TITLE_SCROLL_TRACK_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-thread-title][data-thread-title-scrolling]>span`;
 const SIDEBAR_THREAD_TITLE_SCROLL_TRACK_DECLARATIONS =
@@ -51,10 +52,15 @@ const SIDEBAR_THREAD_ROW_HOVER_SELECTOR =
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:hover`;
 const SIDEBAR_THREAD_ROW_HOVER_DECLARATIONS =
   "background-color:var(--color-token-list-hover-background)!important;";
+// Sidebar rich hover cards are body-level portals. Hide that portal for the whole
+// sidebar surface so it cannot flicker between task and project rows.
 const SIDEBAR_HOVER_CARD_SURFACE_SELECTOR =
   "[data-app-action-sidebar-scroll]:is(:hover,:focus-within)";
 const SIDEBAR_HOVER_CARD_SELECTOR =
   `body:has(${SIDEBAR_HOVER_CARD_SURFACE_SELECTOR}) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']`;
+// OAI renders pin/archive in an absolute 52px rail. Use the button-bearing selector
+// only to style that rail directly; use the class-only selector inside the row-level
+// :has(), because nesting the button selector's :has() would invalidate the CSS.
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR =
   "[class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]']:has(button.sidebar-hover-icon-button-tint)";
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_BOX_SELECTOR =
@@ -65,6 +71,8 @@ const SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR =
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within) ${SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR}`;
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
+// Replace the overlapping PR/progress rail with actions, reserve exactly the action
+// width for title fading, and remove OAI's now-hidden variable-width status spacer.
 const SIDEBAR_THREAD_ROW_FLOATING_STATUS_WITH_ACTIONS_SELECTOR =
   `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}>[data-hover-card-open-immediately][class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='min-w-[52px]']`;
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_SELECTOR =
