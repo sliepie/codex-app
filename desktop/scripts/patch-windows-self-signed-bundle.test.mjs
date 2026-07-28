@@ -28,6 +28,8 @@ const chatsSectionTargets =
   "function Chats(){let A=false,R=`sidebarElectron.recentChats`,N=`sidebarElectron.newThread`,H=ji.sidebarSection({collapsed:A,heading:`Tasks`});return(0,$.jsx)(Section,{...H,className:`group/chats-section-header`,sectionKind:`chats`,label:R,newThreadLabel:N})}";
 const realtimeVoiceFeatureGateTargets =
   "function mts(){let e=Rh(`2380644311`),t=Y(jln),n=Y($9n);return e&&t&&!n}";
+const usageRemainingTargets =
+  "function n1l(e){let heading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.heading`,defaultMessage:`Usage remaining`,description:`Rate limit summary heading`}),resets=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.resetsAvailable`,defaultMessage:`# available resets`}),loading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.loading`,defaultMessage:`Loading usage…`,description:`Loading state for the rate limit summary submenu`}),k=(0,u7.jsx)(v,{LeftIcon:E,RightIcon:D,tooltipSide:S,children:O});return(0,u7.jsx)(y,{trigger:k,children:A})}";
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -48,6 +50,10 @@ function createRecoveredFixture() {
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "realtime-voice-feature-gate-fixture.js"),
     realtimeVoiceFeatureGateTargets,
+  );
+  writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "usage-remaining-fixture.js"),
+    usageRemainingTargets,
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "browser-multi-tab-feature-fixture.js"),
@@ -141,6 +147,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
     report.patches.map((patch) => patch.file),
     [
       "webview/assets",
+      "webview/assets/usage-remaining-fixture.js",
       "webview/assets/realtime-voice-feature-gate-fixture.js",
       "webview/assets/browser-multi-tab-feature-fixture.js",
       "webview/assets/browser-downloads-feature-fixture.js",
@@ -222,6 +229,27 @@ test("enables Codex Voice without runtime gates", () => {
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   const patch = report.patches.find(
     (candidate) => candidate.name === "enable Codex Voice rollout gate",
+  );
+  assert.equal(patch?.status, "applied");
+});
+
+test("keeps Usage remaining expanded in the rate-limit summary", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(
+    path.join(recoveredRoot, "webview", "assets", "usage-remaining-fixture.js"),
+    "utf8",
+  );
+  assert.match(bundle, /children:O,onSelect:e=>e\.preventDefault\(\)/);
+  assert.match(bundle, /children:A,isDefaultOpen:!0/);
+
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (candidate) => candidate.name === "keep Usage remaining expanded",
   );
   assert.equal(patch?.status, "applied");
 });
@@ -743,7 +771,7 @@ test("patches non-feature self-signed Windows bundle changes", () => {
     /BrowserWindow\(\{icon:process\.platform===`win32`\?require\("node:path"\)\.join\(process\.resourcesPath,`icon\.ico`\):void 0,width:b/,
   );
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 11);
+  assert.equal(report.patches.length, 12);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -850,6 +878,7 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
   const files = [
     path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "usage-remaining-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "projects-section-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "chats-section-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
@@ -870,6 +899,6 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 11);
+  assert.equal(report.patches.length, 12);
   assert.ok(report.patches.every((patch) => patch.status === "already-applied"));
 });

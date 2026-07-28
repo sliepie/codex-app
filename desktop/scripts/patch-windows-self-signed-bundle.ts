@@ -665,6 +665,129 @@ function patchIndex(recoveredRoot: string): PatchResult[] {
   return [];
 }
 
+function patchUsageRemainingAlwaysExpanded(): SourcePatcher {
+  const markers = [
+    "composer.mode.rateLimit.heading",
+    "composer.mode.rateLimit.resetsAvailable",
+    "rate limit summary submenu",
+  ];
+  const triggerTargetPattern = new RegExp(
+    String.raw`\(\s*0\s*,\s*${identifierPattern}\.jsx\)\(\s*${identifierPattern}\s*,\s*\{LeftIcon:\s*${identifierPattern}\s*,\s*RightIcon:\s*${identifierPattern}\s*,\s*tooltipSide:\s*${identifierPattern}\s*,\s*children:\s*(${identifierPattern})\s*\}\s*\)`,
+    "g",
+  );
+  const triggerAppliedPattern = new RegExp(
+    String.raw`\(\s*0\s*,\s*${identifierPattern}\.jsx\)\(\s*${identifierPattern}\s*,\s*\{LeftIcon:\s*${identifierPattern}\s*,\s*RightIcon:\s*${identifierPattern}\s*,\s*tooltipSide:\s*${identifierPattern}\s*,\s*children:\s*${identifierPattern}\s*,\s*onSelect:\s*${identifierPattern}\s*=>\s*${identifierPattern}\.preventDefault\(\)\s*\}\s*\)`,
+  );
+  const submenuTargetPattern = new RegExp(
+    String.raw`\(\s*0\s*,\s*${identifierPattern}\.jsx\)\(\s*${identifierPattern}\s*,\s*\{trigger:\s*${identifierPattern}\s*,\s*children:\s*(${identifierPattern})\s*\}\s*\)`,
+    "g",
+  );
+  const submenuAppliedPattern = new RegExp(
+    String.raw`\(\s*0\s*,\s*${identifierPattern}\.jsx\)\(\s*${identifierPattern}\s*,\s*\{trigger:\s*${identifierPattern}\s*,\s*children:\s*${identifierPattern}\s*,\s*isDefaultOpen:\s*!0\s*\}\s*\)`,
+  );
+
+  return (source) => {
+    const matches = findFunctionRanges(source).filter((range) =>
+      markers.every((marker) => range.body.includes(marker)),
+    );
+    if (matches.length === 0) {
+      return undefined;
+    }
+    if (matches.length !== 1) {
+      throw new Error(
+        `Expected exactly one Usage remaining submenu function containing ${markers.join(", ")}, found ${matches.length}.`,
+      );
+    }
+
+    const match = matches[0];
+    triggerTargetPattern.lastIndex = 0;
+    submenuTargetPattern.lastIndex = 0;
+    const triggerTargets = Array.from(match.body.matchAll(triggerTargetPattern));
+    const submenuTargets = Array.from(match.body.matchAll(submenuTargetPattern));
+    if (
+      triggerTargets.length === 0 &&
+      submenuTargets.length === 0 &&
+      triggerAppliedPattern.test(match.body) &&
+      submenuAppliedPattern.test(match.body)
+    ) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+    if (triggerTargets.length !== 1) {
+      throw new Error(`Expected exactly one Usage remaining submenu trigger target, found ${triggerTargets.length}.`);
+    }
+    if (submenuTargets.length !== 1) {
+      throw new Error(`Expected exactly one Usage remaining submenu target, found ${submenuTargets.length}.`);
+    }
+
+    const triggerTarget = triggerTargets[0];
+    const submenuTarget = submenuTargets[0];
+    if (!triggerTarget?.[1] || !submenuTarget?.[1]) {
+      throw new Error("Unable to identify Usage remaining submenu child expressions.");
+    }
+
+    const replacements = [
+      {
+        start: triggerTarget.index ?? 0,
+        end: (triggerTarget.index ?? 0) + triggerTarget[0].length,
+        value: triggerTarget[0].replace(
+          `children:${triggerTarget[1]}`,
+          `children:${triggerTarget[1]},onSelect:e=>e.preventDefault()`,
+        ),
+      },
+      {
+        start: submenuTarget.index ?? 0,
+        end: (submenuTarget.index ?? 0) + submenuTarget[0].length,
+        value: submenuTarget[0].replace(
+          `children:${submenuTarget[1]}`,
+          `children:${submenuTarget[1]},isDefaultOpen:!0`,
+        ),
+      },
+    ].sort((left, right) => right.start - left.start);
+
+    let patchedBody = match.body;
+    for (const replacement of replacements) {
+      patchedBody =
+        patchedBody.slice(0, replacement.start) +
+        replacement.value +
+        patchedBody.slice(replacement.end);
+    }
+
+    return {
+      source:
+        source.slice(0, match.start) +
+        `${match.asyncPrefix}function ${match.name}(${match.args}){${patchedBody}}` +
+        source.slice(match.end),
+      status: "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
+function patchUsageRemainingBundle(recoveredRoot: string): PatchResult[] {
+  const markers = [
+    "composer.mode.rateLimit.heading",
+    "composer.mode.rateLimit.resetsAvailable",
+    "rate limit summary submenu",
+  ];
+  const patcher = patchUsageRemainingAlwaysExpanded();
+  const filePath = findFileForPatcher(
+    path.join(recoveredRoot, "webview", "assets"),
+    /^.*\.js$/,
+    markers,
+    patcher,
+    "Usage remaining submenu",
+  );
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "keep Usage remaining expanded",
+      [patcher],
+    ),
+  ];
+}
+
 function patchRealtimeVoiceFeatureGate(recoveredRoot: string): PatchResult[] {
   const patcher = regexPatch(
     realtimeVoiceFeatureGatePattern,
@@ -1334,6 +1457,7 @@ function main(): void {
     results.push(...patchRendererProductText(recoveredRoot));
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
+    results.push(...patchUsageRemainingBundle(recoveredRoot));
     results.push(...patchRealtimeVoiceFeatureGate(recoveredRoot));
     results.push(...patchBrowserMultiTabFeatureGate(recoveredRoot));
     results.push(...patchBrowserDownloadsFeatureGate(recoveredRoot));
