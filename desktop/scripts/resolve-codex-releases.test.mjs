@@ -49,13 +49,18 @@ function releaseInputsBody({
   codexCliTag = "rust-v0.129.0",
   codexPlusPlusSha = "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413",
   codexPlusPlusTag = "v0.1.7",
+  workflowRunNumber,
 } = {}) {
-  return [
+  const lines = [
     "Codex app: " + appVersion + " build " + appBuildNumber,
     "Codex CLI: " + codexCliTag,
     "Codex++: " + codexPlusPlusTag,
     "Codex++ commit: " + codexPlusPlusSha,
-  ].join("\\n");
+  ];
+  if (workflowRunNumber !== undefined) {
+    lines.push("Workflow run: " + workflowRunNumber);
+  }
+  return lines.join("\n");
 }
 
 function startServer(
@@ -191,6 +196,7 @@ async function runResolver({
   codexPlusPlusSha,
   codexPlusPlusTag,
   sha = "abcdef1234567890",
+  workflowRunNumber,
   scriptArgs = [scriptPath],
 }) {
   const server = await startServer(releases, {
@@ -233,6 +239,7 @@ async function runResolver({
             GITHUB_API_URL: server.origin,
             GITHUB_OUTPUT: outputPath,
             GITHUB_REPOSITORY: "sliepie/codex-app",
+            GITHUB_RUN_NUMBER: workflowRunNumber === undefined ? "" : String(workflowRunNumber),
             GITHUB_SHA: sha,
             NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import ${pathToFileURL(fetchShimPath).href}`.trim(),
           },
@@ -452,6 +459,127 @@ test("keeps the repo revision when rerunning a commit that already has a numeric
   assert.equal(output.repo_release_revision, "1");
   assert.equal(output.release_tag, "codex-app-26.429.61741.1");
   assert.equal(output.current_commit_release_tag, "codex-app-26.429.61741.1");
+});
+
+test("reuses a matching draft release without treating it as a duplicate", async () => {
+  const output = await runResolver({
+    releases: [{
+      tag_name: "codex-app-26.429.61741.0",
+      target_commitish: "abcdef1234567890",
+      body: releaseInputsBody(),
+      draft: true,
+    }],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.0");
+  assert.equal(output.repo_release_revision, "0");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.0");
+  assert.equal(output.current_commit_release_tag, "");
+  assert.equal(output.is_latest_run, "true");
+});
+
+test("reserves revisions used by unrelated draft releases", async () => {
+  const output = await runResolver({
+    releases: [{
+      tag_name: "codex-app-26.429.61741.0",
+      target_commitish: "old-sha",
+      body: releaseInputsBody(),
+      draft: true,
+    }],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.1");
+  assert.equal(output.repo_release_revision, "1");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.1");
+  assert.equal(output.current_commit_release_tag, "");
+});
+
+test("does not reuse a matching draft older than the latest release revision", async () => {
+  const output = await runResolver({
+    releases: [
+      {
+        tag_name: "codex-app-26.429.61741.0",
+        target_commitish: "abcdef1234567890",
+        body: releaseInputsBody(),
+        draft: true,
+      },
+      {
+        tag_name: "codex-app-26.429.61741.1",
+        target_commitish: "newer-sha",
+        body: releaseInputsBody(),
+      },
+    ],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.2");
+  assert.equal(output.repo_release_revision, "2");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.2");
+  assert.equal(output.current_commit_release_tag, "");
+});
+
+test("blocks an older workflow run after a newer published release", async () => {
+  const output = await runResolver({
+    workflowRunNumber: 100,
+    releases: [{
+      tag_name: "codex-app-26.430.61742.0",
+      target_commitish: "newer-sha",
+      body: releaseInputsBody({
+        appBuildNumber: "2430",
+        appVersion: "26.430.61742",
+        workflowRunNumber: 101,
+      }),
+    }],
+  });
+
+  assert.equal(output.is_latest_run, "false");
+});
+
+test("does not let draft releases fence a workflow run", async () => {
+  const output = await runResolver({
+    workflowRunNumber: 100,
+    releases: [{
+      tag_name: "codex-app-26.430.61742.0",
+      target_commitish: "newer-sha",
+      body: releaseInputsBody({
+        appBuildNumber: "2430",
+        appVersion: "26.430.61742",
+        workflowRunNumber: 101,
+      }),
+      draft: true,
+    }],
+  });
+
+  assert.equal(output.is_latest_run, "true");
+});
+
+test("only a valid higher published workflow run fences an older run", async () => {
+  const cases = [
+    { name: "missing marker", marker: undefined, expected: "true" },
+    { name: "legacy marker", marker: "Release metadata without a workflow marker", expected: "true" },
+    { name: "malformed marker", marker: "Workflow run: not-a-number", expected: "true" },
+    { name: "zero marker", marker: "Workflow run: 0", expected: "true" },
+    { name: "negative marker", marker: "Workflow run: -1", expected: "true" },
+    { name: "decimal marker", marker: "Workflow run: 101.5", expected: "true" },
+    { name: "unsafe marker", marker: "Workflow run: 9007199254740992", expected: "true" },
+    { name: "equal marker", marker: "Workflow run: 100", expected: "true" },
+    { name: "lower marker", marker: "Workflow run: 99", expected: "true" },
+    { name: "valid CRLF marker", marker: "Workflow run: 101\r\n", expected: "false" },
+  ];
+
+  for (const testCase of cases) {
+    const output = await runResolver({
+      workflowRunNumber: 100,
+      releases: [{
+        tag_name: "codex-app-26.430.61742.0",
+        target_commitish: "newer-sha",
+        body: testCase.marker === undefined
+          ? releaseInputsBody({ appBuildNumber: "2430", appVersion: "26.430.61742" })
+          : releaseInputsBody({ appBuildNumber: "2430", appVersion: "26.430.61742" }) + "\n" + testCase.marker,
+      }],
+    });
+
+    assert.equal(output.is_latest_run, testCase.expected, testCase.name);
+  }
 });
 
 test("keeps the repo revision when rerunning a commit that already has a commit-suffixed release", async () => {

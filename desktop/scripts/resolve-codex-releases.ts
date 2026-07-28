@@ -33,6 +33,7 @@ const maxMsixVersionSegment = 65535;
 
 type GithubRelease = {
   body?: string | null;
+  draft?: boolean | null;
   tag_name?: string | null;
   target_commitish?: string | null;
 };
@@ -69,6 +70,7 @@ type AppcastRelease = {
 type ResolveRepoReleaseRevisionOptions = ReleaseInputs & {
   appVersion: string;
   currentSha?: string;
+  currentRunNumber?: number;
   releases: GithubRelease[];
 };
 
@@ -99,6 +101,15 @@ function parsePositiveInteger(label: string, value: string): number {
   }
 
   return parsed;
+}
+
+function parseOptionalPositiveInteger(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function parseMsixVersionSegment(label: string, value: number | string): number {
@@ -188,20 +199,48 @@ function releaseTracksInputs(
   );
 }
 
+function releaseWorkflowRunNumber(release: GithubRelease): number | undefined {
+  const match = (release.body ?? "").match(/^Workflow run: ([1-9]\d*)\r?$/m);
+  if (!match?.[1]) {
+    return undefined;
+  }
+
+  return parseOptionalPositiveInteger(match[1]);
+}
+
 function resolveRepoReleaseRevision({
   appVersion,
   appBuildNumber,
   currentSha,
+  currentRunNumber,
   releases,
   codexCliTag,
   codexPlusPlusSha,
   codexPlusPlusTag,
-}: ResolveRepoReleaseRevisionOptions): { currentCommitReleaseTag: string; repoReleaseRevision: number } {
+}: ResolveRepoReleaseRevisionOptions): {
+  currentCommitReleaseTag: string;
+  isLatestRun: boolean;
+  matchingDraftReleaseTag: string;
+  repoReleaseRevision: number;
+} {
   let latestRevision = -1;
   let currentCommitRevision: number | undefined;
   let currentCommitReleaseTag = "";
+  let matchingDraftRevision: number | undefined;
+  let matchingDraftReleaseTag = "";
+  let hasNewerCompletedRelease = false;
 
   for (const release of releases) {
+    const workflowRunNumber = releaseWorkflowRunNumber(release);
+    if (
+      currentRunNumber !== undefined &&
+      workflowRunNumber !== undefined &&
+      release.draft !== true &&
+      workflowRunNumber > currentRunNumber
+    ) {
+      hasNewerCompletedRelease = true;
+    }
+
     const tagName = release.tag_name ?? "";
     const revision = releaseRevisionFromTag(tagName, appVersion);
     if (revision === undefined) {
@@ -220,16 +259,30 @@ function resolveRepoReleaseRevision({
         codexPlusPlusTag,
       })
     ) {
-      if (currentCommitRevision === undefined || revision > currentCommitRevision) {
+      if (release.draft) {
+        if (matchingDraftRevision === undefined || revision > matchingDraftRevision) {
+          matchingDraftRevision = revision;
+          matchingDraftReleaseTag = tagName;
+        }
+      } else if (currentCommitRevision === undefined || revision > currentCommitRevision) {
         currentCommitRevision = revision;
         currentCommitReleaseTag = tagName;
       }
     }
   }
 
+  const reusableDraftRevision =
+    matchingDraftRevision !== undefined && matchingDraftRevision === latestRevision
+      ? matchingDraftRevision
+      : undefined;
+
   return {
     currentCommitReleaseTag,
-    repoReleaseRevision: currentCommitRevision ?? latestRevision + 1,
+    isLatestRun: !hasNewerCompletedRelease,
+    matchingDraftReleaseTag: reusableDraftRevision === undefined ? "" : matchingDraftReleaseTag,
+    repoReleaseRevision:
+      currentCommitRevision ??
+      (reusableDraftRevision ?? latestRevision + 1),
   };
 }
 
@@ -444,10 +497,11 @@ async function main(): Promise<void> {
     shaPattern,
   ).toLowerCase();
   const releases = await fetchExistingReleases();
-  const { currentCommitReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevision({
+  const { currentCommitReleaseTag, isLatestRun, matchingDraftReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevision({
     appVersion,
     appBuildNumber: buildNumber,
     currentSha: process.env.GITHUB_SHA,
+    currentRunNumber: parseOptionalPositiveInteger(process.env.GITHUB_RUN_NUMBER),
     releases,
     codexCliTag: cliTag,
     codexPlusPlusSha,
@@ -459,7 +513,7 @@ async function main(): Promise<void> {
     buildNumber,
     repoReleaseRevision,
   );
-  const releaseTag = currentCommitReleaseTag || `codex-app-${releaseVersion}`;
+  const releaseTag = currentCommitReleaseTag || matchingDraftReleaseTag || `codex-app-${releaseVersion}`;
   const hydrationCacheInputHash = hashCacheInputs([...windowsArm64HydratedCacheInputPaths]);
   const hydrationCacheKey = `windows-arm64-hydrated-${windowsArm64HydratedCacheKeyVersion}-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-${hydrationCacheInputHash}`;
   const nativeModulesCacheInputHash = hashCacheInputs([...windowsArm64NativeModuleCacheInputPaths]);
@@ -476,6 +530,7 @@ async function main(): Promise<void> {
   githubOutput("msix_package_version", msixPackageVersion);
   githubOutput("release_tag", releaseTag);
   githubOutput("current_commit_release_tag", currentCommitReleaseTag);
+  githubOutput("is_latest_run", isLatestRun ? "true" : "false");
   githubOutput("hydration_cache_key", hydrationCacheKey);
   githubOutput("native_modules_cache_key", nativeModulesCacheKey);
 
@@ -493,6 +548,7 @@ async function main(): Promise<void> {
         msixPackageVersion,
         releaseTag,
         currentCommitReleaseTag,
+        isLatestRun,
         nativeModulesCacheKey,
       },
       null,

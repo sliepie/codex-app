@@ -2306,6 +2306,98 @@ test("release workflow tracks Codex++ in package inputs and release metadata", (
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--notes "\$notes"/);
 });
 
+test("release workflow stops duplicate builds before packaging", () => {
+  const workflowSource = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
+    "utf8",
+  );
+  assert.doesNotMatch(workflowSource, /build-windows-arm64:\r?\n\s+if: github\.run_attempt == '1'/);
+  const noticeIndex = workflowSource.indexOf("- name: Notice existing repo release");
+  const cacheIndex = workflowSource.indexOf("- name: Restore npm cache");
+  assert.ok(noticeIndex >= 0);
+  assert.ok(noticeIndex < cacheIndex);
+  assert.match(workflowSource, /already has repo release \$env:CURRENT_COMMIT_RELEASE_TAG for this commit; stopping before packaging/);
+  assert.doesNotMatch(workflowSource, /release-readiness|skip_build|gh api|Invoke-WebRequest/);
+  assert.doesNotMatch(workflowSource, /name: Publish self-signed GitHub release assets/);
+
+  const packageIndex = workflowSource.indexOf("- name: Build self-signed MSIX");
+  const appInstallerIndex = workflowSource.indexOf("- name: Generate self-signed App Installer file");
+  const pagesArtifactIndex = workflowSource.indexOf("- name: Upload self-signed Pages artifact");
+  const publishIndex = workflowSource.indexOf("- name: Publish GitHub release");
+  const pagesReadyIndex = workflowSource.indexOf("- name: Mark self-signed Pages artifact ready");
+  const pagesJobIndex = workflowSource.indexOf("\n  publish-pages:");
+  assert.ok(packageIndex < publishIndex);
+  assert.ok(appInstallerIndex < publishIndex);
+  assert.ok(pagesArtifactIndex < publishIndex);
+  assert.ok(publishIndex < pagesReadyIndex);
+  assert.ok(publishIndex < pagesJobIndex);
+  assert.match(workflowSource, /gh release upload \$tag @assets/);
+  assert.match(workflowSource, /gh release create \$tag @assets[\s\S]*--draft/);
+  assert.match(workflowSource, /gh release view \$tag --repo "\$repo" --json isDraft,assets/);
+  assert.match(workflowSource, /gh release edit \$tag --repo "\$repo" --draft=false/);
+  assert.match(workflowSource, /missingAssets/);
+  assert.match(workflowSource, /out\/windows\/self-signed\/release-assets/);
+  assert.match(workflowSource, /is_latest_run: \$\{\{ steps\.upstream\.outputs\.is_latest_run \}\}/);
+  assert.match(workflowSource, /pages_artifact_ready: \$\{\{ steps\.pages_artifact_ready\.outputs\.ready \}\}/);
+  assert.match(workflowSource, /pages_artifact_run_attempt: \$\{\{ steps\.pages_artifact_ready\.outputs\.run_attempt \}\}/);
+  assert.match(
+    workflowSource,
+    /- name: Publish GitHub release\r?\n\s+if: env\.IS_RELEASE_EVENT == 'true' && steps\.upstream\.outputs\.current_commit_release_tag == '' && steps\.upstream\.outputs\.is_latest_run == 'true'/,
+  );
+  assert.match(
+    workflowSource,
+    /- name: Mark self-signed Pages artifact ready[\s\S]*if: env\.IS_RELEASE_EVENT == 'true' && steps\.upstream\.outputs\.current_commit_release_tag == '' && steps\.upstream\.outputs\.is_latest_run == 'true'[\s\S]*"run_attempt=\$env:GITHUB_RUN_ATTEMPT"/,
+  );
+  assert.match(
+    workflowSource,
+    /publish-pages:\r?\n\s+name: Deploy self-signed update channel to Pages[\s\S]*needs: build-windows-arm64[\s\S]*if: always\(\) && needs\['build-windows-arm64'\]\.result == 'success' && needs\['build-windows-arm64'\]\.outputs\.pages_artifact_ready == 'true' && needs\['build-windows-arm64'\]\.outputs\.pages_artifact_run_attempt == format\('\{0\}', github\.run_attempt\) && needs\['build-windows-arm64'\]\.outputs\.is_latest_run == 'true'/,
+  );
+  assert.match(
+    workflowSource,
+    /publish-pages:[\s\S]*concurrency:\r?\n\s+group: windows-arm64-pages\r?\n\s+cancel-in-progress: true/,
+  );
+  assert.match(
+    workflowSource,
+    /build-windows-arm64:[\s\S]*concurrency:\r?\n\s+group: windows-arm64-release-\$\{\{ github\.ref \}\}\r?\n\s+queue: max\r?\n\s+cancel-in-progress: false/,
+  );
+
+  const guardedStepNames = [
+    "Restore npm cache",
+    "Restore Electron cache",
+    "Install dependencies",
+    "Build desktop scripts",
+    "Run targeted desktop tests",
+    "Restore hydrated release cache",
+    "Prepare native Node module cache directory",
+    "Restore native Node module cache",
+    "Restore native updater cache",
+    "Make Windows ARM64 ZIP",
+    "Upload Windows ARM64 artifact",
+    "Publish GitHub release",
+    "Validate self-signed MSIX inputs",
+    "Decode self-signed PFX",
+    "Prepare self-signed MSIX payload",
+    "Build self-signed MSIX",
+    "Remove temporary PFX",
+    "Generate self-signed App Installer file",
+    "Upload self-signed MSIX artifacts",
+    "Archive self-signed Pages artifact",
+    "Upload self-signed Pages artifact",
+    "Mark self-signed Pages artifact ready",
+  ];
+  for (const stepName of guardedStepNames) {
+    const stepIndex = workflowSource.indexOf(`- name: ${stepName}`);
+    assert.ok(stepIndex >= 0, `missing workflow step: ${stepName}`);
+    const nextStepIndex = workflowSource.indexOf("\n      - name:", stepIndex + 1);
+    const stepBlock = workflowSource.slice(stepIndex, nextStepIndex === -1 ? undefined : nextStepIndex);
+    assert.match(
+      stepBlock,
+      /steps\.upstream\.outputs\.current_commit_release_tag == ''/,
+      `step is not skipped for duplicate builds: ${stepName}`,
+    );
+  }
+});
+
 test("release workflows scope GitHub credentials away from install and build scripts", () => {
   const releaseWorkflowSource = fs.readFileSync(
     path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
