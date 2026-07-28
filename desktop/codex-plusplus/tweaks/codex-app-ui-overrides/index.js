@@ -57,16 +57,22 @@ const SIDEBAR_HOVER_CARD_SELECTOR =
   `body:has(${SIDEBAR_HOVER_CARD_SURFACE_SELECTOR}) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']`;
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR =
   "[class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]']:has(button.sidebar-hover-icon-button-tint)";
-const SIDEBAR_THREAD_ROW_WITH_VISIBLE_ACTIONS_SELECTOR =
-  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within):has(${SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR})`;
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_BOX_SELECTOR =
+  "[class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0'][class~='group-hover:opacity-100']";
+const SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within):has(${SIDEBAR_THREAD_ROW_ACTION_RAIL_BOX_SELECTOR})`;
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within) ${SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR}`;
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS =
+  "opacity:1!important;visibility:visible!important;";
 const SIDEBAR_THREAD_ROW_FLOATING_STATUS_WITH_ACTIONS_SELECTOR =
-  `${SIDEBAR_THREAD_ROW_WITH_VISIBLE_ACTIONS_SELECTOR}>[data-hover-card-open-immediately][class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='min-w-[52px]']`;
+  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}>[data-hover-card-open-immediately][class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='min-w-[52px]']`;
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_SELECTOR =
-  `${SIDEBAR_THREAD_ROW_WITH_VISIBLE_ACTIONS_SELECTOR}>[class~='flex'][class~='h-full'][class~='w-full'][class~='items-center']>[class~='ml-[3px]'][class~='flex'][class~='items-center'][class~='justify-end'][class~='gap-1']:has(${SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR})`;
+  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}>[class~='flex'][class~='h-full'][class~='w-full'][class~='items-center']>[class~='ml-[3px]'][class~='flex'][class~='items-center'][class~='justify-end'][class~='gap-1']`;
 const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS =
   "min-width:52px!important;";
 const SIDEBAR_THREAD_ROW_STATUS_SPACER_WITH_ACTIONS_SELECTOR =
-  `${SIDEBAR_THREAD_ROW_WITH_VISIBLE_ACTIONS_SELECTOR}>[class~='flex'][class~='h-full'][class~='w-full'][class~='items-center']>[class~='shrink-0']:last-child:empty`;
+  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}>[class~='flex'][class~='h-full'][class~='w-full'][class~='items-center']>[class~='shrink-0']:last-child:empty`;
 
 // Project rows: compact project headers and nested-list spacing while retaining overflow
 // needed by the native project controls.
@@ -263,6 +269,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   ),
   cssRule(SIDEBAR_THREAD_ROW_HOVER_SELECTOR, SIDEBAR_THREAD_ROW_HOVER_DECLARATIONS),
   cssRule(SIDEBAR_HOVER_CARD_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(
+    SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR,
+    SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS,
+  ),
   cssRule(
     SIDEBAR_THREAD_ROW_FLOATING_STATUS_WITH_ACTIONS_SELECTOR,
     HIDDEN_DISPLAY_DECLARATIONS,
