@@ -39,36 +39,51 @@ const SIDEBAR_COMPACT_THREAD_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-thread-row]`;
 const SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS =
   "height:calc(var(--height-token-row) - 4px)!important;";
-const SIDEBAR_INTERACTIVE_THREAD_ROW_SELECTOR =
-  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within)`;
-
-// Native task actions: reveal OAI's 52px archive/action rail on hover or keyboard focus.
+// Keep overflowing titles stationary while preserving OAI's native right-edge fade.
+const SIDEBAR_THREAD_TITLE_SCROLL_TRACK_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} [data-thread-title][data-thread-title-scrolling]>span`;
+const SIDEBAR_THREAD_TITLE_SCROLL_TRACK_DECLARATIONS =
+  "transform:none!important;transition:none!important;";
+const SIDEBAR_OVERFLOWING_THREAD_TITLE_ON_HOVER_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:hover [data-thread-title][data-thread-title-overflowing]`;
+const SIDEBAR_OVERFLOWING_THREAD_TITLE_ON_HOVER_DECLARATIONS =
+  "-webkit-mask-image:linear-gradient(to right,#000 calc(100% - var(--text-fade-truncate-distance,1rem)),transparent)!important;mask-image:linear-gradient(to right,#000 calc(100% - var(--text-fade-truncate-distance,1rem)),transparent)!important;";
+const SIDEBAR_THREAD_ROW_HOVER_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:hover`;
+const SIDEBAR_THREAD_ROW_HOVER_DECLARATIONS =
+  "background-color:var(--color-token-list-hover-background)!important;";
+// Sidebar rich hover cards are body-level portals. Hide that portal for the whole
+// hovered sidebar surface so it cannot flicker between task and project rows, but
+// preserve a rich tooltip opened by keyboard focus outside the sidebar.
+const SIDEBAR_HOVER_CARD_SURFACE_SELECTOR =
+  "[data-app-action-sidebar-scroll]:hover";
+const SIDEBAR_OUTSIDE_FOCUS_VISIBLE_SELECTOR =
+  `:focus-visible:not(${SIDEBAR_ROOT_SELECTOR} *)`;
+const SIDEBAR_HOVER_CARD_SELECTOR =
+  `body:has(${SIDEBAR_HOVER_CARD_SURFACE_SELECTOR}):not(:has(${SIDEBAR_OUTSIDE_FOCUS_VISIBLE_SELECTOR})) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']`;
+// OAI renders pin/archive in an absolute 52px rail. Use the button-bearing selector
+// only to style that rail directly; use the class-only selector inside the row-level
+// :has(), because nesting the button selector's :has() would invalidate the CSS.
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR =
+  "[class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]']:has(button.sidebar-hover-icon-button-tint)";
+const SIDEBAR_THREAD_ROW_ACTION_RAIL_BOX_SELECTOR =
+  "[class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0'][class~='group-hover:opacity-100']";
+const SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within):has(${SIDEBAR_THREAD_ROW_ACTION_RAIL_BOX_SELECTOR})`;
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR =
-  `${SIDEBAR_INTERACTIVE_THREAD_ROW_SELECTOR} [class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']`;
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within) ${SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR}`;
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
-
-// Project task collision: hide the PR/progress trailing layer while native actions are shown.
-// Do not broaden this to Pinned or Chats: OAI renders their hover pin inside the same
-// min-w-[52px] layer, so hiding it there removes a native action.
+// Replace the overlapping PR/progress rail with actions, reserve exactly the action
+// width for title fading, and remove OAI's now-hidden variable-width status spacer.
 const SIDEBAR_THREAD_ROW_FLOATING_STATUS_WITH_ACTIONS_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [role='listitem']:has([data-app-action-sidebar-project-row]) [data-app-action-sidebar-thread-row]:is(:hover,:focus-within) [class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='min-w-[52px]']`;
-
-// Hover layout normalization: OAI appends an empty 0/24/52px spacer based on resting
-// status icons. Remove that variable spacer before reserving the fixed two-action rail,
-// otherwise spinner-only and PR-plus-spinner rows receive different hover title widths.
-const SIDEBAR_THREAD_ROW_RESTING_STATUS_SPACER_SELECTOR =
-  `${SIDEBAR_INTERACTIVE_THREAD_ROW_SELECTOR}>[class~='flex'][class~='h-full'][class~='w-full'][class~='items-center']>[class~='shrink-0']:last-child:empty`;
-const SIDEBAR_THREAD_ROW_RESTING_STATUS_SPACER_DECLARATIONS =
-  "display:none!important;";
-
-// Hover title boundary: every chat exposes pin/unpin plus archive, so reserve OAI's full
-// 52px two-control rail after removing the resting spacer. This lets the title's native
-// overflow observer enable text-fade-truncate at the action boundary instead of under it.
-const SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_SELECTOR =
-  `${SIDEBAR_INTERACTIVE_THREAD_ROW_SELECTOR}:has([class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0']) [class~='flex'][class~='min-w-0'][class~='flex-1'][class~='items-center'][class~='gap-2']:has(>[data-thread-title-trigger])`;
-const SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_DECLARATIONS =
-  "padding-right:52px!important;";
+  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}>[data-hover-card-open-immediately][class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='min-w-[52px]']`;
+const SIDEBAR_THREAD_ROW_ACTION_SLOT_SELECTOR =
+  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}>[class~='flex'][class~='h-full'][class~='w-full'][class~='items-center']>[class~='ml-[3px]'][class~='flex'][class~='items-center'][class~='justify-end'][class~='gap-1']`;
+const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS =
+  "min-width:52px!important;";
+const SIDEBAR_THREAD_ROW_STATUS_SPACER_WITH_ACTIONS_SELECTOR =
+  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}>[class~='flex'][class~='h-full'][class~='w-full'][class~='items-center']>[class~='shrink-0']:last-child:empty`;
 
 // Project rows: compact project headers and nested-list spacing while retaining overflow
 // needed by the native project controls.
@@ -122,7 +137,8 @@ const SIDEBAR_INTERACTIVE_PROJECT_ROW_SELECTORS = [
 ];
 const SIDEBAR_PROJECT_ROW_ACTION_SELECTOR =
   SIDEBAR_INTERACTIVE_PROJECT_ROW_SELECTORS.map(
-    (selector) => `${selector} [class~='col-start-1'][class~='row-start-1']:has(button)`,
+    (selector) =>
+      `${selector} [class~='col-start-1'][class~='row-start-1'][class~='inline-flex'][class~='justify-self-end']:has(button)`,
   );
 const SIDEBAR_PROJECT_ROW_ACTION_ICON_SELECTOR =
   SIDEBAR_PROJECT_ROW_ACTION_SELECTOR.map((selector) => `${selector} svg`);
@@ -170,6 +186,16 @@ const SIDEBAR_SCROLL_SELECTOR =
 const SIDEBAR_SCROLL_DECLARATIONS =
   "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:4px!important;--sidebar-scroll-header-fade-start:0px!important;--sidebar-scroll-footer-edge:100%!important;";
 const SIDEBAR_LEFT_PANEL_SELECTOR = ".app-shell-left-panel";
+const SIDEBAR_LEFT_PANEL_DECLARATIONS =
+  "padding-top:calc(var(--height-toolbar) - 2 * var(--spacing))!important;";
+const SIDEBAR_FLOATING_PANEL_SELECTOR =
+  '[data-pip-obstacle="app-shell-floating-left-panel"]';
+const SIDEBAR_FLOATING_PANEL_DECLARATIONS =
+  "top:var(--height-toolbar)!important;";
+const SIDEBAR_FLOATING_LEFT_PANEL_SELECTOR =
+  `${SIDEBAR_FLOATING_PANEL_SELECTOR} ${SIDEBAR_LEFT_PANEL_SELECTOR}`;
+const SIDEBAR_FLOATING_LEFT_PANEL_DECLARATIONS =
+  "padding-top:0!important;";
 const SIDEBAR_FOOTER_SEPARATOR_PATH =
   `[aria-hidden='true'][class~='pointer-events-none'][class~='absolute'][class~='inset-x-0'][class~='top-0'][class~='z-10'][class~='h-[0.5px]'][class~='bg-token-foreground/10']`;
 const SIDEBAR_FOOTER_SEPARATOR_SELECTOR =
@@ -182,6 +208,10 @@ const SIDEBAR_TOP_TRIGGER_SELECTOR =
   ".group\\/application-menu-top-bar [data-app-shell-sidebar-trigger]";
 const SIDEBAR_TOP_TRIGGER_DECLARATIONS =
   "transform:translateX(3px)!important;";
+// The collapsed floating panel wraps its duplicate navigation group in a full
+// toolbar. Hide that parent so the empty toolbar row is removed as well.
+const SIDEBAR_FLOATING_PANEL_HEADER_SELECTOR =
+  '[data-testid="app-shell-floating-left-panel"] > .app-header-tint:has([data-app-shell-sidebar-trigger])';
 const SIDEBAR_HELP_BUTTON_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} button:has(svg path[d^="M16.585 10C16.585"])`;
 const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
@@ -205,6 +235,12 @@ const FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS =
 const MAIN_SURFACE_SELECTOR = "main.main-surface";
 const MAIN_SURFACE_BOTTOM_LEFT_RADIUS_DECLARATIONS =
   "border-bottom-left-radius:var(--radius-lg)!important;";
+const COLLAPSED_MAIN_SURFACE_NEW_CHAT_ICON_SELECTOR =
+  'svg path[d^="M6.33325 1.88379"]';
+const COLLAPSED_MAIN_SURFACE_SELECTOR =
+  `${MAIN_SURFACE_SELECTOR}:has(>.app-header-tint [data-test-id="header-shell-slot"] ${COLLAPSED_MAIN_SURFACE_NEW_CHAT_ICON_SELECTOR})`;
+const COLLAPSED_MAIN_SURFACE_LEFT_RADIUS_DECLARATIONS =
+  "border-top-left-radius:0!important;border-bottom-left-radius:0!important;";
 const RIGHT_PANEL_SELECTOR =
   'aside[data-app-shell-focus-area="right-panel"]';
 const WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE =
@@ -235,6 +271,16 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_PROFILE_TOOLBAR_SELECTOR, SIDEBAR_PROFILE_TOOLBAR_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_THREAD_ROW_SELECTOR, SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS),
   cssRule(
+    SIDEBAR_THREAD_TITLE_SCROLL_TRACK_SELECTOR,
+    SIDEBAR_THREAD_TITLE_SCROLL_TRACK_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_OVERFLOWING_THREAD_TITLE_ON_HOVER_SELECTOR,
+    SIDEBAR_OVERFLOWING_THREAD_TITLE_ON_HOVER_DECLARATIONS,
+  ),
+  cssRule(SIDEBAR_THREAD_ROW_HOVER_SELECTOR, SIDEBAR_THREAD_ROW_HOVER_DECLARATIONS),
+  cssRule(SIDEBAR_HOVER_CARD_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(
     SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR,
     SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS,
   ),
@@ -243,12 +289,12 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
     HIDDEN_DISPLAY_DECLARATIONS,
   ),
   cssRule(
-    SIDEBAR_THREAD_ROW_RESTING_STATUS_SPACER_SELECTOR,
-    SIDEBAR_THREAD_ROW_RESTING_STATUS_SPACER_DECLARATIONS,
+    SIDEBAR_THREAD_ROW_ACTION_SLOT_SELECTOR,
+    SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS,
   ),
   cssRule(
-    SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_SELECTOR,
-    SIDEBAR_THREAD_ROW_CONTENT_WITH_ACTIONS_DECLARATIONS,
+    SIDEBAR_THREAD_ROW_STATUS_SPACER_WITH_ACTIONS_SELECTOR,
+    HIDDEN_DISPLAY_DECLARATIONS,
   ),
   cssRule(SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR, SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_PROJECT_CONTENT_SELECTOR, SIDEBAR_COMPACT_PROJECT_CONTENT_DECLARATIONS),
@@ -281,12 +327,29 @@ const IMAGE_PREVIEW_STYLE_RULES = [
 
 const APP_SHELL_STYLE_RULES = [
   cssRule(
+    SIDEBAR_FLOATING_PANEL_SELECTOR,
+    SIDEBAR_FLOATING_PANEL_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_LEFT_PANEL_SELECTOR,
+    SIDEBAR_LEFT_PANEL_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_FLOATING_LEFT_PANEL_SELECTOR,
+    SIDEBAR_FLOATING_LEFT_PANEL_DECLARATIONS,
+  ),
+  cssRule(SIDEBAR_FLOATING_PANEL_HEADER_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR,
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS,
   ),
   cssRule(
     MAIN_SURFACE_SELECTOR,
     MAIN_SURFACE_BOTTOM_LEFT_RADIUS_DECLARATIONS,
+  ),
+  cssRule(
+    COLLAPSED_MAIN_SURFACE_SELECTOR,
+    COLLAPSED_MAIN_SURFACE_LEFT_RADIUS_DECLARATIONS,
   ),
   cssRule(RIGHT_PANEL_HEADER_SPACER_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(
