@@ -197,16 +197,18 @@ function resolveRepoReleaseRevision({
   codexCliTag,
   codexPlusPlusSha,
   codexPlusPlusTag,
-}: ResolveRepoReleaseRevisionOptions): { currentCommitReleaseTag: string; repoReleaseRevision: number } {
+}: ResolveRepoReleaseRevisionOptions): {
+  currentCommitReleaseTag: string;
+  matchingDraftReleaseTag: string;
+  repoReleaseRevision: number;
+} {
   let latestRevision = -1;
   let currentCommitRevision: number | undefined;
   let currentCommitReleaseTag = "";
+  let matchingDraftRevision: number | undefined;
+  let matchingDraftReleaseTag = "";
 
   for (const release of releases) {
-    if (release.draft) {
-      continue;
-    }
-
     const tagName = release.tag_name ?? "";
     const revision = releaseRevisionFromTag(tagName, appVersion);
     if (revision === undefined) {
@@ -225,7 +227,12 @@ function resolveRepoReleaseRevision({
         codexPlusPlusTag,
       })
     ) {
-      if (currentCommitRevision === undefined || revision > currentCommitRevision) {
+      if (release.draft) {
+        if (matchingDraftRevision === undefined || revision > matchingDraftRevision) {
+          matchingDraftRevision = revision;
+          matchingDraftReleaseTag = tagName;
+        }
+      } else if (currentCommitRevision === undefined || revision > currentCommitRevision) {
         currentCommitRevision = revision;
         currentCommitReleaseTag = tagName;
       }
@@ -234,7 +241,8 @@ function resolveRepoReleaseRevision({
 
   return {
     currentCommitReleaseTag,
-    repoReleaseRevision: currentCommitRevision ?? latestRevision + 1,
+    matchingDraftReleaseTag,
+    repoReleaseRevision: currentCommitRevision ?? matchingDraftRevision ?? latestRevision + 1,
   };
 }
 
@@ -449,7 +457,7 @@ async function main(): Promise<void> {
     shaPattern,
   ).toLowerCase();
   const releases = await fetchExistingReleases();
-  const { currentCommitReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevision({
+  const { currentCommitReleaseTag, matchingDraftReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevision({
     appVersion,
     appBuildNumber: buildNumber,
     currentSha: process.env.GITHUB_SHA,
@@ -464,7 +472,7 @@ async function main(): Promise<void> {
     buildNumber,
     repoReleaseRevision,
   );
-  const releaseTag = currentCommitReleaseTag || `codex-app-${releaseVersion}`;
+  const releaseTag = currentCommitReleaseTag || matchingDraftReleaseTag || `codex-app-${releaseVersion}`;
   const hydrationCacheInputHash = hashCacheInputs([...windowsArm64HydratedCacheInputPaths]);
   const hydrationCacheKey = `windows-arm64-hydrated-${windowsArm64HydratedCacheKeyVersion}-app-${appVersion}-build-${buildNumber}-cli-${cliTag}-codex-plusplus-${codexPlusPlusTag}-${codexPlusPlusSha}-inputs-${hydrationCacheInputHash}`;
   const nativeModulesCacheInputHash = hashCacheInputs([...windowsArm64NativeModuleCacheInputPaths]);

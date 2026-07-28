@@ -454,7 +454,7 @@ test("keeps the repo revision when rerunning a commit that already has a numeric
   assert.equal(output.current_commit_release_tag, "codex-app-26.429.61741.1");
 });
 
-test("ignores draft releases when resolving duplicate builds", async () => {
+test("reuses a matching draft release without treating it as a duplicate", async () => {
   const output = await runResolver({
     releases: [{
       tag_name: "codex-app-26.429.61741.0",
@@ -467,6 +467,22 @@ test("ignores draft releases when resolving duplicate builds", async () => {
   assert.equal(output.release_version, "26.429.61741.0");
   assert.equal(output.repo_release_revision, "0");
   assert.equal(output.release_tag, "codex-app-26.429.61741.0");
+  assert.equal(output.current_commit_release_tag, "");
+});
+
+test("reserves revisions used by unrelated draft releases", async () => {
+  const output = await runResolver({
+    releases: [{
+      tag_name: "codex-app-26.429.61741.0",
+      target_commitish: "old-sha",
+      body: releaseInputsBody(),
+      draft: true,
+    }],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.1");
+  assert.equal(output.repo_release_revision, "1");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.1");
   assert.equal(output.current_commit_release_tag, "");
 });
 
