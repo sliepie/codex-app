@@ -2337,14 +2337,28 @@ test("release workflow stops duplicate builds before packaging", () => {
   assert.match(workflowSource, /gh release edit \$tag --repo "\$repo" --draft=false/);
   assert.match(workflowSource, /missingAssets/);
   assert.match(workflowSource, /out\/windows\/self-signed\/release-assets/);
+  assert.match(workflowSource, /is_latest_run: \$\{\{ steps\.upstream\.outputs\.is_latest_run \}\}/);
   assert.match(workflowSource, /pages_artifact_ready: \$\{\{ steps\.pages_artifact_ready\.outputs\.ready \}\}/);
+  assert.match(workflowSource, /pages_artifact_run_attempt: \$\{\{ steps\.pages_artifact_ready\.outputs\.run_attempt \}\}/);
   assert.match(
     workflowSource,
-    /publish-pages:\r?\n\s+name: Deploy self-signed update channel to Pages[\s\S]*needs: build-windows-arm64[\s\S]*if: github\.run_attempt == '1' && always\(\) && needs\['build-windows-arm64'\]\.result == 'success' && needs\['build-windows-arm64'\]\.outputs\.pages_artifact_ready == 'true'/,
+    /- name: Publish GitHub release\r?\n\s+if: env\.IS_RELEASE_EVENT == 'true' && steps\.upstream\.outputs\.current_commit_release_tag == '' && steps\.upstream\.outputs\.is_latest_run == 'true'/,
+  );
+  assert.match(
+    workflowSource,
+    /- name: Mark self-signed Pages artifact ready[\s\S]*if: env\.IS_RELEASE_EVENT == 'true' && steps\.upstream\.outputs\.current_commit_release_tag == '' && steps\.upstream\.outputs\.is_latest_run == 'true'[\s\S]*"run_attempt=\$env:GITHUB_RUN_ATTEMPT"/,
+  );
+  assert.match(
+    workflowSource,
+    /publish-pages:\r?\n\s+name: Deploy self-signed update channel to Pages[\s\S]*needs: build-windows-arm64[\s\S]*if: always\(\) && needs\['build-windows-arm64'\]\.result == 'success' && needs\['build-windows-arm64'\]\.outputs\.pages_artifact_ready == 'true' && needs\['build-windows-arm64'\]\.outputs\.pages_artifact_run_attempt == format\('\{0\}', github\.run_attempt\) && needs\['build-windows-arm64'\]\.outputs\.is_latest_run == 'true'/,
   );
   assert.match(
     workflowSource,
     /publish-pages:[\s\S]*concurrency:\r?\n\s+group: windows-arm64-pages\r?\n\s+cancel-in-progress: true/,
+  );
+  assert.match(
+    workflowSource,
+    /build-windows-arm64:[\s\S]*concurrency:\r?\n\s+group: windows-arm64-release-\$\{\{ github\.ref \}\}\r?\n\s+queue: max\r?\n\s+cancel-in-progress: false/,
   );
 
   const guardedStepNames = [

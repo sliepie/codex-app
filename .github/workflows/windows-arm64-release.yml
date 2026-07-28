@@ -16,7 +16,9 @@ permissions:
 jobs:
   build-windows-arm64:
     outputs:
+      is_latest_run: ${{ steps.upstream.outputs.is_latest_run }}
       pages_artifact_ready: ${{ steps.pages_artifact_ready.outputs.ready }}
+      pages_artifact_run_attempt: ${{ steps.pages_artifact_ready.outputs.run_attempt }}
     runs-on: windows-2025-vs2026
     env:
       IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
@@ -25,6 +27,7 @@ jobs:
       electron_config_cache: ${{ github.workspace }}\.cache\electron
     concurrency:
       group: windows-arm64-release-${{ github.ref }}
+      queue: max
       cancel-in-progress: false
 
     steps:
@@ -245,7 +248,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub release
-        if: env.IS_RELEASE_EVENT == 'true' && steps.upstream.outputs.current_commit_release_tag == ''
+        if: env.IS_RELEASE_EVENT == 'true' && steps.upstream.outputs.current_commit_release_tag == '' && steps.upstream.outputs.is_latest_run == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.upstream.outputs.release_tag }}
@@ -278,6 +281,7 @@ jobs:
           Codex++: $env:CODEX_PLUS_PLUS_TAG
           Codex++ commit: $env:CODEX_PLUS_PLUS_SHA
           Commit: $env:GITHUB_SHA
+          Workflow run: $env:GITHUB_RUN_NUMBER
           "@
 
           $releaseJson = gh release view $tag --repo "$repo" --json isDraft 2>$null
@@ -330,15 +334,16 @@ jobs:
 
       - name: Mark self-signed Pages artifact ready
         id: pages_artifact_ready
-        if: env.IS_RELEASE_EVENT == 'true' && steps.upstream.outputs.current_commit_release_tag == ''
+        if: env.IS_RELEASE_EVENT == 'true' && steps.upstream.outputs.current_commit_release_tag == '' && steps.upstream.outputs.is_latest_run == 'true'
         shell: pwsh
         run: |
           "ready=true" >> $env:GITHUB_OUTPUT
+          "run_attempt=$env:GITHUB_RUN_ATTEMPT" >> $env:GITHUB_OUTPUT
 
   publish-pages:
     name: Deploy self-signed update channel to Pages
     needs: build-windows-arm64
-    if: github.run_attempt == '1' && always() && needs['build-windows-arm64'].result == 'success' && needs['build-windows-arm64'].outputs.pages_artifact_ready == 'true'
+    if: always() && needs['build-windows-arm64'].result == 'success' && needs['build-windows-arm64'].outputs.pages_artifact_ready == 'true' && needs['build-windows-arm64'].outputs.pages_artifact_run_attempt == format('{0}', github.run_attempt) && needs['build-windows-arm64'].outputs.is_latest_run == 'true'
     runs-on: ubuntu-latest
     concurrency:
       group: windows-arm64-pages
