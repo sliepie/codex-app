@@ -244,13 +244,6 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-      - name: Mark self-signed Pages artifact ready
-        id: pages_artifact_ready
-        if: env.PUBLISH_SELF_SIGNED_MSIX == 'true' && steps.upstream.outputs.current_commit_release_tag == ''
-        shell: pwsh
-        run: |
-          "ready=true" >> $env:GITHUB_OUTPUT
-
       - name: Publish GitHub release
         if: env.IS_RELEASE_EVENT == 'true' && steps.upstream.outputs.current_commit_release_tag == ''
         env:
@@ -334,6 +327,13 @@ jobs:
               throw "Failed to publish GitHub release $tag."
             }
           }
+
+      - name: Mark self-signed Pages artifact ready
+        id: pages_artifact_ready
+        if: env.IS_RELEASE_EVENT == 'true' && steps.upstream.outputs.current_commit_release_tag == ''
+        shell: pwsh
+        run: |
+          "ready=true" >> $env:GITHUB_OUTPUT
 
   publish-pages:
     name: Deploy self-signed update channel to Pages

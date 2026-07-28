@@ -2323,10 +2323,12 @@ test("release workflow stops duplicate builds before packaging", () => {
   const appInstallerIndex = workflowSource.indexOf("- name: Generate self-signed App Installer file");
   const pagesArtifactIndex = workflowSource.indexOf("- name: Upload self-signed Pages artifact");
   const publishIndex = workflowSource.indexOf("- name: Publish GitHub release");
+  const pagesReadyIndex = workflowSource.indexOf("- name: Mark self-signed Pages artifact ready");
   const pagesJobIndex = workflowSource.indexOf("\n  publish-pages:");
   assert.ok(packageIndex < publishIndex);
   assert.ok(appInstallerIndex < publishIndex);
   assert.ok(pagesArtifactIndex < publishIndex);
+  assert.ok(publishIndex < pagesReadyIndex);
   assert.ok(publishIndex < pagesJobIndex);
   assert.match(workflowSource, /gh release upload \$tag @assets/);
   assert.match(workflowSource, /gh release create \$tag @assets[\s\S]*--draft/);
