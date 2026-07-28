@@ -7,12 +7,22 @@ const WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE =
   "data-codex-app-ui-hide-windows-menu-bar";
 const WINDOWS_MENU_TOP_BAR_HIDDEN_SELECTOR =
   `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${WINDOWS_MENU_TOP_BAR_SELECTOR}`;
+const WINDOWS_NAVIGATION_GROUP_HIDDEN_SELECTOR =
+  `${WINDOWS_MENU_TOP_BAR_HIDDEN_SELECTOR}>.flex.items-center.gap-1:has(>[data-app-shell-sidebar-trigger="true"])`;
 const WINDOWS_MENU_ROW_HIDDEN_SELECTOR =
   `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${WINDOWS_MENU_ROW_SELECTOR}`;
+const COLLAPSED_NEW_CHAT_ICON_SELECTOR =
+  'svg path[d^="M6.33325 1.88379"]';
 const LOWER_APP_HEADER_SELECTOR =
   ".app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center.right-0.top-toolbar-sm";
 const LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR =
   `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${LOWER_APP_HEADER_SELECTOR}`;
+const COLLAPSED_LOWER_APP_HEADER_SELECTOR =
+  `${LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR}:has(>[data-test-id="header-shell-slot"] ${COLLAPSED_NEW_CHAT_ICON_SELECTOR})`;
+const COLLAPSED_HEADER_CONTEXT_SURFACE_SELECTOR =
+  `${COLLAPSED_LOWER_APP_HEADER_SELECTOR}>[data-testid="app-shell-header-context-menu-surface"]`;
+const COLLAPSED_NEW_CHAT_HEADER_SLOT_SELECTOR =
+  `${COLLAPSED_LOWER_APP_HEADER_SELECTOR}>[data-test-id="header-shell-slot"]:has(${COLLAPSED_NEW_CHAT_ICON_SELECTOR})`;
 const RIGHT_HEADER_SLOT_SELECTOR =
   `${LOWER_APP_HEADER_SELECTOR}>[data-testid="app-shell-header-context-menu-surface"]~[data-test-id="header-shell-slot"]`;
 const RIGHT_HEADER_SLOT_HIDDEN_MENU_SELECTOR =
@@ -25,9 +35,6 @@ const EMPTY_LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR =
   `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${NON_SETTINGS_MAIN_SURFACE_SELECTOR}>${EMPTY_LOWER_APP_HEADER_SELECTOR}`;
 const EMPTY_LOWER_APP_HEADER_MAIN_FRAME_SELECTOR =
   `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${NON_SETTINGS_MAIN_SURFACE_SELECTOR}:has(>${EMPTY_LOWER_APP_HEADER_SELECTOR}) .app-shell-main-content-frame`;
-const LEFT_PANEL_SELECTOR = ".app-shell-left-panel";
-const LEFT_PANEL_HIDDEN_MENU_SELECTOR =
-  `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${LEFT_PANEL_SELECTOR}`;
 const RIGHT_PANEL_SELECTOR =
   'aside[data-app-shell-focus-area="right-panel"]';
 const RIGHT_PANEL_FILL_SELECTOR =
@@ -39,16 +46,22 @@ const RIGHT_PANEL_SURFACE_SELECTOR =
 const RIGHT_PANEL_SURFACE_HIDDEN_MENU_SELECTOR =
   `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${RIGHT_PANEL_SURFACE_SELECTOR}`;
 const WINDOWS_MENU_TOP_BAR_DECLARATIONS =
-  "position:fixed!important;inset-inline-start:0!important;top:0!important;width:max-content!important;padding-inline-end:0!important;";
+  "position:fixed!important;inset-inline-start:0!important;top:0!important;z-index:43!important;width:max-content!important;height:var(--height-toolbar)!important;padding-inline-end:0!important;pointer-events:auto!important;-webkit-app-region:no-drag!important;";
+const WINDOWS_NAVIGATION_GROUP_DECLARATIONS =
+  "pointer-events:auto!important;-webkit-app-region:no-drag!important;";
 const WINDOWS_MENU_ROW_DECLARATIONS = "display:none!important;";
 const LOWER_APP_HEADER_DECLARATIONS =
   "top:0!important;padding-inline-end:var(--spacing-token-safe-header-right)!important;";
+const COLLAPSED_LOWER_APP_HEADER_DECLARATIONS =
+  "left:calc(3 * var(--spacing-token-button-composer) + 6.5 * var(--spacing))!important;";
+const COLLAPSED_HEADER_CONTEXT_SURFACE_DECLARATIONS =
+  "margin-inline-start:calc(0px - var(--spacing))!important;";
+const COLLAPSED_NEW_CHAT_HEADER_SLOT_DECLARATIONS =
+  "display:none!important;";
 const RIGHT_HEADER_SLOT_DECLARATIONS = "width:0!important;";
 const EMPTY_LOWER_APP_HEADER_DECLARATIONS = "display:none!important;";
 const EMPTY_LOWER_APP_HEADER_MAIN_FRAME_DECLARATIONS =
   "--app-shell-main-content-frame-top-offset:0px!important;border-top:0!important;";
-const LEFT_PANEL_DECLARATIONS =
-      "padding-top:30px!important;";
 const RIGHT_PANEL_FILL_DECLARATIONS =
   "top:var(--height-toolbar)!important;";
 const RIGHT_PANEL_SURFACE_DECLARATIONS =
@@ -63,8 +76,24 @@ const STYLE_RULES = [
     WINDOWS_MENU_TOP_BAR_HIDDEN_SELECTOR,
     WINDOWS_MENU_TOP_BAR_DECLARATIONS,
   ),
+  cssRule(
+    WINDOWS_NAVIGATION_GROUP_HIDDEN_SELECTOR,
+    WINDOWS_NAVIGATION_GROUP_DECLARATIONS,
+  ),
   cssRule(WINDOWS_MENU_ROW_HIDDEN_SELECTOR, WINDOWS_MENU_ROW_DECLARATIONS),
   cssRule(LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR, LOWER_APP_HEADER_DECLARATIONS),
+  cssRule(
+    COLLAPSED_LOWER_APP_HEADER_SELECTOR,
+    COLLAPSED_LOWER_APP_HEADER_DECLARATIONS,
+  ),
+  cssRule(
+    COLLAPSED_HEADER_CONTEXT_SURFACE_SELECTOR,
+    COLLAPSED_HEADER_CONTEXT_SURFACE_DECLARATIONS,
+  ),
+  cssRule(
+    COLLAPSED_NEW_CHAT_HEADER_SLOT_SELECTOR,
+    COLLAPSED_NEW_CHAT_HEADER_SLOT_DECLARATIONS,
+  ),
   cssRule(RIGHT_HEADER_SLOT_HIDDEN_MENU_SELECTOR, RIGHT_HEADER_SLOT_DECLARATIONS),
   cssRule(
     EMPTY_LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR,
@@ -74,7 +103,6 @@ const STYLE_RULES = [
     EMPTY_LOWER_APP_HEADER_MAIN_FRAME_SELECTOR,
     EMPTY_LOWER_APP_HEADER_MAIN_FRAME_DECLARATIONS,
   ),
-  cssRule(LEFT_PANEL_HIDDEN_MENU_SELECTOR, LEFT_PANEL_DECLARATIONS),
   cssRule(
     RIGHT_PANEL_FILL_HIDDEN_MENU_SELECTOR,
     RIGHT_PANEL_FILL_DECLARATIONS,
