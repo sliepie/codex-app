@@ -338,7 +338,7 @@ jobs:
   publish-pages:
     name: Deploy self-signed update channel to Pages
     needs: build-windows-arm64
-    if: always() && needs['build-windows-arm64'].outputs.pages_artifact_ready == 'true'
+    if: always() && needs['build-windows-arm64'].result == 'success' && needs['build-windows-arm64'].outputs.pages_artifact_ready == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read

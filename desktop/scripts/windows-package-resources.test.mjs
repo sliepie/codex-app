@@ -2339,7 +2339,7 @@ test("release workflow stops duplicate builds before packaging", () => {
   assert.match(workflowSource, /pages_artifact_ready: \$\{\{ steps\.pages_artifact_ready\.outputs\.ready \}\}/);
   assert.match(
     workflowSource,
-    /publish-pages:\r?\n\s+name: Deploy self-signed update channel to Pages[\s\S]*needs: build-windows-arm64[\s\S]*if: always\(\) && needs\['build-windows-arm64'\]\.outputs\.pages_artifact_ready == 'true'/,
+    /publish-pages:\r?\n\s+name: Deploy self-signed update channel to Pages[\s\S]*needs: build-windows-arm64[\s\S]*if: always\(\) && needs\['build-windows-arm64'\]\.result == 'success' && needs\['build-windows-arm64'\]\.outputs\.pages_artifact_ready == 'true'/,
   );
 
   const guardedStepNames = [
