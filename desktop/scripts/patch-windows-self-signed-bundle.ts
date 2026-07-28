@@ -28,11 +28,11 @@ const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
 );
 const realtimeVoiceFeatureGateMarkers = ["2380644311"];
 const realtimeVoiceFeatureGatePattern = new RegExp(
-  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*;\s*return\s*\1\s*&&\s*\2\s*&&\s*!\s*\3\s*\}`,
+  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*;\s*return\s*(?:(?:\1\s*&&\s*)?\2\s*&&\s*!\s*\3|!\s*\3)\s*\}`,
   "g",
 );
 const realtimeVoiceFeatureGateAppliedPattern = new RegExp(
-  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*;\s*return\s*\2\s*&&\s*!\s*\3\s*\}`,
+  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*;\s*return\s*!0\s*\}`,
 );
 type SourcePatchResult = {
   source: string;
@@ -670,14 +670,18 @@ function patchRealtimeVoiceFeatureGate(recoveredRoot: string): PatchResult[] {
     realtimeVoiceFeatureGatePattern,
     (match) => {
       const rolloutGate = match[1];
-      if (!rolloutGate) {
-        throw new Error("Unable to identify Codex Voice rollout gate locals.");
+      const entitlementGate = match[2];
+      const killSwitch = match[3];
+      if (!rolloutGate || !entitlementGate || !killSwitch) {
+        throw new Error("Unable to identify Codex Voice gate locals.");
       }
 
-      return match[0].replace(
-        new RegExp(String.raw`return(\s*)${escapeRegExp(rolloutGate)}\s*&&\s*`),
-        "return$1",
-      );
+      const returnIndex = match[0].lastIndexOf("return");
+      if (returnIndex < 0) {
+        throw new Error("Unable to identify Codex Voice gate return.");
+      }
+
+      return `${match[0].slice(0, returnIndex)}return!0}`;
     },
     realtimeVoiceFeatureGateAppliedPattern,
   );
