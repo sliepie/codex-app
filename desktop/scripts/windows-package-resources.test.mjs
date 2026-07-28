@@ -2311,7 +2311,7 @@ test("release workflow stops duplicate builds before packaging", () => {
     path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
     "utf8",
   );
-  assert.match(workflowSource, /build-windows-arm64:\r?\n\s+if: github\.run_attempt == '1'/);
+  assert.doesNotMatch(workflowSource, /build-windows-arm64:\r?\n\s+if: github\.run_attempt == '1'/);
   const noticeIndex = workflowSource.indexOf("- name: Notice existing repo release");
   const cacheIndex = workflowSource.indexOf("- name: Restore npm cache");
   assert.ok(noticeIndex >= 0);

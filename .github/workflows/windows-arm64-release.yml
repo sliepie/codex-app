@@ -15,7 +15,6 @@ permissions:
 
 jobs:
   build-windows-arm64:
-    if: github.run_attempt == '1'
     outputs:
       pages_artifact_ready: ${{ steps.pages_artifact_ready.outputs.ready }}
     runs-on: windows-2025-vs2026
