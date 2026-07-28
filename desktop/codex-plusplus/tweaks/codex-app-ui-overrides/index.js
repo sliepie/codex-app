@@ -53,9 +53,10 @@ const SIDEBAR_THREAD_ROW_HOVER_SELECTOR =
 const SIDEBAR_THREAD_ROW_HOVER_DECLARATIONS =
   "background-color:var(--color-token-list-hover-background)!important;";
 // Sidebar rich hover cards are body-level portals. Hide that portal for the whole
-// sidebar surface so it cannot flicker between task and project rows.
+// hovered sidebar surface so it cannot flicker between task and project rows without
+// suppressing unrelated rich cards after a sidebar control retains focus.
 const SIDEBAR_HOVER_CARD_SURFACE_SELECTOR =
-  "[data-app-action-sidebar-scroll]:is(:hover,:focus-within)";
+  "[data-app-action-sidebar-scroll]:hover";
 const SIDEBAR_HOVER_CARD_SELECTOR =
   `body:has(${SIDEBAR_HOVER_CARD_SURFACE_SELECTOR}) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']`;
 // OAI renders pin/archive in an absolute 52px rail. Use the button-bearing selector
