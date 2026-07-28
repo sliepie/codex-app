@@ -205,7 +205,7 @@ test("enables Browser multi-tab UI and route mode in the Electron bundle", () =>
   assert.equal(patch?.status, "applied");
 });
 
-test("enables Codex Voice while preserving account entitlement and the local kill switch", () => {
+test("enables Codex Voice without runtime gates", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
 
@@ -216,7 +216,7 @@ test("enables Codex Voice while preserving account entitlement and the local kil
     path.join(recoveredRoot, "webview", "assets", "realtime-voice-feature-gate-fixture.js"),
     "utf8",
   );
-  assert.match(bundle, /function mts\(\)\{let e=Rh\(`2380644311`\),t=Y\(jln\),n=Y\(\$9n\);return t&&!n\}/);
+  assert.match(bundle, /function mts\(\)\{let e=Rh\(`2380644311`\),t=Y\(jln\),n=Y\(\$9n\);return!0\}/);
   assert.doesNotMatch(bundle, /return e&&t&&!n/);
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
@@ -244,7 +244,7 @@ test("accepts benign Codex Voice bundle formatting changes", () => {
   const result = runPatcher(recoveredRoot, reportPath);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s+t\s*&&\s*!\s*n/);
+  assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s*!0/);
 });
 
 test("accepts Codex Voice minifier identifier changes", () => {
@@ -265,7 +265,28 @@ test("accepts Codex Voice minifier identifier changes", () => {
   const result = runPatcher(recoveredRoot, reportPath);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s+t\s*&&\s*!\s*n/);
+  assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s*!0/);
+});
+
+test("removes account entitlement from a previously rollout-only patched Voice gate", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const voiceGatePath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "realtime-voice-feature-gate-fixture.js",
+  );
+  fs.writeFileSync(
+    voiceGatePath,
+    "function mts(){let e=kh(`2380644311`),t=Y(Xln),n=Y(yer);return t&&!n}",
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s*!0/);
 });
 
 test("enables Browser multi-tab mode when the route gate uses an independent selector", () => {
