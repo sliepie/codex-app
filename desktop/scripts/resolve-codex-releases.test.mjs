@@ -486,6 +486,29 @@ test("reserves revisions used by unrelated draft releases", async () => {
   assert.equal(output.current_commit_release_tag, "");
 });
 
+test("does not reuse a matching draft older than the latest release revision", async () => {
+  const output = await runResolver({
+    releases: [
+      {
+        tag_name: "codex-app-26.429.61741.0",
+        target_commitish: "abcdef1234567890",
+        body: releaseInputsBody(),
+        draft: true,
+      },
+      {
+        tag_name: "codex-app-26.429.61741.1",
+        target_commitish: "newer-sha",
+        body: releaseInputsBody(),
+      },
+    ],
+  });
+
+  assert.equal(output.release_version, "26.429.61741.2");
+  assert.equal(output.repo_release_revision, "2");
+  assert.equal(output.release_tag, "codex-app-26.429.61741.2");
+  assert.equal(output.current_commit_release_tag, "");
+});
+
 test("keeps the repo revision when rerunning a commit that already has a commit-suffixed release", async () => {
   const output = await runResolver({
     releases: [{

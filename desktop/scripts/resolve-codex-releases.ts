@@ -239,10 +239,17 @@ function resolveRepoReleaseRevision({
     }
   }
 
+  const reusableDraftRevision =
+    matchingDraftRevision !== undefined && matchingDraftRevision === latestRevision
+      ? matchingDraftRevision
+      : undefined;
+
   return {
     currentCommitReleaseTag,
-    matchingDraftReleaseTag,
-    repoReleaseRevision: currentCommitRevision ?? matchingDraftRevision ?? latestRevision + 1,
+    matchingDraftReleaseTag: reusableDraftRevision === undefined ? "" : matchingDraftReleaseTag,
+    repoReleaseRevision:
+      currentCommitRevision ??
+      (reusableDraftRevision ?? latestRevision + 1),
   };
 }
 
