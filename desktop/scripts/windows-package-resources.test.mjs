@@ -2311,6 +2311,7 @@ test("release workflow stops duplicate builds before packaging", () => {
     path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
     "utf8",
   );
+  assert.match(workflowSource, /build-windows-arm64:\r?\n\s+if: github\.run_attempt == '1'/);
   const noticeIndex = workflowSource.indexOf("- name: Notice existing repo release");
   const cacheIndex = workflowSource.indexOf("- name: Restore npm cache");
   assert.ok(noticeIndex >= 0);
@@ -2339,7 +2340,11 @@ test("release workflow stops duplicate builds before packaging", () => {
   assert.match(workflowSource, /pages_artifact_ready: \$\{\{ steps\.pages_artifact_ready\.outputs\.ready \}\}/);
   assert.match(
     workflowSource,
-    /publish-pages:\r?\n\s+name: Deploy self-signed update channel to Pages[\s\S]*needs: build-windows-arm64[\s\S]*if: always\(\) && needs\['build-windows-arm64'\]\.result == 'success' && needs\['build-windows-arm64'\]\.outputs\.pages_artifact_ready == 'true'/,
+    /publish-pages:\r?\n\s+name: Deploy self-signed update channel to Pages[\s\S]*needs: build-windows-arm64[\s\S]*if: github\.run_attempt == '1' && always\(\) && needs\['build-windows-arm64'\]\.result == 'success' && needs\['build-windows-arm64'\]\.outputs\.pages_artifact_ready == 'true'/,
+  );
+  assert.match(
+    workflowSource,
+    /publish-pages:[\s\S]*concurrency:\r?\n\s+group: windows-arm64-pages\r?\n\s+cancel-in-progress: true/,
   );
 
   const guardedStepNames = [

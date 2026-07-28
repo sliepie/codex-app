@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   build-windows-arm64:
+    if: github.run_attempt == '1'
     outputs:
       pages_artifact_ready: ${{ steps.pages_artifact_ready.outputs.ready }}
     runs-on: windows-2025-vs2026
@@ -338,8 +339,11 @@ jobs:
   publish-pages:
     name: Deploy self-signed update channel to Pages
     needs: build-windows-arm64
-    if: always() && needs['build-windows-arm64'].result == 'success' && needs['build-windows-arm64'].outputs.pages_artifact_ready == 'true'
+    if: github.run_attempt == '1' && always() && needs['build-windows-arm64'].result == 'success' && needs['build-windows-arm64'].outputs.pages_artifact_ready == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: windows-arm64-pages
+      cancel-in-progress: true
     permissions:
       contents: read
       pages: write
