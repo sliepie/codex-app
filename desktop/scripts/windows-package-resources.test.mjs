@@ -2208,15 +2208,19 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.match(
       appendedStyles[0].textContent,
-      /main\.main-surface \.loading-shimmer-pure-text,[^}]+\{animation:none!important;will-change:auto!important;\}/,
+      /main\.main-surface \.loading-shimmer-pure-text:not\(\[class\*='_cadencedShimmer_'\]\),[^}]+\{animation-duration:4s!important;animation-timing-function:steps\(24,end\)!important;\}/,
     );
     assert.match(
+      appendedStyles[0].textContent,
+      /main\.main-surface \[aria-hidden='true'\]\[class~='opacity-0'\]\s*>\s*\[class~='animate-pulse'\]\[class~='bg-token-progress-bar-background'\]\{animation:none!important;will-change:auto!important;\}/,
+    );
+    assert.doesNotMatch(
+      appendedStyles[0].textContent,
+      /main\.main-surface \[class~='animate-pulse'\]/,
+    );
+    assert.doesNotMatch(
       appendedStyles[0].textContent,
       /main\.main-surface \[class\*='_cadencedShimmerSweep_'\]/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /main\.main-surface \[class\*='_cadencedShimmerHighlight_'\]/,
     );
     menuModule.exports.start({ log: console });
     assert.equal(appendedStyles.length, 2);

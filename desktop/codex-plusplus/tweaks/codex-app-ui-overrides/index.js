@@ -268,34 +268,23 @@ const FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR =
 const FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS =
   "visibility:visible!important;";
 const MAIN_SURFACE_SELECTOR = "main.main-surface";
-// The conversation surface keeps several native loading/status animations mounted
-// while a state is waiting or active. They continue repainting even when their
-// result is effectively invisible; stop only those perpetual animations in the
-// main surface so sidebar hover/pinned motion remains available.
-const MAIN_SURFACE_PERPETUAL_ANIMATION_SELECTORS = [
-  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text`,
-  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text-inverted`,
-  `${MAIN_SURFACE_SELECTOR} .loading-shimmer`,
-  // The feature-flagged status renderer puts its one-shot sweep on child
-  // spans, so stopping the parent shimmer alone still lets the label flash.
-  `${MAIN_SURFACE_SELECTOR} [class*='_cadencedShimmerSweep_']`,
-  `${MAIN_SURFACE_SELECTOR} [class*='_cadencedShimmerHighlight_']`,
-  `${MAIN_SURFACE_SELECTOR} .generated-image-placeholder-pulse`,
-  `${MAIN_SURFACE_SELECTOR} .mcp-app-loading-pulse::before`,
-  `${MAIN_SURFACE_SELECTOR} .openai-blossom-shimmer-overlay`,
-  `${MAIN_SURFACE_SELECTOR} [class~='animate-pulse']`,
-  `${MAIN_SURFACE_SELECTOR} [class~='animate-spin']`,
-  `${MAIN_SURFACE_SELECTOR} [class*='_waveDot_']`,
-  `${MAIN_SURFACE_SELECTOR} [class*='_emptyScanCell_']`,
-  `${MAIN_SURFACE_SELECTOR} [class*='_filledScanCell_']`,
-  `${MAIN_SURFACE_SELECTOR} [class*='_loadingResultsShimmer_']::before`,
-  `${MAIN_SURFACE_SELECTOR} [class*='_dots_']`,
-  `${MAIN_SURFACE_SELECTOR} [class*='_throbber_']`,
-  `${MAIN_SURFACE_SELECTOR} [class*='_throbberArc']`,
-  `${MAIN_SURFACE_SELECTOR} [class*='_pulseSize_']`,
-  `${MAIN_SURFACE_SELECTOR} [class*='_pulsingDot_']`,
+// Native legacy shimmer animates background-position on clipped text, which
+// repaints the glyphs at every step. Keep the animation, but reduce the paint
+// cadence from 24 to 6 position changes per second. The cadenced variant uses
+// a transform-driven child sweep and is intentionally left untouched.
+const MAIN_SURFACE_LEGACY_SHIMMER_SELECTORS = [
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text:not([class*='_cadencedShimmer_'])`,
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text-inverted:not([class*='_cadencedShimmer_'])`,
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer:not([class*='_cadencedShimmer_'])`,
 ];
-const MAIN_SURFACE_PERPETUAL_ANIMATION_DECLARATIONS =
+const MAIN_SURFACE_LEGACY_SHIMMER_DECLARATIONS =
+  "animation-duration:4s!important;animation-timing-function:steps(24,end)!important;";
+// The retained Browser panel always mounts this pulse, even when its parent is
+// aria-hidden and opacity-0. Stop only that hidden instance; visible progress
+// feedback and unrelated pulse/spin indicators keep their native animation.
+const MAIN_SURFACE_HIDDEN_BROWSER_PROGRESS_SELECTOR =
+  `${MAIN_SURFACE_SELECTOR} [aria-hidden='true'][class~='opacity-0'] > [class~='animate-pulse'][class~='bg-token-progress-bar-background']`;
+const MAIN_SURFACE_HIDDEN_BROWSER_PROGRESS_DECLARATIONS =
   "animation:none!important;will-change:auto!important;";
 const MAIN_SURFACE_BOTTOM_LEFT_RADIUS_DECLARATIONS =
   "border-bottom-left-radius:var(--radius-lg)!important;";
@@ -426,8 +415,12 @@ const APP_SHELL_STYLE_RULES = [
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS,
   ),
   cssRule(
-    MAIN_SURFACE_PERPETUAL_ANIMATION_SELECTORS,
-    MAIN_SURFACE_PERPETUAL_ANIMATION_DECLARATIONS,
+    MAIN_SURFACE_LEGACY_SHIMMER_SELECTORS,
+    MAIN_SURFACE_LEGACY_SHIMMER_DECLARATIONS,
+  ),
+  cssRule(
+    MAIN_SURFACE_HIDDEN_BROWSER_PROGRESS_SELECTOR,
+    MAIN_SURFACE_HIDDEN_BROWSER_PROGRESS_DECLARATIONS,
   ),
   cssRule(
     MAIN_SURFACE_SELECTOR,
