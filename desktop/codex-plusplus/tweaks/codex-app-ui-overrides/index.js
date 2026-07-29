@@ -203,11 +203,16 @@ const SIDEBAR_LEFT_PANEL_SELECTOR = ".app-shell-left-panel";
 const SIDEBAR_FLOATING_PANEL_SELECTOR =
   '[data-pip-obstacle="app-shell-floating-left-panel"]';
 const SIDEBAR_FLOATING_PANEL_DECLARATIONS =
-  "top:calc(var(--height-toolbar) + 1px)!important;";
+  "top:calc(var(--height-toolbar) + 1px)!important;opacity:1!important;";
 const SIDEBAR_FLOATING_PANEL_ASIDE_SELECTOR =
   `${SIDEBAR_FLOATING_PANEL_SELECTOR}>aside`;
 const SIDEBAR_FLOATING_PANEL_ASIDE_DECLARATIONS =
   "border-top-left-radius:0!important;";
+const SIDEBAR_WINDOWS_ACCENT_TOKEN_DECLARATIONS =
+  "--codex-windows-accent-color:transparent!important;";
+const SIDEBAR_WINDOWS_ACCENT_COLOR_PROPERTY = "--codex-windows-accent-color";
+const SIDEBAR_ACRYLIC_SURFACE_DECLARATIONS =
+  "background-color:transparent!important;background-image:linear-gradient(color-mix(in srgb,var(--codex-windows-accent-color) 18%,transparent),color-mix(in srgb,var(--codex-windows-accent-color) 18%,transparent))!important;backdrop-filter:blur(20px) saturate(140%)!important;";
 const SIDEBAR_FOOTER_SEPARATOR_PATH =
   `[aria-hidden='true'][class~='pointer-events-none'][class~='absolute'][class~='inset-x-0'][class~='top-0'][class~='z-10'][class~='h-[0.5px]'][class~='bg-token-foreground/10']`;
 const SIDEBAR_FOOTER_SEPARATOR_SELECTOR =
@@ -269,6 +274,7 @@ function cssRule(selectors, declarations) {
 }
 
 const BASE_STYLE_RULES = [
+  cssRule(":root", SIDEBAR_WINDOWS_ACCENT_TOKEN_DECLARATIONS),
   cssRule(SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(SIDEBAR_TOP_TRIGGER_SELECTOR, SIDEBAR_TOP_TRIGGER_DECLARATIONS),
   cssRule(INVITE_FRIEND_MENU_ITEM_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
@@ -362,6 +368,10 @@ const APP_SHELL_STYLE_RULES = [
   cssRule(
     SIDEBAR_FLOATING_PANEL_ASIDE_SELECTOR,
     SIDEBAR_FLOATING_PANEL_ASIDE_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_FLOATING_PANEL_ASIDE_SELECTOR,
+    SIDEBAR_ACRYLIC_SURFACE_DECLARATIONS,
   ),
   cssRule(SIDEBAR_FLOATING_PANEL_HEADER_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(
@@ -476,9 +486,23 @@ function installStyle() {
   document.head.appendChild(style);
 }
 
+function applyWindowsAccentColorToken() {
+  const accentColor = globalThis.__codexpp_windows_accent_color__;
+  if (typeof accentColor !== "string" || !/^#[0-9a-f]{6}$/i.test(accentColor)) {
+    return;
+  }
+
+  document.documentElement.style.setProperty(
+    SIDEBAR_WINDOWS_ACCENT_COLOR_PROPERTY,
+    accentColor,
+    "important",
+  );
+}
+
 module.exports = {
   start() {
     installStyle();
+    applyWindowsAccentColorToken();
   },
 
   stop() {
