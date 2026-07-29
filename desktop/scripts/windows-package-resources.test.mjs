@@ -2206,6 +2206,10 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       appendedStyles[0].textContent,
       /\[data-pip-obstacle="app-shell-floating-left-panel"\]:hover>aside\{[^}]*backdrop-filter:blur\(20px\) saturate\(140%\)!important;/,
     );
+    assert.match(
+      appendedStyles[0].textContent,
+      /main\.main-surface \.loading-shimmer-pure-text,[^}]+\{animation:none!important;will-change:auto!important;\}/,
+    );
     menuModule.exports.start({ log: console });
     assert.equal(appendedStyles.length, 2);
 

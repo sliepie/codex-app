@@ -268,6 +268,31 @@ const FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR =
 const FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS =
   "visibility:visible!important;";
 const MAIN_SURFACE_SELECTOR = "main.main-surface";
+// The conversation surface keeps several native loading/status animations mounted
+// while a state is waiting or active. They continue repainting even when their
+// result is effectively invisible; stop only those perpetual animations in the
+// main surface so sidebar hover/pinned motion remains available.
+const MAIN_SURFACE_PERPETUAL_ANIMATION_SELECTORS = [
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text`,
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text-inverted`,
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer`,
+  `${MAIN_SURFACE_SELECTOR} .generated-image-placeholder-pulse`,
+  `${MAIN_SURFACE_SELECTOR} .mcp-app-loading-pulse::before`,
+  `${MAIN_SURFACE_SELECTOR} .openai-blossom-shimmer-overlay`,
+  `${MAIN_SURFACE_SELECTOR} [class~='animate-pulse']`,
+  `${MAIN_SURFACE_SELECTOR} [class~='animate-spin']`,
+  `${MAIN_SURFACE_SELECTOR} [class*='_waveDot_']`,
+  `${MAIN_SURFACE_SELECTOR} [class*='_emptyScanCell_']`,
+  `${MAIN_SURFACE_SELECTOR} [class*='_filledScanCell_']`,
+  `${MAIN_SURFACE_SELECTOR} [class*='_loadingResultsShimmer_']::before`,
+  `${MAIN_SURFACE_SELECTOR} [class*='_dots_']`,
+  `${MAIN_SURFACE_SELECTOR} [class*='_throbber_']`,
+  `${MAIN_SURFACE_SELECTOR} [class*='_throbberArc']`,
+  `${MAIN_SURFACE_SELECTOR} [class*='_pulseSize_']`,
+  `${MAIN_SURFACE_SELECTOR} [class*='_pulsingDot_']`,
+];
+const MAIN_SURFACE_PERPETUAL_ANIMATION_DECLARATIONS =
+  "animation:none!important;will-change:auto!important;";
 const MAIN_SURFACE_BOTTOM_LEFT_RADIUS_DECLARATIONS =
   "border-bottom-left-radius:var(--radius-lg)!important;";
 const COLLAPSED_MAIN_SURFACE_NEW_CHAT_ICON_SELECTOR =
@@ -395,6 +420,10 @@ const APP_SHELL_STYLE_RULES = [
   cssRule(
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR,
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS,
+  ),
+  cssRule(
+    MAIN_SURFACE_PERPETUAL_ANIMATION_SELECTORS,
+    MAIN_SURFACE_PERPETUAL_ANIMATION_DECLARATIONS,
   ),
   cssRule(
     MAIN_SURFACE_SELECTOR,
