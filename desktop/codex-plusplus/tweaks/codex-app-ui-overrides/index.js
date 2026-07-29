@@ -276,6 +276,10 @@ const MAIN_SURFACE_PERPETUAL_ANIMATION_SELECTORS = [
   `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text`,
   `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text-inverted`,
   `${MAIN_SURFACE_SELECTOR} .loading-shimmer`,
+  // The feature-flagged status renderer puts its one-shot sweep on child
+  // spans, so stopping the parent shimmer alone still lets the label flash.
+  `${MAIN_SURFACE_SELECTOR} [class*='_cadencedShimmerSweep_']`,
+  `${MAIN_SURFACE_SELECTOR} [class*='_cadencedShimmerHighlight_']`,
   `${MAIN_SURFACE_SELECTOR} .generated-image-placeholder-pulse`,
   `${MAIN_SURFACE_SELECTOR} .mcp-app-loading-pulse::before`,
   `${MAIN_SURFACE_SELECTOR} .openai-blossom-shimmer-overlay`,
