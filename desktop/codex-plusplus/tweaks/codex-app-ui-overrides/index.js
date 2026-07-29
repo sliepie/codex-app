@@ -79,6 +79,10 @@ const SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR =
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within) ${SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR}`;
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
+const SIDEBAR_THREAD_ROW_SPACER_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} [role='listitem'][class~='after:h-px']:has([data-app-action-sidebar-thread-row])`;
+const SIDEBAR_THREAD_ROW_BORDER_DECLARATIONS =
+  "box-sizing:border-box!important;border-bottom:1px solid transparent!important;background-clip:padding-box!important;";
 // Replace the overlapping PR/progress rail with actions, reserve exactly the action
 // width for title fading, and remove OAI's now-hidden variable-width status spacer.
 const SIDEBAR_THREAD_ROW_FLOATING_STATUS_WITH_ACTIONS_SELECTOR =
@@ -279,6 +283,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_PROFILE_TOOLBAR_SELECTOR, SIDEBAR_PROFILE_TOOLBAR_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_THREAD_ROW_SELECTOR, SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS),
   cssRule(
+    SIDEBAR_COMPACT_THREAD_ROW_SELECTOR,
+    SIDEBAR_THREAD_ROW_BORDER_DECLARATIONS,
+  ),
+  cssRule(
     SIDEBAR_THREAD_TITLE_SCROLL_TRACK_SELECTOR,
     SIDEBAR_THREAD_TITLE_SCROLL_TRACK_DECLARATIONS,
   ),
@@ -295,6 +303,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(
     SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR,
     SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS,
+  ),
+  cssRule(
+    `${SIDEBAR_THREAD_ROW_SPACER_SELECTOR}::after`,
+    HIDDEN_DISPLAY_DECLARATIONS,
   ),
   cssRule(
     SIDEBAR_THREAD_ROW_FLOATING_STATUS_WITH_ACTIONS_SELECTOR,
