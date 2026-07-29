@@ -186,16 +186,14 @@ const SIDEBAR_SCROLL_SELECTOR =
 const SIDEBAR_SCROLL_DECLARATIONS =
   "margin-top:0!important;margin-bottom:var(--sidebar-footer-height)!important;padding-top:0!important;padding-bottom:4px!important;--sidebar-scroll-header-fade-start:0px!important;--sidebar-scroll-footer-edge:100%!important;";
 const SIDEBAR_LEFT_PANEL_SELECTOR = ".app-shell-left-panel";
-const SIDEBAR_LEFT_PANEL_DECLARATIONS =
-  "padding-top:calc(var(--height-toolbar) - 2 * var(--spacing))!important;";
 const SIDEBAR_FLOATING_PANEL_SELECTOR =
   '[data-pip-obstacle="app-shell-floating-left-panel"]';
 const SIDEBAR_FLOATING_PANEL_DECLARATIONS =
-  "top:var(--height-toolbar)!important;";
-const SIDEBAR_FLOATING_LEFT_PANEL_SELECTOR =
-  `${SIDEBAR_FLOATING_PANEL_SELECTOR} ${SIDEBAR_LEFT_PANEL_SELECTOR}`;
-const SIDEBAR_FLOATING_LEFT_PANEL_DECLARATIONS =
-  "padding-top:0!important;";
+  "top:calc(var(--height-toolbar) + 1px)!important;";
+const SIDEBAR_FLOATING_PANEL_ASIDE_SELECTOR =
+  `${SIDEBAR_FLOATING_PANEL_SELECTOR}>aside`;
+const SIDEBAR_FLOATING_PANEL_ASIDE_DECLARATIONS =
+  "border-top-left-radius:0!important;";
 const SIDEBAR_FOOTER_SEPARATOR_PATH =
   `[aria-hidden='true'][class~='pointer-events-none'][class~='absolute'][class~='inset-x-0'][class~='top-0'][class~='z-10'][class~='h-[0.5px]'][class~='bg-token-foreground/10']`;
 const SIDEBAR_FOOTER_SEPARATOR_SELECTOR =
@@ -331,12 +329,8 @@ const APP_SHELL_STYLE_RULES = [
     SIDEBAR_FLOATING_PANEL_DECLARATIONS,
   ),
   cssRule(
-    SIDEBAR_LEFT_PANEL_SELECTOR,
-    SIDEBAR_LEFT_PANEL_DECLARATIONS,
-  ),
-  cssRule(
-    SIDEBAR_FLOATING_LEFT_PANEL_SELECTOR,
-    SIDEBAR_FLOATING_LEFT_PANEL_DECLARATIONS,
+    SIDEBAR_FLOATING_PANEL_ASIDE_SELECTOR,
+    SIDEBAR_FLOATING_PANEL_ASIDE_DECLARATIONS,
   ),
   cssRule(SIDEBAR_FLOATING_PANEL_HEADER_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(

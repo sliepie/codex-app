@@ -65,7 +65,7 @@ const RIGHT_HEADER_SLOT_DECLARATIONS = "width:0!important;";
 const EMPTY_LOWER_APP_HEADER_DECLARATIONS = "display:none!important;";
 const EMPTY_LOWER_APP_HEADER_MAIN_FRAME_DECLARATIONS =
   "--app-shell-main-content-frame-top-offset:0px!important;border-top:0!important;";
-const LEFT_PANEL_DECLARATIONS = "padding-top:30px!important;";
+const LEFT_PANEL_DECLARATIONS = "margin-top:34px!important;";
 const RIGHT_PANEL_FILL_DECLARATIONS =
   "top:var(--height-toolbar)!important;";
 const RIGHT_PANEL_SURFACE_DECLARATIONS =
