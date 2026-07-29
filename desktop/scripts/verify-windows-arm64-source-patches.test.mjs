@@ -26,6 +26,7 @@ const browserWindowIcon =
   "BrowserWindow({icon:process.platform===`win32`?require(\"node:path\").join(process.resourcesPath,`icon.ico`):void 0,width:";
 const localCacheRelocation =
   "process.resourcesPath?.replace(/\\//g,`\\\\`)+`Packages`+`LocalCache`+`Local`";
+const browserRuntimeRelocationFallback = "codex-runtime-relocation-fallback";
 const inactiveWindowsMica =
   "function D2({appearance:e,isFocused:t,platform:n}){return!t&&!w2(e)&&n===`darwin`}";
 const sidebarProjectLimit =
@@ -46,6 +47,7 @@ const defaultMainSource = [
   `${windowServicesMarker}services;`,
   `new ${browserWindowIcon}100});`,
   `const relocated = ${localCacheRelocation};`,
+  browserRuntimeRelocationFallback,
   inactiveWindowsMica,
 ].join("\n");
 const defaultRuntimeSource = `const runtimeManifest = ${JSON.stringify(primaryRuntimeManifestUrl)};\n`;
@@ -199,6 +201,13 @@ test("rejects each missing packaged source-patch postcondition", async (t) => {
       name: "WindowsApps LocalCache relocation",
       options: { mainSource: defaultMainSource.replace("`LocalCache`", "`Cache`") },
       error: /WindowsApps LocalCache relocation/,
+    },
+    {
+      name: "Browser runtime relocation fallback",
+      options: {
+        mainSource: defaultMainSource.replace(browserRuntimeRelocationFallback, "missing-runtime-fallback"),
+      },
+      error: /Browser runtime relocation fallback/,
     },
     {
       name: "inactive Windows Mica behavior",

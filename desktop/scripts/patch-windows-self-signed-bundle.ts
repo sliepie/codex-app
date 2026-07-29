@@ -19,6 +19,16 @@ const desktopRoot = process.cwd();
 const identifierPattern = String.raw`[A-Za-z_$][\w$]*`;
 const packageLocalCacheRelocationAppliedPattern =
   /process\.resourcesPath\?\.replace[\s\S]*?`Packages`[\s\S]*?`LocalCache`[\s\S]*?`Local`/;
+const browserRuntimeRelocationMarkers = [
+  "manifest.json",
+  "bin/node.exe",
+  "bin/node_repl.exe",
+  "node_modules",
+  "mkdir_staging",
+  "copy_directory",
+  "rename_staging",
+];
+const browserRuntimeRelocationAppliedMarker = "codex-runtime-relocation-fallback";
 const inactiveWindowsMicaBackdropAppliedPattern =
   /\bfunction\s+[A-Za-z_$][\w$]*\(\{appearance:([A-Za-z_$][\w$]*),isFocused:([A-Za-z_$][\w$]*),platform:([A-Za-z_$][\w$]*)\}\)\{return!\2&&![A-Za-z_$][\w$]*\(\1\)&&\3===`darwin`\}/;
 const windowsArm64PrimaryRuntimeManifestUrl =
@@ -1584,6 +1594,147 @@ function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult
   ];
 }
 
+function patchBrowserRuntimeRelocation(): SourcePatcher {
+  return (source) => {
+    const matches = findFunctionRanges(source).filter((range) => {
+      const executableNameMatch = new RegExp(
+        String.raw`\bexecutableName\s*:\s*(${identifierPattern})\b`,
+      ).exec(range.args);
+      const runtimeRootMatch = new RegExp(
+        String.raw`\bruntimeRoot\s*:\s*(${identifierPattern})\b`,
+      ).exec(range.args);
+      return (
+        executableNameMatch != null &&
+        runtimeRootMatch != null &&
+        browserRuntimeRelocationMarkers.every((marker) => range.body.includes(marker))
+      );
+    });
+
+    if (matches.length === 0) {
+      return undefined;
+    }
+    if (matches.length !== 1) {
+      throw new Error(
+        `Expected exactly one Browser runtime relocation function containing ${browserRuntimeRelocationMarkers.join(", ")}, found ${matches.length}.`,
+      );
+    }
+
+    const match = matches[0];
+    if (match.body.includes(browserRuntimeRelocationAppliedMarker)) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+
+    const executableNameMatch = new RegExp(
+      String.raw`\bexecutableName\s*:\s*(${identifierPattern})\b`,
+    ).exec(match.args);
+    const runtimeRootMatch = new RegExp(
+      String.raw`\bruntimeRoot\s*:\s*(${identifierPattern})\b`,
+    ).exec(match.args);
+    if (!executableNameMatch?.[1] || !runtimeRootMatch?.[1]) {
+      throw new Error("Unable to identify Browser runtime relocation arguments.");
+    }
+
+    const executableNameIdentifier = executableNameMatch[1];
+    const runtimeRootIdentifier = runtimeRootMatch[1];
+    const targetMatches = Array.from(
+      match.body.matchAll(
+        new RegExp(
+          String.raw`\b(${identifierPattern})\s*=\s*\(0,(${identifierPattern})\.join\)\((${identifierPattern}),\s*(${identifierPattern})\)\s*,\s*(${identifierPattern})\s*=\s*\(0,\2\.join\)\(\1,\s*\`bin\`,\s*(${identifierPattern})\)`,
+          "g",
+        ),
+      ),
+    );
+    if (targetMatches.length !== 1) {
+      throw new Error(
+        `Expected exactly one Browser runtime relocation target path, found ${targetMatches.length}.`,
+      );
+    }
+
+    const targetMatch = targetMatches[0];
+    const [
+      ,
+      destinationIdentifier,
+      pathIdentifier,
+      destinationRootIdentifier,
+      currentHashIdentifier,
+      executablePathIdentifier,
+      targetExecutableNameIdentifier,
+    ] = targetMatch;
+    if (
+      !destinationIdentifier ||
+      !pathIdentifier ||
+      !destinationRootIdentifier ||
+      !currentHashIdentifier ||
+      !executablePathIdentifier ||
+      !targetExecutableNameIdentifier
+    ) {
+      throw new Error("Unable to identify Browser runtime relocation path bindings.");
+    }
+    if (targetExecutableNameIdentifier !== executableNameIdentifier) {
+      throw new Error("Browser runtime relocation target uses an unexpected executable binding.");
+    }
+
+    const cleanupPattern = new RegExp(
+      String.raw`\(0,(${identifierPattern})\.existsSync\)\(${escapeRegExp(destinationIdentifier)}\)&&${identifierPattern}\(\{destinationPath:${escapeRegExp(destinationIdentifier)},executableName:${escapeRegExp(executableNameIdentifier)},operation:\`remove_destination\`,sourcePath:${escapeRegExp(runtimeRootIdentifier)}\},\(\)=>\(0,\1\.rmSync\)\(${escapeRegExp(destinationIdentifier)},\{force:!0,recursive:!0\}\)\)`,
+    );
+    const cleanupMatch = cleanupPattern.exec(match.body);
+    if (!cleanupMatch?.[0]) {
+      throw new Error("Unable to identify Browser runtime relocation cleanup.");
+    }
+
+    const reservedIdentifiers = new Set(
+      `${match.args},${match.body}`.match(new RegExp(identifierPattern, "g")) ?? [],
+    );
+    const fallbackIndexIdentifier = takeAvailableIdentifier("f", reservedIdentifiers);
+    const fallbackNameExpression =
+      "`${" + currentHashIdentifier + "}-${++" + fallbackIndexIdentifier + "}`";
+    const fallbackDestinationExpression =
+      `(0,${pathIdentifier}.join)(${destinationRootIdentifier},${fallbackNameExpression})`;
+    const replacement =
+      `(()=>{try{${cleanupMatch[0]}}catch{let ${fallbackIndexIdentifier}=0;do{${destinationIdentifier}=${fallbackDestinationExpression}}while((0,${cleanupMatch[1]}.existsSync)(${destinationIdentifier}));${executablePathIdentifier}=(0,${pathIdentifier}.join)(${destinationIdentifier},\`bin\`,${executableNameIdentifier})}})()/* ${browserRuntimeRelocationAppliedMarker} */`;
+    const cleanupStart = cleanupMatch.index;
+    const body =
+      match.body.slice(0, cleanupStart) +
+      replacement +
+      match.body.slice(cleanupStart + cleanupMatch[0].length);
+    const functionReplacement = `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}`;
+
+    return {
+      source: source.slice(0, match.start) + functionReplacement + source.slice(match.end),
+      status: "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
+function patchBrowserRuntimeRelocationBundle(recoveredRoot: string): PatchResult[] {
+  const patchName = "use a collision-free Browser runtime cache target";
+  const patcher = patchBrowserRuntimeRelocation();
+  const buildRoot = path.join(recoveredRoot, ".vite", "build");
+  let filePath: string;
+  try {
+    filePath = findFileForPatcher(
+      buildRoot,
+      /^.*\.js$/,
+      browserRuntimeRelocationMarkers,
+      patcher,
+      patchName,
+    );
+  } catch (error) {
+    const result = {
+      file: toReportPath(recoveredRoot, buildRoot),
+      name: patchName,
+      status: "failed-required" as const,
+      reason: errorMessage(error),
+    };
+    throw new PatchFailure(result, error);
+  }
+
+  return [
+    replaceWithPatchers(recoveredRoot, filePath, patchName, [patcher]),
+  ];
+}
+
 function patchPrimaryRuntimeInstallerBundle(recoveredRoot: string): PatchResult[] {
   const filePath = findPrimaryRuntimeInstallerBundle(recoveredRoot);
   const patchName = "route Windows ARM64 primary runtime manifest to GitHub release";
@@ -1766,6 +1917,7 @@ function main(): void {
     results.push(...patchSidebarChatsBundle(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
+    results.push(...patchBrowserRuntimeRelocationBundle(recoveredRoot));
     results.push(...patchPrimaryRuntimeInstallerBundle(recoveredRoot));
     results.push(...patchMainBundle(recoveredRoot));
   } catch (error) {
