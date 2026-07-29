@@ -253,8 +253,14 @@ const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_SELECTOR =
   "nav:has([data-settings-panel-slug]) .min-h-0.flex-1.overflow-y-auto.pb-2";
 const CODEX_PLUSPLUS_SETTINGS_NAV_SCROLLBAR_DECLARATIONS =
   "margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;";
+const REMOTE_CONVERSATION_HEADER_SELECTOR =
+  ".draggable.grid.w-full.min-w-0.items-center.gap-x-4.electron\\:h-toolbar.extension\\:py-row-y";
+const REMOTE_CONVERSATION_NO_PROJECT_TITLE_SELECTOR =
+  `${REMOTE_CONVERSATION_HEADER_SELECTOR}>.text-md.flex.min-w-0.items-center.gap-2.truncate.text-base.electron\\:font-medium>.flex.min-w-0.items-center.gap-0\\.5.ps-2`;
+const REMOTE_CONVERSATION_NO_PROJECT_TITLE_DECLARATIONS =
+  "padding-inline-start:calc(var(--spacing) * 3)!important;";
 const REMOTE_CONVERSATION_HEADER_ACTIONS_SELECTOR =
-  ".draggable.grid.w-full.min-w-0.items-center.gap-x-4.electron\\:h-toolbar.extension\\:py-row-y>.flex.items-center.justify-end.gap-1\\.5>.flex.items-center.gap-0\\.5";
+  `${REMOTE_CONVERSATION_HEADER_SELECTOR}>.flex.items-center.justify-end.gap-1\\.5>.flex.items-center.gap-0\\.5`;
 const REMOTE_CONVERSATION_PR_ACTION_SELECTOR =
   `${REMOTE_CONVERSATION_HEADER_ACTIONS_SELECTOR}>button.shrink-0:last-child`;
 const FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR =
@@ -406,6 +412,10 @@ const APP_SHELL_STYLE_RULES = [
 ];
 
 const REMOTE_CONVERSATION_HEADER_STYLE_RULES = [
+  cssRule(
+    REMOTE_CONVERSATION_NO_PROJECT_TITLE_SELECTOR,
+    REMOTE_CONVERSATION_NO_PROJECT_TITLE_DECLARATIONS,
+  ),
   cssRule(REMOTE_CONVERSATION_PR_ACTION_SELECTOR, "order:-1!important;"),
 ];
 
