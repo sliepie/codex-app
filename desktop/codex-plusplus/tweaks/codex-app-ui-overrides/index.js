@@ -52,6 +52,11 @@ const SIDEBAR_THREAD_ROW_HOVER_SELECTOR =
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:hover`;
 const SIDEBAR_THREAD_ROW_HOVER_DECLARATIONS =
   "background-color:var(--color-token-list-hover-background)!important;";
+const SIDEBAR_OTHER_SURFACE_HOVER_SELECTOR = [
+  `${SIDEBAR_ROOT_SELECTOR} [class~='sidebar-item']:hover`,
+];
+const SIDEBAR_OTHER_SURFACE_HOVER_DECLARATIONS =
+  SIDEBAR_THREAD_ROW_HOVER_DECLARATIONS;
 // Sidebar rich hover cards are body-level portals. Hide that portal for the whole
 // hovered sidebar surface so it cannot flicker between task and project rows, but
 // preserve a rich tooltip opened by keyboard focus outside the sidebar.
@@ -161,17 +166,17 @@ const SIDEBAR_PROJECT_ROW_MENU_INSET_SELECTOR =
   );
 const SIDEBAR_PROJECT_ROW_MENU_INSET_DECLARATIONS = "padding-right:0!important;";
 
-// Section headers: keep Projects/Pinned/Chats header actions visible and remove only the
-// collapsible-section affordance; the section contents remain expanded and interactive.
+// Section headers: keep header actions visible without applying row hover backgrounds,
+// and keep Projects, Pinned, Recents (shown as Chats), and Tasks expanded.
 const SIDEBAR_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]`;
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
   "opacity:1!important;pointer-events:auto!important;";
 const SIDEBAR_SECTION_CONTENT_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"]+[class~='overflow-hidden']>[class~='flex'][class~='flex-col'][class~='gap-px'][class~='pt-1']`;
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Recents"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"]+[class~='overflow-hidden']>[class~='flex'][class~='flex-col'][class~='gap-px'][class~='pt-1']`;
 const SIDEBAR_SECTION_CONTENT_DECLARATIONS = "padding-top:0!important;";
 const SIDEBAR_SECTION_TOGGLE_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]`;
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Recents"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]`;
 const SIDEBAR_SECTION_TOGGLE_DECLARATIONS =
   "pointer-events:none!important;cursor:default!important;";
 const SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR =
@@ -179,6 +184,11 @@ const SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR =
 const SIDEBAR_OFFSET_SECTION_TITLE_DECLARATIONS = "translate:-1px 0!important;";
 const SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR =
   `${SIDEBAR_SECTION_TOGGLE_SELECTOR}>[class~="opacity-0"]`;
+const SIDEBAR_RECENTS_TITLE_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading="Recents"] [class~="group/nav-section-title"] [data-app-action-sidebar-section-toggle] [class~="truncate"]`;
+const SIDEBAR_RECENTS_TITLE_DECLARATIONS = "font-size:0!important;";
+const SIDEBAR_RECENTS_TITLE_BEFORE_DECLARATIONS =
+  "content:'Chats';font-size:var(--text-base)!important;line-height:var(--text-base--line-height)!important;";
 const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR}>.relative.z-10.flex.shrink-0.flex-col.gap-2>.ml-2.flex.items-center`;
 const SIDEBAR_SCROLL_SELECTOR =
@@ -277,6 +287,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
     SIDEBAR_OVERFLOWING_THREAD_TITLE_ON_HOVER_DECLARATIONS,
   ),
   cssRule(SIDEBAR_THREAD_ROW_HOVER_SELECTOR, SIDEBAR_THREAD_ROW_HOVER_DECLARATIONS),
+  cssRule(
+    SIDEBAR_OTHER_SURFACE_HOVER_SELECTOR,
+    SIDEBAR_OTHER_SURFACE_HOVER_DECLARATIONS,
+  ),
   cssRule(SIDEBAR_HOVER_CARD_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(
     SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR,
@@ -315,6 +329,11 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_SECTION_TOGGLE_SELECTOR, SIDEBAR_SECTION_TOGGLE_DECLARATIONS),
   cssRule(SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR, SIDEBAR_OFFSET_SECTION_TITLE_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(SIDEBAR_RECENTS_TITLE_SELECTOR, SIDEBAR_RECENTS_TITLE_DECLARATIONS),
+  cssRule(
+    `${SIDEBAR_RECENTS_TITLE_SELECTOR}::before`,
+    SIDEBAR_RECENTS_TITLE_BEFORE_DECLARATIONS,
+  ),
 ];
 const IMAGE_PREVIEW_STYLE_RULES = [
   cssRule(
