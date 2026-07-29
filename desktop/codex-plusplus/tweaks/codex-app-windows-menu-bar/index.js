@@ -8,7 +8,7 @@ const WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE =
 const WINDOWS_MENU_TOP_BAR_HIDDEN_SELECTOR =
   `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${WINDOWS_MENU_TOP_BAR_SELECTOR}`;
 const WINDOWS_NAVIGATION_GROUP_HIDDEN_SELECTOR =
-  `${WINDOWS_MENU_TOP_BAR_HIDDEN_SELECTOR}>.flex.items-center.gap-1:has(>[data-app-shell-sidebar-trigger="true"])`;
+  `${WINDOWS_MENU_TOP_BAR_HIDDEN_SELECTOR}>.flex.items-center.gap-1:has([data-app-shell-sidebar-trigger="true"])`;
 const WINDOWS_MENU_ROW_HIDDEN_SELECTOR =
   `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${WINDOWS_MENU_ROW_SELECTOR}`;
 const COLLAPSED_NEW_CHAT_ICON_SELECTOR =
@@ -49,7 +49,7 @@ const RIGHT_PANEL_SURFACE_SELECTOR =
 const RIGHT_PANEL_SURFACE_HIDDEN_MENU_SELECTOR =
   `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${RIGHT_PANEL_SURFACE_SELECTOR}`;
 const WINDOWS_MENU_TOP_BAR_DECLARATIONS =
-  "position:fixed!important;inset-inline-start:0!important;top:0!important;z-index:43!important;width:max-content!important;height:var(--height-toolbar)!important;padding-inline-end:0!important;pointer-events:auto!important;-webkit-app-region:no-drag!important;";
+  "position:fixed!important;inset-inline-start:0!important;top:0!important;z-index:43!important;width:100%!important;height:var(--height-toolbar)!important;padding-inline-end:0!important;pointer-events:none!important;-webkit-app-region:drag!important;";
 const WINDOWS_NAVIGATION_GROUP_DECLARATIONS =
   "pointer-events:auto!important;-webkit-app-region:no-drag!important;";
 const WINDOWS_MENU_ROW_DECLARATIONS = "display:none!important;";
