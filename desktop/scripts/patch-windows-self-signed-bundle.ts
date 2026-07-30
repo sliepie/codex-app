@@ -791,56 +791,6 @@ function patchSidebarProjectLimit(): SourcePatcher {
   };
 }
 
-function patchSidebarChatsHeading(): SourcePatcher {
-  const markers = [
-    "sidebarElectron.recentChats",
-    "sidebarElectron.newThread",
-    "sectionKind:`chats`",
-  ];
-  const targetPattern =
-    /([A-Za-z_$][\w$]*)\.sidebarSection\(\{collapsed:([A-Za-z_$][\w$]*),heading:`Tasks`\}\)/g;
-  const appliedPattern =
-    /([A-Za-z_$][\w$]*)\.sidebarSection\(\{collapsed:([A-Za-z_$][\w$]*),heading:`Chats`\}\)/;
-
-  return (source) => {
-    const matches = findFunctionRanges(source).filter((range) =>
-      markers.every((marker) => range.body.includes(marker)),
-    );
-    if (matches.length === 0) {
-      return undefined;
-    }
-    if (matches.length !== 1) {
-      throw new Error(
-        `Expected exactly one sidebar Chats function containing ${markers.join(", ")}, found ${matches.length}.`,
-      );
-    }
-
-    const match = matches[0];
-    const targets = Array.from(match.body.matchAll(targetPattern));
-    if (targets.length === 0 && appliedPattern.test(match.body)) {
-      return { source, status: "already-applied", matcher: "semantic" };
-    }
-    if (targets.length !== 1) {
-      throw new Error(`Expected exactly one sidebar Chats heading target, found ${targets.length}.`);
-    }
-
-    const target = targets[0];
-    const targetStart = target.index ?? 0;
-    const patchedTarget = target[0].replace("heading:`Tasks`", "heading:`Chats`");
-    const body =
-      match.body.slice(0, targetStart) +
-      patchedTarget +
-      match.body.slice(targetStart + target[0].length);
-    const replacement = `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}`;
-
-    return {
-      source: source.slice(0, match.start) + replacement + source.slice(match.end),
-      status: "applied",
-      matcher: "semantic",
-    };
-  };
-}
-
 function replaceWithPatchers(
   recoveredRoot: string,
   filePath: string,
@@ -1137,182 +1087,6 @@ function patchRealtimeVoiceFeatureGate(recoveredRoot: string): PatchResult[] {
   ];
 }
 
-function patchBrowserMultiTabFeatureGate(recoveredRoot: string): PatchResult[] {
-  const markers = [
-    "owl-feature-enabled",
-    "multiTabBrowserUseEnabled",
-    "browser-use-session-route-capture",
-  ];
-  const patcher = patchBrowserMultiTabFeatureGateInSource();
-  const filePath = findFileForPatcher(
-    path.join(recoveredRoot, "webview", "assets"),
-    /^.*\.js$/,
-    markers,
-    patcher,
-    "Browser multi-tab feature gate",
-  );
-
-  return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "enable Electron Browser multi-tab mode",
-      [patcher],
-    ),
-  ];
-}
-
-function patchBrowserMultiTabFeatureGateInSource(): SourcePatcher {
-  const routeMarkers = ["captureBrowserUseSessionRoute", "multiTabBrowserUseEnabled"];
-  const routeGateUsagePattern = new RegExp(
-    String.raw`\b${identifierPattern}\.get\(\s*(${identifierPattern})\s*\)\s*===\s*!0`,
-    "g",
-  );
-  const selectorPattern = new RegExp(
-    String.raw`\b(${identifierPattern})=(${identifierPattern})\(\s*(${identifierPattern})\s*,\s*(?:\(\{get:${identifierPattern}\}\)=>${identifierPattern}\(${identifierPattern}\s*,\s*${identifierPattern}\)\.data===!0|\(\)=>!0)\s*\)`,
-    "g",
-  );
-
-  return (source) => {
-    const routeFunctions = findFunctionRanges(source).filter((range) =>
-      routeMarkers.every((marker) => range.body.includes(marker)),
-    );
-    if (routeFunctions.length === 0) {
-      return undefined;
-    }
-    if (routeFunctions.length !== 1) {
-      throw new Error(
-        `Expected exactly one Browser multi-tab route function containing ${routeMarkers.join(", ")}, found ${routeFunctions.length}.`,
-      );
-    }
-
-    const routeFunction = routeFunctions[0];
-    const routeGateUsages = Array.from(routeFunction.body.matchAll(routeGateUsagePattern));
-    if (routeGateUsages.length !== 1 || !routeGateUsages[0]?.[1]) {
-      throw new Error(
-        `Expected exactly one Browser multi-tab route gate usage in ${routeFunction.name}(), found ${routeGateUsages.length}.`,
-      );
-    }
-
-    const routeGateIdentifier = routeGateUsages[0][1];
-    type FeatureGateSelector = {
-      identifier: string;
-      factory: string;
-      store: string;
-      start: number;
-      end: number;
-      applied: boolean;
-    };
-    const selectorMatches: FeatureGateSelector[] = Array.from(source.matchAll(selectorPattern)).map((match) => {
-      const identifier = match[1];
-      const factory = match[2];
-      const store = match[3];
-      if (!identifier || !factory || !store) {
-        throw new Error("Unable to identify a Browser multi-tab feature gate selector.");
-      }
-
-      const start = match.index ?? 0;
-      return {
-        identifier,
-        factory,
-        store,
-        start,
-        end: start + match[0].length,
-        applied: match[0].includes("()=>!0"),
-      };
-    });
-    const routeSelectorMatches = selectorMatches.filter(
-      (match) => match.identifier === routeGateIdentifier,
-    );
-    const routeAliasPattern = new RegExp(
-      String.raw`\b${escapeRegExp(routeGateIdentifier)}=(${identifierPattern})(?=\s*(?:[,;]|$))`,
-      "g",
-    );
-    const routeAliases = Array.from(source.matchAll(routeAliasPattern));
-
-    if (routeSelectorMatches.length + routeAliases.length !== 1) {
-      throw new Error(
-        `Expected exactly one initializer for Browser multi-tab route gate ${routeGateIdentifier}, found ${routeSelectorMatches.length + routeAliases.length}.`,
-      );
-    }
-
-    const routeSelector = routeSelectorMatches[0];
-    const routeAlias = routeAliases[0];
-    let initialSelector: FeatureGateSelector | undefined;
-    let routeStart: number;
-    let routeEnd: number;
-    let routeReplacement: string;
-
-    if (routeAlias) {
-      const initialIdentifier = routeAlias[1];
-      if (!initialIdentifier) {
-        throw new Error("Unable to identify the Browser multi-tab initial feature gate.");
-      }
-
-      const initialMatches = selectorMatches.filter(
-        (match) => match.identifier === initialIdentifier && match.end <= (routeAlias.index ?? 0),
-      );
-      if (initialMatches.length !== 1) {
-        throw new Error(
-          `Expected exactly one initializer for Browser multi-tab initial gate ${initialIdentifier}, found ${initialMatches.length}.`,
-        );
-      }
-
-      initialSelector = initialMatches[0];
-      routeStart = routeAlias.index ?? 0;
-      routeEnd = routeStart + routeAlias[0].length;
-      routeReplacement = `${routeGateIdentifier}=${initialSelector.factory}(${initialSelector.store},()=>!0)`;
-    } else if (routeSelector) {
-      const previousSelectors = selectorMatches.filter(
-        (match) =>
-          match.end <= routeSelector.start &&
-          /^[,\s]*$/.test(source.slice(match.end, routeSelector.start)),
-      );
-      initialSelector = previousSelectors[previousSelectors.length - 1];
-      if (!initialSelector) {
-        throw new Error(
-          `Expected a Browser multi-tab initial feature gate immediately before route gate ${routeGateIdentifier}.`,
-        );
-      }
-
-      routeStart = routeSelector.start;
-      routeEnd = routeSelector.end;
-      routeReplacement = `${routeGateIdentifier}=${routeSelector.factory}(${routeSelector.store},()=>!0)`;
-    } else {
-      throw new Error("Unable to identify the Browser multi-tab route gate initializer.");
-    }
-
-    if (!initialSelector) {
-      throw new Error("Unable to identify the Browser multi-tab initial feature gate.");
-    }
-    if (initialSelector.applied && (routeAlias != null || routeSelector?.applied === true)) {
-      return { source, status: "already-applied", matcher: "semantic" };
-    }
-
-    const replacements = [
-      {
-        start: initialSelector.start,
-        end: initialSelector.end,
-        value: `${initialSelector.identifier}=${initialSelector.factory}(${initialSelector.store},()=>!0)`,
-      },
-      { start: routeStart, end: routeEnd, value: routeReplacement },
-    ].sort((left, right) => right.start - left.start);
-    let patchedSource = source;
-    for (const replacement of replacements) {
-      patchedSource =
-        patchedSource.slice(0, replacement.start) +
-        replacement.value +
-        patchedSource.slice(replacement.end);
-    }
-
-    return {
-      source: patchedSource,
-      status: "applied",
-      matcher: "semantic",
-    };
-  };
-}
-
 function patchBrowserDownloadsFeatureGate(recoveredRoot: string): PatchResult[] {
   const selectorMarkers = ["contactInfo:", "downloads:", "passwordManager:", "siteSettings:"];
   const patcher = patchBrowserDownloadsFeatureGateInFunction(selectorMarkers);
@@ -1432,28 +1206,6 @@ function patchSidebarProjectsBundle(recoveredRoot: string): PatchResult[] {
       filePath,
       "raise sidebar project limit",
       [patchSidebarProjectLimit()],
-    ),
-  ];
-}
-
-function patchSidebarChatsBundle(recoveredRoot: string): PatchResult[] {
-  const markers = [
-    "sidebarElectron.recentChats",
-    "sidebarElectron.newThread",
-    "sectionKind:`chats`",
-  ];
-  const filePath = findFileContaining(
-    path.join(recoveredRoot, "webview", "assets"),
-    /^.*\.js$/,
-    markers,
-  );
-
-  return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "normalize sidebar Chats heading marker",
-      [patchSidebarChatsHeading()],
     ),
   ];
 }
@@ -1911,10 +1663,8 @@ function main(): void {
     results.push(...patchIndex(recoveredRoot));
     results.push(...patchUsageRemainingBundle(recoveredRoot));
     results.push(...patchRealtimeVoiceFeatureGate(recoveredRoot));
-    results.push(...patchBrowserMultiTabFeatureGate(recoveredRoot));
     results.push(...patchBrowserDownloadsFeatureGate(recoveredRoot));
     results.push(...patchSidebarProjectsBundle(recoveredRoot));
-    results.push(...patchSidebarChatsBundle(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
     results.push(...patchWorkspaceRootDropHandlerBundle(recoveredRoot));
     results.push(...patchBrowserRuntimeRelocationBundle(recoveredRoot));
