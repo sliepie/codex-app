@@ -2208,7 +2208,27 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.match(
       appendedStyles[0].textContent,
-      /main\.main-surface \.loading-shimmer-pure-text:not\(\[class\*='_cadencedShimmer_'\]\),[^}]+\{animation-duration:4s!important;animation-timing-function:steps\(24,end\)!important;\}/,
+      /\[data-app-action-sidebar-thread-row\] \.animate-spin\{animation:none!important;position:relative!important;width:20px!important;height:20px!important;\}/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /\[data-app-action-sidebar-thread-row\] \.animate-spin::before\{[^}]*animation:codex-app-sidebar-thread-activity-dots 1\.2s step-end infinite;/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /@keyframes codex-app-sidebar-thread-activity-dots\{0%,100%\{[^}]+\}33\.333%\{[^}]+\}66\.667%\{[^}]+\}\}/,
+    );
+    assert.doesNotMatch(
+      appendedStyles[0].textContent,
+      /:root\[data-codex-window-type='electron'\] \.animate-spin/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /main\.main-surface \.loading-shimmer-pure-text:not\(:has\(>span\[aria-hidden='true'\]\)\),[^}]+\{animation-duration:4s!important;animation-timing-function:steps\(24,end\)!important;\}/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /main\.main-surface \.loading-shimmer-pure-text:has\(>span\[aria-hidden='true'\]\)\s*>\s*span\[aria-hidden='true'\],[^}]+\{animation-duration:1s!important;animation-timing-function:steps\(24,end\)!important;animation-fill-mode:both!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,

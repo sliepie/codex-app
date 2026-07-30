@@ -268,17 +268,46 @@ const FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR =
 const FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS =
   "visibility:visible!important;";
 const MAIN_SURFACE_SELECTOR = "main.main-surface";
+// The active sidebar thread keeps the generic infinite transform spinner
+// mounted for the full task, which prevents Chromium's compositor from idling.
+// Replace only that long-lived spinner with an intentional three-state activity
+// indicator. Its discrete updates preserve feedback without continuous frames.
+const SIDEBAR_THREAD_ACTIVITY_SELECTOR =
+  "[data-app-action-sidebar-thread-row] .animate-spin";
+const SIDEBAR_THREAD_ACTIVITY_DECLARATIONS =
+  "animation:none!important;position:relative!important;width:20px!important;height:20px!important;";
+const SIDEBAR_THREAD_ACTIVITY_ICON_SELECTOR =
+  `${SIDEBAR_THREAD_ACTIVITY_SELECTOR}>svg`;
+const SIDEBAR_THREAD_ACTIVITY_ICON_DECLARATIONS = "display:none!important;";
+const SIDEBAR_THREAD_ACTIVITY_DOTS_SELECTOR =
+  `${SIDEBAR_THREAD_ACTIVITY_SELECTOR}::before`;
+const SIDEBAR_THREAD_ACTIVITY_DOTS_DECLARATIONS =
+  "content:'';position:absolute;left:2px;top:8px;width:4px;height:4px;border-radius:9999px;color:currentColor;animation:codex-app-sidebar-thread-activity-dots 1.2s step-end infinite;";
+const SIDEBAR_THREAD_ACTIVITY_DOTS_KEYFRAMES =
+  "@keyframes codex-app-sidebar-thread-activity-dots{0%,100%{background-color:currentColor;box-shadow:6px 0 0 color-mix(in srgb,currentColor 28%,transparent),12px 0 0 color-mix(in srgb,currentColor 28%,transparent)}33.333%{background-color:color-mix(in srgb,currentColor 28%,transparent);box-shadow:6px 0 0 currentColor,12px 0 0 color-mix(in srgb,currentColor 28%,transparent)}66.667%{background-color:color-mix(in srgb,currentColor 28%,transparent);box-shadow:6px 0 0 color-mix(in srgb,currentColor 28%,transparent),12px 0 0 currentColor}}";
 // Native legacy shimmer animates background-position on clipped text, which
 // repaints the glyphs at every step. Keep the animation, but reduce the paint
-// cadence from 24 to 6 position changes per second. The cadenced variant uses
-// a transform-driven child sweep and is intentionally left untouched.
+// cadence from 24 to 6 position changes per second. The cadenced variant is
+// identified by its source-owned aria-hidden sweep child rather than its
+// generated CSS-module class.
 const MAIN_SURFACE_LEGACY_SHIMMER_SELECTORS = [
-  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text:not([class*='_cadencedShimmer_'])`,
-  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text-inverted:not([class*='_cadencedShimmer_'])`,
-  `${MAIN_SURFACE_SELECTOR} .loading-shimmer:not([class*='_cadencedShimmer_'])`,
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text:not(:has(>span[aria-hidden='true']))`,
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text-inverted`,
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer:not(:has(>span[aria-hidden='true']))`,
 ];
 const MAIN_SURFACE_LEGACY_SHIMMER_DECLARATIONS =
   "animation-duration:4s!important;animation-timing-function:steps(24,end)!important;";
+// The cadenced status duplicates its text inside an aria-hidden masked sweep
+// and animates both layers with 48 transform steps once every four seconds.
+// Preserve that one-second sweep while halving compositor updates. Filling the
+// final frame also prevents the duplicated highlight from snapping back before
+// the native one-second class-removal timer runs.
+const MAIN_SURFACE_CADENCED_SHIMMER_SELECTORS = [
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text:has(>span[aria-hidden='true']) > span[aria-hidden='true']`,
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text:has(>span[aria-hidden='true']) > span[aria-hidden='true'] > span`,
+];
+const MAIN_SURFACE_CADENCED_SHIMMER_DECLARATIONS =
+  "animation-duration:1s!important;animation-timing-function:steps(24,end)!important;animation-fill-mode:both!important;";
 // The retained Browser panel always mounts this pulse, even when its parent is
 // aria-hidden and opacity-0. Stop only that hidden instance; visible progress
 // feedback and unrelated pulse/spin indicators keep their native animation.
@@ -415,8 +444,25 @@ const APP_SHELL_STYLE_RULES = [
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS,
   ),
   cssRule(
+    SIDEBAR_THREAD_ACTIVITY_SELECTOR,
+    SIDEBAR_THREAD_ACTIVITY_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_THREAD_ACTIVITY_ICON_SELECTOR,
+    SIDEBAR_THREAD_ACTIVITY_ICON_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_THREAD_ACTIVITY_DOTS_SELECTOR,
+    SIDEBAR_THREAD_ACTIVITY_DOTS_DECLARATIONS,
+  ),
+  SIDEBAR_THREAD_ACTIVITY_DOTS_KEYFRAMES,
+  cssRule(
     MAIN_SURFACE_LEGACY_SHIMMER_SELECTORS,
     MAIN_SURFACE_LEGACY_SHIMMER_DECLARATIONS,
+  ),
+  cssRule(
+    MAIN_SURFACE_CADENCED_SHIMMER_SELECTORS,
+    MAIN_SURFACE_CADENCED_SHIMMER_DECLARATIONS,
   ),
   cssRule(
     MAIN_SURFACE_HIDDEN_BROWSER_PROGRESS_SELECTOR,
