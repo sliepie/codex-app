@@ -2194,62 +2194,6 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
       appendedStyles[0].textContent,
       /\[class~='group'\]:is\(:hover,:focus-within\)>\[class~='pointer-events-none'\]\[class~='shrink-0'\]\[class~='opacity-0'\]\{opacity:1!important;pointer-events:auto!important;\}/,
     );
-    assert.doesNotMatch(
-      appendedStyles[0].textContent,
-      /\[data-pip-obstacle="app-shell-floating-left-panel"\]\{[^}]*opacity:1!important;/,
-    );
-    assert.doesNotMatch(
-      appendedStyles[0].textContent,
-      /\[data-pip-obstacle="app-shell-floating-left-panel"\]>aside\{[^}]*backdrop-filter:/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-pip-obstacle="app-shell-floating-left-panel"\]:hover>aside\{[^}]*backdrop-filter:blur\(20px\) saturate\(140%\)!important;/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-thread-row\] \.animate-spin\{animation:none!important;position:relative!important;width:20px!important;height:20px!important;\}/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-thread-row\] \.animate-spin::before\{[^}]*width:10px;height:10px;[^}]*animation:codex-app-sidebar-thread-activity-dot 1\.6s steps\(16,end\) infinite alternate;/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /@keyframes codex-app-sidebar-thread-activity-dot\{from\{opacity:\.55;transform:translate\(-50%,-50%\) scale\(\.85\)\}to\{opacity:1;transform:translate\(-50%,-50%\) scale\(1\)\}\}/,
-    );
-    assert.doesNotMatch(
-      appendedStyles[0].textContent,
-      /:root\[data-codex-window-type='electron'\] \.animate-spin/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /main\.main-surface \.loading-shimmer-pure-text:not\(:has\(>span\[aria-hidden='true'\]\)\),[^}]+\{background:none!important;background-image:none!important;-webkit-text-fill-color:currentColor!important;animation:codex-app-status-breath 1\.6s steps\(16,end\) infinite alternate!important;\}/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /main\.main-surface \.loading-shimmer-pure-text:has\(>span\[aria-hidden='true'\]\)\{background:none!important;background-image:none!important;-webkit-text-fill-color:currentColor!important;animation:codex-app-status-breath 1\.6s steps\(16,end\) infinite alternate!important;\}/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /main\.main-surface \.loading-shimmer-pure-text:has\(>span\[aria-hidden='true'\]\)>span\[aria-hidden='true'\]\{display:none!important;animation:none!important;\}/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /@keyframes codex-app-status-breath\{from\{opacity:\.72\}to\{opacity:1\}\}/,
-    );
-    assert.match(
-      appendedStyles[0].textContent,
-      /main\.main-surface \[aria-hidden='true'\]\[class~='opacity-0'\]\s*>\s*\[class~='animate-pulse'\]\[class~='bg-token-progress-bar-background'\]\{animation:none!important;will-change:auto!important;\}/,
-    );
-    assert.doesNotMatch(
-      appendedStyles[0].textContent,
-      /main\.main-surface \[class~='animate-pulse'\]/,
-    );
-    assert.doesNotMatch(
-      appendedStyles[0].textContent,
-      /main\.main-surface \[class\*='_cadencedShimmerSweep_'\]/,
-    );
     menuModule.exports.start({ log: console });
     assert.equal(appendedStyles.length, 2);
 

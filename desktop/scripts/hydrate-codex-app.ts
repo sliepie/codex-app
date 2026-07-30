@@ -959,12 +959,15 @@ function codexPlusPlusWindowsAccentColorBridgeSource(
     const root = typeof document === "object" ? document.documentElement : null;
     root?.style.setProperty(accentColorProperty, color, "important");
   };
-  __CODEXPP_ELECTRON_BINDING__.ipcRenderer.on(changedChannel, (_event, value) => {
-    applyWindowsAccentColor(value);
-  });
-  void __CODEXPP_ELECTRON_BINDING__.ipcRenderer.invoke(requestChannel)
-    .then(applyWindowsAccentColor)
-    .catch(() => {});
+  const ipcRenderer = __CODEXPP_ELECTRON_BINDING__.ipcRenderer;
+  if (ipcRenderer && typeof ipcRenderer.on === "function") {
+    ipcRenderer.on(changedChannel, (_event, value) => {
+      applyWindowsAccentColor(value);
+    });
+  }
+  if (ipcRenderer && typeof ipcRenderer.invoke === "function") {
+    void ipcRenderer.invoke(requestChannel).then(applyWindowsAccentColor).catch(() => {});
+  }
   applyWindowsAccentColor(globalThis.__codexpp_windows_accent_color__);
 })();
 `;

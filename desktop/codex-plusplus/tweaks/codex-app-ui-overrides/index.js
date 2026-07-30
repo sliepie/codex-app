@@ -25,7 +25,9 @@ const USAGE_MENU_RESET_ACTION_DECLARATIONS =
 const USAGE_MENU_LABEL_DECLARATIONS = "font-weight:400!important;";
 const USAGE_MENU_LINK_DECLARATIONS = "display:none!important;";
 const USAGE_MENU_TRIGGER_DECLARATIONS =
-  "pointer-events:none!important;cursor:default!important;background-color:transparent!important;";
+  "pointer-events:none!important;cursor:default!important;background-color:transparent!important;visibility:hidden!important;";
+const USAGE_MENU_TRIGGER_CONTENT_DECLARATIONS =
+  "visibility:visible!important;";
 const USAGE_MENU_RESET_ACTION_SELECTOR =
   `${USAGE_MENU_RATE_ROWS_SELECTOR}~:is(div,button,[role='menuitem']):not(a[href]):has(svg)`;
 const INVITE_FRIEND_MENU_ITEM_SELECTOR =
@@ -181,16 +183,19 @@ const SIDEBAR_PROJECT_ROW_MENU_INSET_SELECTOR =
 const SIDEBAR_PROJECT_ROW_MENU_INSET_DECLARATIONS = "padding-right:0!important;";
 
 // Section headers: keep header actions visible without applying row hover backgrounds,
-// and keep Projects, Pinned, Recents (shown as Chats), and Tasks expanded.
+// and keep Projects, Pinned, Chats, and Tasks expanded. The renderer has emitted
+// both Chats and Recents markers across supported builds.
 const SIDEBAR_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]`;
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
   "opacity:1!important;pointer-events:auto!important;";
+const SIDEBAR_RECENT_CHATS_SECTION_MARKER_SELECTOR =
+  ':is([data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Recents"])';
 const SIDEBAR_SECTION_CONTENT_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Recents"],[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"]+[class~='overflow-hidden']>[class~='flex'][class~='flex-col'][class~='gap-px'][class~='pt-1']`;
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],${SIDEBAR_RECENT_CHATS_SECTION_MARKER_SELECTOR},[data-app-action-sidebar-section-heading="Tasks"])>[class~='flex'][class~='flex-col']>[class~="group/nav-section-title"]+[class~='overflow-hidden']>[class~='flex'][class~='flex-col'][class~='gap-px'][class~='pt-1']`;
 const SIDEBAR_SECTION_CONTENT_DECLARATIONS = "padding-top:0!important;";
 const SIDEBAR_SECTION_TOGGLE_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],[data-app-action-sidebar-section-heading="Recents"],[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]`;
+  `${SIDEBAR_ROOT_SELECTOR} :is([data-app-action-sidebar-section-heading="Projects"],[data-app-action-sidebar-section-heading="Pinned"],${SIDEBAR_RECENT_CHATS_SECTION_MARKER_SELECTOR},[data-app-action-sidebar-section-heading="Tasks"]) [data-app-action-sidebar-section-toggle]`;
 const SIDEBAR_SECTION_TOGGLE_DECLARATIONS =
   "pointer-events:none!important;cursor:default!important;";
 const SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR =
@@ -198,11 +203,6 @@ const SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR =
 const SIDEBAR_OFFSET_SECTION_TITLE_DECLARATIONS = "translate:-1px 0!important;";
 const SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR =
   `${SIDEBAR_SECTION_TOGGLE_SELECTOR}>[class~="opacity-0"]`;
-const SIDEBAR_RECENTS_TITLE_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading="Recents"] [class~="group/nav-section-title"] [data-app-action-sidebar-section-toggle] [class~="truncate"]`;
-const SIDEBAR_RECENTS_TITLE_DECLARATIONS = "font-size:0!important;";
-const SIDEBAR_RECENTS_TITLE_BEFORE_DECLARATIONS =
-  "content:'Chats';font-size:var(--text-base)!important;line-height:var(--text-base--line-height)!important;";
 const SIDEBAR_HEADER_MODE_AND_SEARCH_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR}>.relative.z-10.flex.shrink-0.flex-col.gap-2>.ml-2.flex.items-center`;
 const SIDEBAR_SCROLL_SELECTOR =
@@ -302,6 +302,18 @@ const MAIN_SURFACE_CADENCED_SHIMMER_SWEEP_DECLARATIONS =
   "display:none!important;animation:none!important;";
 const MAIN_SURFACE_CADENCED_SHIMMER_KEYFRAMES =
   "@keyframes codex-app-status-breath{from{opacity:.72}to{opacity:1}}";
+const REDUCED_MOTION_STYLE_RULES = [
+  `@media (prefers-reduced-motion: reduce){${cssRule(
+    SIDEBAR_THREAD_ACTIVITY_DOTS_SELECTOR,
+    "animation:none!important;opacity:1!important;transform:translate(-50%,-50%) scale(1)!important;",
+  )}${cssRule(
+    [
+      ...MAIN_SURFACE_LEGACY_SHIMMER_SELECTORS,
+      MAIN_SURFACE_CADENCED_SHIMMER_SELECTOR,
+    ],
+    "animation:none!important;opacity:1!important;",
+  )}}`,
+];
 // The retained Browser panel always mounts this pulse, even when its parent is
 // aria-hidden and opacity-0. Stop only that hidden instance; visible progress
 // feedback and unrelated pulse/spin indicators keep their native animation.
@@ -406,11 +418,6 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_SECTION_TOGGLE_SELECTOR, SIDEBAR_SECTION_TOGGLE_DECLARATIONS),
   cssRule(SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR, SIDEBAR_OFFSET_SECTION_TITLE_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
-  cssRule(SIDEBAR_RECENTS_TITLE_SELECTOR, SIDEBAR_RECENTS_TITLE_DECLARATIONS),
-  cssRule(
-    `${SIDEBAR_RECENTS_TITLE_SELECTOR}::before`,
-    SIDEBAR_RECENTS_TITLE_BEFORE_DECLARATIONS,
-  ),
 ];
 const IMAGE_PREVIEW_STYLE_RULES = [
   cssRule(
@@ -518,6 +525,16 @@ const SETTINGS_STYLE_RULES = [
     ".main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm:not(:has(*))+.scrollbar-stable.flex-1.overflow-y-auto.p-panel",
     "padding-top:var(--height-toolbar)!important;padding-bottom:4rem!important;",
   ),
+  // Keep the Keyboard Shortcuts layout unchanged while covering content that
+  // scrolls behind the sticky search control and native caption buttons.
+  cssRule(
+    "body:has([data-settings-panel-slug='keyboard-shortcuts'][aria-current='page']) .main-surface:has(>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm+.scrollbar-stable.flex-1.overflow-y-auto.p-panel)",
+    "position:relative!important;",
+  ),
+  cssRule(
+    "body:has([data-settings-panel-slug='keyboard-shortcuts'][aria-current='page']) .main-surface:has(>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm+.scrollbar-stable.flex-1.overflow-y-auto.p-panel)::before",
+    "content:'';pointer-events:none;position:absolute;z-index:30;top:0;right:0;left:0;height:var(--height-toolbar);background:var(--color-token-main-surface-primary);",
+  ),
 ];
 
 const CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES = [
@@ -549,6 +566,10 @@ const SIDEBAR_FOOTER_STYLE_RULES = [
 
 const USAGE_MENU_STYLE_RULES = [
   cssRule(USAGE_MENU_TRIGGER_SELECTOR, USAGE_MENU_TRIGGER_DECLARATIONS),
+  cssRule(
+    USAGE_MENU_TRIGGER_CONTENT_SELECTOR,
+    USAGE_MENU_TRIGGER_CONTENT_DECLARATIONS,
+  ),
   cssRule(USAGE_MENU_TRIGGER_CHEVRON_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(USAGE_MENU_RATE_ROWS_SELECTOR, USAGE_MENU_RATE_ROWS_DECLARATIONS),
   cssRule(USAGE_MENU_RATE_LABEL_SELECTOR, USAGE_MENU_LABEL_DECLARATIONS),
@@ -572,6 +593,7 @@ const STYLE_RULES = [
   ...CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES,
   ...SIDEBAR_FOOTER_STYLE_RULES,
   ...USAGE_MENU_STYLE_RULES,
+  ...REDUCED_MOTION_STYLE_RULES,
 ];
 
 function installStyle() {
