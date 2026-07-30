@@ -491,6 +491,12 @@ const REMOTE_CONVERSATION_HEADER_STYLE_RULES = [
 ];
 
 const SETTINGS_STYLE_RULES = [
+  // Keep Profile actions left of the native Windows caption controls while
+  // preserving the toolbar's existing panel inset.
+  cssRule(
+    ".main-surface>.draggable.flex.items-center.px-panel .no-drag.flex.items-center.gap-2:has(>button[aria-label='Share profile card'])",
+    "margin-right:max(0px,calc(100vw - env(titlebar-area-x,0px) - env(titlebar-area-width,100vw)))!important;",
+  ),
   cssRule(
     "main.main-surface:has(.main-surface>.draggable.flex.items-center.px-panel.electron\\:h-toolbar.extension\\:h-toolbar-sm)>.app-header-tint.draggable.pointer-events-none.fixed.z-30.flex.h-toolbar.min-w-0.items-center",
     "display:none!important;",
