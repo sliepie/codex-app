@@ -268,10 +268,8 @@ const FULL_WIDTH_HEADER_CONTEXT_SURFACE_SELECTOR =
 const FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS =
   "visibility:visible!important;";
 const MAIN_SURFACE_SELECTOR = "main.main-surface";
-// The active sidebar thread keeps the generic infinite transform spinner
-// mounted for the full task, which prevents Chromium's compositor from idling.
-// Replace only that long-lived spinner with an intentional three-state activity
-// indicator. Its discrete updates preserve feedback without continuous frames.
+// Keep the native activity slot and replace only its long-lived transform
+// spinner with one centered, theme-aware breathing dot.
 const SIDEBAR_THREAD_ACTIVITY_SELECTOR =
   "[data-app-action-sidebar-thread-row] .animate-spin";
 const SIDEBAR_THREAD_ACTIVITY_DECLARATIONS =
@@ -282,32 +280,28 @@ const SIDEBAR_THREAD_ACTIVITY_ICON_DECLARATIONS = "display:none!important;";
 const SIDEBAR_THREAD_ACTIVITY_DOTS_SELECTOR =
   `${SIDEBAR_THREAD_ACTIVITY_SELECTOR}::before`;
 const SIDEBAR_THREAD_ACTIVITY_DOTS_DECLARATIONS =
-  "content:'';position:absolute;left:2px;top:8px;width:4px;height:4px;border-radius:9999px;color:currentColor;animation:codex-app-sidebar-thread-activity-dots 1.2s step-end infinite;";
+  "content:'';position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:9999px;background:var(--color-token-conversation-body);transform:translate(-50%,-50%) scale(.85);transform-origin:center;animation:codex-app-sidebar-thread-activity-dot 1.6s steps(16,end) infinite alternate;";
 const SIDEBAR_THREAD_ACTIVITY_DOTS_KEYFRAMES =
-  "@keyframes codex-app-sidebar-thread-activity-dots{0%,100%{background-color:currentColor;box-shadow:6px 0 0 color-mix(in srgb,currentColor 28%,transparent),12px 0 0 color-mix(in srgb,currentColor 28%,transparent)}33.333%{background-color:color-mix(in srgb,currentColor 28%,transparent);box-shadow:6px 0 0 currentColor,12px 0 0 color-mix(in srgb,currentColor 28%,transparent)}66.667%{background-color:color-mix(in srgb,currentColor 28%,transparent);box-shadow:6px 0 0 color-mix(in srgb,currentColor 28%,transparent),12px 0 0 currentColor}}";
-// Native legacy shimmer animates background-position on clipped text, which
-// repaints the glyphs at every step. Keep the animation, but reduce the paint
-// cadence from 24 to 6 position changes per second. The cadenced variant is
-// identified by its source-owned aria-hidden sweep child rather than its
-// generated CSS-module class.
+  "@keyframes codex-app-sidebar-thread-activity-dot{from{opacity:.55;transform:translate(-50%,-50%) scale(.85)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}";
+// Remove native shimmer painting and keep only a low-cadence breath on the
+// visible status text. The duplicated aria-hidden sweep is hidden explicitly.
 const MAIN_SURFACE_LEGACY_SHIMMER_SELECTORS = [
   `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text:not(:has(>span[aria-hidden='true']))`,
   `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text-inverted`,
   `${MAIN_SURFACE_SELECTOR} .loading-shimmer:not(:has(>span[aria-hidden='true']))`,
 ];
 const MAIN_SURFACE_LEGACY_SHIMMER_DECLARATIONS =
-  "animation-duration:4s!important;animation-timing-function:steps(24,end)!important;";
-// The cadenced status duplicates its text inside an aria-hidden masked sweep
-// and animates both layers with 48 transform steps once every four seconds.
-// Preserve that one-second sweep while halving compositor updates. Filling the
-// final frame also prevents the duplicated highlight from snapping back before
-// the native one-second class-removal timer runs.
-const MAIN_SURFACE_CADENCED_SHIMMER_SELECTORS = [
-  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text:has(>span[aria-hidden='true']) > span[aria-hidden='true']`,
-  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text:has(>span[aria-hidden='true']) > span[aria-hidden='true'] > span`,
-];
+  "background:none!important;background-image:none!important;animation:codex-app-status-breath 1.6s steps(16,end) infinite alternate!important;";
+const MAIN_SURFACE_CADENCED_SHIMMER_SELECTOR =
+  `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text:has(>span[aria-hidden='true'])`;
 const MAIN_SURFACE_CADENCED_SHIMMER_DECLARATIONS =
-  "animation-duration:1s!important;animation-timing-function:steps(24,end)!important;animation-fill-mode:both!important;";
+  "background:none!important;background-image:none!important;animation:codex-app-status-breath 1.6s steps(16,end) infinite alternate!important;";
+const MAIN_SURFACE_CADENCED_SHIMMER_SWEEP_SELECTOR =
+  `${MAIN_SURFACE_CADENCED_SHIMMER_SELECTOR}>span[aria-hidden='true']`;
+const MAIN_SURFACE_CADENCED_SHIMMER_SWEEP_DECLARATIONS =
+  "display:none!important;animation:none!important;";
+const MAIN_SURFACE_CADENCED_SHIMMER_KEYFRAMES =
+  "@keyframes codex-app-status-breath{from{opacity:.72}to{opacity:1}}";
 // The retained Browser panel always mounts this pulse, even when its parent is
 // aria-hidden and opacity-0. Stop only that hidden instance; visible progress
 // feedback and unrelated pulse/spin indicators keep their native animation.
@@ -451,19 +445,15 @@ const APP_SHELL_STYLE_RULES = [
     SIDEBAR_THREAD_ACTIVITY_ICON_SELECTOR,
     SIDEBAR_THREAD_ACTIVITY_ICON_DECLARATIONS,
   ),
-  cssRule(
-    SIDEBAR_THREAD_ACTIVITY_DOTS_SELECTOR,
-    SIDEBAR_THREAD_ACTIVITY_DOTS_DECLARATIONS,
-  ),
+  cssRule(SIDEBAR_THREAD_ACTIVITY_DOTS_SELECTOR, SIDEBAR_THREAD_ACTIVITY_DOTS_DECLARATIONS),
   SIDEBAR_THREAD_ACTIVITY_DOTS_KEYFRAMES,
   cssRule(
     MAIN_SURFACE_LEGACY_SHIMMER_SELECTORS,
     MAIN_SURFACE_LEGACY_SHIMMER_DECLARATIONS,
   ),
-  cssRule(
-    MAIN_SURFACE_CADENCED_SHIMMER_SELECTORS,
-    MAIN_SURFACE_CADENCED_SHIMMER_DECLARATIONS,
-  ),
+  cssRule(MAIN_SURFACE_CADENCED_SHIMMER_SELECTOR, MAIN_SURFACE_CADENCED_SHIMMER_DECLARATIONS),
+  cssRule(MAIN_SURFACE_CADENCED_SHIMMER_SWEEP_SELECTOR, MAIN_SURFACE_CADENCED_SHIMMER_SWEEP_DECLARATIONS),
+  MAIN_SURFACE_CADENCED_SHIMMER_KEYFRAMES,
   cssRule(
     MAIN_SURFACE_HIDDEN_BROWSER_PROGRESS_SELECTOR,
     MAIN_SURFACE_HIDDEN_BROWSER_PROGRESS_DECLARATIONS,

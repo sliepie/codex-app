@@ -2212,11 +2212,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.match(
       appendedStyles[0].textContent,
-      /\[data-app-action-sidebar-thread-row\] \.animate-spin::before\{[^}]*animation:codex-app-sidebar-thread-activity-dots 1\.2s step-end infinite;/,
+      /\[data-app-action-sidebar-thread-row\] \.animate-spin::before\{[^}]*width:10px;height:10px;[^}]*animation:codex-app-sidebar-thread-activity-dot 1\.6s steps\(16,end\) infinite alternate;/,
     );
     assert.match(
       appendedStyles[0].textContent,
-      /@keyframes codex-app-sidebar-thread-activity-dots\{0%,100%\{[^}]+\}33\.333%\{[^}]+\}66\.667%\{[^}]+\}\}/,
+      /@keyframes codex-app-sidebar-thread-activity-dot\{from\{opacity:\.55;transform:translate\(-50%,-50%\) scale\(\.85\)\}to\{opacity:1;transform:translate\(-50%,-50%\) scale\(1\)\}\}/,
     );
     assert.doesNotMatch(
       appendedStyles[0].textContent,
@@ -2224,11 +2224,19 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.match(
       appendedStyles[0].textContent,
-      /main\.main-surface \.loading-shimmer-pure-text:not\(:has\(>span\[aria-hidden='true'\]\)\),[^}]+\{animation-duration:4s!important;animation-timing-function:steps\(24,end\)!important;\}/,
+      /main\.main-surface \.loading-shimmer-pure-text:not\(:has\(>span\[aria-hidden='true'\]\)\),[^}]+\{background:none!important;background-image:none!important;animation:codex-app-status-breath 1\.6s steps\(16,end\) infinite alternate!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
-      /main\.main-surface \.loading-shimmer-pure-text:has\(>span\[aria-hidden='true'\]\)\s*>\s*span\[aria-hidden='true'\],[^}]+\{animation-duration:1s!important;animation-timing-function:steps\(24,end\)!important;animation-fill-mode:both!important;\}/,
+      /main\.main-surface \.loading-shimmer-pure-text:has\(>span\[aria-hidden='true'\]\)\{background:none!important;background-image:none!important;animation:codex-app-status-breath 1\.6s steps\(16,end\) infinite alternate!important;\}/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /main\.main-surface \.loading-shimmer-pure-text:has\(>span\[aria-hidden='true'\]\)>span\[aria-hidden='true'\]\{display:none!important;animation:none!important;\}/,
+    );
+    assert.match(
+      appendedStyles[0].textContent,
+      /@keyframes codex-app-status-breath\{from\{opacity:\.72\}to\{opacity:1\}\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
