@@ -1,0 +1,48 @@
+name: Merge Successful Windows ARM64 Upstream Candidate
+
+on:
+  workflow_run:
+    workflows:
+      - Windows ARM64 PR Build
+    types:
+      - completed
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge-candidate:
+    if: github.event.workflow_run.event == 'workflow_dispatch' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'upstream/windows-arm64-')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Merge candidate and dispatch release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pr_json="$(gh pr list --repo "$REPOSITORY" --head "$HEAD_BRANCH" --state open --json number,body --limit 1)"
+          pr_number="$(jq -r '.[0].number // empty' <<< "$pr_json")"
+          if [[ -z "$pr_number" ]]; then
+            echo "No open upstream candidate pull request found for $HEAD_BRANCH."
+            exit 0
+          fi
+
+          if ! grep -Fq '<!-- windows-arm64-upstream-candidate -->' <<< "$pr_json"; then
+            echo "Pull request #$pr_number is not a Windows ARM64 upstream candidate."
+            exit 0
+          fi
+
+          gh pr merge "$pr_number" \
+            --repo "$REPOSITORY" \
+            --squash \
+            --delete-branch
+
+          gh workflow run windows-arm64-release.yml \
+            --repo "$REPOSITORY" \
+            --ref main

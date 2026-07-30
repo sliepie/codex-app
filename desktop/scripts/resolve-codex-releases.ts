@@ -67,6 +67,13 @@ type AppcastRelease = {
   version: string;
 };
 
+type ResolvedUpstreamInputs = {
+  appcastRelease: AppcastRelease;
+  codexCliTag: string;
+  codexPlusPlusSha: string;
+  codexPlusPlusTag: string;
+};
+
 type ResolveRepoReleaseRevisionOptions = ReleaseInputs & {
   appVersion: string;
   currentSha?: string;
@@ -473,29 +480,88 @@ async function fetchAppcastRelease(feedName: CodexAppcastFeed): Promise<AppcastR
   return { buildNumber, feedName, version };
 }
 
-async function main(): Promise<void> {
-  const selectedAppcastRelease = await fetchAppcastRelease("prod");
-  const appVersion = selectedAppcastRelease.version;
-  const buildNumber = selectedAppcastRelease.buildNumber;
-  const cliTag = assertMatches(
-    "Codex CLI tag",
-    await fetchLatestReleaseTag(codexCliRepository, "Codex CLI"),
+function pinnedString(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.length === 0) {
+    fail(`Pinned ${label} is missing or not a string.`);
+  }
+
+  return value;
+}
+
+function readPinnedUpstreamInputs(filePath: string): ResolvedUpstreamInputs {
+  const pin = JSON.parse(readFileSync(filePath, "utf8")) as Record<string, unknown>;
+  const appcastFeed = pinnedString(pin.codexAppcastFeed, "Codex appcast feed");
+  if (appcastFeed !== "prod") {
+    fail(`Pinned Codex appcast feed has an unexpected value: ${JSON.stringify(appcastFeed)}`);
+  }
+
+  const appVersion = assertMatches(
+    "Pinned Codex app version",
+    pinnedString(pin.codexAppVersion, "Codex app version"),
+    appVersionPattern,
+  );
+  const buildNumber = assertMatches(
+    "Pinned Codex app build number",
+    pinnedString(pin.codexAppBuild, "Codex app build number"),
+    buildNumberPattern,
+  );
+  const codexCliTag = assertMatches(
+    "Pinned Codex CLI tag",
+    pinnedString(pin.codexCliTag, "Codex CLI tag"),
     releaseTagPattern,
   );
   const codexPlusPlusTag = assertMatches(
-    "Codex++ tag",
-    await fetchLatestReleaseTag(codexPlusPlusRepository, "Codex++"),
+    "Pinned Codex++ tag",
+    pinnedString(pin.codexPlusPlusTag, "Codex++ tag"),
     releaseTagPattern,
   );
   const codexPlusPlusSha = assertMatches(
-    "Codex++ commit SHA",
-    await fetchGitTagCommitSha(
-      codexPlusPlusRepository,
-      codexPlusPlusTag,
-      "Codex++",
-    ),
+    "Pinned Codex++ commit SHA",
+    pinnedString(pin.codexPlusPlusSha, "Codex++ commit SHA"),
     shaPattern,
   ).toLowerCase();
+
+  return {
+    appcastRelease: { buildNumber, feedName: "prod", version: appVersion },
+    codexCliTag,
+    codexPlusPlusSha,
+    codexPlusPlusTag,
+  };
+}
+
+async function main(): Promise<void> {
+  let upstreamInputs: ResolvedUpstreamInputs;
+  const pinnedReleasePath = process.env.CODEX_UPSTREAM_RELEASE_FILE;
+  if (pinnedReleasePath) {
+    upstreamInputs = readPinnedUpstreamInputs(pinnedReleasePath);
+  } else {
+    const appcastRelease = await fetchAppcastRelease("prod");
+    const codexCliTag = assertMatches(
+      "Codex CLI tag",
+      await fetchLatestReleaseTag(codexCliRepository, "Codex CLI"),
+      releaseTagPattern,
+    );
+    const codexPlusPlusTag = assertMatches(
+      "Codex++ tag",
+      await fetchLatestReleaseTag(codexPlusPlusRepository, "Codex++"),
+      releaseTagPattern,
+    );
+    const codexPlusPlusSha = assertMatches(
+      "Codex++ commit SHA",
+      await fetchGitTagCommitSha(
+        codexPlusPlusRepository,
+        codexPlusPlusTag,
+        "Codex++",
+      ),
+      shaPattern,
+    ).toLowerCase();
+    upstreamInputs = { appcastRelease, codexCliTag, codexPlusPlusSha, codexPlusPlusTag };
+  }
+
+  const selectedAppcastRelease = upstreamInputs.appcastRelease;
+  const appVersion = selectedAppcastRelease.version;
+  const buildNumber = selectedAppcastRelease.buildNumber;
+  const { codexCliTag: cliTag, codexPlusPlusSha, codexPlusPlusTag } = upstreamInputs;
   const releases = await fetchExistingReleases();
   const { currentCommitReleaseTag, isLatestRun, matchingDraftReleaseTag, repoReleaseRevision } = resolveRepoReleaseRevision({
     appVersion,

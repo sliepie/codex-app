@@ -1,8 +1,6 @@
 name: Windows ARM64 Release Artifacts
 
 on:
-  schedule:
-    - cron: "0 */6 * * *"
   workflow_dispatch:
   push:
     branches:
@@ -21,9 +19,9 @@ jobs:
       pages_artifact_run_attempt: ${{ steps.pages_artifact_ready.outputs.run_attempt }}
     runs-on: windows-2025-vs2026
     env:
-      IS_RELEASE_EVENT: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+      IS_RELEASE_EVENT: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
       PACKAGE_ARCHITECTURE: arm64
-      PUBLISH_SELF_SIGNED_MSIX: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+      PUBLISH_SELF_SIGNED_MSIX: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
       electron_config_cache: ${{ github.workspace }}\.cache\electron
     concurrency:
       group: windows-arm64-release-${{ github.ref }}
@@ -39,11 +37,12 @@ jobs:
         with:
           node-version-file: .node-version
 
-      - name: Resolve upstream release versions
+      - name: Resolve pinned upstream release versions
         id: upstream
         working-directory: desktop
         env:
           GH_TOKEN: ${{ github.token }}
+          CODEX_UPSTREAM_RELEASE_FILE: ${{ github.workspace }}\desktop\upstream-release.json
         run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/resolve-codex-releases.ts
 
       - name: Notice existing repo release

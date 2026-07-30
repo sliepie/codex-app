@@ -195,6 +195,7 @@ async function runResolver({
   releasePages,
   codexPlusPlusSha,
   codexPlusPlusTag,
+  pinnedRelease,
   sha = "abcdef1234567890",
   workflowRunNumber,
   scriptArgs = [scriptPath],
@@ -213,6 +214,10 @@ async function runResolver({
   const directory = await mkdtemp(path.join(tmpdir(), "codex-release-resolver-"));
   const outputPath = path.join(directory, "github-output.txt");
   const fetchShimPath = path.join(directory, "mock-appcast-fetch.mjs");
+  const pinnedReleasePath = pinnedRelease ? path.join(directory, "upstream-release.json") : undefined;
+  if (pinnedReleasePath) {
+    await writeFile(pinnedReleasePath, JSON.stringify(pinnedRelease), "utf8");
+  }
   await writeFile(
     fetchShimPath,
     `const originalFetch = globalThis.fetch;\n` +
@@ -242,6 +247,7 @@ async function runResolver({
             GITHUB_RUN_NUMBER: workflowRunNumber === undefined ? "" : String(workflowRunNumber),
             GITHUB_SHA: sha,
             NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import ${pathToFileURL(fetchShimPath).href}`.trim(),
+            ...(pinnedReleasePath ? { CODEX_UPSTREAM_RELEASE_FILE: pinnedReleasePath } : {}),
           },
         },
         (error, stdout, stderr) => {
@@ -292,6 +298,27 @@ test("starts new Codex app releases at repo revision zero", async () => {
     output.native_modules_cache_key,
     await expectedNativeModulesCacheKey(),
   );
+});
+
+test("uses pinned upstream inputs instead of fetching latest releases", async () => {
+  const output = await runResolver({
+    releases: [],
+    appcastSource: appcastFor("26.513.31313", "2867"),
+    pinnedRelease: {
+      codexAppVersion: "26.600.10000",
+      codexAppBuild: "4000",
+      codexAppcastFeed: "prod",
+      codexCliTag: "rust-v0.128.0",
+      codexPlusPlusTag: "v0.2.0",
+      codexPlusPlusSha: "1111111111111111111111111111111111111111",
+    },
+  });
+
+  assert.equal(output.codex_app_version, "26.600.10000");
+  assert.equal(output.codex_app_build, "4000");
+  assert.equal(output.codex_cli_tag, "rust-v0.128.0");
+  assert.equal(output.codex_plus_plus_tag, "v0.2.0");
+  assert.equal(output.codex_plus_plus_sha, "1111111111111111111111111111111111111111");
 });
 
 test("uses only the prod appcast for Codex app versions", async () => {
