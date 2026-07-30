@@ -13,6 +13,12 @@ on:
       - "!desktop/scripts/build-primary-runtime-win-arm64.ts"
       - "!desktop/scripts/publish-primary-runtime-release.ts"
       - "!desktop/scripts/resolve-primary-runtime-source.ts"
+  workflow_dispatch:
+    inputs:
+      candidate_pr_number:
+        description: "Upstream candidate PR being validated"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -44,11 +50,12 @@ jobs:
           cache: npm
           cache-dependency-path: desktop/package-lock.json
 
-      - name: Resolve upstream release versions
+      - name: Resolve pinned upstream release versions
         id: upstream
         working-directory: desktop
         env:
           GH_TOKEN: ${{ github.token }}
+          CODEX_UPSTREAM_RELEASE_FILE: ${{ github.workspace }}\desktop\upstream-release.json
         run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/resolve-codex-releases.ts
 
       - name: Restore Electron cache
@@ -115,9 +122,39 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  report-upstream-candidate-build:
+    needs: build-windows-arm64
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.candidate_pr_number != ''
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_RESULT: ${{ needs.build-windows-arm64.result }}
+      BUILD_SHA: ${{ github.sha }}
+      WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Report candidate build status
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$BUILD_RESULT" == "success" ]]; then
+            state=success
+            description="Windows ARM64 upstream candidate build passed"
+          else
+            state=failure
+            description="Windows ARM64 upstream candidate build failed"
+          fi
+
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${BUILD_SHA}" \
+            -f state="$state" \
+            -f context="windows-arm64-upstream-candidate" \
+            -f description="$description" \
+            -f target_url="$WORKFLOW_RUN_URL"
+
   publish-alpha-release:
     needs: build-windows-arm64
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
     runs-on: windows-2025-vs2026
     permissions:
       contents: write

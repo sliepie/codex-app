@@ -2278,11 +2278,13 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   );
 
   assert.match(workflowSource, /permissions:\r?\n  contents: read/);
+  assert.match(workflowSource, /workflow_dispatch:[\s\S]*candidate_pr_number/);
+  assert.match(workflowSource, /CODEX_UPSTREAM_RELEASE_FILE: \$\{\{ github\.workspace \}\}\\desktop\\upstream-release\.json/);
   assert.match(workflowSource, /name: codex-app-windows-arm64-pr/);
   assert.match(workflowSource, /publish-alpha-release:/);
   assert.match(
     workflowSource,
-    /if: github\.event\.pull_request\.head\.repo\.full_name == github\.repository && github\.event\.pull_request\.draft == false/,
+    /if: github\.event_name == 'pull_request' && github\.event\.pull_request\.head\.repo\.full_name == github\.repository && github\.event\.pull_request\.draft == false/,
   );
   assert.match(workflowSource, /permissions:\r?\n      contents: write/);
   assert.match(workflowSource, /ALPHA_RELEASE_TAG: codex-app-alpha/);
@@ -2303,6 +2305,53 @@ test("PR builds publish the ZIP to a mutable alpha release", () => {
   assert.match(workflowSource, /gh release create \$tag[\s\S]*--prerelease --latest=false/);
   assert.match(workflowSource, /gh release edit \$tag[\s\S]*--prerelease --latest=false/);
   assert.match(workflowSource, /gh release upload \$tag \$zip\.FullName[\s\S]*--clobber/);
+  assert.match(workflowSource, /report-upstream-candidate-build:[\s\S]*statuses: write/);
+  assert.match(workflowSource, /context=\"windows-arm64-upstream-candidate\"/);
+});
+
+test("Windows ARM64 upstream candidates pin inputs and merge only after a successful build", () => {
+  const candidateWorkflow = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "windows-arm64-upstream-candidate.yml"),
+    "utf8",
+  );
+  const mergeWorkflow = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "windows-arm64-upstream-candidate-merge.yml"),
+    "utf8",
+  );
+  const releaseWorkflow = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "windows-arm64-release.yml"),
+    "utf8",
+  );
+  const pin = JSON.parse(
+    fs.readFileSync(path.join(desktopRoot, "upstream-release.json"), "utf8"),
+  );
+
+  assert.match(candidateWorkflow, /schedule:[\s\S]*cron: "0 \*\/6 \* \* \*"/);
+  assert.match(candidateWorkflow, /permissions:[\s\S]*actions: write[\s\S]*contents: write[\s\S]*pull-requests: write/);
+  assert.match(candidateWorkflow, /resolve-codex-releases\.ts/);
+  assert.doesNotMatch(candidateWorkflow, /CODEX_UPSTREAM_RELEASE_FILE/);
+  assert.match(candidateWorkflow, /git switch --create \$branch origin\/main/);
+  assert.match(candidateWorkflow, /git add desktop\/upstream-release\.json/);
+  assert.match(candidateWorkflow, /windows-arm64-upstream-candidate/);
+  assert.match(candidateWorkflow, /gh workflow run windows-arm64-pr-build\.yml --repo \$repo --ref \$branch/);
+
+  assert.match(mergeWorkflow, /workflow_run:[\s\S]*Windows ARM64 PR Build[\s\S]*completed/);
+  assert.match(mergeWorkflow, /github\.event\.workflow_run\.event == 'workflow_dispatch'/);
+  assert.match(mergeWorkflow, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(mergeWorkflow, /startsWith\(github\.event\.workflow_run\.head_branch, 'upstream\/windows-arm64-'/);
+  assert.match(mergeWorkflow, /gh pr merge [\s\S]*--squash[\s\S]*--delete-branch/);
+  assert.match(mergeWorkflow, /gh workflow run windows-arm64-release\.yml[\s\S]*--ref main/);
+
+  assert.doesNotMatch(releaseWorkflow, /schedule:/);
+  assert.match(releaseWorkflow, /CODEX_UPSTREAM_RELEASE_FILE: \$\{\{ github\.workspace \}\}\\desktop\\upstream-release\.json/);
+  assert.deepEqual(Object.keys(pin), [
+    "codexAppVersion",
+    "codexAppBuild",
+    "codexAppcastFeed",
+    "codexCliTag",
+    "codexPlusPlusTag",
+    "codexPlusPlusSha",
+  ]);
 });
 
 test("release workflow tracks Codex++ in package inputs and release metadata", () => {
@@ -2427,9 +2476,9 @@ test("release workflows scope GitHub credentials away from install and build scr
 
   assert.doesNotMatch(releaseWorkflowSource, /env:\r?\n\s+GH_TOKEN: \$\{\{ github\.token \}\}\r?\n\s+IS_RELEASE_EVENT:/);
   assert.doesNotMatch(prWorkflowSource, /env:\r?\n\s+GH_TOKEN: \$\{\{ github\.token \}\}\r?\n\s+PACKAGE_ARCHITECTURE:/);
-  assert.match(releaseWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types \.\/scripts\/resolve-codex-releases\.ts/);
-  assert.match(prWorkflowSource, /name: Resolve upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types \.\/scripts\/resolve-codex-releases\.ts/);
-  assert.ok(releaseWorkflowSource.indexOf("name: Resolve upstream release versions") < releaseWorkflowSource.indexOf("name: Notice existing repo release"));
+  assert.match(releaseWorkflowSource, /name: Resolve pinned upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types \.\/scripts\/resolve-codex-releases\.ts/);
+  assert.match(prWorkflowSource, /name: Resolve pinned upstream release versions[\s\S]*GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types \.\/scripts\/resolve-codex-releases\.ts/);
+  assert.ok(releaseWorkflowSource.indexOf("name: Resolve pinned upstream release versions") < releaseWorkflowSource.indexOf("name: Notice existing repo release"));
   assert.doesNotMatch(
     releaseWorkflowSource.slice(0, releaseWorkflowSource.indexOf("name: Notice existing repo release")),
     /cache: npm/,

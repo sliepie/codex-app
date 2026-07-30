@@ -1,0 +1,109 @@
+name: Windows ARM64 Upstream Candidate
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - name: Resolve latest upstream release inputs
+        id: upstream
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types ./scripts/resolve-codex-releases.ts
+
+      - name: Create upstream candidate pull request
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODEX_APP_VERSION: ${{ steps.upstream.outputs.codex_app_version }}
+          CODEX_APP_BUILD: ${{ steps.upstream.outputs.codex_app_build }}
+          CODEX_APPCAST_FEED: ${{ steps.upstream.outputs.codex_appcast_feed }}
+          CODEX_CLI_TAG: ${{ steps.upstream.outputs.codex_cli_tag }}
+          CODEX_PLUS_PLUS_TAG: ${{ steps.upstream.outputs.codex_plus_plus_tag }}
+          CODEX_PLUS_PLUS_SHA: ${{ steps.upstream.outputs.codex_plus_plus_sha }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $repo = $env:GITHUB_REPOSITORY
+          $branch = "upstream/windows-arm64-$($env:CODEX_APP_VERSION)-$($env:CODEX_APP_BUILD)"
+
+          $existingPr = gh pr list --repo $repo --head $branch --state all --json number --jq '.[0].number'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to find an existing upstream candidate pull request."
+          }
+          if (-not [string]::IsNullOrWhiteSpace($existingPr)) {
+            Write-Output "Upstream candidate pull request #$existingPr already exists for $env:CODEX_APP_VERSION build $env:CODEX_APP_BUILD."
+            exit 0
+          }
+
+          git fetch origin main
+          git switch --create $branch origin/main
+
+          $pin = [ordered]@{
+            codexAppVersion = $env:CODEX_APP_VERSION
+            codexAppBuild = $env:CODEX_APP_BUILD
+            codexAppcastFeed = $env:CODEX_APPCAST_FEED
+            codexCliTag = $env:CODEX_CLI_TAG
+            codexPlusPlusTag = $env:CODEX_PLUS_PLUS_TAG
+            codexPlusPlusSha = $env:CODEX_PLUS_PLUS_SHA
+          }
+          $pinPath = Join-Path $env:GITHUB_WORKSPACE "desktop/upstream-release.json"
+          $utf8 = [Text.UTF8Encoding]::new($false)
+          [IO.File]::WriteAllText($pinPath, ($pin | ConvertTo-Json) + [Environment]::NewLine, $utf8)
+
+          git diff --quiet -- desktop/upstream-release.json
+          if ($LASTEXITCODE -eq 0) {
+            Write-Output "Main already pins $env:CODEX_APP_VERSION build $env:CODEX_APP_BUILD."
+            exit 0
+          }
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add desktop/upstream-release.json
+          git commit -m "Pin Windows ARM64 build to Codex app $env:CODEX_APP_VERSION"
+          git push --set-upstream origin $branch
+
+          $body = @"
+          <!-- windows-arm64-upstream-candidate -->
+
+          This candidate pins the Windows ARM64 release to Codex app $env:CODEX_APP_VERSION build $env:CODEX_APP_BUILD.
+
+          - Codex CLI: $env:CODEX_CLI_TAG
+          - Codex++: $env:CODEX_PLUS_PLUS_TAG
+          - Codex++ commit: $env:CODEX_PLUS_PLUS_SHA
+
+          The Windows ARM64 PR build is dispatched for this branch. A successful build merges this candidate and dispatches the release workflow. A failed build leaves this PR open while later upstream candidates remain independent.
+          "@
+          $prUrl = gh pr create --repo $repo --base main --head $branch --title "Test Codex app $env:CODEX_APP_VERSION build $env:CODEX_APP_BUILD" --body $body
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to create the upstream candidate pull request."
+          }
+
+          $prNumber = gh pr view $prUrl --repo $repo --json number --jq .number
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($prNumber)) {
+            throw "Failed to resolve the upstream candidate pull request number."
+          }
+          gh workflow run windows-arm64-pr-build.yml --repo $repo --ref $branch --field candidate_pr_number=$prNumber
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to dispatch the Windows ARM64 candidate build."
+          }
