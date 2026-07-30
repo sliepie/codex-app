@@ -291,11 +291,11 @@ const MAIN_SURFACE_LEGACY_SHIMMER_SELECTORS = [
   `${MAIN_SURFACE_SELECTOR} .loading-shimmer:not(:has(>span[aria-hidden='true']))`,
 ];
 const MAIN_SURFACE_LEGACY_SHIMMER_DECLARATIONS =
-  "background:none!important;background-image:none!important;animation:codex-app-status-breath 1.6s steps(16,end) infinite alternate!important;";
+  "background:none!important;background-image:none!important;-webkit-text-fill-color:currentColor!important;animation:codex-app-status-breath 1.6s steps(16,end) infinite alternate!important;";
 const MAIN_SURFACE_CADENCED_SHIMMER_SELECTOR =
   `${MAIN_SURFACE_SELECTOR} .loading-shimmer-pure-text:has(>span[aria-hidden='true'])`;
 const MAIN_SURFACE_CADENCED_SHIMMER_DECLARATIONS =
-  "background:none!important;background-image:none!important;animation:codex-app-status-breath 1.6s steps(16,end) infinite alternate!important;";
+  "background:none!important;background-image:none!important;-webkit-text-fill-color:currentColor!important;animation:codex-app-status-breath 1.6s steps(16,end) infinite alternate!important;";
 const MAIN_SURFACE_CADENCED_SHIMMER_SWEEP_SELECTOR =
   `${MAIN_SURFACE_CADENCED_SHIMMER_SELECTOR}>span[aria-hidden='true']`;
 const MAIN_SURFACE_CADENCED_SHIMMER_SWEEP_DECLARATIONS =
@@ -445,14 +445,23 @@ const APP_SHELL_STYLE_RULES = [
     SIDEBAR_THREAD_ACTIVITY_ICON_SELECTOR,
     SIDEBAR_THREAD_ACTIVITY_ICON_DECLARATIONS,
   ),
-  cssRule(SIDEBAR_THREAD_ACTIVITY_DOTS_SELECTOR, SIDEBAR_THREAD_ACTIVITY_DOTS_DECLARATIONS),
+  cssRule(
+    SIDEBAR_THREAD_ACTIVITY_DOTS_SELECTOR,
+    SIDEBAR_THREAD_ACTIVITY_DOTS_DECLARATIONS,
+  ),
   SIDEBAR_THREAD_ACTIVITY_DOTS_KEYFRAMES,
   cssRule(
     MAIN_SURFACE_LEGACY_SHIMMER_SELECTORS,
     MAIN_SURFACE_LEGACY_SHIMMER_DECLARATIONS,
   ),
-  cssRule(MAIN_SURFACE_CADENCED_SHIMMER_SELECTOR, MAIN_SURFACE_CADENCED_SHIMMER_DECLARATIONS),
-  cssRule(MAIN_SURFACE_CADENCED_SHIMMER_SWEEP_SELECTOR, MAIN_SURFACE_CADENCED_SHIMMER_SWEEP_DECLARATIONS),
+  cssRule(
+    MAIN_SURFACE_CADENCED_SHIMMER_SELECTOR,
+    MAIN_SURFACE_CADENCED_SHIMMER_DECLARATIONS,
+  ),
+  cssRule(
+    MAIN_SURFACE_CADENCED_SHIMMER_SWEEP_SELECTOR,
+    MAIN_SURFACE_CADENCED_SHIMMER_SWEEP_DECLARATIONS,
+  ),
   MAIN_SURFACE_CADENCED_SHIMMER_KEYFRAMES,
   cssRule(
     MAIN_SURFACE_HIDDEN_BROWSER_PROGRESS_SELECTOR,

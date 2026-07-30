@@ -2224,11 +2224,11 @@ test("Codex app UI override and Windows menu-bar tweak install independently", (
     );
     assert.match(
       appendedStyles[0].textContent,
-      /main\.main-surface \.loading-shimmer-pure-text:not\(:has\(>span\[aria-hidden='true'\]\)\),[^}]+\{background:none!important;background-image:none!important;animation:codex-app-status-breath 1\.6s steps\(16,end\) infinite alternate!important;\}/,
+      /main\.main-surface \.loading-shimmer-pure-text:not\(:has\(>span\[aria-hidden='true'\]\)\),[^}]+\{background:none!important;background-image:none!important;-webkit-text-fill-color:currentColor!important;animation:codex-app-status-breath 1\.6s steps\(16,end\) infinite alternate!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
-      /main\.main-surface \.loading-shimmer-pure-text:has\(>span\[aria-hidden='true'\]\)\{background:none!important;background-image:none!important;animation:codex-app-status-breath 1\.6s steps\(16,end\) infinite alternate!important;\}/,
+      /main\.main-surface \.loading-shimmer-pure-text:has\(>span\[aria-hidden='true'\]\)\{background:none!important;background-image:none!important;-webkit-text-fill-color:currentColor!important;animation:codex-app-status-breath 1\.6s steps\(16,end\) infinite alternate!important;\}/,
     );
     assert.match(
       appendedStyles[0].textContent,
