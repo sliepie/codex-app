@@ -32,6 +32,8 @@ const usageRemainingTargets =
   "function n1l(e){let heading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.heading`,defaultMessage:`Usage remaining`,description:`Rate limit summary heading`}),resets=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.resetsAvailable`,defaultMessage:`# available resets`}),loading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.loading`,defaultMessage:`Loading usage…`,description:`Loading state for the rate limit summary submenu`}),k=(0,u7.jsx)(v,{LeftIcon:E,RightIcon:D,tooltipSide:S,children:O});let A=(0,u7.jsx)(V,{children:heading});return(0,u7.jsx)(y,{trigger:k,children:A})}";
 const usageRemainingCompilerShapeTargets =
   "function jn(e){let j;t[0]?(j=(0,Z.jsx)(Item,{LeftIcon:O,RightIcon:k,tooltipSide:C,children:A}),t[1]=j):j=t[1];let M;t[2]?(M=(0,Z.jsxs)(`div`,{className:`flex flex-col text-sm`,children:[(0,Z.jsx)(w,{id:`composer.mode.rateLimit.heading`,children:A}),(0,Z.jsx)(w,{id:`composer.mode.rateLimit.resetsAvailable`,children:A}),(0,Z.jsx)(w,{id:`composer.mode.rateLimit.loading`,children:A})]}),t[3]=M):M=t[3];return(0,Z.jsx)(Submenu,{trigger:j,children:M})}";
+const browserRuntimeRelocationTargets =
+  "function tP({executableName:e,runtimeRoot:t}){let n=dP([`OpenAI`,`Codex`,`runtimes`,RN]),r=VN.get(t);if(r!=null){let n=(0,i.join)(r,`bin`,e);if(yP(n)&&pP((0,i.join)(r,`bin`,`node_modules`)))return n;VN.delete(t)}let a=[`manifest.json`,`bin/node.exe`,`bin/node_repl.exe`].map(e=>aP({destinationPath:n,executableName:e,sourcePath:(0,i.join)(t,e)})),o=oP(a).slice(0,16),s=(0,i.join)(n,o),l=(0,i.join)(s,`bin`,e);if(sP(s,a)&&pP((0,i.join)(s,`bin`,`node_modules`)))return uP({currentHash:o,destinationRoot:n,executableName:(0,i.join)(`bin`,e)}),VN.set(t,s),l;(0,c.existsSync)(s)&&hP({destinationPath:s,executableName:e,operation:`remove_destination`,sourcePath:t},()=>(0,c.rmSync)(s,{force:!0,recursive:!0})),hP({destinationPath:n,executableName:e,operation:`mkdir_destination`,sourcePath:t},()=>(0,c.mkdirSync)(n,{recursive:!0}));let u=hP({destinationPath:n,executableName:e,operation:`mkdir_staging`,sourcePath:t},()=>(0,c.mkdtempSync)((0,i.join)(n,`.staging-${o}-`)));try{hP({destinationPath:u,executableName:e,operation:`copy_directory`,sourcePath:t},()=>nP(t,u)),hP({destinationPath:u,executableName:e,operation:`rename_staging`,sourcePath:u},()=>(0,c.renameSync)(u,s))}catch(e){try{(0,c.rmSync)(u,{force:!0,recursive:!0})}catch{}if(sP(s,a)&&pP((0,i.join)(s,`bin`,`node_modules`)))return VN.set(t,s),l;throw e}return uP({currentHash:o,destinationRoot:n,executableName:(0,i.join)(`bin`,e)}),VN.set(t,s),l}";
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -102,6 +104,10 @@ function createRecoveredFixture() {
     "function localBin(parts){return(0,path.join)(process.env.LOCALAPPDATA??(0,path.join)((0,os.homedir)(),`AppData`,`Local`),...parts)}",
   );
   writeFixture(
+    path.join(recoveredRoot, ".vite", "build", "browser-runtime-relocation-fixture.js"),
+    browserRuntimeRelocationTargets,
+  );
+  writeFixture(
     path.join(recoveredRoot, ".vite", "build", "drop-handler-marker-distractor-fixture.js"),
     "var localAppData=process.env.LOCALAPPDATA??(0,path.join)((0,os.homedir)(),`AppData`,`Local`),windowsApps=(0,path.join)(localAppData,`Microsoft`,`WindowsApps`);",
   );
@@ -137,6 +143,63 @@ function assertRequiredPatchFailure(result, reportPath, patchName) {
   return patch;
 }
 
+function createBrowserRuntimeHarness(bundle) {
+  const harnessRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-browser-runtime-"));
+  const runtimeRoot = path.join(harnessRoot, "runtime");
+  const cacheRoot = path.join(harnessRoot, "cache");
+  const deterministicTarget = path.join(
+    cacheRoot,
+    "OpenAI",
+    "Codex",
+    "runtimes",
+    "runtime",
+    "runtime-hash",
+  );
+  fs.mkdirSync(path.join(runtimeRoot, "bin", "node_modules"), { recursive: true });
+  fs.writeFileSync(path.join(runtimeRoot, "manifest.json"), "{}", "utf8");
+  fs.writeFileSync(path.join(runtimeRoot, "bin", "node.exe"), "node", "utf8");
+  fs.writeFileSync(path.join(runtimeRoot, "bin", "node_repl.exe"), "repl", "utf8");
+  fs.writeFileSync(path.join(runtimeRoot, "bin", "node_modules", "package.json"), "{}", "utf8");
+  fs.mkdirSync(deterministicTarget, { recursive: true });
+
+  const logs = [];
+  const runtime = new Function(
+    "pathModule",
+    "fsModule",
+    "cacheRoot",
+    "lockedTarget",
+    "logs",
+    `
+      const i={join:pathModule.join};
+      const c={
+        existsSync:target=>fsModule.existsSync(target),
+        rmSync:(target,options)=>{
+          if(target===lockedTarget){const error=new Error("locked");error.code="EPERM";throw error}
+          return fsModule.rmSync(target,options)
+        },
+        mkdirSync:(target,options)=>fsModule.mkdirSync(target,options),
+        mkdtempSync:prefix=>fsModule.mkdtempSync(prefix),
+        renameSync:(source,destination)=>fsModule.renameSync(source,destination),
+      };
+      const RN="runtime";
+      const VN=new Map();
+      function dP(parts){return pathModule.join(cacheRoot,...parts)}
+      function yP(target){return fsModule.existsSync(target)}
+      function pP(target){return fsModule.existsSync(target)}
+      function aP(value){return value}
+      function oP(){return "runtime-hash"}
+      function sP(){return false}
+      function uP(){return undefined}
+      function nP(source,destination){return fsModule.cpSync(source,destination,{recursive:true})}
+      function hP(operation,callback){logs.push(operation.operation);return callback()}
+      ${bundle}
+      return {relocate:tP,cache:VN};
+    `,
+  )(path, fs, cacheRoot, deterministicTarget, logs);
+
+  return { cache: runtime.cache, cacheRoot, logs, relocate: runtime.relocate, runtimeRoot };
+}
+
 test("writes patch report file paths relative to the recovered app root", () => {
   const recoveredRoot = createRecoveredFixture();
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -156,6 +219,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/projects-section-fixture.js",
       "webview/assets/chats-section-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
+      ".vite/build/browser-runtime-relocation-fixture.js",
       ".vite/build/primary-runtime-installer-fixture.js",
       ".vite/build/main-fixture.js",
       ".vite/build/main-fixture.js",
@@ -853,8 +917,125 @@ test("patches non-feature self-signed Windows bundle changes", () => {
     /BrowserWindow\(\{icon:process\.platform===`win32`\?require\("node:path"\)\.join\(process\.resourcesPath,`icon\.ico`\):void 0,width:b/,
   );
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 12);
+  assert.equal(report.patches.length, 13);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
+});
+
+test("uses a collision-free Browser runtime destination when cleanup is locked", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundlePath = path.join(
+    recoveredRoot,
+    ".vite",
+    "build",
+    "browser-runtime-relocation-fixture.js",
+  );
+  const bundle = fs.readFileSync(bundlePath, "utf8");
+  assert.match(bundle, /codex-runtime-relocation-fallback/);
+
+  const harness = createBrowserRuntimeHarness(bundle);
+  const first = harness.relocate({ executableName: "node.exe", runtimeRoot: harness.runtimeRoot });
+  const fallbackRoot = path.join(
+    harness.cacheRoot,
+    "OpenAI",
+    "Codex",
+    "runtimes",
+    "runtime",
+    "runtime-hash-1",
+  );
+  assert.equal(first, path.join(fallbackRoot, "bin", "node.exe"));
+  assert.equal(fs.existsSync(path.join(fallbackRoot, "manifest.json")), true);
+  assert.equal(fs.existsSync(path.join(fallbackRoot, "bin", "node_repl.exe")), true);
+  assert.equal(harness.cache.get(harness.runtimeRoot), fallbackRoot);
+  assert.ok(harness.logs.includes("remove_destination"));
+
+  harness.logs.length = 0;
+  const second = harness.relocate({ executableName: "node.exe", runtimeRoot: harness.runtimeRoot });
+  assert.equal(second, first);
+  assert.deepEqual(harness.logs, []);
+});
+
+test("finds Browser runtime relocation after its bundle and local names drift", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const originalPath = path.join(
+    recoveredRoot,
+    ".vite",
+    "build",
+    "browser-runtime-relocation-fixture.js",
+  );
+  const renamedPath = path.join(recoveredRoot, ".vite", "build", "runtime-source.js");
+  const namedSource = browserRuntimeRelocationTargets
+    .replace("function tP(", "function relocateRuntime(")
+    .replace(/\be\b/g, "executable")
+    .replace(/\bt\b/g, "runtimeRoot")
+    .replace(/\bn\b/g, "cacheRoot")
+    .replace(/\br\b/g, "cacheEntry")
+    .replace(/\ba\b/g, "sourceFiles")
+    .replace(/\bo\b/g, "currentHash")
+    .replace(/\bs\b/g, "destinationRoot")
+    .replace(/\bl\b/g, "executablePath")
+    .replace(/\bu\b/g, "stagingRoot");
+  fs.renameSync(originalPath, renamedPath);
+  fs.writeFileSync(renamedPath, namedSource, "utf8");
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(fs.readFileSync(renamedPath, "utf8"), /codex-runtime-relocation-fallback/);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (candidate) => candidate.name === "use a collision-free Browser runtime cache target",
+  );
+  assert.equal(patch?.status, "applied");
+  assert.equal(patch?.file, ".vite/build/runtime-source.js");
+});
+
+test("fails without changing a drifted Browser runtime relocation target", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const runtimePath = path.join(
+    recoveredRoot,
+    ".vite",
+    "build",
+    "browser-runtime-relocation-fixture.js",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+  const driftedSource = fs
+    .readFileSync(runtimePath, "utf8")
+    .replace("operation:`remove_destination`", "operation:`remove_runtime_destination`");
+  fs.writeFileSync(runtimePath, driftedSource, "utf8");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+  const patch = assertRequiredPatchFailure(
+    result,
+    reportPath,
+    "use a collision-free Browser runtime cache target",
+  );
+
+  assert.equal(fs.readFileSync(runtimePath, "utf8"), driftedSource);
+  assert.match(patch?.reason, /Unable to identify Browser runtime relocation cleanup/);
+});
+
+test("fails when the Browser runtime relocation bundle is missing", () => {
+  const recoveredRoot = createRecoveredFixture();
+  fs.unlinkSync(
+    path.join(recoveredRoot, ".vite", "build", "browser-runtime-relocation-fixture.js"),
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+  const patch = assertRequiredPatchFailure(
+    result,
+    reportPath,
+    "use a collision-free Browser runtime cache target",
+  );
+
+  assert.equal(patch?.file, ".vite/build");
+  assert.match(patch?.reason, /Expected exactly one recovered bundle file containing/);
 });
 
 test("finds the WindowsApps relocation helper after its chunk is renamed", () => {
@@ -970,6 +1151,7 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     path.join(recoveredRoot, "webview", "assets", "use-model-settings-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "browser-multi-tab-feature-fixture.js"),
     path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
+    path.join(recoveredRoot, ".vite", "build", "browser-runtime-relocation-fixture.js"),
     path.join(recoveredRoot, ".vite", "build", "main-fixture.js"),
   ];
   const before = new Map(files.map((file) => [file, fs.readFileSync(file, "utf8")]));
@@ -981,6 +1163,6 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 12);
+  assert.equal(report.patches.length, 13);
   assert.ok(report.patches.every((patch) => patch.status === "already-applied"));
 });

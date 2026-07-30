@@ -53,6 +53,7 @@ const windowsPrimaryBrowserWindowIconPattern =
   /BrowserWindow\(\{icon:process\.platform===`win32`\?require\("node:path"\)\.join\(process\.resourcesPath,`icon\.ico`\):void 0,width:/;
 const windowsAppsLocalCacheRelocationPattern =
   /process\.resourcesPath\?\.replace[\s\S]*?`Packages`[\s\S]*?`LocalCache`[\s\S]*?`Local`/;
+const browserRuntimeRelocationFallbackMarker = "codex-runtime-relocation-fallback";
 const inactiveWindowsMicaBackdropPattern =
   /\bfunction\s+[A-Za-z_$][\w$]*\(\{appearance:([A-Za-z_$][\w$]*),isFocused:([A-Za-z_$][\w$]*),platform:([A-Za-z_$][\w$]*)\}\)\{return!\2&&![A-Za-z_$][\w$]*\(\1\)&&\3===`darwin`\}/;
 const sidebarProjectLimitAppliedPattern =
@@ -256,6 +257,11 @@ export function verifyWindowsArm64SourcePatches(
     viteBuildFiles,
     "WindowsApps LocalCache relocation",
     (source) => windowsAppsLocalCacheRelocationPattern.test(source),
+  );
+  requirePackagedJavaScriptMatch(
+    viteBuildFiles,
+    "Browser runtime relocation fallback",
+    (source) => source.includes(browserRuntimeRelocationFallbackMarker),
   );
   requirePackagedJavaScriptMatch(
     viteBuildFiles,
