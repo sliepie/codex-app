@@ -83,6 +83,13 @@ type PluginJson = {
 
 const identifierPattern = "[$A-Za-z_][$A-Za-z0-9_]*";
 
+const codexPlusPlusWindowsAccentColorBridgeMarker =
+  "/* codex-app:windows-accent-color-bridge */";
+const codexPlusPlusWindowsAccentColorRequestChannel =
+  "codexpp:get-windows-accent-color";
+const codexPlusPlusWindowsAccentColorChangedChannel =
+  "codexpp:windows-accent-color-changed";
+
 type BundledMarketplaceSource = {
   name: string;
   path: string;
@@ -744,6 +751,7 @@ export function syncCodexPlusPlusRuntimeAssets(
   fs.rmSync(runtimeDestinationRoot, { recursive: true, force: true });
   fs.mkdirSync(destinationRoot, { recursive: true });
   fs.cpSync(runtimeSourceRoot, runtimeDestinationRoot, { recursive: true });
+  patchCodexPlusPlusRuntimeMain(path.join(runtimeDestinationRoot, "main.js"));
   patchCodexPlusPlusRuntimePreload(path.join(runtimeDestinationRoot, "preload.js"));
   // Codex++ native host is macOS-only; Windows ARM64 packages must not ship it.
   fs.rmSync(path.join(runtimeDestinationRoot, "native", "codexpp_native_host.node"), {
@@ -767,6 +775,14 @@ export function syncCodexPlusPlusRuntimeAssets(
     )}\n`,
     "utf8",
   );
+}
+
+function patchCodexPlusPlusRuntimeMain(mainPath: string): void {
+  const source = fs.readFileSync(mainPath, "utf8");
+  const updated = rewriteCodexPlusPlusRuntimeMain(source);
+  if (updated !== source) {
+    fs.writeFileSync(mainPath, updated);
+  }
 }
 
 function patchCodexPlusPlusRuntimePreload(preloadPath: string): void {
@@ -858,7 +874,122 @@ export function rewriteCodexPlusPlusRuntimePreload(source: string): string {
     return body.replace(settingsPanelSlugCandidateShortcutPattern, "\n  ");
   });
 
-  return updated;
+  return injectCodexPlusPlusRuntimeBridge(
+    updated,
+    codexPlusPlusWindowsAccentColorBridgeSource("preload"),
+  );
+}
+
+export function rewriteCodexPlusPlusRuntimeMain(source: string): string {
+  return injectCodexPlusPlusRuntimeBridge(
+    source,
+    codexPlusPlusWindowsAccentColorBridgeSource("main"),
+  );
+}
+
+function codexPlusPlusWindowsAccentColorBridgeSource(
+  runtime: "main" | "preload",
+): string {
+  if (runtime === "main") {
+    return `${codexPlusPlusWindowsAccentColorBridgeMarker}
+(() => {
+  const requestChannel = ${JSON.stringify(codexPlusPlusWindowsAccentColorRequestChannel)};
+  const changedChannel = ${JSON.stringify(codexPlusPlusWindowsAccentColorChangedChannel)};
+  const normalizeWindowsAccentColor = (value) => {
+    const hex = typeof value === "string" ? value.trim().replace(/^#/, "") : "";
+    if (!/^[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/.test(hex)) return null;
+    return "#" + hex.slice(0, 6).toLowerCase();
+  };
+  const readWindowsAccentColor = () => {
+    if (process.platform !== "win32") return null;
+    try {
+      const systemPreferences = __CODEXPP_ELECTRON_BINDING__.systemPreferences;
+      if (!systemPreferences || typeof systemPreferences.getAccentColor !== "function") {
+        return null;
+      }
+      return normalizeWindowsAccentColor(systemPreferences.getAccentColor());
+    } catch {
+      return null;
+    }
+  };
+  const broadcastWindowsAccentColor = (value) => {
+    const color = normalizeWindowsAccentColor(value) ?? readWindowsAccentColor();
+    if (!color) return;
+    const webContents = __CODEXPP_ELECTRON_BINDING__.webContents;
+    if (!webContents || typeof webContents.getAllWebContents !== "function") return;
+    for (const contents of webContents.getAllWebContents()) {
+      if (contents.isDestroyed?.()) continue;
+      try {
+        contents.send(changedChannel, color);
+      } catch {
+        // A webContents can disappear between enumeration and send.
+      }
+    }
+  };
+  const ipcMain = __CODEXPP_ELECTRON_BINDING__.ipcMain;
+  if (ipcMain && typeof ipcMain.handle === "function") {
+    ipcMain.handle(requestChannel, () => readWindowsAccentColor());
+  }
+  if (process.platform === "win32") {
+    const systemPreferences = __CODEXPP_ELECTRON_BINDING__.systemPreferences;
+    if (systemPreferences && typeof systemPreferences.on === "function") {
+      systemPreferences.on("accent-color-changed", (_event, newColor) => {
+        broadcastWindowsAccentColor(newColor);
+      });
+    }
+  }
+})();
+`;
+  }
+
+  return `${codexPlusPlusWindowsAccentColorBridgeMarker}
+(() => {
+  const requestChannel = ${JSON.stringify(codexPlusPlusWindowsAccentColorRequestChannel)};
+  const changedChannel = ${JSON.stringify(codexPlusPlusWindowsAccentColorChangedChannel)};
+  const accentColorProperty = "--codex-windows-accent-color";
+  const normalizeWindowsAccentColor = (value) => {
+    const hex = typeof value === "string" ? value.trim().replace(/^#/, "") : "";
+    if (!/^[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/.test(hex)) return null;
+    return "#" + hex.slice(0, 6).toLowerCase();
+  };
+  const applyWindowsAccentColor = (value) => {
+    const color = normalizeWindowsAccentColor(value);
+    if (!color) return;
+    globalThis.__codexpp_windows_accent_color__ = color;
+    const root = typeof document === "object" ? document.documentElement : null;
+    root?.style.setProperty(accentColorProperty, color, "important");
+  };
+  const ipcRenderer = __CODEXPP_ELECTRON_BINDING__.ipcRenderer;
+  if (ipcRenderer && typeof ipcRenderer.on === "function") {
+    ipcRenderer.on(changedChannel, (_event, value) => {
+      applyWindowsAccentColor(value);
+    });
+  }
+  if (ipcRenderer && typeof ipcRenderer.invoke === "function") {
+    void ipcRenderer.invoke(requestChannel).then(applyWindowsAccentColor).catch(() => {});
+  }
+  applyWindowsAccentColor(globalThis.__codexpp_windows_accent_color__);
+})();
+`;
+}
+
+function injectCodexPlusPlusRuntimeBridge(source: string, bridge: string): string {
+  if (source.includes(codexPlusPlusWindowsAccentColorBridgeMarker)) {
+    return source;
+  }
+
+  const electronImportPattern =
+    /\bvar\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*require\(\s*["']electron["']\s*\)\s*;/;
+  const electronImport = electronImportPattern.exec(source);
+  if (!electronImport) {
+    throw new Error("Cannot patch Codex++ runtime; missing Electron import.");
+  }
+
+  const electronBinding = electronImport[1];
+  return `${source.slice(0, electronImport.index + electronImport[0].length)}\n${bridge.replaceAll(
+    "__CODEXPP_ELECTRON_BINDING__",
+    electronBinding,
+  )}${source.slice(electronImport.index + electronImport[0].length)}`;
 }
 
 function rewriteFunctionBody(

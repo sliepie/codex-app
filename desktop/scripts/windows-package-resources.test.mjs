@@ -30,6 +30,7 @@ const {
   patchRecoveredWindowsPrimaryWindowTaskbarSource,
   pruneUnusedNativePayloads,
   readRecoveredOriginalMain,
+  rewriteCodexPlusPlusRuntimeMain,
   rewriteNodePtySpectreMitigationSource,
   rewriteCodexPlusPlusRuntimePreload,
   syncCodexPlusPlusRuntimeAssets,
@@ -705,11 +706,12 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   const destinationRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plusplus-output-"));
   writeFixture(
     path.join(sourceRoot, "packages", "installer", "assets", "runtime", "main.js"),
-    "module.exports = {};\n",
+    'var import_electron4 = require("electron");\nmodule.exports = {};\n',
   );
   writeFixture(
     path.join(sourceRoot, "packages", "installer", "assets", "runtime", "preload.js"),
     [
+      'var import_electron4 = require("electron");',
       "window.__codexppSettingsSurfaceVisible = true;",
       "window.dispatchEvent(new CustomEvent('codexpp:settings-surface', { detail: { visible: true } }));",
       `function tryInject(itemsGroup,state){const outer=itemsGroup.parentElement??itemsGroup;state.sidebarRoot=outer;if(state.navGroup&&outer.contains(state.navGroup)){return;}const existingCodexPpNavGroup=outer.querySelector(':scope > [data-codexpp="nav-group"]')??outer.querySelector('[data-codexpp="nav-group"]');if(existingCodexPpNavGroup){state.sidebarRoot=outer;return;}const group=document.createElement('div');outer.appendChild(group);plog("nav group injected",{outerTag:outer.tagName});}`,
@@ -745,10 +747,10 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
     "sliepie/codex-plusplus",
   );
 
-  assert.equal(
-    fs.readFileSync(path.join(destinationRoot, "runtime", "main.js"), "utf8"),
-    "module.exports = {};\n",
-  );
+  const syncedMain = fs.readFileSync(path.join(destinationRoot, "runtime", "main.js"), "utf8");
+  assert.match(syncedMain, /windows-accent-color-bridge/);
+  assert.match(syncedMain, /getAccentColor/);
+  assert.match(syncedMain, /accent-color-changed/);
   const syncedPreload = fs.readFileSync(
     path.join(destinationRoot, "runtime", "preload.js"),
     "utf8",
@@ -756,6 +758,9 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   assert.match(syncedPreload, /const sidebarRoot = itemsGroup/);
   assert.match(syncedPreload, /sidebarRoot\.appendChild\(group\)/);
   assert.match(syncedPreload, /\[data-settings-panel-slug\]/);
+  assert.match(syncedPreload, /--codex-windows-accent-color/);
+  assert.match(syncedPreload, /get-windows-accent-color/);
+  assert.match(syncedPreload, /windows-accent-color-changed/);
   assert.equal(
     fs.existsSync(path.join(destinationRoot, "runtime", "native", "codexpp_native_host.node")),
     false,
@@ -765,6 +770,17 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   assert.equal(release.repo, "sliepie/codex-plusplus");
   assert.equal(release.tagName, "v0.1.7");
   assert.equal(release.commitSha, "7c3e1f6d2b4a9c8e7f6d5c4b3a29181716151413");
+});
+
+test("Codex++ runtime main patch exposes the native Windows accent change stream", () => {
+  const source = 'var import_electron4 = require("electron");\n';
+  const updated = rewriteCodexPlusPlusRuntimeMain(source);
+
+  assert.match(updated, /systemPreferences\.getAccentColor/);
+  assert.match(updated, /systemPreferences\.on\("accent-color-changed"/);
+  assert.match(updated, /ipcMain\.handle\(requestChannel/);
+  assert.match(updated, /webContents\.getAllWebContents/);
+  assert.equal(rewriteCodexPlusPlusRuntimeMain(updated), updated);
 });
 
 test("rejects Codex++ runtime assets without the settings surface event contract", () => {
@@ -2759,7 +2775,7 @@ test("Codex app cache consumers allow beta app bundle names", () => {
 });
 
 test("Codex++ runtime preload patch prefers Store settings panel items container", () => {
-  const source = `
+  const source = `var import_electron4 = require("electron");
 function tryInject() {
   const itemsGroup = findSidebarItemsGroup();
   const outer = itemsGroup.parentElement ?? itemsGroup;
@@ -2799,7 +2815,7 @@ function isSettingsSidebarCandidate(el) {
 });
 
 test("Codex++ runtime preload patch upgrades old Store settings slug nav fast path", () => {
-  const source = `
+  const source = `var import_electron4 = require("electron");
 function tryInject() {
   const itemsGroup = findSidebarItemsGroup();
   const outer = itemsGroup.parentElement ?? itemsGroup;
