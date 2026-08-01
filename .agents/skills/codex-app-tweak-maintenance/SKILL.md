@@ -22,4 +22,5 @@ High-level guidance for bundled Codex++ UI tweaks under `desktop/codex-plusplus/
 - Target the element or property owner with stable, source-backed selectors; remove superseded selector branches.
 - When changing an existing bundled tweak, bump its `manifest.json` version according to the repository README.
 - Use the sync script for installed copies; do not copy tweak files manually.
+- The Codex++ tweak loader automatically reloads installed tweaks after syncing, so a restart is not needed. Stop after syncing and ask the user to visually validate the running app.
 - Keep changes scoped to the requested tweak and preserve unrelated accepted behavior.
