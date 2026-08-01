@@ -22,12 +22,14 @@ function resolveDesktopRoot(): string {
 
 const desktopRoot = resolveDesktopRoot();
 
-const codexCliRepository = process.env.CODEX_CLI_REPOSITORY ?? "openai/codex";
 const codexPlusPlusRepository = process.env.CODEX_PLUS_PLUS_REPOSITORY ?? "b-nnett/codex-plusplus";
 const githubApiUrl = process.env.GITHUB_API_URL ?? "https://api.github.com";
+const npmRegistryUrl = process.env.NPM_REGISTRY_URL ?? "https://registry.npmjs.org";
+const codexNpmPackageName = "@openai/codex";
 const appVersionPattern = /^\d+\.\d+\.\d+$/;
 const buildNumberPattern = /^\d+$/;
 const releaseTagPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const npmVersionPattern = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const shaPattern = /^[0-9a-f]{40}$/i;
 const maxMsixVersionSegment = 65535;
 
@@ -51,6 +53,11 @@ type GithubGitTag = {
     sha?: string | null;
     type?: string | null;
   } | null;
+};
+
+type NpmPackageMetadata = {
+  name?: string;
+  version?: string;
 };
 
 type ReleaseInputs = {
@@ -396,6 +403,23 @@ async function fetchLatestReleaseTag(repository: string, label: string): Promise
   return tagName;
 }
 
+async function fetchLatestCodexNpmTag(): Promise<string> {
+  const packageUrl = npmRegistryUrl.replace(/\/+$/, "") + "/" + encodeURIComponent(codexNpmPackageName) + "/latest";
+  const response = await fetch(packageUrl);
+  if (!response.ok) {
+    fail(`Failed to fetch ${codexNpmPackageName}@latest: ${response.status} ${response.statusText}`);
+  }
+
+  const metadata = (await response.json()) as NpmPackageMetadata;
+  const version = metadata.version ?? "";
+  if (metadata.name !== codexNpmPackageName || !npmVersionPattern.test(version)) {
+    fail("Codex CLI tag has an unexpected format: " + JSON.stringify(version));
+  }
+
+  // Keep the existing release metadata shape while using npm @latest as the source of truth.
+  return "rust-v" + version;
+}
+
 async function fetchGitTagCommitSha(repository: string, tagName: string, label: string): Promise<string> {
   const response = await fetchPublicGithubUrl(
     repositoryApiUrl(repository, `/git/ref/tags/${encodeURIComponent(tagName)}`),
@@ -479,7 +503,7 @@ async function main(): Promise<void> {
   const buildNumber = selectedAppcastRelease.buildNumber;
   const cliTag = assertMatches(
     "Codex CLI tag",
-    await fetchLatestReleaseTag(codexCliRepository, "Codex CLI"),
+    await fetchLatestCodexNpmTag(),
     releaseTagPattern,
   );
   const codexPlusPlusTag = assertMatches(
