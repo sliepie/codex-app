@@ -199,23 +199,13 @@ test("GitHub release asset helper re-extracts zips when the cached archive chang
   }
 });
 
-test("CLI hydrator uses npm CLI and shared GitHub/plugin payload modules", () => {
+test("CLI hydrator uses shared GitHub and bundled plugin payload modules", () => {
   const source = fs.readFileSync(path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"), "utf8");
 
   assert.match(source, /ensureCachedReleaseAsset/);
   assert.match(source, /ensureExtractedZip/);
+  assert.match(source, /findReleaseAsset\(release, assetName, "ripgrep"\)/);
   assert.match(source, /findReleaseAsset\(release, assetName, "Tectonic"\)/);
-  assert.match(source, /codexNpmPackageName = "@openai\/codex"/);
-  assert.match(source, /codexNpmPlatformPackageName = "@openai\/codex-win32-arm64"/);
-  assert.match(source, /codexNpmTarget = "aarch64-pc-windows-msvc"/);
-  assert.match(source, /sourcePath: "bin\/codex-code-mode-host\.exe"/);
-  assert.match(source, /sourcePath: "codex-resources\/codex-command-runner\.exe"/);
-  assert.match(source, /sourcePath: "codex-path\/rg\.exe"/);
-  assert.match(source, /fetchNpmPackageMetadata\("latest"\)/);
-  assert.match(source, /platformDependency/);
-  assert.match(source, /codex@\(\.\+\)/);
-  assert.match(source, /ensureCachedNpmPackage/);
-  assert.match(source, /ensureExtractedNpmPackage/);
   assert.match(source, /function writeCuaNodeManifest/);
   assert.match(source, /"cua_node", "manifest\.json"/);
   assert.match(source, /node_repl_path: "bin\/node_repl\.exe"/);
@@ -224,5 +214,4 @@ test("CLI hydrator uses npm CLI and shared GitHub/plugin payload modules", () =>
   assert.match(source, /installTectonicWindowsPayload\(resourcesRoot, tectonicPath\)/);
   assert.match(source, /readPeMachine\(tectonicPath\)/);
   assert.doesNotMatch(source, /execFileSync\(\s*"gh"/);
-  assert.doesNotMatch(source, /hydrateRipgrepExe/);
 });

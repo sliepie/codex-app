@@ -1,5 +1,3 @@
-import crypto from "node:crypto";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -20,51 +18,15 @@ import {
   resourceBinaryExceptionById,
 } from "./resource-binary-exceptions";
 
-type CodexNpmPackageFile = {
-  sourcePath: string;
-  outputName: string;
-};
-
-type NpmPackageMetadata = {
-  dist?: {
-    integrity?: string;
-    size?: number;
-    tarball?: string;
-  };
-  name?: string;
-  optionalDependencies?: Record<string, string>;
-  version?: string;
-};
-
-type CodexNpmPackage = {
-  integrity: string;
-  name: string;
-  packageVersion: string;
-  rootVersion: string;
-  size: number;
-  tarballUrl: string;
-};
-
-type HydratedAsset = {
+type RequiredAsset = {
   assetName: string;
-  downloadUrl: string;
   outputName: string;
-  releaseAssetSha256?: string;
-  releaseHtmlUrl?: string;
-  releaseTagName?: string;
-  sha256?: string;
-  size: number;
-};
-
-type HydratedCodexNpmPackage = {
-  metadata: CodexNpmPackage;
-  packageIntegrity: string;
-  packageSha512: string;
-  packageSize: number;
-  assets: HydratedAsset[];
 };
 
 type Options = {
+  codexRepo: string;
+  codexTag?: string;
+  ripgrepRepo: string;
   nodeDistBaseUrl: string;
   cacheRoot: string;
   force: boolean;
@@ -79,177 +41,20 @@ function resolveDesktopRoot(): string {
 const desktopRoot = resolveDesktopRoot();
 const codexAppCacheRoot = path.join(desktopRoot, ".cache", "codex-app");
 
-const codexNpmPackageName = "@openai/codex";
-const codexNpmPlatformPackageName = "@openai/codex-win32-arm64";
-const codexNpmTarget = "aarch64-pc-windows-msvc";
-const codexNpmRootVersionPattern = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
-const codexNpmPlatformVersionPattern = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?-win32-arm64$/;
-
-const codexNpmPackageFiles: CodexNpmPackageFile[] = [
+const requiredAssets: RequiredAsset[] = [
   {
-    sourcePath: "bin/codex.exe",
+    assetName: "codex-aarch64-pc-windows-msvc.exe",
     outputName: "codex.exe",
   },
   {
-    sourcePath: "bin/codex-code-mode-host.exe",
-    outputName: "codex-code-mode-host.exe",
-  },
-  {
-    sourcePath: "codex-resources/codex-windows-sandbox-setup.exe",
+    assetName: "codex-windows-sandbox-setup-aarch64-pc-windows-msvc.exe",
     outputName: "codex-windows-sandbox-setup.exe",
   },
   {
-    sourcePath: "codex-resources/codex-command-runner.exe",
+    assetName: "codex-command-runner-aarch64-pc-windows-msvc.exe",
     outputName: "codex-command-runner.exe",
   },
-  {
-    sourcePath: "codex-path/rg.exe",
-    outputName: "rg.exe",
-  },
 ];
-
-function npmPackageVersionUrl(packageName: string, packageVersion: string): string {
-  return "https://registry.npmjs.org/" + encodeURIComponent(packageName) + "/" + encodeURIComponent(packageVersion);
-}
-
-async function fetchNpmPackageMetadata(packageVersion: string): Promise<NpmPackageMetadata> {
-  return JSON.parse(
-    await fetchText(npmPackageVersionUrl(codexNpmPackageName, packageVersion)),
-  ) as NpmPackageMetadata;
-}
-
-async function fetchCodexNpmPackage(): Promise<CodexNpmPackage> {
-  const latestMetadata = await fetchNpmPackageMetadata("latest");
-  const rootVersion = latestMetadata.version;
-  const platformDependency = latestMetadata.optionalDependencies?.[codexNpmPlatformPackageName];
-  const packageVersion = platformDependency?.match(/^npm:@openai\/codex@(.+)$/)?.[1];
-  if (
-    latestMetadata.name !== codexNpmPackageName ||
-    !rootVersion ||
-    !codexNpmRootVersionPattern.test(rootVersion) ||
-    !packageVersion ||
-    !codexNpmPlatformVersionPattern.test(packageVersion)
-  ) {
-    throw new Error("The latest @openai/codex npm package has no Windows ARM64 optional package.");
-  }
-
-  const metadata = await fetchNpmPackageMetadata(packageVersion);
-  const integrity = metadata.dist?.integrity;
-  const tarballUrl = metadata.dist?.tarball;
-  const size = metadata.dist?.size;
-  if (
-    metadata.name !== codexNpmPackageName ||
-    metadata.version !== packageVersion ||
-    !integrity?.startsWith("sha512-") ||
-    !tarballUrl ||
-    (size !== undefined && typeof size !== "number")
-  ) {
-    throw new Error("Invalid npm metadata for " + codexNpmPackageName + "@" + packageVersion);
-  }
-
-  return {
-    integrity,
-    name: metadata.name,
-    packageVersion: metadata.version,
-    rootVersion,
-    size: size ?? 0,
-    tarballUrl,
-  };
-}
-
-function sha512Base64(filePath: string): string {
-  return crypto.createHash("sha512").update(fs.readFileSync(filePath)).digest("base64");
-}
-
-function verifyNpmPackageIntegrity(
-  filePath: string,
-  integrity: string,
-  label: string,
-  actualSha512 = sha512Base64(filePath),
-): void {
-  const expected = integrity.match(/^sha512-(.+)$/)?.[1];
-  if (!expected || actualSha512 !== expected) {
-    throw new Error("Integrity mismatch for " + label);
-  }
-}
-
-async function ensureCachedNpmPackage(
-  packageInfo: CodexNpmPackage,
-  cachePath: string,
-  force: boolean,
-): Promise<{ sha512: string; size: number }> {
-  if (force) {
-    fs.rmSync(cachePath, { force: true });
-  }
-  if (!fs.existsSync(cachePath)) {
-    await downloadFile(packageInfo.tarballUrl, cachePath);
-  }
-
-  const size = fs.statSync(cachePath).size;
-  if (packageInfo.size > 0 && size !== packageInfo.size) {
-    throw new Error(
-      "Downloaded " + packageInfo.name + "@" + packageInfo.packageVersion +
-        " size mismatch: expected " + packageInfo.size + ", got " + size + ".",
-    );
-  }
-  const sha512 = sha512Base64(cachePath);
-  verifyNpmPackageIntegrity(
-    cachePath,
-    packageInfo.integrity,
-    packageInfo.name + "@" + packageInfo.packageVersion,
-    sha512,
-  );
-  return { sha512, size };
-}
-
-type ExtractedTarMarker = {
-  archiveSha256: string;
-  archiveSize: number;
-};
-
-function ensureExtractedNpmPackage(
-  archivePath: string,
-  extractRoot: string,
-  force: boolean,
-): void {
-  const completeMarkerPath = extractRoot + ".complete";
-  const marker: ExtractedTarMarker = {
-    archiveSha256: sha256(archivePath),
-    archiveSize: fs.statSync(archivePath).size,
-  };
-  if (force) {
-    fs.rmSync(extractRoot, { recursive: true, force: true });
-    fs.rmSync(completeMarkerPath, { force: true });
-  }
-
-  try {
-    const currentMarker = JSON.parse(fs.readFileSync(completeMarkerPath, "utf8")) as Partial<ExtractedTarMarker>;
-    if (
-      fs.existsSync(extractRoot) &&
-      currentMarker.archiveSha256 === marker.archiveSha256 &&
-      currentMarker.archiveSize === marker.archiveSize
-    ) {
-      return;
-    }
-  } catch {
-    // Re-extract when the marker is missing or invalid.
-  }
-
-  fs.rmSync(extractRoot, { recursive: true, force: true });
-  fs.rmSync(completeMarkerPath, { force: true });
-  const temporaryExtractRoot = extractRoot + ".tmp-" + process.pid + "-" + Date.now();
-  fs.rmSync(temporaryExtractRoot, { recursive: true, force: true });
-  try {
-    fs.mkdirSync(temporaryExtractRoot, { recursive: true });
-    execFileSync("tar", ["-xzf", archivePath, "-C", temporaryExtractRoot], { stdio: "inherit" });
-    fs.renameSync(temporaryExtractRoot, extractRoot);
-    fs.writeFileSync(completeMarkerPath, JSON.stringify(marker, null, 2) + "\n", "utf8");
-  } catch (error) {
-    fs.rmSync(temporaryExtractRoot, { recursive: true, force: true });
-    fs.rmSync(completeMarkerPath, { force: true });
-    throw error;
-  }
-}
 
 function readOption(argv: string[], ...names: string[]): string | undefined {
   for (const name of names) {
@@ -271,6 +76,10 @@ function hasFlag(argv: string[], ...names: string[]): boolean {
 
 function parseOptions(argv: string[]): Options {
   return {
+    codexRepo: readOption(argv, "--codex-repo", "-CodexRepo") ?? "openai/codex",
+    codexTag: readOption(argv, "--codex-tag", "-CodexTag") ?? process.env.CODEX_CLI_TAG,
+    ripgrepRepo:
+      readOption(argv, "--ripgrep-repo", "-RipgrepRepo") ?? "BurntSushi/ripgrep",
     nodeDistBaseUrl:
       readOption(argv, "--node-dist-base-url", "-NodeDistBaseUrl") ??
       "https://nodejs.org/dist",
@@ -478,54 +287,30 @@ async function hydrateNodeExe(options: Options, resourcesRoot: string): Promise<
   };
 }
 
-async function hydrateCodexNpmPackage(
-  options: Options,
-  resourcesRoot: string,
-): Promise<HydratedCodexNpmPackage> {
-  const packageInfo = await fetchCodexNpmPackage();
-  const archivePath = path.join(options.cacheRoot, `codex-${packageInfo.packageVersion}.tgz`);
-  const extractRoot = path.join(options.cacheRoot, `codex-${packageInfo.packageVersion}`);
-  const acquiredPackage = await ensureCachedNpmPackage(packageInfo, archivePath, options.force);
-  ensureExtractedNpmPackage(archivePath, extractRoot, options.force);
+async function hydrateRipgrepExe(options: Options, resourcesRoot: string): Promise<ReleaseAsset> {
+  const release = await fetchGitHubRelease(options.ripgrepRepo);
+  const version = release.tagName.replace(/^v/, "");
+  const assetName = `ripgrep-${version}-aarch64-pc-windows-msvc.zip`;
+  const asset = findReleaseAsset(release, assetName, "ripgrep");
 
-  const packageRoot = path.join(extractRoot, "package");
-  const packageJson = JSON.parse(fs.readFileSync(path.join(packageRoot, "package.json"), "utf8")) as {
-    name?: string;
-    version?: string;
-  };
-  if (packageJson.name !== packageInfo.name || packageJson.version !== packageInfo.packageVersion) {
-    throw new Error("Codex npm package contents do not match registry metadata.");
-  }
+  const archivePath = path.join(options.cacheRoot, assetName);
+  const extractRoot = path.join(options.cacheRoot, `ripgrep-${version}-aarch64-pc-windows-msvc`);
+  const outputPath = path.join(resourcesRoot, "rg.exe");
 
-  const targetRoot = path.join(packageRoot, "vendor", codexNpmTarget);
-  const assets: HydratedAsset[] = [];
-  for (const packageFile of codexNpmPackageFiles) {
-    const sourcePath = path.join(targetRoot, ...packageFile.sourcePath.split("/"));
-    if (!fs.existsSync(sourcePath)) {
-      throw new Error(
-        "Missing " + packageFile.sourcePath + " in " + packageInfo.name + "@" + packageInfo.packageVersion,
-      );
-    }
+  await ensureCachedReleaseAsset({
+    asset,
+    cachePath: archivePath,
+    checksum: {
+      kind: "sidecar-or-digest",
+      release,
+      sidecarAssetName: assetName + ".sha256",
+    },
+    force: options.force,
+  });
+  await ensureExtractedZip({ archivePath, extractRoot, force: options.force });
 
-    const outputPath = path.join(resourcesRoot, packageFile.outputName);
-    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-    fs.copyFileSync(sourcePath, outputPath);
-    assets.push({
-      assetName: packageFile.sourcePath,
-      downloadUrl: packageInfo.tarballUrl,
-      outputName: packageFile.outputName,
-      sha256: sha256(outputPath),
-      size: fs.statSync(outputPath).size,
-    });
-  }
-
-  return {
-    metadata: packageInfo,
-    packageIntegrity: packageInfo.integrity,
-    packageSha512: acquiredPackage.sha512,
-    packageSize: acquiredPackage.size,
-    assets,
-  };
+  fs.copyFileSync(findSingleFile(extractRoot, "rg.exe"), outputPath);
+  return asset;
 }
 
 type HydratedTectonicExe = {
@@ -589,12 +374,44 @@ async function hydrateTectonicExe(
 
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
+  if (!options.codexRepo.trim()) {
+    throw new Error("Missing Codex GitHub repository.");
+  }
+
   const resourcesRoot = path.join(desktopRoot, "resources");
   fs.mkdirSync(options.cacheRoot, { recursive: true });
   fs.mkdirSync(resourcesRoot, { recursive: true });
 
-  const codexPackage = await hydrateCodexNpmPackage(options, resourcesRoot);
-  const hydratedAssets: HydratedAsset[] = [...codexPackage.assets];
+  const release = await fetchGitHubRelease(options.codexRepo, options.codexTag);
+  const releaseCacheRoot = path.join(options.cacheRoot, release.tagName);
+  fs.mkdirSync(releaseCacheRoot, { recursive: true });
+
+  const hydratedAssets = [];
+  for (const requiredAsset of requiredAssets) {
+    const asset = findReleaseAsset(release, requiredAsset.assetName, "Codex");
+
+    const downloadPath = path.join(releaseCacheRoot, requiredAsset.assetName);
+    const outputPath = path.join(resourcesRoot, requiredAsset.outputName);
+
+    if (options.force) {
+      fs.rmSync(downloadPath, { force: true });
+    }
+    const acquiredAsset = await ensureCachedReleaseAsset({
+      asset,
+      cachePath: downloadPath,
+      checksum: { kind: "digest" },
+      force: options.force,
+    });
+
+    fs.copyFileSync(downloadPath, outputPath);
+    hydratedAssets.push({
+      assetName: requiredAsset.assetName,
+      outputName: requiredAsset.outputName,
+      downloadUrl: asset.downloadUrl,
+      sha256: acquiredAsset.sha256,
+      size: asset.size,
+    });
+  }
 
   const nodeAsset = await hydrateNodeExe(options, resourcesRoot);
   hydratedAssets.push({
@@ -602,6 +419,14 @@ async function main(): Promise<void> {
     outputName: "cua_node/bin/node.exe",
     downloadUrl: nodeAsset.downloadUrl,
     size: nodeAsset.size,
+  });
+
+  const ripgrepAsset = await hydrateRipgrepExe(options, resourcesRoot);
+  hydratedAssets.push({
+    assetName: ripgrepAsset.name,
+    outputName: "rg.exe",
+    downloadUrl: ripgrepAsset.downloadUrl,
+    size: ripgrepAsset.size,
   });
 
   const tectonicAsset = await hydrateTectonicExe(options, resourcesRoot);
@@ -620,15 +445,9 @@ async function main(): Promise<void> {
     path.join(options.cacheRoot, "latest-release.json"),
     `${JSON.stringify(
       {
-        codexNpmPackage: {
-          integrity: codexPackage.packageIntegrity,
-          name: codexPackage.metadata.name,
-          packageVersion: codexPackage.metadata.packageVersion,
-          rootVersion: codexPackage.metadata.rootVersion,
-          sha512: codexPackage.packageSha512,
-          size: codexPackage.packageSize,
-          tarballUrl: codexPackage.metadata.tarballUrl,
-        },
+        tagName: release.tagName,
+        name: release.name,
+        htmlUrl: release.url,
         assets: hydratedAssets,
       },
       null,
@@ -637,9 +456,7 @@ async function main(): Promise<void> {
     "utf8",
   );
 
-  console.log(
-    `Hydrated Codex CLI @latest as ${codexPackage.metadata.name}@${codexPackage.metadata.packageVersion} into ${resourcesRoot}`,
-  );
+  console.log(`Hydrated Codex CLI ${release.tagName} into ${resourcesRoot}`);
 }
 
 main().catch((error: unknown) => {

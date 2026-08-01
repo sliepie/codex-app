@@ -403,7 +403,6 @@ const config = {
     extraResource: [
       'assets/windows/icon.ico',
       'resources/codex.exe',
-      'resources/codex-code-mode-host.exe',
       'resources/codex-windows-sandbox-setup.exe',
       'resources/codex-command-runner.exe',
       'resources/native',

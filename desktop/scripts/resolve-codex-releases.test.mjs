@@ -93,12 +93,9 @@ function startServer(
       return;
     }
 
-    if (decodeURIComponent(requestUrl.pathname) === "/@openai/codex/latest") {
+    if (request.url === "/repos/openai/codex/releases/latest") {
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({
-        name: "@openai/codex",
-        version: codexCliTag.replace(/^rust-v/, ""),
-      }));
+      response.end(JSON.stringify({ tag_name: codexCliTag }));
       return;
     }
 
@@ -244,7 +241,6 @@ async function runResolver({
             GITHUB_REPOSITORY: "sliepie/codex-app",
             GITHUB_RUN_NUMBER: workflowRunNumber === undefined ? "" : String(workflowRunNumber),
             GITHUB_SHA: sha,
-            NPM_REGISTRY_URL: server.origin,
             NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import ${pathToFileURL(fetchShimPath).href}`.trim(),
           },
         },
