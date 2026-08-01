@@ -13,6 +13,8 @@ Date: 2026-08-01
 | Vendored Node REPL helper | `desktop/resources/cua_node/bin/node_repl.exe` from `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0` |
 | Vendored Chrome extension host helper | `desktop/resources/extension-host.exe` from `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0` |
 | Vendored Computer Use helper | `desktop/resources/codex-computer-use.exe` from `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0`; explicit x64 exception |
+| npm-hydrated Codex CLI | Matching `@openai/codex` `win32-arm64` package; supplies the CLI, code-mode host, Windows helpers, and `rg.exe` |
+| npm-hydrated Codex CLI | Matching `@openai/codex` `win32-arm64` package; supplies the CLI, code-mode host, Windows helpers, and `rg.exe` |
 | GitHub-release hydrated Tectonic | `tectonic-0.16.9-x86_64-pc-windows-msvc.zip` from `tectonic-typesetting/tectonic`; explicit x64 exception |
 | Resource binary exception policy | `desktop/scripts/resource-binary-exceptions.ts` enforced by `npm run verify:windows-arm64-resource-binaries` |
 | Store architecture check | Microsoft Store package `9PLM9XGG6VKS` installed `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0`; Node REPL and Chrome extension-host are ARM64, while Computer Use remains x64 |
@@ -25,8 +27,11 @@ Date: 2026-08-01
 | App version | Appcast version = `26.623.141536` | package app archive hydrated from `26.623.141536` | Match |
 | Build number | Appcast build = `4753` | package app archive hydrated from build `4753` | Match |
 | Electron | npm registry latest stable checked = `43.0.0` | `desktop/package.json` dependency = `43.0.0` | Match |
-| Codex CLI | release payload = `rust-v0.143.0` | `resources/codex.exe --version` = `codex-cli 0.143.0` | Match |
-| CLI helper binaries | release payload = `rust-v0.143.0` | Windows helper payloads from `rust-v0.143.0` | Match |
+| Node REPL helper | Store package `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0` | `resources/cua_node/bin/node_repl.exe` SHA-256 = `aecce799eb7ba6ff7819300aa2b308d1d2f6b24eac437a23244f659f47f4db40` | Store-vendored ARM64 helper |
+| Chrome extension host helper | Store package `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0` | `resources/extension-host.exe` SHA-256 = `40fe6f39c888b393ef4a11bc9278224ef68fcb36f9118546dde5691fa6d174fb` | Store-vendored ARM64 helper |
+| Computer Use helper | Store package `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0` | `resources/codex-computer-use.exe` SHA-256 = `627b317ccfd3c7386a2d5bc4fb4e97ff30e30425945a7a5370006ad89cf3605a` | Explicit x64 exception |
+| Codex CLI | `@openai/codex@latest` resolves to the recorded Windows ARM64 package | CLI version is recorded in `.cache/codex-cli/latest-release.json` | Match |
+| CLI helper binaries | `@openai/codex@latest` `win32-arm64` package | Windows helper payloads from the package vendor tree | Match |
 | Node REPL helper | Store package `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0` | `resources/cua_node/bin/node_repl.exe` SHA-256 = `aecce799eb7ba6ff7819300aa2b308d1d2f6b24eac437a23244f659f47f4db40` | Store-vendored ARM64 helper |
 | Chrome extension host helper | Store package `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0` | `resources/extension-host.exe` SHA-256 = `40fe6f39c888b393ef4a11bc9278224ef68fcb36f9118546dde5691fa6d174fb` | Store-vendored ARM64 helper |
 | Computer Use helper | Store package `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0` | `resources/codex-computer-use.exe` SHA-256 = `627b317ccfd3c7386a2d5bc4fb4e97ff30e30425945a7a5370006ad89cf3605a` | Explicit x64 exception |
@@ -95,9 +100,11 @@ The Windows ARM64 package is ARM64 by default. Any x64 PE payload must match the
 | `dxil.dll` | `ARM64` | `101.7.2308.24` |
 | `libEGL.dll` | `ARM64` | `2.1.27045` |
 | `libGLESv2.dll` | `ARM64` | `2.1.27045` |
-| `resources/codex-command-runner.exe` | `ARM64` | From `rust-v0.143.0` release payload |
-| `resources/codex-windows-sandbox-setup.exe` | `ARM64` | From `rust-v0.143.0` release payload |
-| `resources/codex.exe` | `ARM64` | From `rust-v0.143.0` release payload; CLI reports `codex-cli 0.143.0` |
+| `resources/codex-code-mode-host.exe` | `ARM64` | From the `@openai/codex@latest` `win32-arm64` vendor tree |
+| `resources/codex-command-runner.exe` | `ARM64` | From the `@openai/codex@latest` `win32-arm64` vendor tree |
+| `resources/codex-windows-sandbox-setup.exe` | `ARM64` | From the `@openai/codex@latest` `win32-arm64` vendor tree |
+| `resources/codex.exe` | `ARM64` | From the `@openai/codex@latest` `win32-arm64` vendor tree |
+| `resources/rg.exe` | `ARM64` | From the `@openai/codex@latest` `win32-arm64` vendor tree |
 | `resources/cua_node/bin/node_repl.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.721.4979.0_arm64__2p2nqsd0c76g0`; SHA-256 `73cd3fd199315805c61966f367fe1a9e2cc3fb5298c8c929ead4be18523ebc1a` |
 | `resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.721.4979.0_arm64__2p2nqsd0c76g0`; copied to the ARM64 plugin lookup path because the bundled installer uses `os.arch()`; SHA-256 `a85a2f54680211fa1fd1b3de3130eefa0ab8182985af298b6b8e55ab9a7178b7` |
 | `resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe` | `x64` | Vendored from `OpenAI.Codex_26.721.4979.0_arm64__2p2nqsd0c76g0`; SHA-256 `2c4cac168200520c2752058177ea9fe7d1ccf9a26b7287dddff669d41ca9af16` |

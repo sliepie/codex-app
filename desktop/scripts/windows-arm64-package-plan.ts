@@ -18,7 +18,7 @@ export type WindowsArm64PlanStep = {
   label: string;
 };
 
-export const windowsArm64HydratedCacheKeyVersion = "v7";
+export const windowsArm64HydratedCacheKeyVersion = "v8";
 export const windowsArm64NativeModulesCacheKeyVersion = "v1";
 
 export const windowsArm64HydratedCacheInputPaths = [
