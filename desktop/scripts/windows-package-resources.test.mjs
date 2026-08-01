@@ -1425,6 +1425,7 @@ test("keeps generated plugin resources with Codex++ package integration", (t) =>
   const config = require(path.join(desktopRoot, "forge.config.js"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/plugins"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
+  assert.ok(config.packagerConfig.extraResource.includes("resources/codex-code-mode-host.exe"));
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus-old/loader.cjs"), true);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);

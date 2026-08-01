@@ -29,7 +29,7 @@ The Windows helper executable used by the bundled Computer Use plugin to control
 The bundled LaTeX plugin executable. The ARM64 package downloads the public x64 Windows Tectonic release asset until an ARM64 build exists.
 
 **Official package source**:
-An upstream OpenAI distribution channel, such as the Codex production appcast or the Microsoft Store package for product ID `9PLM9XGG6VKS`.
+An upstream OpenAI distribution channel, such as the Codex production appcast, the official `@openai/codex` npm package, or the Microsoft Store package for product ID `9PLM9XGG6VKS`.
 
 **Store helper source**:
 The official Microsoft Store package used only for explicitly vendored helper payloads.
@@ -58,6 +58,7 @@ A CSS selector shipped by a bundled Codex++ tweak under `desktop/codex-plusplus/
 - **`node_repl`** and **`extension-host`** use ARM64 binaries from the Microsoft Store package when available; the **Computer Use helper** may use the latest official closed-source x64 binary until a Windows ARM64 equivalent exists.
 - A **Temporary Store-install scrape** refreshes the vendored `desktop/resources/cua_node/bin/node_repl.exe`, `desktop/resources/extension-host.exe`, and `desktop/resources/codex-computer-use.exe` binaries from the official Microsoft Store package for product ID `9PLM9XGG6VKS`; non-Store sources are not valid for these vendored helper updates.
 - **Tectonic** is a public GitHub-release hydrated **Resource binary exception** from `tectonic-typesetting/tectonic` until a Windows ARM64 release asset exists.
+- **Codex CLI Windows resources** are hydrated from `@openai/codex@latest` and its `win32-arm64` optional package. npm supplies `codex.exe`, `codex-code-mode-host.exe`, the Windows helper binaries, and `rg.exe` from one verified package.
 - The **Windows ARM64 package plan** is the only CI entry point for the ordered Windows ARM64 package flow.
 - A **Windows ARM64 package** follows the **Latest official app release** from the production appcast when no exact upstream version and build are requested.
 - Release artifacts identify the selected official app release by upstream version and build.
