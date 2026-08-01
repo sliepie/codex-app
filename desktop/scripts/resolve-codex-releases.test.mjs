@@ -20,6 +20,9 @@ const {
 const scriptPath = fileURLToPath(new URL("../.cache/scripts/resolve-codex-releases.js", import.meta.url));
 const typescriptScriptPath = fileURLToPath(new URL("resolve-codex-releases.ts", import.meta.url));
 const officialProdAppcastUrl = "https://persistent.oaistatic.com/codex-app-prod/appcast.xml";
+const codexPlusPlusRepository = "b-nnett/codex-plusplus";
+const githubApiOrigin = "https://api.github.com";
+const npmRegistryOrigin = "https://registry.npmjs.org";
 
 const appcast = `<?xml version="1.0" encoding="utf-8"?>
 <rss>
@@ -69,7 +72,6 @@ function startServer(
     appcastSource = appcast,
     codexCliTag = "rust-v0.129.0",
     codexPlusPlusObjectType = "commit",
-    codexPlusPlusRepo = "b-nnett/codex-plusplus",
     rejectAuthorizedCodexPlusPlusRequests = false,
     rejectAuthorizedCodexPlusPlusRequestsStatus = 401,
     releasePages = [releases],
@@ -104,7 +106,7 @@ function startServer(
 
     if (
       rejectAuthorizedCodexPlusPlusRequests &&
-      requestPath?.startsWith("/repos/" + codexPlusPlusRepo + "/") &&
+      requestPath?.startsWith("/repos/" + codexPlusPlusRepository + "/") &&
       request.headers.authorization
     ) {
       response.writeHead(rejectAuthorizedCodexPlusPlusRequestsStatus, { "Content-Type": "application/json" });
@@ -116,13 +118,13 @@ function startServer(
       return;
     }
 
-    if (request.url === `/repos/${codexPlusPlusRepo}/releases/latest`) {
+    if (request.url === `/repos/${codexPlusPlusRepository}/releases/latest`) {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ tag_name: codexPlusPlusTag }));
       return;
     }
 
-    if (request.url === `/repos/${codexPlusPlusRepo}/git/ref/tags/${codexPlusPlusTag}`) {
+    if (request.url === `/repos/${codexPlusPlusRepository}/git/ref/tags/${codexPlusPlusTag}`) {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(
         JSON.stringify({
@@ -192,7 +194,6 @@ async function runResolver({
   appcastSource,
   codexCliTag,
   codexPlusPlusObjectType,
-  codexPlusPlusRepo = "b-nnett/codex-plusplus",
   rejectAuthorizedCodexPlusPlusRequests,
   rejectAuthorizedCodexPlusPlusRequestsStatus = 401,
   releasePages,
@@ -206,7 +207,6 @@ async function runResolver({
     appcastSource,
     codexCliTag,
     codexPlusPlusObjectType,
-    codexPlusPlusRepo,
     rejectAuthorizedCodexPlusPlusRequests,
     rejectAuthorizedCodexPlusPlusRequestsStatus,
     releasePages,
@@ -221,8 +221,9 @@ async function runResolver({
     `const originalFetch = globalThis.fetch;\n` +
       `const origin = process.env.CODEX_APPCAST_TEST_ORIGIN;\n` +
       `globalThis.fetch = (input, init) => {\n` +
-      `  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;\n` +
-      `  if (url === ${JSON.stringify(officialProdAppcastUrl)}) return originalFetch(origin + "/codex-app-prod/appcast.xml", init);\n` +
+      `  const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);\n` +
+      `  if (url.href === ${JSON.stringify(officialProdAppcastUrl)}) return originalFetch(origin + "/codex-app-prod/appcast.xml", init);\n` +
+      `  if (url.origin === ${JSON.stringify(githubApiOrigin)} || url.origin === ${JSON.stringify(npmRegistryOrigin)}) return originalFetch(origin + url.pathname + url.search, init);\n` +
       `  return originalFetch(input, init);\n` +
       `};\n`,
     "utf8",
@@ -237,14 +238,11 @@ async function runResolver({
           env: {
             ...process.env,
             CODEX_APPCAST_TEST_ORIGIN: server.origin,
-            CODEX_PLUS_PLUS_REPOSITORY: codexPlusPlusRepo,
             GH_TOKEN: "test-token",
-            GITHUB_API_URL: server.origin,
             GITHUB_OUTPUT: outputPath,
             GITHUB_REPOSITORY: "sliepie/codex-app",
             GITHUB_RUN_NUMBER: workflowRunNumber === undefined ? "" : String(workflowRunNumber),
             GITHUB_SHA: sha,
-            NPM_REGISTRY_URL: server.origin,
             NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import ${pathToFileURL(fetchShimPath).href}`.trim(),
           },
         },
@@ -360,22 +358,6 @@ test("rejects MSIX package version segments that exceed the schema range", async
       appcastSource: appcastFor("26.519.81530", "70000"),
     }),
     /Codex app build number must be between 0 and 65535 for MSIX package versions/,
-  );
-});
-
-test("resolves Codex++ releases from the configured repository", async () => {
-  const output = await runResolver({
-    releases: [],
-    codexPlusPlusRepo: "sliepie/codex-plusplus",
-    codexPlusPlusSha: "1111111111111111111111111111111111111111",
-    codexPlusPlusTag: "v0.2.0",
-  });
-
-  assert.equal(output.codex_plus_plus_tag, "v0.2.0");
-  assert.equal(output.codex_plus_plus_sha, "1111111111111111111111111111111111111111");
-  assert.match(
-    output.hydration_cache_key,
-    /codex-plusplus-v0\.2\.0-1111111111111111111111111111111111111111/,
   );
 });
 

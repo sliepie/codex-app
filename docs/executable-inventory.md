@@ -105,9 +105,9 @@ The Windows ARM64 package is ARM64 by default. Any x64 PE payload must match the
 | `resources/codex-windows-sandbox-setup.exe` | `ARM64` | From the `@openai/codex@latest` `win32-arm64` vendor tree |
 | `resources/codex.exe` | `ARM64` | From the `@openai/codex@latest` `win32-arm64` vendor tree |
 | `resources/rg.exe` | `ARM64` | From the `@openai/codex@latest` `win32-arm64` vendor tree |
-| `resources/cua_node/bin/node_repl.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.721.4979.0_arm64__2p2nqsd0c76g0`; SHA-256 `73cd3fd199315805c61966f367fe1a9e2cc3fb5298c8c929ead4be18523ebc1a` |
-| `resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.721.4979.0_arm64__2p2nqsd0c76g0`; copied to the ARM64 plugin lookup path because the bundled installer uses `os.arch()`; SHA-256 `a85a2f54680211fa1fd1b3de3130eefa0ab8182985af298b6b8e55ab9a7178b7` |
-| `resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe` | `x64` | Vendored from `OpenAI.Codex_26.721.4979.0_arm64__2p2nqsd0c76g0`; SHA-256 `2c4cac168200520c2752058177ea9fe7d1ccf9a26b7287dddff669d41ca9af16` |
+| `resources/cua_node/bin/node_repl.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0`; SHA-256 `aecce799eb7ba6ff7819300aa2b308d1d2f6b24eac437a23244f659f47f4db40` |
+| `resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe` | `ARM64` | Vendored from `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0`; copied to the ARM64 plugin lookup path because the bundled installer uses `os.arch()`; SHA-256 `40fe6f39c888b393ef4a11bc9278224ef68fcb36f9118546dde5691fa6d174fb` |
+| `resources/plugins/openai-bundled/plugins/computer-use/node_modules/@oai/sky/bin/windows/codex-computer-use.exe` | `x64` | Vendored from `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0`; SHA-256 `627b317ccfd3c7386a2d5bc4fb4e97ff30e30425945a7a5370006ad89cf3605a` |
 | `resources/plugins/openai-bundled/plugins/latex/bin/tectonic.exe` or `resources/plugins/openai-bundled/plugins/latex-tectonic/bin/tectonic.exe` | `x64` | Downloaded by `hydrate:cli` from `tectonic-typesetting/tectonic` release `tectonic@0.16.9`; SHA-256 `a0a9a5eaf1a940d9a615ad78d35225ca59420c7984576c6402fffb3e9fb05ceb` |
 | `vk_swiftshader.dll` | `ARM64` | `5.0.0` |
 | `vulkan-1.dll` | `ARM64` | Vulkan Loader |

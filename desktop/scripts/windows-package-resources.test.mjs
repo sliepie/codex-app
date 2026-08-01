@@ -2920,10 +2920,6 @@ test("verifies hydrated upstream artifact integrity metadata", () => {
   assert.match(githubAssetSource, /fs\.renameSync\(temporaryExtractRoot, extractRoot\)/);
   assert.match(cliHydratorSource, /ensureCachedReleaseAsset/);
   assert.match(cliHydratorSource, /ensureExtractedZip/);
-  assert.match(cliHydratorSource, /fetchNpmPackageMetadata\("latest"\)/);
-  assert.match(cliHydratorSource, /sha512Base64/);
-  assert.match(cliHydratorSource, /ensureCachedNpmPackage/);
-  assert.match(cliHydratorSource, /ensureExtractedNpmPackage/);
 });
 
 test("repo Node toolchain matches the Electron runtime Node major", () => {

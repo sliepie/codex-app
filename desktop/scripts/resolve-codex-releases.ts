@@ -22,9 +22,9 @@ function resolveDesktopRoot(): string {
 
 const desktopRoot = resolveDesktopRoot();
 
-const codexPlusPlusRepository = process.env.CODEX_PLUS_PLUS_REPOSITORY ?? "b-nnett/codex-plusplus";
-const githubApiUrl = process.env.GITHUB_API_URL ?? "https://api.github.com";
-const npmRegistryUrl = process.env.NPM_REGISTRY_URL ?? "https://registry.npmjs.org";
+const codexPlusPlusRepository = "b-nnett/codex-plusplus";
+const githubApiUrl = "https://api.github.com";
+const npmRegistryUrl = "https://registry.npmjs.org";
 const codexNpmPackageName = "@openai/codex";
 const appVersionPattern = /^\d+\.\d+\.\d+$/;
 const buildNumberPattern = /^\d+$/;
