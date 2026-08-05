@@ -43,11 +43,15 @@ const usageRemainingMarkers = [
   "composer.mode.rateLimit.loading",
 ];
 const realtimeVoiceFeatureGatePattern = new RegExp(
-  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*;\s*return\s*(?:(?:\1\s*&&\s*)?\2\s*&&\s*!\s*\3|!\s*\3)\s*\}`,
+  String.raw`function\s+(${identifierPattern})\(\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`1697652030\`\s*\)\s*;\s*return\s*\2\s*&&\s*!\s*\3\s*\}\s*(?:var\s+${identifierPattern}\s*=\s*${identifierPattern}\s*\([^;]*\)\s*;\s*)?function\s+${identifierPattern}\(\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*\1\s*\(\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*;\s*return\s*\4\s*&&\s*\5\s*&&\s*!\s*\6\s*\}`,
   "g",
 );
 const realtimeVoiceFeatureGateAppliedPattern = new RegExp(
-  String.raw`function\s+${identifierPattern}\([^)]*\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*;\s*return\s*!0\s*\}`,
+  String.raw`function\s+(${identifierPattern})\(\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`1697652030\`\s*\)\s*;\s*return\s*\2\s*&&\s*!\s*\3\s*\}\s*(?:var\s+${identifierPattern}\s*=\s*${identifierPattern}\s*\([^;]*\)\s*;\s*)?function\s+${identifierPattern}\(\)\{\s*(?:let|const)\s+(${identifierPattern})\s*=\s*\1\s*\(\s*\)\s*,\s*${identifierPattern}\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*,\s*${identifierPattern}\s*=\s*${identifierPattern}\s*\(\s*${identifierPattern}\s*\)\s*;\s*return\s*!0\s*\}`,
+);
+const browserDownloadsFeatureGateSelectorPattern = new RegExp(
+  String.raw`(featureName:\`in_app_browser\`[\s\S]{0,1024}?)\b(${identifierPattern})=\{contactInfo:(${identifierPattern}),downloads:(\3|\{enabled:!0,isLoading:!1\}),extensions:(${identifierPattern}),history:(${identifierPattern}),passwordManager:\3,siteSettings:\3\}`,
+  "g",
 );
 type SourcePatchResult = {
   source: string;
@@ -1053,10 +1057,20 @@ function patchRealtimeVoiceFeatureGate(recoveredRoot: string): PatchResult[] {
   const patcher = regexPatch(
     realtimeVoiceFeatureGatePattern,
     (match) => {
-      const rolloutGate = match[1];
-      const entitlementGate = match[2];
-      const killSwitch = match[3];
-      if (!rolloutGate || !entitlementGate || !killSwitch) {
+      const helper = match[1];
+      const rolloutGate = match[2];
+      const helperKillSwitch = match[3];
+      const availabilityGate = match[4];
+      const entitlementGate = match[5];
+      const killSwitch = match[6];
+      if (
+        !helper ||
+        !rolloutGate ||
+        !helperKillSwitch ||
+        !availabilityGate ||
+        !entitlementGate ||
+        !killSwitch
+      ) {
         throw new Error("Unable to identify Codex Voice gate locals.");
       }
 
@@ -1088,103 +1102,87 @@ function patchRealtimeVoiceFeatureGate(recoveredRoot: string): PatchResult[] {
 }
 
 function patchBrowserDownloadsFeatureGate(recoveredRoot: string): PatchResult[] {
-  const selectorMarkers = ["contactInfo:", "downloads:", "passwordManager:", "siteSettings:"];
-  const patcher = patchBrowserDownloadsFeatureGateInFunction(selectorMarkers);
-  const filePath = findFileForPatcher(
-    path.join(recoveredRoot, "webview", "assets"),
-    /^.*\.js$/,
-    selectorMarkers,
-    patcher,
-    "Browser downloads feature selector",
-  );
-
-  return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "enable Electron Browser downloads",
-      [patcher],
-    ),
+  const selectorMarkers = [
+    "featureName:`in_app_browser`",
+    "contactInfo:",
+    "downloads:",
+    "extensions:",
+    "history:",
+    "passwordManager:",
+    "siteSettings:",
   ];
-}
-
-function patchBrowserDownloadsFeatureGateInFunction(markers: string[]): SourcePatcher {
-  return (source) => {
-    const matches = findFunctionRanges(source).filter((range) => {
-      if (!markers.every((marker) => range.body.includes(marker))) {
-        return false;
-      }
-
-      const downloadsStateMatch = range.body.match(
-        new RegExp(String.raw`\bdownloads:(${identifierPattern})\b`),
-      );
-      if (!downloadsStateMatch?.[1]) {
-        return false;
-      }
-
-      const stateIdentifier = downloadsStateMatch[1];
-      return (
-        new RegExp(
-          String.raw`\b${escapeRegExp(stateIdentifier)}=\{enabled:${identifierPattern},isLoading:${identifierPattern}\.isLoading\}`,
-        ).test(range.body) ||
-        new RegExp(
-          String.raw`\b${escapeRegExp(stateIdentifier)}=\{enabled:!0,isLoading:!1\}`,
-        ).test(range.body)
-      );
-    });
+  const patcher: SourcePatcher = (source) => {
+    const matches = [...source.matchAll(browserDownloadsFeatureGateSelectorPattern)];
     if (matches.length === 0) {
       return undefined;
     }
     if (matches.length !== 1) {
       throw new Error(
-        `Expected exactly one Browser download feature selector containing ${markers.join(", ")}, found ${matches.length}.`,
+        `Found ${matches.length} Browser downloads feature selectors; expected exactly one.`,
       );
     }
 
-    const match = matches[0];
-    const downloadsStateMatch = match.body.match(
-      new RegExp(String.raw`\bdownloads:(${identifierPattern})\b`),
-    );
-    if (!downloadsStateMatch?.[1]) {
+    const [match] = matches;
+    if (!match) {
+      return undefined;
+    }
+    const prefix = match[1];
+    const settings = match[2];
+    const sharedState = match[3];
+    const downloadsState = match[4];
+    const extensionsState = match[5];
+    const historyState = match[6];
+    if (
+      !prefix ||
+      !settings ||
+      !sharedState ||
+      !downloadsState ||
+      !extensionsState ||
+      !historyState
+    ) {
       throw new Error("Unable to identify the Browser downloads feature state.");
     }
-
-    const stateIdentifier = downloadsStateMatch[1];
-    const appliedPattern = new RegExp(
-      String.raw`\b${escapeRegExp(stateIdentifier)}=\{enabled:!0,isLoading:!1\}`,
-    );
-    if (appliedPattern.test(match.body)) {
+    if (downloadsState === "{enabled:!0,isLoading:!1}") {
       return { source, status: "already-applied", matcher: "semantic" };
     }
 
-    const targetPattern = new RegExp(
-      String.raw`\b${escapeRegExp(stateIdentifier)}=\{enabled:${identifierPattern},isLoading:${identifierPattern}\.isLoading\}`,
-      "g",
-    );
-    const targets = Array.from(match.body.matchAll(targetPattern));
-    if (targets.length !== 1) {
-      throw new Error(
-        `Expected exactly one Browser downloads feature state target, found ${targets.length}.`,
-      );
-    }
-
-    const target = targets[0];
-    const targetStart = target.index ?? 0;
-    const replacement = `${stateIdentifier}={enabled:!0,isLoading:!1}`;
-    const body =
-      match.body.slice(0, targetStart) +
-      replacement +
-      match.body.slice(targetStart + target[0].length);
-
+    const replacement = `${prefix}${settings}={contactInfo:${sharedState},downloads:{enabled:!0,isLoading:!1},extensions:${extensionsState},history:${historyState},passwordManager:${sharedState},siteSettings:${sharedState}}`;
+    const start = match.index ?? 0;
     return {
-      source:
-        source.slice(0, match.start) +
-        `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}` +
-        source.slice(match.end),
+      source: source.slice(0, start) + replacement + source.slice(start + match[0].length),
       status: "applied",
       matcher: "semantic",
     };
   };
+  const patchName = "enable Electron Browser downloads";
+  const assetsRoot = path.join(recoveredRoot, "webview", "assets");
+  let filePath: string;
+  try {
+    filePath = findFileForPatcher(
+      assetsRoot,
+      /^.*\.js$/,
+      selectorMarkers,
+      patcher,
+      "Browser downloads feature selector",
+    );
+  } catch (error) {
+    const result = {
+      file: toReportPath(recoveredRoot, assetsRoot),
+      name: patchName,
+      status: "failed-required" as const,
+      reason: errorMessage(error),
+    };
+    throw new PatchFailure(result, error);
+  }
+
+  return [
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      patchName,
+      [patcher],
+    ),
+  ];
 }
 
 function patchSidebarProjectsBundle(recoveredRoot: string): PatchResult[] {
