@@ -476,6 +476,35 @@ test("enables Browser downloads in the Electron bundle", () => {
   assert.equal(patch?.status, "already-applied");
 });
 
+test("rejects duplicate Browser downloads selectors even when the first is already applied", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const browserDownloadsPath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "browser-downloads-feature-fixture.js",
+  );
+  const patchedFirstSelector = browserDownloadsFeatureTargets.replace(
+    "downloads:l,extensions:f",
+    "downloads:{enabled:!0,isLoading:!1},extensions:f",
+  );
+  fs.writeFileSync(
+    browserDownloadsPath,
+    `${patchedFirstSelector}${browserDownloadsFeatureTargets}`,
+    "utf8",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  const patch = assertRequiredPatchFailure(
+    result,
+    reportPath,
+    "enable Electron Browser downloads",
+  );
+  assert.match(patch?.reason ?? "", /Found 2 Browser downloads feature selectors/);
+});
+
 test("replaces product text only in JavaScript string and template text", () => {
   const recoveredRoot = createRecoveredFixture();
   const productTextPath = path.join(

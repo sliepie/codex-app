@@ -51,6 +51,7 @@ const realtimeVoiceFeatureGateAppliedPattern = new RegExp(
 );
 const browserDownloadsFeatureGateSelectorPattern = new RegExp(
   String.raw`(featureName:\`in_app_browser\`[\s\S]{0,1024}?)\b(${identifierPattern})=\{contactInfo:(${identifierPattern}),downloads:(\3|\{enabled:!0,isLoading:!1\}),extensions:(${identifierPattern}),history:(${identifierPattern}),passwordManager:\3,siteSettings:\3\}`,
+  "g",
 );
 type SourcePatchResult = {
   source: string;
@@ -1111,11 +1112,20 @@ function patchBrowserDownloadsFeatureGate(recoveredRoot: string): PatchResult[] 
     "siteSettings:",
   ];
   const patcher: SourcePatcher = (source) => {
-    const match = browserDownloadsFeatureGateSelectorPattern.exec(source);
+    const matches = [...source.matchAll(browserDownloadsFeatureGateSelectorPattern)];
+    if (matches.length === 0) {
+      return undefined;
+    }
+    if (matches.length !== 1) {
+      throw new Error(
+        `Found ${matches.length} Browser downloads feature selectors; expected exactly one.`,
+      );
+    }
+
+    const [match] = matches;
     if (!match) {
       return undefined;
     }
-
     const prefix = match[1];
     const settings = match[2];
     const sharedState = match[3];
@@ -1144,19 +1154,32 @@ function patchBrowserDownloadsFeatureGate(recoveredRoot: string): PatchResult[] 
       matcher: "semantic",
     };
   };
-  const filePath = findFileForPatcher(
-    path.join(recoveredRoot, "webview", "assets"),
-    /^.*\.js$/,
-    selectorMarkers,
-    patcher,
-    "Browser downloads feature selector",
-  );
+  const patchName = "enable Electron Browser downloads";
+  const assetsRoot = path.join(recoveredRoot, "webview", "assets");
+  let filePath: string;
+  try {
+    filePath = findFileForPatcher(
+      assetsRoot,
+      /^.*\.js$/,
+      selectorMarkers,
+      patcher,
+      "Browser downloads feature selector",
+    );
+  } catch (error) {
+    const result = {
+      file: toReportPath(recoveredRoot, assetsRoot),
+      name: patchName,
+      status: "failed-required" as const,
+      reason: errorMessage(error),
+    };
+    throw new PatchFailure(result, error);
+  }
 
   return [
     replaceWithPatchers(
       recoveredRoot,
       filePath,
-      "enable Electron Browser downloads",
+      patchName,
       [patcher],
     ),
   ];
