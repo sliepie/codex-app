@@ -1,6 +1,6 @@
 # Codex App Executable Inventory
 
-Date: 2026-08-01
+Date: 2026-08-05
 
 ## Source Artifacts
 
@@ -26,7 +26,7 @@ Date: 2026-08-01
 | --- | --- | --- | --- |
 | App version | Appcast version = `26.623.141536` | package app archive hydrated from `26.623.141536` | Match |
 | Build number | Appcast build = `4753` | package app archive hydrated from build `4753` | Match |
-| Electron | npm registry latest stable checked = `43.0.0` | `desktop/package.json` dependency = `43.0.0` | Match |
+| Electron | npm registry latest stable checked = `43.3.0` | `desktop/package.json` dependency = `43.3.0` | Match |
 | Node REPL helper | Store package `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0` | `resources/cua_node/bin/node_repl.exe` SHA-256 = `aecce799eb7ba6ff7819300aa2b308d1d2f6b24eac437a23244f659f47f4db40` | Store-vendored ARM64 helper |
 | Chrome extension host helper | Store package `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0` | `resources/extension-host.exe` SHA-256 = `40fe6f39c888b393ef4a11bc9278224ef68fcb36f9118546dde5691fa6d174fb` | Store-vendored ARM64 helper |
 | Computer Use helper | Store package `OpenAI.Codex_26.727.6591.0_arm64__2p2nqsd0c76g0` | `resources/codex-computer-use.exe` SHA-256 = `627b317ccfd3c7386a2d5bc4fb4e97ff30e30425945a7a5370006ad89cf3605a` | Explicit x64 exception |
