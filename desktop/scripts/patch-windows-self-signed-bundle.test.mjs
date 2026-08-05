@@ -17,13 +17,13 @@ const patcherPath = path.join(
 const indexFeatureTargets =
   "var YA=[`apps`,`memories`,`plugins`,`tool_call_mcp_elicitation`,`tool_search`,`tool_suggest`,kr];function QA(){J.dispatchMessage(`electron-desktop-features-changed`,{avatarOverlay:n,ambientSuggestions:r,artifactsPane:!0,browserAgent:a.available,browserAgentAvailable:a.available,browserPane:i,computerUse:c.available,computerUseNodeRepl:c.available&&l,control:u,multiWindow:d})}";
 const browserDownloadsFeatureTargets =
-  "function zy(){let r=i(ni,re),f=r.data===!0,p;e[3]!==r.isLoading||e[4]!==f?(p={enabled:f,isLoading:r.isLoading},e[3]=r.isLoading,e[4]=f,e[5]=p):p=e[5];return{contactInfo:d,downloads:p,extensions:g,history:v,passwordManager:d,siteSettings:x}}";
+  "function _Go(e){let t=(0,vGo.c)(15),{hostId:n}=e,r;t[0]===n?r=t[1]:(r={featureName:`in_app_browser`,hostId:n},t[0]=n,t[1]=r);let i=ufi(r),a=ko(vPo,cOe),o=uh(`2177625257`),s=i.enabled&&!i.isLoading,c;t[2]!==i.isLoading||t[3]!==s?(c={enabled:s,isLoading:i.isLoading},t[2]=i.isLoading,t[3]=s,t[4]=c):c=t[4];let l=c,u=l.enabled&&a.data===!0,d=i.isLoading||a.isLoading,f;t[5]!==u||t[6]!==d?(f={enabled:u,isLoading:d},t[5]=u,t[6]=d,t[7]=f):f=t[7];let p=l.enabled&&o,m;t[8]!==i.isLoading||t[9]!==p?(m={enabled:p,isLoading:i.isLoading},t[8]=i.isLoading,t[9]=p,t[10]=m):m=t[10];let h;return t[11]!==l||t[12]!==f||t[13]!==m?(h={contactInfo:l,downloads:l,extensions:f,history:m,passwordManager:l,siteSettings:l},t[11]=l,t[12]=f,t[13]=m,t[14]=h):h=t[14],h}";
 const sidebarPixelTargets =
   "function Sidebar(){let A=C.formatMessage({id:`sidebarElectron.recentChats`,defaultMessage:`Chats`}),rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,className:`-translate-x-px`,itemClassName:`after:block after:h-px after:content-[''] last:after:hidden`,itemWrapper:ke?Tg:void 0,emptyState:(0,$.jsx)(Y,{id:`sidebarElectron.noRecentChats`,defaultMessage:`No chats`,description:`Empty state for projectless chats in the sidebar`}),emptyStateClassName:`text-token-description-foreground p-2 text-base opacity-50`,rowOptions:{hideRemoteHostEnvIcon:!1,showPinActionOnHover:!0,getSectionContextMenuItems:Kt}}),ar=bt?(0,$.jsx)(`div`,{className:`px-row-x`,...ne.sidebarSection({collapsed:At.chats,heading:`Chats`}),children:(0,$.jsx)(Zd,{title:rr})}):null;return[rr,ir,ar]}function Row(){return(0,$.jsx)(L_,{conversationId:N,isAutomationRun:i,hasPendingChildApproval:c,isActive:u,forceLoadingIndicator:t&&l,className:s?`opacity-50`:void 0,rowContentClassName:Dc(t&&(D?`ml-10`:`ml-5`),g&&`pr-3 group-focus-within:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)] group-hover:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)]`),envIconLocation:`end`,dataAttributes:ne.sidebarThreadRow({kind:`local`,title:H})})}function vy(){let C=(0,$.jsx)(`div`,{className:`min-w-0 flex-1`,children:(0,$.jsx)(cn,{triggerButton:(0,$.jsx)(Qd,{icon:b,label:x,onClick:yy,trailing:S,iconClassName:`icon-sm`})})});return C}let settingsLabel={id:`codex.profileFooter.signedInFallback`};";
 const projectsSectionTargets =
   "function Projects(){let u=false;return(0,$.jsx)(ProjectGroups,{label:`sidebarElectron.projectsNavLink`,maxGroups:u?void 0:5,showProjectHoverCard:true,showProjectPinAction:true,maxItems:11,maxThreads:5})}function GenericList(){return{maxGroups:G,maxItems:3,maxThreads:2}}";
 const realtimeVoiceFeatureGateTargets =
-  "function mts(){let e=Rh(`2380644311`),t=Y(jln),n=Y($9n);return e&&t&&!n}";
+  "function $ps(){let e=uh(`2380644311`),t=uh(`1697652030`);return e&&!t}var ems=n((()=>{gh()}));function tms(){let e=$ps(),t=J(iCn),n=J(zdr);return e&&t&&!n}";
 const usageRemainingTargets =
   "function n1l(e){let heading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.heading`,defaultMessage:`Usage remaining`,description:`Rate limit summary heading`}),resets=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.resetsAvailable`,defaultMessage:`# available resets`}),loading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.loading`,defaultMessage:`Loading usage…`,description:`Loading state for the rate limit summary submenu`}),k=(0,u7.jsx)(v,{LeftIcon:E,RightIcon:D,tooltipSide:S,children:O});let A=(0,u7.jsx)(V,{children:heading});return(0,u7.jsx)(y,{trigger:k,children:A})}";
 const usageRemainingCompilerShapeTargets =
@@ -61,7 +61,7 @@ function createRecoveredFixture() {
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "browser-downloads-marker-distractor-fixture.js"),
-    "const browserSettings={contactInfo:d,downloads:p,passwordManager:d,siteSettings:x};",
+    "function browserSettings(){let l={enabled:false,isLoading:false};return{contactInfo:l,downloads:l,extensions:f,history:m,passwordManager:l,siteSettings:l}}",
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "projects-section-fixture.js"),
@@ -253,7 +253,7 @@ test("enables Codex Voice without runtime gates", () => {
     path.join(recoveredRoot, "webview", "assets", "realtime-voice-feature-gate-fixture.js"),
     "utf8",
   );
-  assert.match(bundle, /function mts\(\)\{let e=Rh\(`2380644311`\),t=Y\(jln\),n=Y\(\$9n\);return!0\}/);
+  assert.match(bundle, /function \$ps\(\)\{let e=uh\(`2380644311`\),t=uh\(`1697652030`\);return e&&!t\}var ems=n\(\(\(\)=>\{gh\(\)\}\)\);function tms\(\)\{let e=\$ps\(\),t=J\(iCn\),n=J\(zdr\);return!0\}/);
   assert.doesNotMatch(bundle, /return e&&t&&!n/);
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
@@ -374,7 +374,7 @@ test("accepts benign Codex Voice bundle formatting changes", () => {
   );
   fs.writeFileSync(
     voiceGatePath,
-    "function mts(voice){const e = Rh( `2380644311` ), t=Y(jln), n = Y( $9n ); return e && t && ! n }",
+    "function $ps(){const e = uh( `2380644311` ), t = uh( `1697652030` ); return e && ! t }var ems = n((()=>{gh()}));function tms(){const e=$ps(),t=J(iCn),n=J(zdr);return e&&t&&!n}",
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -395,7 +395,7 @@ test("accepts Codex Voice minifier identifier changes", () => {
   );
   fs.writeFileSync(
     voiceGatePath,
-    "function mts(){let e=kh(`2380644311`),t=Y(Xln),n=Y(yer);return e&&t&&!n}",
+    "function Xln(){let a=kh(`2380644311`),b=kh(`1697652030`);return a&&!b}var $9n=n((()=>{gh()}));function yer(){let a=Xln(),b=Y(jln),c=Y(zer);return a&&b&&!c}",
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -406,7 +406,7 @@ test("accepts Codex Voice minifier identifier changes", () => {
   assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s*!0/);
 });
 
-test("removes account entitlement from a previously rollout-only patched Voice gate", () => {
+test("is idempotent after enabling Codex Voice without runtime gates", () => {
   const recoveredRoot = createRecoveredFixture();
   const voiceGatePath = path.join(
     recoveredRoot,
@@ -416,7 +416,7 @@ test("removes account entitlement from a previously rollout-only patched Voice g
   );
   fs.writeFileSync(
     voiceGatePath,
-    "function mts(){let e=kh(`2380644311`),t=Y(Xln),n=Y(yer);return t&&!n}",
+    "function mts(){let e=kh(`2380644311`),t=kh(`1697652030`);return e&&!t}var $9n=n((()=>{gh()}));function nms(){let e=mts(),t=Y(Xln),n=Y(yer);return!0}",
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -425,27 +425,55 @@ test("removes account entitlement from a previously rollout-only patched Voice g
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s*!0/);
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  const patch = report.patches.find(
+    (candidate) => candidate.name === "enable Codex Voice rollout gate",
+  );
+  assert.equal(patch?.status, "already-applied");
 });
 
 test("enables Browser downloads in the Electron bundle", () => {
   const recoveredRoot = createRecoveredFixture();
+  const browserDownloadsPath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "browser-downloads-feature-fixture.js",
+  );
+  const browserDownloadsSource = fs.readFileSync(browserDownloadsPath, "utf8");
+  const sharedStateObject =
+    "{contactInfo:l,downloads:l,extensions:f,history:m,passwordManager:l,siteSettings:l}";
+  fs.writeFileSync(
+    browserDownloadsPath,
+    `const before=${sharedStateObject};${browserDownloadsSource}const after=${sharedStateObject};`,
+    "utf8",
+  );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
 
   const result = runPatcher(recoveredRoot, reportPath);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const bundle = fs.readFileSync(
-    path.join(recoveredRoot, "webview", "assets", "browser-downloads-feature-fixture.js"),
-    "utf8",
+  const bundle = fs.readFileSync(browserDownloadsPath, "utf8");
+  assert.match(
+    bundle,
+    /h=\{contactInfo:l,downloads:\{enabled:!0,isLoading:!1\},extensions:f,history:m,passwordManager:l,siteSettings:l\}/,
   );
-  assert.match(bundle, /p=\{enabled:!0,isLoading:!1\}/);
-  assert.doesNotMatch(bundle, /p=\{enabled:f,isLoading:r\.isLoading\}/);
+  assert.match(bundle, /const before=\{contactInfo:l,downloads:l,extensions:f,history:m,passwordManager:l,siteSettings:l\}/);
+  assert.match(bundle, /const after=\{contactInfo:l,downloads:l,extensions:f,history:m,passwordManager:l,siteSettings:l\}/);
+  assert.doesNotMatch(bundle, /contactInfo:\{enabled:!0,isLoading:!1\}/);
+  assert.doesNotMatch(bundle, /passwordManager:\{enabled:!0,isLoading:!1\}/);
+
+  const repeatResult = runPatcher(recoveredRoot, reportPath);
+  assert.equal(repeatResult.status, 0, repeatResult.stderr || repeatResult.stdout);
+  const repeatedBundle = fs.readFileSync(browserDownloadsPath, "utf8");
+  assert.match(repeatedBundle, /const before=\{contactInfo:l,downloads:l,extensions:f,history:m,passwordManager:l,siteSettings:l\}/);
+  assert.match(repeatedBundle, /const after=\{contactInfo:l,downloads:l,extensions:f,history:m,passwordManager:l,siteSettings:l\}/);
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   const patch = report.patches.find(
     (candidate) => candidate.name === "enable Electron Browser downloads",
   );
-  assert.equal(patch?.status, "applied");
+  assert.equal(patch?.status, "already-applied");
 });
 
 test("replaces product text only in JavaScript string and template text", () => {
