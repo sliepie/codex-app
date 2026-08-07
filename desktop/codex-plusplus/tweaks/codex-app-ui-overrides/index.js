@@ -217,8 +217,10 @@ const SIDEBAR_PROJECT_ROW_ACTION_DECLARATIONS =
 // descendant, rather than through utility spacing classes.
 const SIDEBAR_PROJECT_ROW_ACTION_GROUP_SELECTOR =
   SIDEBAR_INTERACTIVE_PROJECT_ROW_SELECTORS.map(
-    (selector) => `${selector} > :has(button)`,
+    (selector) => `${selector} > :has(> :not(button) button)`,
   );
+const SIDEBAR_PROJECT_ROW_HOVER_ACTION_GROUP_SELECTOR =
+  `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}:is(:hover,:focus-within) > :has(> :not(button) button)`;
 // The renderer reserves a 24px-wide grid for the native 24px project action
 // button and adds a 2px trailing margin. Keep the button size, but make the
 // logical trailing slot 20px; the button may overflow that slot by design.
@@ -233,6 +235,13 @@ const SIDEBAR_PROJECT_ROW_ACTION_TRAILING_WRAPPER_SELECTOR =
   );
 const SIDEBAR_PROJECT_ROW_ACTION_TRAILING_WRAPPER_DECLARATIONS =
   "width:calc(var(--spacing) * 5)!important;min-width:calc(var(--spacing) * 5)!important;margin-inline-end:calc(var(--spacing) * 0.5)!important;";
+// The renderer's project action helper places the optional status indicator
+// before the button tooltip inside the trailing grid. Hide that indicator on
+// row hover so it cannot compete with or shift the visible action slot.
+const SIDEBAR_PROJECT_ROW_HOVER_STATUS_INDICATOR_SELECTOR =
+  `${SIDEBAR_PROJECT_ROW_HOVER_ACTION_GROUP_SELECTOR} > :has(button):last-child > :not(:has(button)):first-child`;
+const SIDEBAR_PROJECT_ROW_HOVER_STATUS_INDICATOR_DECLARATIONS =
+  "display:none!important;";
 const SIDEBAR_HOVER_ACTION_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;color:var(--color-token-foreground,currentColor)!important;";
 const SIDEBAR_PROJECT_ROW_MENU_SELECTOR =
@@ -255,22 +264,24 @@ const SIDEBAR_PROJECT_ROW_MENU_INSET_DECLARATIONS =
 // and keep Projects, Pinned, Chats, and Tasks expanded. The renderer has emitted
 // both Chats and Recents markers across supported builds.
 const SIDEBAR_SECTION_TITLE_ROW_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"]`;
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] > * > :has([data-app-action-sidebar-section-toggle])`;
 const SIDEBAR_SECTION_TITLE_ROW_OFFSET_DECLARATIONS =
-  "padding-inline-end:0!important;";
+  "padding-inline-end:calc(var(--spacing) * 0.5)!important;";
+const SIDEBAR_SECTION_ACTION_CONTAINER_SELECTOR =
+  `${SIDEBAR_SECTION_TITLE_ROW_SELECTOR} > :nth-child(2):last-child`;
 const SIDEBAR_SECTION_ACTIONS_SELECTOR =
-  `${SIDEBAR_SECTION_TITLE_ROW_SELECTOR} [class~="pointer-events-none"][class~="opacity-0"]`;
+  `${SIDEBAR_SECTION_ACTION_CONTAINER_SELECTOR} > :first-child:has(button)`;
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
   "opacity:1!important;pointer-events:auto!important;";
-const SIDEBAR_SECTION_ACTION_CONTAINER_SELECTOR =
-  `${SIDEBAR_SECTION_TITLE_ROW_SELECTOR} > :has(button)`;
 // Section components render their visible buttons inside titleActions, two
 // wrappers below the generic title row. Apply spacing to that inner owner;
 // changing the outer section container does not affect the button pair.
 const SIDEBAR_SECTION_ACTION_GROUP_SELECTOR =
-  `${SIDEBAR_SECTION_ACTION_CONTAINER_SELECTOR} > :has(button):first-child > :has(button)`;
-const SIDEBAR_SECTION_ACTION_GROUP_DECLARATIONS =
-  SIDEBAR_THREAD_ACTION_GROUP_GAP_DECLARATIONS;
+  `${SIDEBAR_SECTION_ACTION_CONTAINER_SELECTOR} > :first-child:has(button) > :has(button)`;
+// Section buttons are native 24px controls. The 2px trailing inset and zero
+// internal gap move only the trailing centerline left by 2px while preserving
+// the leading icon's alignment with project and chat rows.
+const SIDEBAR_SECTION_ACTION_GROUP_DECLARATIONS = "gap:0!important;";
 const SIDEBAR_RECENT_CHATS_SECTION_MARKER_SELECTOR =
   ':is([data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Recents"])';
 const SIDEBAR_SECTION_CONTENT_SELECTOR =
@@ -604,6 +615,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(
     SIDEBAR_PROJECT_ROW_ACTION_TRAILING_WRAPPER_SELECTOR,
     SIDEBAR_PROJECT_ROW_ACTION_TRAILING_WRAPPER_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_PROJECT_ROW_HOVER_STATUS_INDICATOR_SELECTOR,
+    SIDEBAR_PROJECT_ROW_HOVER_STATUS_INDICATOR_DECLARATIONS,
   ),
   cssRule(SIDEBAR_PROJECT_ROW_ACTION_ICON_SELECTOR, SIDEBAR_HOVER_ACTION_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_MENU_SELECTOR, SIDEBAR_PROJECT_ROW_MENU_DECLARATIONS),
