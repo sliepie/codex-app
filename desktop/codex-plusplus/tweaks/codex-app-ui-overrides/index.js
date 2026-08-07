@@ -253,7 +253,7 @@ const SIDEBAR_PROJECT_ROW_MENU_INSET_DECLARATIONS =
 const SIDEBAR_SECTION_TITLE_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] > * > :has([data-app-action-sidebar-section-toggle])`;
 const SIDEBAR_SECTION_TITLE_ROW_OFFSET_DECLARATIONS =
-  "padding-inline-end:calc(var(--spacing) * 0.5)!important;";
+  "padding-inline-end:0!important;margin-inline-end:-1px!important;";
 const SIDEBAR_SECTION_ACTION_CONTAINER_SELECTOR =
   `${SIDEBAR_SECTION_TITLE_ROW_SELECTOR} > :nth-child(2):last-child`;
 const SIDEBAR_SECTION_ACTIONS_SELECTOR =
@@ -297,8 +297,12 @@ const SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR =
 const SIDEBAR_HEADER_SELECTOR =
   'nav[role="navigation"]>.relative.z-10.flex.shrink-0.flex-col.gap-2 .ms-2.flex.items-center.pe-1';
 const SIDEBAR_NAV_HEADER_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR}>:has([aria-label="Search"],[aria-label^="View activity"])`;
-const SIDEBAR_NAV_HEADER_DECLARATIONS = "gap:5px!important;";
+  'nav[role="navigation"]>:has([aria-label="Search"],[aria-label^="View activity"])';
+// The renderer changes this inherited value from 1px at the top to 16px when
+// sidebar content is scrolled under the header. Keep the native 8px gap at the
+// top and reduce it to 5px only in the scrolled state.
+const SIDEBAR_NAV_HEADER_DECLARATIONS =
+  "gap:calc(8px - clamp(0px,calc(var(--sidebar-scroll-header-fade-distance) - 10px),3px))!important;";
 const SIDEBAR_HEADER_MODE_SELECTOR =
   `${SIDEBAR_HEADER_SELECTOR}>:first-child`;
 const SIDEBAR_HEADER_ACTIONS_SELECTOR =
