@@ -32,6 +32,18 @@ const EMPTY_LOWER_APP_HEADER_SELECTOR =
   `${LOWER_APP_HEADER_SELECTOR}:not(:has([data-testid="app-shell-header-context-menu-surface"]>*)):not(:has(.no-drag.pointer-events-auto))`;
 const NON_SETTINGS_MAIN_SURFACE_SELECTOR =
   "main[data-app-shell-main-surface]:not(:has([data-settings-panel-slug]))";
+const SETTINGS_MAIN_SURFACE_SELECTOR =
+  `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] main[data-app-shell-main-surface="default"]:has([data-settings-panel-slug])`;
+const PROFILE_MAIN_SURFACE_SELECTOR =
+  `${SETTINGS_MAIN_SURFACE_SELECTOR}:has([data-settings-panel-slug="profile"][aria-current="page"])`;
+const SETTINGS_RENDERER_HEADER_SELECTOR =
+  `${SETTINGS_MAIN_SURFACE_SELECTOR} header[data-app-shell-application-menu-bar="false"]`;
+const SETTINGS_CONTENT_LAYOUT_SELECTOR =
+  `${SETTINGS_MAIN_SURFACE_SELECTOR} [data-app-shell-main-content-layout]`;
+const SETTINGS_CONTENT_FRAME_SELECTOR =
+  `${SETTINGS_MAIN_SURFACE_SELECTOR} [data-app-shell-thread-edge-divider]`;
+const PROFILE_ACTION_GROUP_SELECTOR =
+  `${PROFILE_MAIN_SURFACE_SELECTOR} :has(>button[aria-label="Share profile card"])`;
 const EMPTY_LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR =
   `:root[${WINDOWS_MENU_BAR_HIDDEN_ATTRIBUTE}="true"] ${NON_SETTINGS_MAIN_SURFACE_SELECTOR}>${EMPTY_LOWER_APP_HEADER_SELECTOR}`;
 const LEFT_PANEL_SELECTOR = ".app-shell-left-panel";
@@ -62,6 +74,12 @@ const COLLAPSED_NEW_CHAT_HEADER_SLOT_DECLARATIONS =
   "display:none!important;";
 const RIGHT_HEADER_SLOT_DECLARATIONS = "width:0!important;";
 const EMPTY_LOWER_APP_HEADER_DECLARATIONS = "display:none!important;";
+const SETTINGS_RENDERER_HEADER_DECLARATIONS = "display:none!important;";
+const SETTINGS_CONTENT_LAYOUT_DECLARATIONS =
+  "--app-shell-main-content-frame-top-offset:0px!important;";
+const SETTINGS_CONTENT_FRAME_DECLARATIONS = "border-top-width:0!important;";
+const PROFILE_ACTION_GROUP_DECLARATIONS =
+  "padding-inline-end:var(--spacing-token-safe-header-right)!important;";
 const LEFT_PANEL_DECLARATIONS = "margin-top:34px!important;";
 const RIGHT_PANEL_FILL_DECLARATIONS =
   "top:var(--height-toolbar)!important;";
@@ -83,6 +101,19 @@ const STYLE_RULES = [
   ),
   cssRule(WINDOWS_MENU_ROW_HIDDEN_SELECTOR, WINDOWS_MENU_ROW_DECLARATIONS),
   cssRule(LOWER_APP_HEADER_HIDDEN_MENU_SELECTOR, LOWER_APP_HEADER_DECLARATIONS),
+  cssRule(
+    SETTINGS_RENDERER_HEADER_SELECTOR,
+    SETTINGS_RENDERER_HEADER_DECLARATIONS,
+  ),
+  cssRule(
+    SETTINGS_CONTENT_LAYOUT_SELECTOR,
+    SETTINGS_CONTENT_LAYOUT_DECLARATIONS,
+  ),
+  cssRule(
+    SETTINGS_CONTENT_FRAME_SELECTOR,
+    SETTINGS_CONTENT_FRAME_DECLARATIONS,
+  ),
+  cssRule(PROFILE_ACTION_GROUP_SELECTOR, PROFILE_ACTION_GROUP_DECLARATIONS),
   cssRule(
     COLLAPSED_LOWER_APP_HEADER_SELECTOR,
     COLLAPSED_LOWER_APP_HEADER_DECLARATIONS,

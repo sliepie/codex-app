@@ -53,6 +53,12 @@ const SIDEBAR_COMPACT_THREAD_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-thread-row]`;
 const SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS =
   "height:calc(var(--height-token-row) - 4px)!important;";
+const SIDEBAR_TITLE_VERTICAL_ALIGNMENT_SELECTOR = [
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR} [data-thread-title]`,
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row] span.text-fade-truncate.pe-1`,
+];
+const SIDEBAR_TITLE_VERTICAL_ALIGNMENT_DECLARATIONS =
+  "transform:translateY(-1px)!important;";
 // Keep overflowing titles stationary while preserving OAI's native right-edge fade.
 // The renderer now uses data-marquee-* descendants instead of the former
 // data-thread-title-scrolling/data-thread-title-overflowing attributes.
@@ -75,73 +81,82 @@ const SIDEBAR_OTHER_SURFACE_HOVER_SELECTOR = [
 ];
 const SIDEBAR_OTHER_SURFACE_HOVER_DECLARATIONS =
   SIDEBAR_THREAD_ROW_HOVER_DECLARATIONS;
-// Sidebar rich hover cards are body-level portals. Hide that portal for the whole
-// hovered sidebar surface so it cannot flicker between task and project rows, but
-// preserve a rich tooltip opened by keyboard focus outside the sidebar.
-const SIDEBAR_HOVER_CARD_SURFACE_SELECTOR =
-  "[data-app-action-sidebar-scroll]:hover";
-const SIDEBAR_OUTSIDE_FOCUS_VISIBLE_SELECTOR =
-  `:focus-visible:not(${SIDEBAR_ROOT_SELECTOR} *)`;
-const SIDEBAR_HOVER_CARD_SELECTOR =
-  `body:has(${SIDEBAR_HOVER_CARD_SURFACE_SELECTOR}):not(:has(${SIDEBAR_OUTSIDE_FOCUS_VISIBLE_SELECTOR})) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']`;
-// OAI renders pin/archive in an absolute 52px rail. Use the button-bearing selector
-// only to style that rail directly; use the class-only selector inside the row-level
-// :has(), because nesting the button selector's :has() would invalidate the CSS.
+// Project hover cards are body-level rich-tooltip portals. The renderer marks
+// their content with the project summary width/flex classes; hide only that
+// card, without depending on whether the pointer is over the sidebar or portal.
+const SIDEBAR_PROJECT_HOVER_CARD_SELECTOR =
+  "body [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']:has([class~='group/project-hover-card-row'])";
+// Task/chat hover cards use the shared rich-tooltip surface. Their B9l content
+// root has this renderer-owned max-width class; the normal task-row title
+// marker is not present inside the portal card.
+const SIDEBAR_THREAD_HOVER_CARD_SELECTOR =
+  "body [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']:has([class~='max-w-[min(20rem,calc(100vw-16px))]'])";
+// The renderer emits the action rail as a direct semantic wrapper whose direct
+// child owns the action-group gap/visibility and contains the pin/archive
+// buttons. The status rail uses the same direct marker but has no action button.
+// Keep those two renderer variants separate without utility-class identity.
+const SIDEBAR_THREAD_ACTION_BUTTON_SELECTOR =
+  "button.sidebar-hover-icon-button-tint";
+const SIDEBAR_THREAD_ACTION_GROUP_GAP_DECLARATIONS = "gap:6px!important;";
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR =
-  "[class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]']:has(button.sidebar-hover-icon-button-tint)";
-const SIDEBAR_THREAD_ROW_ACTION_RAIL_BOX_SELECTOR =
-  "[class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='w-[52px]'][class~='opacity-0'][class~='group-hover:opacity-100']";
+  `>[data-hover-card-open-immediately]:has(${SIDEBAR_THREAD_ACTION_BUTTON_SELECTOR})>:has(${SIDEBAR_THREAD_ACTION_BUTTON_SELECTOR})`;
 const SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR =
-  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within):has(${SIDEBAR_THREAD_ROW_ACTION_RAIL_BOX_SELECTOR})`;
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within):has(${SIDEBAR_THREAD_ACTION_BUTTON_SELECTOR})`;
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR =
-  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within) ${SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR}`;
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:is(:hover,:focus-within)${SIDEBAR_THREAD_ROW_ACTION_RAIL_PATH_SELECTOR}`;
 const SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS =
-  "opacity:1!important;visibility:visible!important;";
+  `opacity:1!important;visibility:visible!important;${SIDEBAR_THREAD_ACTION_GROUP_GAP_DECLARATIONS}`;
+const SIDEBAR_THREAD_STATUS_RAIL_PATH_SELECTOR =
+  `>[data-hover-card-open-immediately]:not(:has(${SIDEBAR_THREAD_ACTION_BUTTON_SELECTOR}))`;
+const SIDEBAR_THREAD_STATUS_RAIL_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}${SIDEBAR_THREAD_STATUS_RAIL_PATH_SELECTOR}`;
+const SIDEBAR_THREAD_STATUS_RAIL_DECLARATIONS =
+  "gap:var(--spacing)!important;";
 const SIDEBAR_THREAD_ROW_SPACER_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [role='listitem'][class~='after:h-px']:has([data-app-action-sidebar-thread-row])`;
 const SIDEBAR_THREAD_ROW_BORDER_DECLARATIONS =
   "box-sizing:border-box!important;border-bottom:1px solid transparent!important;background-clip:padding-box!important;";
-// The sidebar list renderer wraps each thread row in a Framer Motion
-// overflow-hidden element for archive enter/exit transitions. Force the
-// settled layout values so archiving removes the row without a fade/height
-// animation.
-const SIDEBAR_THREAD_ARCHIVE_MOTION_SELECTOR = [
-  `${SIDEBAR_ROOT_SELECTOR} [class~='overflow-hidden']:has(>[role='listitem'] [data-app-action-sidebar-thread-row])`,
-  `${SIDEBAR_ROOT_SELECTOR} [class~='overflow-hidden']:has(>[data-app-action-sidebar-thread-row])`,
-];
-const SIDEBAR_THREAD_ARCHIVE_MOTION_DECLARATIONS =
-  "height:auto!important;opacity:1!important;overflow:visible!important;transition:none!important;animation:none!important;";
-// Project-local thread rows are additionally wrapped by dnd-kit, which puts
-// an inline transition on the listitem when neighboring rows are removed.
-const SIDEBAR_THREAD_DND_ITEM_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [role='listitem']:has([data-app-action-sidebar-thread-row])`;
-const SIDEBAR_THREAD_DND_ITEM_DECLARATIONS =
-  "transition:none!important;animation:none!important;";
-// Project/connection groups are separate dnd-kit listitems. Their inline
-// transitions make the groups below visibly bounce when one project closes.
+// While a project closes, Q7l leaves its overflow-hidden exit child mounted after
+// the collapsed project row. Match the wrapped hover-card header shape and the
+// direct Fragment shape separately, and suppress dnd-kit transform/transition
+// only on the closing group and following project groups while preserving
+// native project and reorder motion otherwise.
 const SIDEBAR_GROUP_DND_ITEM_SELECTOR = [
-  `${SIDEBAR_ROOT_SELECTOR} [role='listitem'][data-sidebar-project-kind]`,
-  `${SIDEBAR_ROOT_SELECTOR} [role='listitem'][class~='group/cwd']`,
+  `${SIDEBAR_ROOT_SELECTOR} [role='listitem'][class~='group/cwd']:has(> span.contents > [data-app-action-sidebar-project-row][data-app-action-sidebar-project-collapsed='true']):has(> span.contents + [class~='overflow-hidden'])`,
+  `${SIDEBAR_ROOT_SELECTOR} [role='listitem'][class~='group/cwd']:has(> [data-app-action-sidebar-project-row][data-app-action-sidebar-project-collapsed='true'] + [class~='overflow-hidden'])`,
+  `${SIDEBAR_ROOT_SELECTOR} [role='listitem'][class~='group/cwd']:has(> span.contents > [data-app-action-sidebar-project-row][data-app-action-sidebar-project-collapsed='true']):has(> span.contents + [class~='overflow-hidden']) ~ [role='listitem'][class~='group/cwd']`,
+  `${SIDEBAR_ROOT_SELECTOR} [role='listitem'][class~='group/cwd']:has(> [data-app-action-sidebar-project-row][data-app-action-sidebar-project-collapsed='true'] + [class~='overflow-hidden']) ~ [role='listitem'][class~='group/cwd']`,
 ];
 const SIDEBAR_GROUP_DND_ITEM_DECLARATIONS =
-  "transition:none!important;animation:none!important;";
-// Replace the overlapping PR/progress rail with actions, reserve exactly the action
-// width for title fading, and remove OAI's now-hidden variable-width status spacer.
+  "transform:none!important;transition:none!important;";
+// Replace the overlapping PR/progress rail with actions and preserve the same
+// trailing title boundary that the native status rail gets from its spacer.
 const SIDEBAR_THREAD_ROW_FLOATING_STATUS_WITH_ACTIONS_SELECTOR =
-  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}>[data-hover-card-open-immediately][class~='absolute'][class~='right-0'][class~='top-0'][class~='z-10'][class~='h-full'][class~='min-w-[52px]']`;
-const SIDEBAR_THREAD_ROW_ACTION_SLOT_SELECTOR =
-  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}>[class~='flex'][class~='h-full'][class~='w-full'][class~='items-center']>[class~='ml-[3px]'][class~='flex'][class~='items-center'][class~='justify-end'][class~='gap-1']`;
-const SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS =
-  "min-width:52px!important;";
-const SIDEBAR_THREAD_ROW_STATUS_SPACER_WITH_ACTIONS_SELECTOR =
-  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}>[class~='flex'][class~='h-full'][class~='w-full'][class~='items-center']>[class~='shrink-0']:last-child:empty`;
+  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}${SIDEBAR_THREAD_STATUS_RAIL_PATH_SELECTOR}`;
+// The renderer appends its empty status-width spacer to the direct row-content
+// child that owns data-thread-title-trigger. OAI hides it when renderActions is
+// present; keep it visible and fixed at the native 52px action-rail width so the
+// title's existing right-edge mask fades into the row hover surface before the
+// archive/pin buttons begin. The inline width identifies the final empty spacer
+// without depending on its utility classes.
+const SIDEBAR_THREAD_ROW_ACTION_TITLE_SPACER_SELECTOR =
+  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR} > :has([data-thread-title-trigger]) > [style*='width']:last-child:empty`;
+const SIDEBAR_THREAD_ROW_ACTION_TITLE_SPACER_DECLARATIONS =
+  "display:block!important;flex:0 0 52px!important;width:52px!important;min-width:52px!important;";
+// Aligned rows set data-title-aligned-trailing-rail=true and already reserve
+// native trailing space inside the title content. Only unaligned rows without
+// a second direct semantic rail child need the 46px hover-action boundary.
+const SIDEBAR_THREAD_ROW_ACTION_TITLE_NO_STATUS_SELECTOR =
+  `${SIDEBAR_THREAD_ROW_WITH_ACTION_RAIL_SELECTOR}:not([data-title-aligned-trailing-rail='true']):not(:has(>[data-hover-card-open-immediately]~[data-hover-card-open-immediately])) > :has([data-thread-title-trigger])`;
+const SIDEBAR_THREAD_ROW_ACTION_TITLE_NO_STATUS_DECLARATIONS =
+  "padding-inline-end:46px!important;";
 
 // Project rows: compact project headers and nested-list spacing while retaining overflow
 // needed by the native project controls.
 const SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row]`;
 const SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS =
-  "height:calc(var(--height-token-row) - 2px)!important;overflow-y:hidden!important;";
+  "height:calc(var(--height-token-row) - 4px)!important;overflow-y:hidden!important;";
 const SIDEBAR_COMPACT_PROJECT_CONTENT_SELECTOR =
   `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR} [class~="text-base"][class~="py-1"]`;
 const SIDEBAR_COMPACT_PROJECT_CONTENT_DECLARATIONS =
@@ -150,33 +165,12 @@ const SIDEBAR_PROJECT_CONTENT_WITH_SHOW_MORE_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [role='listitem']:has([data-app-action-sidebar-project-row]) [class~='pt-0.5'][class~='pb-2']:has([role='listitem'][class~='flex'][class~='gap-1'][class~='py-1']>button)`;
 const SIDEBAR_PROJECT_CONTENT_WITH_SHOW_MORE_DECLARATIONS =
   "padding-bottom:0!important;";
-// Q7l renders project children in an overflow-hidden Framer Motion wrapper.
-// Keep the expanded layout at its final state; when the verified project-row
-// marker says it is collapsed, remove that wrapper from layout immediately.
-const SIDEBAR_PROJECT_CONTENT_PARENT_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} :is([role='listitem'],[class~='flex'][class~='flex-col']):has(>[data-app-action-sidebar-project-row])`;
-const SIDEBAR_PROJECT_CONTENT_MOTION_SELECTOR =
-  `${SIDEBAR_PROJECT_CONTENT_PARENT_SELECTOR}>[class~='overflow-hidden']:has(>[class~='pt-0.5'][class~='pb-2'])`;
-const SIDEBAR_PROJECT_CONTENT_MOTION_DECLARATIONS =
-  "height:auto!important;opacity:1!important;overflow:visible!important;transition:none!important;animation:none!important;";
-const SIDEBAR_COLLAPSED_PROJECT_CONTENT_MOTION_SELECTOR =
-  `${SIDEBAR_PROJECT_CONTENT_PARENT_SELECTOR}:has(>[data-app-action-sidebar-project-row][data-app-action-sidebar-project-collapsed='true'])>[class~='overflow-hidden']:has(>[class~='pt-0.5'][class~='pb-2'])`;
-const SIDEBAR_COLLAPSED_PROJECT_CONTENT_MOTION_DECLARATIONS =
-  "display:none!important;";
-// Remote/project groups use the same Framer Motion overflow wrapper, but their
-// content only has the pt-0.5 marker. Keep that alternate wrapper settled too.
-const SIDEBAR_GROUP_CONTENT_MOTION_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [class~='overflow-hidden']:has(>[class~='pt-0.5'])`;
-const SIDEBAR_GROUP_CONTENT_MOTION_DECLARATIONS =
-  SIDEBAR_PROJECT_CONTENT_MOTION_DECLARATIONS;
-const SIDEBAR_COLLAPSED_GROUP_CONTENT_MOTION_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [role='listitem']:has(>[role='button'][aria-expanded='false'])>[class~='overflow-hidden']:has(>[class~='pt-0.5'])`;
-const SIDEBAR_COLLAPSED_GROUP_CONTENT_MOTION_DECLARATIONS =
-  SIDEBAR_COLLAPSED_PROJECT_CONTENT_MOTION_DECLARATIONS;
-const SIDEBAR_PROJECT_TITLE_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row] span.text-fade-truncate.pr-1`;
-const SIDEBAR_PROJECT_TITLE_DECLARATIONS =
-  "transform:translateY(-1px)!important;";
+const SIDEBAR_PROJECT_CONTENT_SPACER_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} [role='listitem']:has([data-app-action-sidebar-project-row]) [class~='pt-0.5'][class~='pb-2']`;
+const SIDEBAR_PROJECT_CONTENT_SPACER_DECLARATIONS =
+  "padding-top:0!important;";
+const SIDEBAR_PROJECT_ROW_BORDER_DECLARATIONS =
+  "box-sizing:border-box!important;border-bottom:1px solid transparent!important;background-clip:padding-box!important;";
 const SIDEBAR_NAV_ROW_SHELL_SELECTOR =
   ":is(button,div)[class~='relative'][class~='h-[var(--height-token-row)]'][class~='py-row-y']";
 const SIDEBAR_PRIMARY_NAV_ROW_SELECTOR =
@@ -218,6 +212,27 @@ const SIDEBAR_PROJECT_ROW_ACTION_ICON_SELECTOR =
   SIDEBAR_PROJECT_ROW_ACTION_SELECTOR.map((selector) => `${selector} svg`);
 const SIDEBAR_PROJECT_ROW_ACTION_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;";
+// The project row's direct action group owns the menu and project action
+// button. Identify it through the project-row relationship and its button
+// descendant, rather than through utility spacing classes.
+const SIDEBAR_PROJECT_ROW_ACTION_GROUP_SELECTOR =
+  SIDEBAR_INTERACTIVE_PROJECT_ROW_SELECTORS.map(
+    (selector) => `${selector} > :has(button)`,
+  );
+// The renderer reserves a 24px-wide grid for the native 24px project action
+// button and adds a 2px trailing margin. Keep the button size, but make the
+// logical trailing slot 20px; the button may overflow that slot by design.
+// Combined with the 2px margin and a 4px group gap, this gives the project
+// buttons the same center positions as the chat rail's 20px buttons with a
+// 6px gap.
+const SIDEBAR_PROJECT_ROW_ACTION_GROUP_GAP_DECLARATIONS =
+  "gap:var(--spacing)!important;";
+const SIDEBAR_PROJECT_ROW_ACTION_TRAILING_WRAPPER_SELECTOR =
+  SIDEBAR_PROJECT_ROW_ACTION_GROUP_SELECTOR.map(
+    (selector) => `${selector} > :has(button):last-child`,
+  );
+const SIDEBAR_PROJECT_ROW_ACTION_TRAILING_WRAPPER_DECLARATIONS =
+  "width:calc(var(--spacing) * 5)!important;min-width:calc(var(--spacing) * 5)!important;margin-inline-end:calc(var(--spacing) * 0.5)!important;";
 const SIDEBAR_HOVER_ACTION_ICON_DECLARATIONS =
   "opacity:1!important;visibility:visible!important;color:var(--color-token-foreground,currentColor)!important;";
 const SIDEBAR_PROJECT_ROW_MENU_SELECTOR =
@@ -231,17 +246,31 @@ const SIDEBAR_PROJECT_ROW_MENU_DECLARATIONS =
   "width:auto!important;overflow:visible!important;opacity:1!important;visibility:visible!important;";
 const SIDEBAR_PROJECT_ROW_MENU_INSET_SELECTOR =
   SIDEBAR_PROJECT_ROW_MENU_SELECTOR.map(
-    (selector) => `${selector} [class~='pr-0.5']:has(button[aria-haspopup='menu'])`,
+    (selector) => `${selector} [class~='pe-0.5']:has(button[aria-haspopup='menu'])`,
   );
-const SIDEBAR_PROJECT_ROW_MENU_INSET_DECLARATIONS = "padding-right:0!important;";
+const SIDEBAR_PROJECT_ROW_MENU_INSET_DECLARATIONS =
+  "padding-inline-end:0!important;";
 
 // Section headers: keep header actions visible without applying row hover backgrounds,
 // and keep Projects, Pinned, Chats, and Tasks expanded. The renderer has emitted
 // both Chats and Recents markers across supported builds.
+const SIDEBAR_SECTION_TITLE_ROW_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"]`;
+const SIDEBAR_SECTION_TITLE_ROW_OFFSET_DECLARATIONS =
+  "padding-inline-end:0!important;";
 const SIDEBAR_SECTION_ACTIONS_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] [class~="group/nav-section-title"] [class~="pointer-events-none"][class~="opacity-0"]`;
+  `${SIDEBAR_SECTION_TITLE_ROW_SELECTOR} [class~="pointer-events-none"][class~="opacity-0"]`;
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
   "opacity:1!important;pointer-events:auto!important;";
+const SIDEBAR_SECTION_ACTION_CONTAINER_SELECTOR =
+  `${SIDEBAR_SECTION_TITLE_ROW_SELECTOR} > :has(button)`;
+// Section components render their visible buttons inside titleActions, two
+// wrappers below the generic title row. Apply spacing to that inner owner;
+// changing the outer section container does not affect the button pair.
+const SIDEBAR_SECTION_ACTION_GROUP_SELECTOR =
+  `${SIDEBAR_SECTION_ACTION_CONTAINER_SELECTOR} > :has(button):first-child > :has(button)`;
+const SIDEBAR_SECTION_ACTION_GROUP_DECLARATIONS =
+  SIDEBAR_THREAD_ACTION_GROUP_GAP_DECLARATIONS;
 const SIDEBAR_RECENT_CHATS_SECTION_MARKER_SELECTOR =
   ':is([data-app-action-sidebar-section-heading="Chats"],[data-app-action-sidebar-section-heading="Recents"])';
 const SIDEBAR_SECTION_CONTENT_SELECTOR =
@@ -256,21 +285,6 @@ const SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR =
 const SIDEBAR_OFFSET_SECTION_TITLE_DECLARATIONS = "translate:-1px 0!important;";
 const SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR =
   `${SIDEBAR_SECTION_TOGGLE_SELECTOR}>[class~="opacity-0"]`;
-const SIDEBAR_SECTION_TOGGLE_ICON_TRANSITION_SELECTOR =
-  `${SIDEBAR_SECTION_TOGGLE_SELECTOR} [class~='transition-transform']`;
-const SIDEBAR_SECTION_TOGGLE_ICON_TRANSITION_DECLARATIONS =
-  "transition:none!important;animation:none!important;";
-// Cuu animates the disclosure icon with an inline Framer Motion `rotate` value.
-// Override that inline value per final aria-expanded state so the icon does not
-// visibly rotate while the group content is being expanded or collapsed.
-const SIDEBAR_FOLDER_TOGGLE_MOTION_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} button.sidebar-hover-icon-tint[aria-expanded]>[class~='flex'][class~='items-center']`;
-const SIDEBAR_FOLDER_TOGGLE_MOTION_DECLARATIONS =
-  "rotate:0deg!important;transform:none!important;transition:none!important;animation:none!important;";
-const SIDEBAR_EXPANDED_FOLDER_TOGGLE_ICON_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} button.sidebar-hover-icon-tint[aria-expanded='true']>[class~='flex'][class~='items-center']>svg`;
-const SIDEBAR_EXPANDED_FOLDER_TOGGLE_ICON_DECLARATIONS =
-  "rotate:90deg!important;transform:rotate(90deg)!important;transition:none!important;animation:none!important;";
 const SIDEBAR_HEADER_SELECTOR =
   'nav[role="navigation"]>.relative.z-10.flex.shrink-0.flex-col.gap-2 .ms-2.flex.items-center.pe-1';
 const SIDEBAR_HEADER_MODE_SELECTOR =
@@ -510,6 +524,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(SIDEBAR_PROFILE_TOOLBAR_SELECTOR, SIDEBAR_PROFILE_TOOLBAR_DECLARATIONS),
   cssRule(SIDEBAR_COMPACT_THREAD_ROW_SELECTOR, SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS),
   cssRule(
+    SIDEBAR_TITLE_VERTICAL_ALIGNMENT_SELECTOR,
+    SIDEBAR_TITLE_VERTICAL_ALIGNMENT_DECLARATIONS,
+  ),
+  cssRule(
     SIDEBAR_COMPACT_THREAD_ROW_SELECTOR,
     SIDEBAR_THREAD_ROW_BORDER_DECLARATIONS,
   ),
@@ -530,7 +548,8 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
     SIDEBAR_OTHER_SURFACE_HOVER_SELECTOR,
     SIDEBAR_OTHER_SURFACE_HOVER_DECLARATIONS,
   ),
-  cssRule(SIDEBAR_HOVER_CARD_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(SIDEBAR_PROJECT_HOVER_CARD_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
+  cssRule(SIDEBAR_THREAD_HOVER_CARD_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(
     SIDEBAR_THREAD_ROW_ACTION_RAIL_SELECTOR,
     SIDEBAR_THREAD_ROW_ACTION_RAIL_DECLARATIONS,
@@ -538,14 +557,6 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(
     `${SIDEBAR_THREAD_ROW_SPACER_SELECTOR}::after`,
     HIDDEN_DISPLAY_DECLARATIONS,
-  ),
-  cssRule(
-    SIDEBAR_THREAD_ARCHIVE_MOTION_SELECTOR,
-    SIDEBAR_THREAD_ARCHIVE_MOTION_DECLARATIONS,
-  ),
-  cssRule(
-    SIDEBAR_THREAD_DND_ITEM_SELECTOR,
-    SIDEBAR_THREAD_DND_ITEM_DECLARATIONS,
   ),
   cssRule(
     SIDEBAR_GROUP_DND_ITEM_SELECTOR,
@@ -556,62 +567,61 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
     HIDDEN_DISPLAY_DECLARATIONS,
   ),
   cssRule(
-    SIDEBAR_THREAD_ROW_ACTION_SLOT_SELECTOR,
-    SIDEBAR_THREAD_ROW_ACTION_SLOT_DECLARATIONS,
+    SIDEBAR_THREAD_STATUS_RAIL_SELECTOR,
+    SIDEBAR_THREAD_STATUS_RAIL_DECLARATIONS,
   ),
   cssRule(
-    SIDEBAR_THREAD_ROW_STATUS_SPACER_WITH_ACTIONS_SELECTOR,
-    HIDDEN_DISPLAY_DECLARATIONS,
+    SIDEBAR_THREAD_ROW_ACTION_TITLE_SPACER_SELECTOR,
+    SIDEBAR_THREAD_ROW_ACTION_TITLE_SPACER_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_THREAD_ROW_ACTION_TITLE_NO_STATUS_SELECTOR,
+    SIDEBAR_THREAD_ROW_ACTION_TITLE_NO_STATUS_DECLARATIONS,
   ),
   cssRule(SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR, SIDEBAR_COMPACT_PROJECT_ROW_DECLARATIONS),
+  cssRule(
+    SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR,
+    SIDEBAR_PROJECT_ROW_BORDER_DECLARATIONS,
+  ),
   cssRule(SIDEBAR_COMPACT_PROJECT_CONTENT_SELECTOR, SIDEBAR_COMPACT_PROJECT_CONTENT_DECLARATIONS),
+  cssRule(
+    SIDEBAR_PROJECT_CONTENT_SPACER_SELECTOR,
+    SIDEBAR_PROJECT_CONTENT_SPACER_DECLARATIONS,
+  ),
   cssRule(
     SIDEBAR_PROJECT_CONTENT_WITH_SHOW_MORE_SELECTOR,
     SIDEBAR_PROJECT_CONTENT_WITH_SHOW_MORE_DECLARATIONS,
   ),
-  cssRule(
-    SIDEBAR_PROJECT_CONTENT_MOTION_SELECTOR,
-    SIDEBAR_PROJECT_CONTENT_MOTION_DECLARATIONS,
-  ),
-  cssRule(
-    SIDEBAR_COLLAPSED_PROJECT_CONTENT_MOTION_SELECTOR,
-    SIDEBAR_COLLAPSED_PROJECT_CONTENT_MOTION_DECLARATIONS,
-  ),
-  cssRule(
-    SIDEBAR_GROUP_CONTENT_MOTION_SELECTOR,
-    SIDEBAR_GROUP_CONTENT_MOTION_DECLARATIONS,
-  ),
-  cssRule(
-    SIDEBAR_COLLAPSED_GROUP_CONTENT_MOTION_SELECTOR,
-    SIDEBAR_COLLAPSED_GROUP_CONTENT_MOTION_DECLARATIONS,
-  ),
-  cssRule(SIDEBAR_PROJECT_TITLE_SELECTOR, SIDEBAR_PROJECT_TITLE_DECLARATIONS),
   cssRule(SIDEBAR_NAV_ROW_SELECTOR, SIDEBAR_NAV_ROW_DECLARATIONS),
   cssRule(SIDEBAR_PRIMARY_NAV_ACTION_SELECTOR, SIDEBAR_PRIMARY_NAV_ACTION_DECLARATIONS),
   cssRule(SIDEBAR_NAV_LEADING_ICON_SELECTOR, SIDEBAR_LEADING_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_LEADING_ICON_SELECTOR, SIDEBAR_LEADING_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_ACTION_SELECTOR, SIDEBAR_PROJECT_ROW_ACTION_DECLARATIONS),
+  cssRule(
+    SIDEBAR_PROJECT_ROW_ACTION_GROUP_SELECTOR,
+    SIDEBAR_PROJECT_ROW_ACTION_GROUP_GAP_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_PROJECT_ROW_ACTION_TRAILING_WRAPPER_SELECTOR,
+    SIDEBAR_PROJECT_ROW_ACTION_TRAILING_WRAPPER_DECLARATIONS,
+  ),
   cssRule(SIDEBAR_PROJECT_ROW_ACTION_ICON_SELECTOR, SIDEBAR_HOVER_ACTION_ICON_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_MENU_SELECTOR, SIDEBAR_PROJECT_ROW_MENU_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_MENU_INSET_SELECTOR, SIDEBAR_PROJECT_ROW_MENU_INSET_DECLARATIONS),
   cssRule(SIDEBAR_PROJECT_ROW_MENU_ICON_SELECTOR, SIDEBAR_HOVER_ACTION_ICON_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_ACTIONS_SELECTOR, SIDEBAR_SECTION_ACTIONS_DECLARATIONS),
+  cssRule(
+    SIDEBAR_SECTION_TITLE_ROW_SELECTOR,
+    SIDEBAR_SECTION_TITLE_ROW_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_SECTION_ACTION_GROUP_SELECTOR,
+    SIDEBAR_SECTION_ACTION_GROUP_DECLARATIONS,
+  ),
   cssRule(SIDEBAR_SECTION_CONTENT_SELECTOR, SIDEBAR_SECTION_CONTENT_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_SELECTOR, SIDEBAR_SECTION_TOGGLE_DECLARATIONS),
   cssRule(SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR, SIDEBAR_OFFSET_SECTION_TITLE_DECLARATIONS),
   cssRule(SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
-  cssRule(
-    SIDEBAR_SECTION_TOGGLE_ICON_TRANSITION_SELECTOR,
-    SIDEBAR_SECTION_TOGGLE_ICON_TRANSITION_DECLARATIONS,
-  ),
-  cssRule(
-    SIDEBAR_FOLDER_TOGGLE_MOTION_SELECTOR,
-    SIDEBAR_FOLDER_TOGGLE_MOTION_DECLARATIONS,
-  ),
-  cssRule(
-    SIDEBAR_EXPANDED_FOLDER_TOGGLE_ICON_SELECTOR,
-    SIDEBAR_EXPANDED_FOLDER_TOGGLE_ICON_DECLARATIONS,
-  ),
 ];
 const IMAGE_PREVIEW_STYLE_RULES = [
   cssRule(
@@ -697,7 +707,7 @@ const REMOTE_CONVERSATION_HEADER_STYLE_RULES = [
 
 const SETTINGS_STYLE_RULES = [
   cssRule(
-    "nav:has([data-settings-panel-slug]) .min-h-0.flex-1.overflow-y-auto.pb-2",
+    "nav:has([data-settings-panel-slug]) > div > :has([data-settings-panel-slug])",
     "margin-right:calc(var(--padding-row-x) * -1)!important;padding-right:var(--padding-row-x)!important;padding-bottom:1.25rem!important;",
   ),
 ];
