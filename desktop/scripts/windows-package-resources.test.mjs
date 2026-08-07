@@ -751,6 +751,7 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   assert.match(syncedMain, /windows-accent-color-bridge/);
   assert.match(syncedMain, /getAccentColor/);
   assert.match(syncedMain, /accent-color-changed/);
+  assert.match(syncedMain, /ipcMain\.on\(requestChannel/);
   const syncedPreload = fs.readFileSync(
     path.join(destinationRoot, "runtime", "preload.js"),
     "utf8",
@@ -761,6 +762,8 @@ test("syncs Codex++ runtime assets from a GitHub release source tree", () => {
   assert.match(syncedPreload, /--codex-windows-accent-color/);
   assert.match(syncedPreload, /get-windows-accent-color/);
   assert.match(syncedPreload, /windows-accent-color-changed/);
+  assert.match(syncedPreload, /ipcRenderer\.sendSync\(requestChannel\)/);
+  assert.match(syncedPreload, /appliedInitialAccentColor/);
   assert.equal(
     fs.existsSync(path.join(destinationRoot, "runtime", "native", "codexpp_native_host.node")),
     false,
@@ -779,8 +782,40 @@ test("Codex++ runtime main patch exposes the native Windows accent change stream
   assert.match(updated, /systemPreferences\.getAccentColor/);
   assert.match(updated, /systemPreferences\.on\("accent-color-changed"/);
   assert.match(updated, /ipcMain\.handle\(requestChannel/);
+  assert.match(updated, /ipcMain\.on\(requestChannel/);
+  assert.match(updated, /event\.returnValue = readWindowsAccentColor\(\)/);
   assert.match(updated, /webContents\.getAllWebContents/);
   assert.equal(rewriteCodexPlusPlusRuntimeMain(updated), updated);
+});
+
+test("Codex++ runtime preload reads the Windows accent synchronously before async fallback", () => {
+  const source = `var import_electron4 = require("electron");
+function tryInject() {
+  const itemsGroup = findSidebarItemsGroup();
+  const outer = itemsGroup.parentElement ?? itemsGroup;
+  state.sidebarRoot = outer;
+  if (state.navGroup && outer.contains(state.navGroup)) return;
+  const existingCodexPpNavGroup = outer.querySelector('[data-codexpp="nav-group"]');
+  outer.appendChild(group);
+  plog("nav group injected", { outerTag: outer.tagName });
+}
+function findSidebarItemsGroup() {
+  const candidates = Array.from(document.querySelectorAll("aside,nav,[role='navigation'],div"));
+  return candidates[0] ?? null;
+}
+function isSettingsSidebarCandidate(el) {
+  if (!codexPpVisibleBox(el)) return false;
+  const labels = codexPpSettingsLabelsFrom(el);
+  return isCodexPpSettingsLabelSet(labels);
+}
+`;
+  const updated = rewriteCodexPlusPlusRuntimePreload(source);
+
+  assert.match(updated, /ipcRenderer\.sendSync\(requestChannel\)/);
+  assert.match(updated, /let initialAccentColor = null/);
+  assert.match(updated, /const appliedInitialAccentColor = applyWindowsAccentColor\(initialAccentColor\)/);
+  assert.match(updated, /if \(!appliedInitialAccentColor && ipcRenderer && typeof ipcRenderer\.invoke === "function"\)/);
+  assert.equal(rewriteCodexPlusPlusRuntimePreload(updated), updated);
 });
 
 test("rejects Codex++ runtime assets without the settings surface event contract", () => {

@@ -930,6 +930,11 @@ function codexPlusPlusWindowsAccentColorBridgeSource(
   if (ipcMain && typeof ipcMain.handle === "function") {
     ipcMain.handle(requestChannel, () => readWindowsAccentColor());
   }
+  if (ipcMain && typeof ipcMain.on === "function") {
+    ipcMain.on(requestChannel, (event) => {
+      event.returnValue = readWindowsAccentColor();
+    });
+  }
   if (process.platform === "win32") {
     const systemPreferences = __CODEXPP_ELECTRON_BINDING__.systemPreferences;
     if (systemPreferences && typeof systemPreferences.on === "function") {
@@ -954,10 +959,11 @@ function codexPlusPlusWindowsAccentColorBridgeSource(
   };
   const applyWindowsAccentColor = (value) => {
     const color = normalizeWindowsAccentColor(value);
-    if (!color) return;
+    if (!color) return false;
     globalThis.__codexpp_windows_accent_color__ = color;
     const root = typeof document === "object" ? document.documentElement : null;
     root?.style.setProperty(accentColorProperty, color, "important");
+    return true;
   };
   const ipcRenderer = __CODEXPP_ELECTRON_BINDING__.ipcRenderer;
   if (ipcRenderer && typeof ipcRenderer.on === "function") {
@@ -965,7 +971,16 @@ function codexPlusPlusWindowsAccentColorBridgeSource(
       applyWindowsAccentColor(value);
     });
   }
-  if (ipcRenderer && typeof ipcRenderer.invoke === "function") {
+  let initialAccentColor = null;
+  if (ipcRenderer && typeof ipcRenderer.sendSync === "function") {
+    try {
+      initialAccentColor = ipcRenderer.sendSync(requestChannel);
+    } catch {
+      initialAccentColor = null;
+    }
+  }
+  const appliedInitialAccentColor = applyWindowsAccentColor(initialAccentColor);
+  if (!appliedInitialAccentColor && ipcRenderer && typeof ipcRenderer.invoke === "function") {
     void ipcRenderer.invoke(requestChannel).then(applyWindowsAccentColor).catch(() => {});
   }
   applyWindowsAccentColor(globalThis.__codexpp_windows_accent_color__);
