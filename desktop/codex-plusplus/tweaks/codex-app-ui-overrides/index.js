@@ -296,6 +296,9 @@ const SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR =
   `${SIDEBAR_SECTION_TOGGLE_SELECTOR}>[class~="opacity-0"]`;
 const SIDEBAR_HEADER_SELECTOR =
   'nav[role="navigation"]>.relative.z-10.flex.shrink-0.flex-col.gap-2 .ms-2.flex.items-center.pe-1';
+const SIDEBAR_NAV_HEADER_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR}>:has([aria-label="Search"],[aria-label^="View activity"])`;
+const SIDEBAR_NAV_HEADER_DECLARATIONS = "gap:5px!important;";
 const SIDEBAR_HEADER_MODE_SELECTOR =
   `${SIDEBAR_HEADER_SELECTOR}>:first-child`;
 const SIDEBAR_HEADER_ACTIONS_SELECTOR =
@@ -500,6 +503,10 @@ const BASE_STYLE_RULES = [
   cssRule(
     SIDEBAR_FLOATING_LAYOUT_ROOT_SELECTOR,
     SIDEBAR_LAYOUT_ROOT_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_NAV_HEADER_SELECTOR,
+    SIDEBAR_NAV_HEADER_DECLARATIONS,
   ),
   cssRule(SIDEBAR_HEADER_MODE_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
   cssRule(
