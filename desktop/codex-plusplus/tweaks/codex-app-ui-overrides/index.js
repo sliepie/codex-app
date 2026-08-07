@@ -265,6 +265,14 @@ const SIDEBAR_PROJECT_ROW_MENU_INSET_DECLARATIONS =
 // both Chats and Recents markers across supported builds.
 const SIDEBAR_SECTION_TITLE_ROW_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-section-heading] > * > :has([data-app-action-sidebar-section-toggle])`;
+// The renderer places each section's rows in the sibling content container
+// after its title row. Extend that shared container into the existing scroll
+// client area; keep the row boxes, native hover paint, and scrollbar geometry
+// unchanged.
+const SIDEBAR_SECTION_ROW_CONTENT_SELECTOR =
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-scroll] [data-app-action-sidebar-section-heading] > * > :has([data-app-action-sidebar-section-toggle]) ~ :last-child`;
+const SIDEBAR_SECTION_ROW_CONTENT_DECLARATIONS =
+  "margin-inline-end:-3px!important;";
 const SIDEBAR_SECTION_TITLE_ROW_OFFSET_DECLARATIONS =
   "padding-inline-end:calc(var(--spacing) * 0.5)!important;";
 const SIDEBAR_SECTION_ACTION_CONTAINER_SELECTOR =
@@ -628,6 +636,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(
     SIDEBAR_SECTION_TITLE_ROW_SELECTOR,
     SIDEBAR_SECTION_TITLE_ROW_OFFSET_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_SECTION_ROW_CONTENT_SELECTOR,
+    SIDEBAR_SECTION_ROW_CONTENT_DECLARATIONS,
   ),
   cssRule(
     SIDEBAR_SECTION_ACTION_GROUP_SELECTOR,
