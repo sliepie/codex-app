@@ -207,7 +207,7 @@ const SIDEBAR_PROJECT_ROW_ACTION_GROUP_SELECTOR =
     (selector) => `${selector} > :has(> :not(button) button)`,
   );
 const SIDEBAR_PROJECT_ROW_HOVER_ACTION_GROUP_SELECTOR =
-  `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}:is(:hover,:focus-within) > :has(> :not(button) button)`;
+  `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}:not([data-app-action-sidebar-project-collapsed='true']):is(:hover,:focus-within) > :has(> :not(button) button)`;
 // The renderer reserves a 24px-wide grid for the native 24px project action
 // button and adds a 2px trailing margin. Keep the button size, but make the
 // logical trailing slot 20px; the button may overflow that slot by design.
@@ -223,8 +223,9 @@ const SIDEBAR_PROJECT_ROW_ACTION_TRAILING_WRAPPER_SELECTOR =
 const SIDEBAR_PROJECT_ROW_ACTION_TRAILING_WRAPPER_DECLARATIONS =
   "width:calc(var(--spacing) * 5)!important;min-width:calc(var(--spacing) * 5)!important;margin-inline-end:calc(var(--spacing) * 0.5)!important;";
 // The renderer's project action helper places the optional status indicator
-// before the button tooltip inside the trailing grid. Hide that indicator on
-// row hover so it cannot compete with or shift the visible action slot.
+// before the button tooltip inside the trailing grid. Hide it on expanded-row
+// hover so it cannot compete with or shift the visible action slot. Collapsed
+// projects keep their status indicator as the only useful trailing affordance.
 const SIDEBAR_PROJECT_ROW_HOVER_STATUS_INDICATOR_SELECTOR =
   `${SIDEBAR_PROJECT_ROW_HOVER_ACTION_GROUP_SELECTOR} > :has(button):last-child > :not(:has(button)):first-child`;
 const SIDEBAR_PROJECT_ROW_HOVER_STATUS_INDICATOR_DECLARATIONS =
@@ -298,11 +299,9 @@ const SIDEBAR_HEADER_SELECTOR =
   'nav[role="navigation"]>.relative.z-10.flex.shrink-0.flex-col.gap-2 .ms-2.flex.items-center.pe-1';
 const SIDEBAR_NAV_HEADER_SELECTOR =
   'nav[role="navigation"]>:has([aria-label="Search"],[aria-label^="View activity"])';
-// The renderer changes this inherited value from 1px at the top to 16px when
-// sidebar content is scrolled under the header. Keep the native 8px gap at the
-// top and reduce it to 5px only in the scrolled state.
-const SIDEBAR_NAV_HEADER_DECLARATIONS =
-  "gap:calc(8px - clamp(0px,calc(var(--sidebar-scroll-header-fade-distance) - 10px),3px))!important;";
+// Keep the requested 5px gap stable while the scroll container changes its
+// header-fade state; a scroll-state-dependent gap moves New chat vertically.
+const SIDEBAR_NAV_HEADER_DECLARATIONS = "gap:5px!important;";
 const SIDEBAR_HEADER_MODE_SELECTOR =
   `${SIDEBAR_HEADER_SELECTOR}>:first-child`;
 const SIDEBAR_HEADER_ACTIONS_SELECTOR =
@@ -432,13 +431,24 @@ const COLLAPSED_MAIN_SURFACE_TOP_LEFT_RADIUS_DECLARATIONS =
 // spinner with one centered, theme-aware breathing dot.
 const SIDEBAR_THREAD_ACTIVITY_SELECTOR =
   "[data-app-action-sidebar-thread-row] .animate-spin";
+// Collapsed project headers render the same native spinner inside the action
+// grid, but have no thread-row marker. Match that spinner through the
+// project-row state and action-grid relationships instead of utility classes.
+const SIDEBAR_PROJECT_COLLAPSED_ACTIVITY_SELECTOR =
+  `${SIDEBAR_COMPACT_PROJECT_ROW_SELECTOR}[data-app-action-sidebar-project-collapsed='true'] > :has(> :not(button) button) > :has(button):last-child > :not(:has(button)):first-child :has(> svg)`;
+const SIDEBAR_ROW_ACTIVITY_SELECTOR = [
+  SIDEBAR_THREAD_ACTIVITY_SELECTOR,
+  SIDEBAR_PROJECT_COLLAPSED_ACTIVITY_SELECTOR,
+];
 const SIDEBAR_THREAD_ACTIVITY_DECLARATIONS =
   "animation:none!important;position:relative!important;width:20px!important;height:20px!important;";
-const SIDEBAR_THREAD_ACTIVITY_ICON_SELECTOR =
-  `${SIDEBAR_THREAD_ACTIVITY_SELECTOR}>svg`;
+const SIDEBAR_ROW_ACTIVITY_ICON_SELECTOR = SIDEBAR_ROW_ACTIVITY_SELECTOR.map(
+  (selector) => `${selector}>svg`,
+);
 const SIDEBAR_THREAD_ACTIVITY_ICON_DECLARATIONS = "display:none!important;";
-const SIDEBAR_THREAD_ACTIVITY_DOTS_SELECTOR =
-  `${SIDEBAR_THREAD_ACTIVITY_SELECTOR}::before`;
+const SIDEBAR_ROW_ACTIVITY_DOTS_SELECTOR = SIDEBAR_ROW_ACTIVITY_SELECTOR.map(
+  (selector) => `${selector}::before`,
+);
 const SIDEBAR_THREAD_ACTIVITY_DOTS_DECLARATIONS =
   "content:'';position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:9999px;background:var(--color-token-conversation-body);transform:translate(-50%,-50%) scale(.85);transform-origin:center;animation:codex-app-sidebar-thread-activity-dot 1.6s steps(16,end) infinite alternate;";
 const SIDEBAR_THREAD_ACTIVITY_DOTS_KEYFRAMES =
@@ -464,7 +474,7 @@ const MAIN_SURFACE_CADENCED_SHIMMER_KEYFRAMES =
   "@keyframes codex-app-status-breath{from{opacity:.72}to{opacity:1}}";
 const REDUCED_MOTION_STYLE_RULES = [
   `@media (prefers-reduced-motion: reduce){${cssRule(
-    SIDEBAR_THREAD_ACTIVITY_DOTS_SELECTOR,
+    SIDEBAR_ROW_ACTIVITY_DOTS_SELECTOR,
     "animation:none!important;opacity:1!important;transform:translate(-50%,-50%) scale(1)!important;",
   )}${cssRule(
     [
@@ -697,15 +707,15 @@ const APP_SHELL_STYLE_RULES = [
     FULL_WIDTH_HEADER_CONTEXT_SURFACE_DECLARATIONS,
   ),
   cssRule(
-    SIDEBAR_THREAD_ACTIVITY_SELECTOR,
+    SIDEBAR_ROW_ACTIVITY_SELECTOR,
     SIDEBAR_THREAD_ACTIVITY_DECLARATIONS,
   ),
   cssRule(
-    SIDEBAR_THREAD_ACTIVITY_ICON_SELECTOR,
+    SIDEBAR_ROW_ACTIVITY_ICON_SELECTOR,
     SIDEBAR_THREAD_ACTIVITY_ICON_DECLARATIONS,
   ),
   cssRule(
-    SIDEBAR_THREAD_ACTIVITY_DOTS_SELECTOR,
+    SIDEBAR_ROW_ACTIVITY_DOTS_SELECTOR,
     SIDEBAR_THREAD_ACTIVITY_DOTS_DECLARATIONS,
   ),
   SIDEBAR_THREAD_ACTIVITY_DOTS_KEYFRAMES,
