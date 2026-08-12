@@ -795,6 +795,75 @@ function patchSidebarProjectLimit(): SourcePatcher {
   };
 }
 
+function patchSidebarProjectCollapseAnimation(): SourcePatcher {
+  const markers = [
+    "shouldAnimateGroups",
+    "showProjectHoverCard",
+    "projectHeaderMenuKind",
+    "data-sidebar-project-kind",
+  ];
+  const targetPattern = new RegExp(
+    String.raw`shouldAnimate:(${identifierPattern})(?=,children:)`,
+    "g",
+  );
+  const appliedPattern = new RegExp(
+    String.raw`shouldAnimate:!1(?=,children:)`,
+  );
+
+  return (source) => {
+    const matches = findFunctionRanges(source).filter((range) =>
+      markers.every((marker) => range.body.includes(marker)),
+    );
+    if (matches.length === 0) {
+      return undefined;
+    }
+    if (matches.length !== 1) {
+      throw new Error(
+        `Expected exactly one sidebar project group function containing ${markers.join(", ")}, found ${matches.length}.`,
+      );
+    }
+
+    const match = matches[0];
+    const targets = Array.from(match.body.matchAll(targetPattern));
+    const alreadyApplied = appliedPattern.test(match.body);
+    if (targets.length === 0 && alreadyApplied) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+    if (targets.length !== 1) {
+      throw new Error(
+        `Expected exactly one sidebar project collapse animation target, found ${targets.length}.`,
+      );
+    }
+    if (alreadyApplied) {
+      throw new Error("Sidebar project collapse animation contains mixed patched and unpatched targets.");
+    }
+
+    const target = targets[0];
+    const targetIndex = target?.index;
+    if (targetIndex === undefined) {
+      throw new Error("Unable to identify the sidebar project collapse animation target.");
+    }
+
+    const replacement = target[0].replace(/:[A-Za-z_$][\w$]*/, ":!1");
+    if (replacement === target[0]) {
+      throw new Error("Sidebar project collapse animation postcondition failed.");
+    }
+
+    const body =
+      match.body.slice(0, targetIndex) +
+      replacement +
+      match.body.slice(targetIndex + target[0].length);
+    return {
+      source:
+        source.slice(0, match.start) +
+        `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}` +
+        source.slice(match.end),
+      status: "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
 function replaceWithPatchers(
   recoveredRoot: string,
   filePath: string,
@@ -1204,6 +1273,12 @@ function patchSidebarProjectsBundle(recoveredRoot: string): PatchResult[] {
       filePath,
       "raise sidebar project limit",
       [patchSidebarProjectLimit()],
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "disable sidebar project collapse animation",
+      [patchSidebarProjectCollapseAnimation()],
     ),
   ];
 }

@@ -112,6 +112,12 @@ const SIDEBAR_THREAD_STATUS_RAIL_SELECTOR =
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}${SIDEBAR_THREAD_STATUS_RAIL_PATH_SELECTOR}`;
 const SIDEBAR_THREAD_STATUS_RAIL_DECLARATIONS =
   "gap:var(--spacing)!important;";
+// OAI hides the entire 24px inline-badge flex item on hover. Preserve its
+// layout slot so rows with a PR or status badge do not resize their title.
+const SIDEBAR_THREAD_INLINE_BADGE_ON_HOVER_SELECTOR =
+  `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR}:hover [data-thread-title-trigger] ~ :has(>[data-hover-card-open-immediately])`;
+const SIDEBAR_THREAD_INLINE_BADGE_ON_HOVER_DECLARATIONS =
+  "display:flex!important;visibility:hidden!important;";
 const SIDEBAR_THREAD_ROW_SPACER_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [role='listitem'][class~='after:h-px']:has([data-app-action-sidebar-thread-row])`;
 const SIDEBAR_THREAD_ROW_BORDER_DECLARATIONS =
@@ -619,6 +625,10 @@ const SIDEBAR_SCROLL_STYLE_RULES = [
   cssRule(
     SIDEBAR_THREAD_STATUS_RAIL_SELECTOR,
     SIDEBAR_THREAD_STATUS_RAIL_DECLARATIONS,
+  ),
+  cssRule(
+    SIDEBAR_THREAD_INLINE_BADGE_ON_HOVER_SELECTOR,
+    SIDEBAR_THREAD_INLINE_BADGE_ON_HOVER_DECLARATIONS,
   ),
   cssRule(
     SIDEBAR_THREAD_ROW_ACTION_TITLE_SPACER_SELECTOR,
