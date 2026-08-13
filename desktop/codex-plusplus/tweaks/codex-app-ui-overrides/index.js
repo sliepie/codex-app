@@ -86,11 +86,12 @@ const SIDEBAR_OTHER_SURFACE_HOVER_DECLARATIONS =
 // delayed-open to its role=button trigger; relate that trigger to the portal
 // instead of using the portal content's utility classes as identity.
 const SIDEBAR_PROJECT_HOVER_CARD_SELECTOR =
-  "body:has([data-sidebar-project-kind][role='listitem'] > [data-state='delayed-open'][role='button']) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']";
-// Task/chat hover cards use the shared rich-tooltip surface. The renderer marks
-// the open task-row trigger with data-state=delayed-open and
-// data-thread-title-trigger; relate that trigger to the body-level portal
-// instead of using the portal's responsive sizing utility as identity.
+  "body:has([data-sidebar-project-kind][role='listitem'] > [data-state='delayed-open'] > [role='button']) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']";
+// Task/chat hover cards use the shared rich-tooltip surface. The renderer
+// clones the task-row root (the role=button element) with
+// data-state=delayed-open; relate that root to the body-level portal through
+// its data-thread-title-trigger descendant instead of using the portal's
+// responsive sizing utility as identity.
 const SIDEBAR_THREAD_HOVER_CARD_SELECTOR =
   "body:has([data-state='delayed-open'][role='button'] [data-thread-title-trigger]) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']";
 // The renderer emits the action rail as a direct semantic wrapper whose direct
@@ -303,10 +304,13 @@ const SIDEBAR_OFFSET_SECTION_TITLE_SELECTOR =
 const SIDEBAR_OFFSET_SECTION_TITLE_DECLARATIONS = "translate:-1px 0!important;";
 const SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR =
   `${SIDEBAR_SECTION_TOGGLE_SELECTOR}>[class~="opacity-0"]`;
-const SIDEBAR_HEADER_SELECTOR =
-  'nav[role="navigation"]>.relative.z-10.flex.shrink-0.flex-col.gap-2 .ms-2.flex.items-center.pe-1';
+// The renderer emits the header as the first direct child of its navigation;
+// its first child owns the mode switch and fixed toolbar group. Keep this
+// source-backed relationship independent of the header's layout utilities.
 const SIDEBAR_NAV_HEADER_SELECTOR =
-  'nav[role="navigation"]>:has([aria-label="Search"],[aria-label^="View activity"])';
+  'nav[role="navigation"]>:first-child';
+const SIDEBAR_HEADER_SELECTOR =
+  `${SIDEBAR_NAV_HEADER_SELECTOR}>:first-child`;
 // Keep the requested 5px gap stable while the scroll container changes its
 // header-fade state; a scroll-state-dependent gap moves New chat vertically.
 const SIDEBAR_NAV_HEADER_DECLARATIONS = "gap:5px!important;";
@@ -361,10 +365,11 @@ const SIDEBAR_ACTIVITY_ACTIVE_BUTTON_SELECTOR =
   `${SIDEBAR_ACTIVITY_BUTTON_SELECTOR}[aria-pressed="true"]`;
 const SIDEBAR_ACTIVITY_ACTIVE_BUTTON_DECLARATIONS =
   "background-color:transparent!important;border-color:transparent!important;color:var(--color-token-text-tertiary)!important;box-shadow:none!important;outline:none!important;";
-// The native sidebar wrapper contains the header actions, but its layout and
-// stacking boundaries otherwise trap the fixed actions inside the sidebar.
+// The native app-shell child that owns the navigation contains the header
+// actions, but its layout and stacking boundaries otherwise trap fixed actions
+// inside the sidebar. Anchor it through the source-backed nav relationship.
 const SIDEBAR_LAYOUT_ROOT_SELECTOR =
-  '.app-shell-left-panel div.select-none.box-border.flex.h-full.w-full.isolate.flex-col[class*="[contain:layout_paint]"]:has(>div>nav[role="navigation"])';
+  '.app-shell-left-panel > :has(>div>nav[role="navigation"])';
 const SIDEBAR_LAYOUT_ROOT_DECLARATIONS =
   "contain:none!important;";
 const SIDEBAR_SCROLL_SELECTOR =
@@ -375,7 +380,7 @@ const SIDEBAR_LEFT_PANEL_SELECTOR = ".app-shell-left-panel";
 const SIDEBAR_FLOATING_PANEL_SELECTOR =
   '[data-pip-obstacle="app-shell-floating-left-panel"]';
 const SIDEBAR_FLOATING_LAYOUT_ROOT_SELECTOR =
-  `${SIDEBAR_FLOATING_PANEL_SELECTOR} div.select-none.box-border.flex.h-full.w-full.isolate.flex-col[class*="[contain:layout_paint]"]:has(>div>nav[role="navigation"])`;
+  `${SIDEBAR_FLOATING_PANEL_SELECTOR} > aside > div > :has(>div>nav[role="navigation"])`;
 const SIDEBAR_FLOATING_PANEL_DECLARATIONS =
   "top:calc(var(--height-toolbar) + 0.5px)!important;";
 const SIDEBAR_FLOATING_PANEL_ASIDE_SELECTOR =
