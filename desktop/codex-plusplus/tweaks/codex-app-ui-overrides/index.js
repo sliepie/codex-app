@@ -321,7 +321,7 @@ const SIDEBAR_SECTION_TOGGLE_ICON_SELECTOR =
 // its first child owns the mode switch and fixed toolbar group. Keep this
 // source-backed relationship independent of the header's layout utilities.
 const SIDEBAR_NAV_HEADER_SELECTOR =
-  'nav[role="navigation"]>:first-child';
+  `${SIDEBAR_ROOT_SELECTOR}:is(nav[role="navigation"])>:first-child`;
 const SIDEBAR_HEADER_SELECTOR =
   `${SIDEBAR_NAV_HEADER_SELECTOR}>:first-child`;
 // Keep the requested 5px gap stable while the scroll container changes its
