@@ -82,10 +82,11 @@ const SIDEBAR_OTHER_SURFACE_HOVER_SELECTOR = [
 const SIDEBAR_OTHER_SURFACE_HOVER_DECLARATIONS =
   SIDEBAR_THREAD_ROW_HOVER_DECLARATIONS;
 // Project hover cards are body-level rich-tooltip portals. The renderer marks
-// their content with the project summary width/flex classes; hide only that
-// card, without depending on whether the pointer is over the sidebar or portal.
+// the project row with data-sidebar-project-kind and adds data-state=
+// delayed-open to its role=button trigger; relate that trigger to the portal
+// instead of using the portal content's utility classes as identity.
 const SIDEBAR_PROJECT_HOVER_CARD_SELECTOR =
-  "body [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']:has([class~='group/project-hover-card-row'])";
+  "body:has([data-sidebar-project-kind][role='listitem'] > [data-state='delayed-open'][role='button']) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']";
 // Task/chat hover cards use the shared rich-tooltip surface. The renderer marks
 // the open task-row trigger with data-state=delayed-open and
 // data-thread-title-trigger; relate that trigger to the body-level portal
