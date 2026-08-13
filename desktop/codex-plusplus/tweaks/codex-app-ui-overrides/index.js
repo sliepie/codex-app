@@ -86,11 +86,12 @@ const SIDEBAR_OTHER_SURFACE_HOVER_DECLARATIONS =
 // card, without depending on whether the pointer is over the sidebar or portal.
 const SIDEBAR_PROJECT_HOVER_CARD_SELECTOR =
   "body [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']:has([class~='group/project-hover-card-row'])";
-// Task/chat hover cards use the shared rich-tooltip surface. Their B9l content
-// root has this renderer-owned max-width class; the normal task-row title
-// marker is not present inside the portal card.
+// Task/chat hover cards use the shared rich-tooltip surface. The renderer marks
+// the open task-row trigger with data-state=delayed-open and
+// data-thread-title-trigger; relate that trigger to the body-level portal
+// instead of using the portal's responsive sizing utility as identity.
 const SIDEBAR_THREAD_HOVER_CARD_SELECTOR =
-  "body [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']:has([class~='max-w-[min(20rem,calc(100vw-16px))]'])";
+  "body:has([data-state='delayed-open'][role='button'] [data-thread-title-trigger]) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']";
 // The renderer emits the action rail as a direct semantic wrapper whose direct
 // child owns the action-group gap/visibility and contains the pin/archive
 // buttons. The status rail uses the same direct marker but has no action button.
