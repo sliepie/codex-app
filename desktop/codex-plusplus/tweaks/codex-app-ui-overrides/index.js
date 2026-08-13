@@ -94,15 +94,17 @@ const SIDEBAR_OTHER_SURFACE_HOVER_DECLARATIONS =
 // the project row with data-sidebar-project-kind and adds data-state=
 // delayed-open to its role=button trigger; relate that trigger to the portal
 // instead of using the portal content's utility classes as identity.
+const SIDEBAR_OUTSIDE_FOCUS_VISIBLE_SELECTOR =
+  `:focus-visible:not(${SIDEBAR_ROOT_SELECTOR} *)`;
 const SIDEBAR_PROJECT_HOVER_CARD_SELECTOR =
-  "body:has([data-sidebar-project-kind][role='listitem'] > [data-state='delayed-open'] > [role='button']) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']";
+  `body:has([data-sidebar-project-kind][role='listitem'] > [data-state='delayed-open'] > [role='button']):not(:has(${SIDEBAR_OUTSIDE_FOCUS_VISIBLE_SELECTOR})) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']`;
 // Task/chat hover cards use the shared rich-tooltip surface. The renderer
 // clones the task-row root (the role=button element) with
 // data-state=delayed-open; relate that root to the body-level portal through
 // its data-thread-title-trigger descendant instead of using the portal's
 // responsive sizing utility as identity.
 const SIDEBAR_THREAD_HOVER_CARD_SELECTOR =
-  "body:has([data-state='delayed-open'][role='button'] [data-thread-title-trigger]) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']";
+  `body:has([data-state='delayed-open'][role='button'] [data-thread-title-trigger]):not(:has(${SIDEBAR_OUTSIDE_FOCUS_VISIBLE_SELECTOR})) [role='tooltip'][class~='rounded-xl'][class~='backdrop-blur-sm']`;
 // The renderer emits the action rail as a direct semantic wrapper whose direct
 // child owns the action-group gap/visibility and contains the pin/archive
 // buttons. The status rail uses the same direct marker but has no action button.
