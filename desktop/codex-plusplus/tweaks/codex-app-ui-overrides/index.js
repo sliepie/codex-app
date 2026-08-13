@@ -43,6 +43,15 @@ const PROFILE_MENU_SELECTOR =
 const PROFILE_MENU_DECLARATIONS =
   "width:calc(var(--radix-dropdown-menu-trigger-width,var(--radix-popper-anchor-width)) - 2px)!important;";
 
+// The settings preload marks injected groups with data-codexpp. Keep native
+// flex spacers from separating those groups from the settings navigation.
+const CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR =
+  ':where(aside,nav,[role="navigation"],div):has(>[data-codexpp="nav-group"])';
+const CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS = [
+  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~="flex-1"]`,
+  `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~="grow"]`,
+];
+
 // Sidebar task rows: compact every task row and vertically center its title in Projects,
 // Pinned, and Chats without changing the native selected-row background.
 const SIDEBAR_ROOT_SELECTOR =
@@ -161,8 +170,10 @@ const SIDEBAR_PROJECT_CONTENT_WITH_SHOW_MORE_SELECTOR =
   `${SIDEBAR_ROOT_SELECTOR} [role='listitem']:has([data-app-action-sidebar-project-row]) [class~='pt-0.5'][class~='pb-2']:has([role='listitem'][class~='flex'][class~='gap-1'][class~='py-1']>button)`;
 const SIDEBAR_PROJECT_CONTENT_WITH_SHOW_MORE_DECLARATIONS =
   "padding-bottom:0!important;";
+// BWc emits the project row immediately before its content transition wrapper;
+// reset that wrapper's first child without identifying it by padding utilities.
 const SIDEBAR_PROJECT_CONTENT_SPACER_SELECTOR =
-  `${SIDEBAR_ROOT_SELECTOR} [role='listitem']:has([data-app-action-sidebar-project-row]) [class~='pt-0.5'][class~='pb-2']`;
+  `${SIDEBAR_ROOT_SELECTOR} [role='listitem']:has(> [data-app-action-sidebar-project-row]) > [data-app-action-sidebar-project-row] + :last-child > :first-child`;
 const SIDEBAR_PROJECT_CONTENT_SPACER_DECLARATIONS =
   "padding-top:0!important;";
 const SIDEBAR_PROJECT_ROW_BORDER_DECLARATIONS =
@@ -783,6 +794,25 @@ const SETTINGS_STYLE_RULES = [
   ),
 ];
 
+const CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES = [
+  cssRule(
+    CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR,
+    "justify-content:flex-start!important;",
+  ),
+  cssRule(
+    CODEX_PLUSPLUS_SETTINGS_NAV_SPACER_SELECTORS,
+    "flex:0 0 auto!important;",
+  ),
+  cssRule(
+    `${CODEX_PLUSPLUS_SETTINGS_NAV_ROOT_SELECTOR}>[class~="mt-auto"]`,
+    "margin-top:0!important;",
+  ),
+  cssRule(
+    '[data-codexpp="nav-group"],[data-codexpp="pages-group"]',
+    "flex:0 0 auto!important;margin-top:0!important;",
+  ),
+];
+
 const SIDEBAR_FOOTER_STYLE_RULES = [
   cssRule(SIDEBAR_HELP_BUTTON_SELECTOR, HIDDEN_DISPLAY_DECLARATIONS),
 ];
@@ -813,6 +843,7 @@ const STYLE_RULES = [
   ...IMAGE_PREVIEW_STYLE_RULES,
   ...REMOTE_CONVERSATION_HEADER_STYLE_RULES,
   ...SETTINGS_STYLE_RULES,
+  ...CODEX_PLUSPLUS_SETTINGS_NAV_STYLE_RULES,
   ...SIDEBAR_FOOTER_STYLE_RULES,
   ...USAGE_MENU_STYLE_RULES,
   ...REDUCED_MOTION_STYLE_RULES,
