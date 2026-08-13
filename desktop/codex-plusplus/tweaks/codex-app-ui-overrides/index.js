@@ -64,7 +64,7 @@ const SIDEBAR_COMPACT_THREAD_ROW_DECLARATIONS =
   "height:calc(var(--height-token-row) - 4px)!important;";
 const SIDEBAR_TITLE_VERTICAL_ALIGNMENT_SELECTOR = [
   `${SIDEBAR_COMPACT_THREAD_ROW_SELECTOR} [data-thread-title]`,
-  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row] span.text-fade-truncate.pe-1`,
+  `${SIDEBAR_ROOT_SELECTOR} [data-app-action-sidebar-project-row] [data-sidebar-project-drop-zone='project-icon'] + div > :first-child > :first-child > :first-child`,
 ];
 const SIDEBAR_TITLE_VERTICAL_ALIGNMENT_DECLARATIONS =
   "transform:translateY(-1px)!important;";
