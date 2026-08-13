@@ -208,6 +208,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets/realtime-voice-feature-gate-fixture.js",
       "webview/assets/browser-downloads-feature-fixture.js",
       "webview/assets/projects-section-fixture.js",
+      "webview/assets/projects-section-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/browser-runtime-relocation-fixture.js",
       ".vite/build/primary-runtime-installer-fixture.js",
