@@ -269,7 +269,7 @@ const SIDEBAR_SECTION_ACTION_CONTAINER_SELECTOR =
 const SIDEBAR_SECTION_ACTIONS_SELECTOR =
   `${SIDEBAR_SECTION_ACTION_CONTAINER_SELECTOR} > :first-child:has(button)`;
 const SIDEBAR_SECTION_ACTIONS_DECLARATIONS =
-  "opacity:1!important;pointer-events:auto!important;";
+  "opacity:1!important;pointer-events:auto!important;margin-inline-end:3px!important;";
 // Section components render their visible buttons inside titleActions, two
 // wrappers below the generic title row. Apply spacing to that inner owner;
 // changing the outer section container does not affect the button pair.
@@ -369,7 +369,7 @@ const SIDEBAR_ACTIVITY_ACTIVE_BUTTON_DECLARATIONS =
 // actions, but its layout and stacking boundaries otherwise trap fixed actions
 // inside the sidebar. Anchor it through the source-backed nav relationship.
 const SIDEBAR_LAYOUT_ROOT_SELECTOR =
-  '.app-shell-left-panel > :has(>div>nav[role="navigation"])';
+  '.app-shell-left-panel > * > :has(>div>nav[role="navigation"])';
 const SIDEBAR_LAYOUT_ROOT_DECLARATIONS =
   "contain:none!important;";
 const SIDEBAR_SCROLL_SELECTOR =
