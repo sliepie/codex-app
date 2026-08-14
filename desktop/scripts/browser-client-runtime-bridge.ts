@@ -6,7 +6,7 @@ export const browserClientRuntimeBridgeSource = [
   'import { createRequire } from "node:module";',
   "",
   "const require = createRequire(import.meta.url);",
-  'const { ClassicLevel } = require("./classic-level/index.js");',
+  'const { ClassicLevel } = require("../../node_modules/classic-level/index.js");',
   "",
   "export { ClassicLevel };",
   "",

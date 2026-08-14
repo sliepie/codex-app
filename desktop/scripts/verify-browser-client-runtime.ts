@@ -429,7 +429,6 @@ export async function verifyBrowserClientRuntime({
 
   const classicLevelRoot = path.join(
     browserPluginRoot,
-    "scripts",
     "node_modules",
     classicLevelPackageName,
   );
