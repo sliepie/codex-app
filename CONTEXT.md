@@ -61,6 +61,7 @@ A CSS selector shipped by a bundled Codex++ tweak under `desktop/codex-plusplus/
 - **Codex CLI Windows resources** are hydrated from `@openai/codex@latest` and its `win32-arm64` optional package. npm supplies `codex.exe`, `codex-code-mode-host.exe`, the Windows helper binaries, and `rg.exe` from one verified package.
 - The **Windows ARM64 package plan** is the only CI entry point for the ordered Windows ARM64 package flow.
 - A **Windows ARM64 package** follows the **Latest official app release** from the production appcast when no exact upstream version and build are requested.
+- The Windows ARM64 packaging path supports the **Latest official app release** and its current upstream resource layout only. Historical app releases and legacy Browser plugin layouts are out of scope; do not add compatibility fallbacks for them.
 - Release artifacts identify the selected official app release by upstream version and build.
 - A **Bundled UI tweak selector** must reuse existing stable app markers when scoping app surfaces. Do not add new direct `data-*` markers only to support tweak CSS; instead, bound selectors to existing app-owned markers and container roles.
 
