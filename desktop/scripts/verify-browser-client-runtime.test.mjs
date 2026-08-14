@@ -43,7 +43,6 @@ function createDesktopFixture({
   );
   const classicLevelRoot = path.join(
     browserPluginRoot,
-    "scripts",
     "node_modules",
     "classic-level",
   );
@@ -78,7 +77,7 @@ function createDesktopFixture({
   if (includeClassicLevelBridge) {
     writeFixture(
       path.join(browserPluginRoot, "scripts", "node_modules", "classic-level.mjs"),
-      'export { ClassicLevel } from "./classic-level/index.js";\n',
+      'export { ClassicLevel } from "../../node_modules/classic-level/index.js";\n',
     );
   }
   writeFixture(
