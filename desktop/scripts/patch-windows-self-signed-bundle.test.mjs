@@ -23,7 +23,7 @@ const sidebarPixelTargets =
 const projectsSectionTargets =
   "function Projects(){let u=false;return(0,$.jsx)(ProjectGroups,{label:`sidebarElectron.projectsNavLink`,maxGroups:u?void 0:5,showProjectHoverCard:true,showProjectPinAction:true,maxItems:11,maxThreads:5})}function GenericList(){return{maxGroups:G,maxItems:3,maxThreads:2}}";
 const realtimeVoiceFeatureGateTargets =
-  "function $ps(){let e=uh(`2380644311`),t=uh(`1697652030`);return e&&!t}var ems=n((()=>{gh()}));function tms(){let e=$ps(),t=J(iCn),n=J(zdr);return e&&t&&!n}";
+  "function XJs(){let e=jx(`2380644311`),t=jx(`1697652030`);return e&&!t}var ZJs=n((()=>{Lx()}));function QJs(){let e=XJs(),t=Y(Y(fy)?oy:ay),n=Y(fXt),r=Y(Q9t);return e&&t&&n&&!r}";
 const usageRemainingTargets =
   "function n1l(e){let heading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.heading`,defaultMessage:`Usage remaining`,description:`Rate limit summary heading`}),resets=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.resetsAvailable`,defaultMessage:`# available resets`}),loading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.loading`,defaultMessage:`Loading usage…`,description:`Loading state for the rate limit summary submenu`}),k=(0,u7.jsx)(v,{LeftIcon:E,RightIcon:D,tooltipSide:S,children:O});let A=(0,u7.jsx)(V,{children:heading});return(0,u7.jsx)(y,{trigger:k,children:A})}";
 const usageRemainingCompilerShapeTargets =
@@ -253,7 +253,7 @@ test("enables Codex Voice without runtime gates", () => {
     path.join(recoveredRoot, "webview", "assets", "realtime-voice-feature-gate-fixture.js"),
     "utf8",
   );
-  assert.match(bundle, /function \$ps\(\)\{let e=uh\(`2380644311`\),t=uh\(`1697652030`\);return e&&!t\}var ems=n\(\(\(\)=>\{gh\(\)\}\)\);function tms\(\)\{let e=\$ps\(\),t=J\(iCn\),n=J\(zdr\);return!0\}/);
+  assert.match(bundle, /function QJs\(\)\{let e=XJs\(\),t=Y\(Y\(fy\)\?oy:ay\),n=Y\(fXt\),r=Y\(Q9t\);return!0\}/);
   assert.doesNotMatch(bundle, /return e&&t&&!n/);
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
@@ -374,7 +374,7 @@ test("accepts benign Codex Voice bundle formatting changes", () => {
   );
   fs.writeFileSync(
     voiceGatePath,
-    "function $ps(){const e = uh( `2380644311` ), t = uh( `1697652030` ); return e && ! t }var ems = n((()=>{gh()}));function tms(){const e=$ps(),t=J(iCn),n=J(zdr);return e&&t&&!n}",
+    "function XJs(){const e = jx( `2380644311` ), t = jx( `1697652030` ); return e && ! t }var ZJs = n((()=>{Lx()}));function QJs(){const e=XJs(),t=Y(Y(fy)?oy:ay),n=Y(fXt),r=Y(Q9t);return e&&t&&n&&!r}",
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -395,7 +395,7 @@ test("accepts Codex Voice minifier identifier changes", () => {
   );
   fs.writeFileSync(
     voiceGatePath,
-    "function Xln(){let a=kh(`2380644311`),b=kh(`1697652030`);return a&&!b}var $9n=n((()=>{gh()}));function yer(){let a=Xln(),b=Y(jln),c=Y(zer);return a&&b&&!c}",
+    "function Xln(){let a=kh(`2380644311`),b=kh(`1697652030`);return a&&!b}var $9n=n((()=>{gh()}));function yer(){let a=Xln(),b=Y(Y(fy)?oy:ay),c=Y(zer),d=Y(Q9t);return a&&b&&c&&!d}",
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
@@ -416,7 +416,7 @@ test("is idempotent after enabling Codex Voice without runtime gates", () => {
   );
   fs.writeFileSync(
     voiceGatePath,
-    "function mts(){let e=kh(`2380644311`),t=kh(`1697652030`);return e&&!t}var $9n=n((()=>{gh()}));function nms(){let e=mts(),t=Y(Xln),n=Y(yer);return!0}",
+    "function mts(){let e=kh(`2380644311`),t=kh(`1697652030`);return e&&!t}var $9n=n((()=>{gh()}));function nms(){let e=mts(),t=Y(Y(fy)?oy:ay),n=Y(yer),r=Y(Q9t);return!0}",
     "utf8",
   );
   const reportPath = path.join(recoveredRoot, "patch-report.json");
