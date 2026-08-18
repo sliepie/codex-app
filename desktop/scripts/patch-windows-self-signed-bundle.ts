@@ -545,7 +545,11 @@ function patchVoiceAvailabilityFunction(source: string): FeatureGateSourcePatchR
   const availabilityPattern = new RegExp(
     String.raw`\breturn\s+${identifierPattern}\s*&&\s*!\s*${identifierPattern}\b`,
   );
-  const matches = findFunctionRanges(source).filter(
+  const consumerPattern = new RegExp(
+    String.raw`\breturn\s+${identifierPattern}\s*&&\s*${identifierPattern}\s*&&\s*${identifierPattern}\s*&&\s*!\s*${identifierPattern}\b`,
+  );
+  const functionRanges = findFunctionRanges(source);
+  const matches = functionRanges.filter(
     (range) =>
       rolloutGatePattern.test(range.body) &&
       killSwitchPattern.test(range.body) &&
@@ -566,21 +570,49 @@ function patchVoiceAvailabilityFunction(source: string): FeatureGateSourcePatchR
     return undefined;
   }
 
-  const returnMatch = availabilityPattern.exec(match.body);
-  if (!returnMatch || returnMatch.index === undefined) {
-    throw new Error("Unable to identify the Voice availability return expression.");
+  const consumerMatches = functionRanges.filter(
+    (range) =>
+      range !== match &&
+      range.body.includes(`${match.name}(`) &&
+      consumerPattern.test(range.body),
+  );
+  if (consumerMatches.length !== 1) {
+    throw new Error(
+      `Expected exactly one four-condition Voice consumer using ${match.name}, found ${consumerMatches.length}.`,
+    );
   }
 
-  const patchedBody =
-    match.body.slice(0, returnMatch.index) +
-    "return!0" +
-    match.body.slice(returnMatch.index + returnMatch[0].length);
-  const replacement = `${match.asyncPrefix}function ${match.name}(${match.args}){${patchedBody}}`;
+  const consumer = consumerMatches[0];
+  if (!consumer) {
+    return undefined;
+  }
+
+  let patchedSource = source;
+  for (const target of [
+    { range: match, returnPattern: availabilityPattern },
+    { range: consumer, returnPattern: consumerPattern },
+  ].sort((left, right) => right.range.start - left.range.start)) {
+    const returnMatch = target.returnPattern.exec(target.range.body);
+    if (!returnMatch || returnMatch.index === undefined) {
+      throw new Error(`Unable to identify the ${target.range.name} Voice return expression.`);
+    }
+
+    const patchedBody =
+      target.range.body.slice(0, returnMatch.index) +
+      "return!0" +
+      target.range.body.slice(returnMatch.index + returnMatch[0].length);
+    const replacement =
+      `${target.range.asyncPrefix}function ${target.range.name}(${target.range.args}){${patchedBody}}`;
+    patchedSource =
+      patchedSource.slice(0, target.range.start) +
+      replacement +
+      patchedSource.slice(target.range.end);
+  }
 
   return {
-    source: source.slice(0, match.start) + replacement + source.slice(match.end),
+    source: patchedSource,
     status: "applied",
-    matcher: "voice-feature-function",
+    matcher: "voice-feature-functions",
     matchedIds: ["2380644311", "1697652030"],
   };
 }
@@ -707,7 +739,7 @@ function patchFeatureGateGroup(
       }
 
       if (patchedSource !== source) {
-        updates.push({ filePath, source: `${marker}\n${patchedSource}` });
+        updates.push({ filePath, source: `/* ${marker} */\n${patchedSource}` });
       }
     }
 
