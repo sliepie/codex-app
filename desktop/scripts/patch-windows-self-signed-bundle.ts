@@ -36,7 +36,6 @@ const windowsArm64PrimaryRuntimeManifestUrl =
 const windowsArm64PrimaryRuntimeManifestUrlPattern = new RegExp(
   escapeRegExp(windowsArm64PrimaryRuntimeManifestUrl),
 );
-const realtimeVoiceFeatureGateMarkers = ["2380644311", "1697652030"];
 const usageRemainingMarkers = [
   "composer.mode.rateLimit.heading",
   "composer.mode.rateLimit.resetsAvailable",
@@ -1046,90 +1045,6 @@ function patchUsageRemainingBundle(recoveredRoot: string): PatchResult[] {
   ];
 }
 
-function patchRealtimeVoiceFeatureGate(recoveredRoot: string): PatchResult[] {
-  const patcher: SourcePatcher = (source) => {
-    const gateHelperPattern = new RegExp(
-      String.raw`(?:let|const)\s+(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`2380644311\`\s*\)\s*,\s*(${identifierPattern})\s*=\s*${identifierPattern}\s*\(\s*\`1697652030\`\s*\)\s*;\s*return\s*\1\s*&&\s*!\s*\2`,
-    );
-    const helperMatches = findFunctionRanges(source).filter((range) =>
-      gateHelperPattern.test(range.body),
-    );
-    if (helperMatches.length === 0) {
-      return undefined;
-    }
-    if (helperMatches.length !== 1) {
-      throw new Error(`Expected exactly one Codex Voice gate helper, found ${helperMatches.length}.`);
-    }
-
-    const helper = helperMatches[0];
-    const helperBindingPattern = new RegExp(
-      String.raw`(?:let|const)\s+(${identifierPattern})\s*=\s*${escapeRegExp(helper.name)}\s*\(\s*\)`,
-    );
-    const consumerMatches = findFunctionRanges(source).flatMap((range) => {
-      const helperBinding = helperBindingPattern.exec(range.body)?.[1];
-      if (!helperBinding) {
-        return [];
-      }
-
-      const returnIndex = range.body.lastIndexOf("return");
-      if (returnIndex < 0) {
-        return [];
-      }
-
-      const returnValue = range.body
-        .slice(returnIndex + "return".length)
-        .trim()
-        .replace(/;\s*$/, "");
-      const expectedReturnPattern = new RegExp(
-        String.raw`^${escapeRegExp(helperBinding)}\s*&&[\s\S]*$`,
-      );
-      if (returnValue !== "!0" && !expectedReturnPattern.test(returnValue)) {
-        return [];
-      }
-
-      return [{ range, returnIndex, returnValue }];
-    });
-    if (consumerMatches.length !== 1) {
-      throw new Error(
-        `Expected exactly one Codex Voice gate consumer, found ${consumerMatches.length}.`,
-      );
-    }
-
-    const { range, returnIndex, returnValue } = consumerMatches[0];
-    if (returnValue === "!0") {
-      return { source, status: "already-applied", matcher: "semantic" };
-    }
-
-    const returnSuffix = range.body.slice(returnIndex);
-    const semicolon = /;\s*$/.test(returnSuffix) ? ";" : "";
-    const body = `${range.body.slice(0, returnIndex)}return!0${semicolon}`;
-    return {
-      source:
-        source.slice(0, range.start) +
-        `${range.asyncPrefix}function ${range.name}(${range.args}){${body}}` +
-        source.slice(range.end),
-      status: "applied",
-      matcher: "semantic",
-    };
-  };
-  const filePath = findFileForPatcher(
-    path.join(recoveredRoot, "webview", "assets"),
-    /^.*\.js$/,
-    realtimeVoiceFeatureGateMarkers,
-    patcher,
-    "Codex Voice rollout gate",
-  );
-
-  return [
-    replaceWithPatchers(
-      recoveredRoot,
-      filePath,
-      "enable Codex Voice rollout gate",
-      [patcher],
-    ),
-  ];
-}
-
 function patchBrowserDownloadsFeatureGate(recoveredRoot: string): PatchResult[] {
   const selectorMarkers = [
     "featureName:`in_app_browser`",
@@ -1689,7 +1604,6 @@ function main(): void {
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
     results.push(...patchUsageRemainingBundle(recoveredRoot));
-    results.push(...patchRealtimeVoiceFeatureGate(recoveredRoot));
     results.push(...patchBrowserDownloadsFeatureGate(recoveredRoot));
     results.push(...patchSidebarProjectsBundle(recoveredRoot));
     results.push(...patchAgentSettings(recoveredRoot));
