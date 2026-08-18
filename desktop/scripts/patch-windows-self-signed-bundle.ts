@@ -45,10 +45,60 @@ const browserDownloadsFeatureGateSelectorPattern = new RegExp(
   String.raw`(featureName:\`in_app_browser\`[\s\S]{0,1024}?)\b(${identifierPattern})=\{contactInfo:(${identifierPattern}),downloads:(\3|\{enabled:!0,isLoading:!1\}),extensions:(${identifierPattern}),history:(${identifierPattern}),passwordManager:\3,siteSettings:\3\}`,
   "g",
 );
+const featureGateGroupMarkers = {
+  voiceDictation: "codex-feature-gates-voice-dictation-enabled",
+  browserComputer: "codex-feature-gates-browser-computer-enabled",
+  appGenSites: "codex-feature-gates-appgen-sites-enabled",
+  remoteConnectors: "codex-feature-gates-remote-connectors-enabled",
+  pluginsMcpSkills: "codex-feature-gates-plugins-mcp-skills-enabled",
+} as const;
+const voiceDictationGateOverrides = [
+  { id: "1244621283", value: "!0" },
+  { id: "4100906017", value: "!0" },
+  { id: "620613358", value: "!0" },
+  { id: "1380537759", value: "!0" },
+] as const;
+const browserComputerGateOverrides = [
+  { id: "410262010", value: "!0" },
+  { id: "410065390", value: "!0" },
+  { id: "1506311413", value: "!0" },
+  { id: "1256703444", value: "!0" },
+  { id: "4131705479", value: "!0" },
+] as const;
+const appGenSitesGateOverrides = [
+  { id: "637432221", value: "!0" },
+  { id: "3000193894", value: "!0" },
+  { id: "476199071", value: "!0" },
+  { id: "1912312436", value: "!0" },
+  { id: "324493575", value: "!0" },
+  { id: "2196156952", value: "!0" },
+] as const;
+const remoteConnectorsGateOverrides = [
+  { id: "1042620455", value: "!0" },
+  { id: "4114442250", value: "!0" },
+  { id: "2055603567", value: "!0" },
+  { id: "3936985709", value: "!1" },
+  { id: "2296472986", value: "!0" },
+] as const;
+const pluginsMcpSkillsGateOverrides = [
+  { id: "403472035", value: "!0" },
+  { id: "603443661", value: "!0" },
+  { id: "3669474837", value: "!0" },
+  { id: "3413548395", value: "!0" },
+  { id: "4218407052", value: "!0" },
+] as const;
 type SourcePatchResult = {
   source: string;
   status: PatchStatus;
   matcher: string;
+};
+
+type FeatureGateOverride = {
+  id: string;
+  value: "!0" | "!1";
+};
+type FeatureGateSourcePatchResult = SourcePatchResult & {
+  matchedIds: string[];
 };
 
 type SourcePatcher = (source: string) => SourcePatchResult | undefined;
@@ -479,6 +529,222 @@ function findFunctionRanges(source: string): FunctionRange[] {
   }
 
   return ranges;
+}
+
+function patchVoiceAvailabilityFunction(source: string): FeatureGateSourcePatchResult | undefined {
+  if (!source.includes("2380644311") || !source.includes("1697652030")) {
+    return undefined;
+  }
+
+  const rolloutGatePattern = new RegExp(
+    String.raw`\b${identifierPattern}\(\s*\`2380644311\`\s*\)`,
+  );
+  const killSwitchPattern = new RegExp(
+    String.raw`\b${identifierPattern}\(\s*\`1697652030\`\s*\)`,
+  );
+  const availabilityPattern = new RegExp(
+    String.raw`\breturn\s+${identifierPattern}\s*&&\s*!\s*${identifierPattern}\b`,
+  );
+  const matches = findFunctionRanges(source).filter(
+    (range) =>
+      rolloutGatePattern.test(range.body) &&
+      killSwitchPattern.test(range.body) &&
+      availabilityPattern.test(range.body),
+  );
+
+  if (matches.length === 0) {
+    return undefined;
+  }
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected exactly one Voice availability function using gates 2380644311 and 1697652030, found ${matches.length}.`,
+    );
+  }
+
+  const match = matches[0];
+  if (!match) {
+    return undefined;
+  }
+
+  const returnMatch = availabilityPattern.exec(match.body);
+  if (!returnMatch || returnMatch.index === undefined) {
+    throw new Error("Unable to identify the Voice availability return expression.");
+  }
+
+  const patchedBody =
+    match.body.slice(0, returnMatch.index) +
+    "return!0" +
+    match.body.slice(returnMatch.index + returnMatch[0].length);
+  const replacement = `${match.asyncPrefix}function ${match.name}(${match.args}){${patchedBody}}`;
+
+  return {
+    source: source.slice(0, match.start) + replacement + source.slice(match.end),
+    status: "applied",
+    matcher: "voice-feature-function",
+    matchedIds: ["2380644311", "1697652030"],
+  };
+}
+
+type FeatureGateValueResolver = (
+  id: string,
+  callIndex: number,
+  functionRanges: FunctionRange[],
+  source: string,
+) => "!0" | "!1";
+
+function patchFeatureGateCalls(
+  source: string,
+  overrides: readonly FeatureGateOverride[],
+  resolveValue?: FeatureGateValueResolver,
+): FeatureGateSourcePatchResult | undefined {
+  const ids = overrides.map(({ id }) => escapeRegExp(id)).join("|");
+  const overrideValues = new Map(overrides.map(({ id, value }) => [id, value]));
+  const pattern = new RegExp(
+    String.raw`\b${identifierPattern}\(\s*(?:Iv\s*,\s*)?\`(${ids})\`\s*\)`,
+    "g",
+  );
+  const matches = Array.from(source.matchAll(pattern));
+  if (matches.length === 0) {
+    return undefined;
+  }
+
+  const functionRanges = resolveValue ? findFunctionRanges(source) : [];
+  const matchedIds = new Set<string>();
+  let previousEnd = 0;
+  let patchedSource = "";
+  for (const match of matches) {
+    const id = match[1];
+    const start = match.index;
+    if (!id || start === undefined) {
+      throw new Error("Unable to identify a feature gate call.");
+    }
+
+    const defaultValue = overrideValues.get(id);
+    if (!defaultValue) {
+      throw new Error(`No override was defined for feature gate ${id}.`);
+    }
+
+    matchedIds.add(id);
+    patchedSource += source.slice(previousEnd, start);
+    patchedSource += resolveValue?.(id, start, functionRanges, source) ?? defaultValue;
+    previousEnd = start + match[0].length;
+  }
+  patchedSource += source.slice(previousEnd);
+
+  return {
+    source: patchedSource,
+    status: "applied",
+    matcher: "feature-gate-call",
+    matchedIds: [...matchedIds],
+  };
+}
+
+function resolvePluginsMcpSkillsGateValue(
+  id: string,
+  callIndex: number,
+  functionRanges: FunctionRange[],
+  source: string,
+): "!0" | "!1" {
+  if (id === "4218407052") {
+    const functionRange = functionRanges.find(
+      (range) =>
+        callIndex >= range.start &&
+        callIndex < range.end &&
+        range.body.includes("includeVerticalCatalog:"),
+    );
+    if (functionRange) {
+      const precedingSource = source.slice(
+        Math.max(functionRange.start, callIndex - 120),
+        callIndex,
+      );
+      if (/(?:^|[;,]|let\s|const\s)\s*[A-Za-z_$][\w$]*\s*=\s*$/.test(precedingSource)) {
+        return "!1";
+      }
+    }
+  }
+
+  return "!0";
+}
+
+function patchFeatureGateGroup(
+  recoveredRoot: string,
+  name: string,
+  marker: string,
+  overrides: readonly FeatureGateOverride[],
+  requiredIds: readonly string[] = overrides.map(({ id }) => id),
+  specialPatcher?: (source: string) => FeatureGateSourcePatchResult | undefined,
+  resolveValue?: FeatureGateValueResolver,
+): PatchResult[] {
+  const assetsRoot = path.join(recoveredRoot, "webview", "assets");
+  const reportFile = toReportPath(recoveredRoot, assetsRoot);
+
+  try {
+    const assetFiles = findFilesContaining(assetsRoot, /^.*\.js$/, []);
+    if (assetFiles.length === 0) {
+      throw new Error("Recovered renderer assets do not contain JavaScript bundles.");
+    }
+
+    const sources = assetFiles.map((filePath) => ({
+      filePath,
+      source: fs.readFileSync(filePath, "utf8"),
+    }));
+    const hasExistingMarker = sources.some(({ source }) => source.includes(marker));
+    const matchedIds = new Set<string>(hasExistingMarker ? requiredIds : []);
+    const updates: Array<{ filePath: string; source: string }> = [];
+
+    for (const { filePath, source } of sources) {
+      let patchedSource = source;
+      const specialResult = specialPatcher?.(patchedSource);
+      if (specialResult) {
+        patchedSource = specialResult.source;
+        specialResult.matchedIds.forEach((id) => matchedIds.add(id));
+      }
+
+      const gateResult = patchFeatureGateCalls(patchedSource, overrides, resolveValue);
+      if (gateResult) {
+        patchedSource = gateResult.source;
+        gateResult.matchedIds.forEach((id) => matchedIds.add(id));
+      }
+
+      if (patchedSource !== source) {
+        updates.push({ filePath, source: `${marker}\n${patchedSource}` });
+      }
+    }
+
+    const missingIds = requiredIds.filter((id) => !matchedIds.has(id));
+    if (missingIds.length > 0) {
+      throw new Error(
+        `Required feature gate calls were not found: ${missingIds.join(", ")}.`,
+      );
+    }
+
+    for (const update of updates) {
+      fs.writeFileSync(update.filePath, update.source, "utf8");
+    }
+
+    return [
+      {
+        file: reportFile,
+        name,
+        status: updates.length > 0 ? "applied" : "already-applied",
+        matcher: "feature-gate-call",
+        reason:
+          updates.length > 0
+            ? `Enabled ${requiredIds.length} gate(s) across ${updates.length} renderer asset(s).`
+            : "All requested gate overrides are already present.",
+      },
+    ];
+  } catch (error) {
+    throw new PatchFailure(
+      {
+        file: reportFile,
+        name,
+        status: "failed-required",
+        reason: errorMessage(error),
+      },
+      error,
+    );
+  }
 }
 
 function skipJavaScriptQuotedValue(source: string, start: number): number {
@@ -1045,6 +1311,60 @@ function patchUsageRemainingBundle(recoveredRoot: string): PatchResult[] {
   ];
 }
 
+function patchVoiceDictationGates(recoveredRoot: string): PatchResult[] {
+  return patchFeatureGateGroup(
+    recoveredRoot,
+    "enable Voice and dictation gates",
+    featureGateGroupMarkers.voiceDictation,
+    voiceDictationGateOverrides,
+    [
+      "2380644311",
+      "1697652030",
+      ...voiceDictationGateOverrides.map(({ id }) => id),
+    ],
+    patchVoiceAvailabilityFunction,
+  );
+}
+
+function patchBrowserComputerGates(recoveredRoot: string): PatchResult[] {
+  return patchFeatureGateGroup(
+    recoveredRoot,
+    "enable Browser and computer-use gates",
+    featureGateGroupMarkers.browserComputer,
+    browserComputerGateOverrides,
+  );
+}
+
+function patchAppGenSitesGates(recoveredRoot: string): PatchResult[] {
+  return patchFeatureGateGroup(
+    recoveredRoot,
+    "enable AppGen and Sites gates",
+    featureGateGroupMarkers.appGenSites,
+    appGenSitesGateOverrides,
+  );
+}
+
+function patchRemoteConnectorsGates(recoveredRoot: string): PatchResult[] {
+  return patchFeatureGateGroup(
+    recoveredRoot,
+    "enable Remote and connector gates",
+    featureGateGroupMarkers.remoteConnectors,
+    remoteConnectorsGateOverrides,
+  );
+}
+
+function patchPluginsMcpSkillsGates(recoveredRoot: string): PatchResult[] {
+  return patchFeatureGateGroup(
+    recoveredRoot,
+    "enable Plugins, MCP, and skills gates",
+    featureGateGroupMarkers.pluginsMcpSkills,
+    pluginsMcpSkillsGateOverrides,
+    undefined,
+    undefined,
+    resolvePluginsMcpSkillsGateValue,
+  );
+}
+
 function patchBrowserDownloadsFeatureGate(recoveredRoot: string): PatchResult[] {
   const selectorMarkers = [
     "featureName:`in_app_browser`",
@@ -1603,6 +1923,11 @@ function main(): void {
     results.push(...patchRendererProductText(recoveredRoot));
     results.push(...patchSettingsPage(recoveredRoot));
     results.push(...patchIndex(recoveredRoot));
+    results.push(...patchVoiceDictationGates(recoveredRoot));
+    results.push(...patchBrowserComputerGates(recoveredRoot));
+    results.push(...patchAppGenSitesGates(recoveredRoot));
+    results.push(...patchRemoteConnectorsGates(recoveredRoot));
+    results.push(...patchPluginsMcpSkillsGates(recoveredRoot));
     results.push(...patchUsageRemainingBundle(recoveredRoot));
     results.push(...patchBrowserDownloadsFeatureGate(recoveredRoot));
     results.push(...patchSidebarProjectsBundle(recoveredRoot));
