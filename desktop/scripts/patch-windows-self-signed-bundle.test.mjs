@@ -20,8 +20,12 @@ const browserDownloadsFeatureTargets =
   "function _Go(e){let t=(0,vGo.c)(15),{hostId:n}=e,r;t[0]===n?r=t[1]:(r={featureName:`in_app_browser`,hostId:n},t[0]=n,t[1]=r);let i=ufi(r),a=ko(vPo,cOe),o=uh(`2177625257`),s=i.enabled&&!i.isLoading,c;t[2]!==i.isLoading||t[3]!==s?(c={enabled:s,isLoading:i.isLoading},t[2]=i.isLoading,t[3]=s,t[4]=c):c=t[4];let l=c,u=l.enabled&&a.data===!0,d=i.isLoading||a.isLoading,f;t[5]!==u||t[6]!==d?(f={enabled:u,isLoading:d},t[5]=u,t[6]=d,t[7]=f):f=t[7];let p=l.enabled&&o,m;t[8]!==i.isLoading||t[9]!==p?(m={enabled:p,isLoading:i.isLoading},t[8]=i.isLoading,t[9]=p,t[10]=m):m=t[10];let h;return t[11]!==l||t[12]!==f||t[13]!==m?(h={contactInfo:l,downloads:l,extensions:f,history:m,passwordManager:l,siteSettings:l},t[11]=l,t[12]=f,t[13]=m,t[14]=h):h=t[14],h}";
 const sidebarPixelTargets =
   "function Sidebar(){let A=C.formatMessage({id:`sidebarElectron.recentChats`,defaultMessage:`Chats`}),rr=(0,$.jsx)(`div`,{className:`flex min-w-0 flex-1`,children:(0,$.jsx)(av,{collapsed:At.chats,onToggle:()=>{},children:A})}),ir=(0,$.jsx)(G_,{items:on,ariaLabel:A,currentThreadKey:y,onActivateThread:x,className:`-translate-x-px`,itemClassName:`after:block after:h-px after:content-[''] last:after:hidden`,itemWrapper:ke?Tg:void 0,emptyState:(0,$.jsx)(Y,{id:`sidebarElectron.noRecentChats`,defaultMessage:`No chats`,description:`Empty state for projectless chats in the sidebar`}),emptyStateClassName:`text-token-description-foreground p-2 text-base opacity-50`,rowOptions:{hideRemoteHostEnvIcon:!1,showPinActionOnHover:!0,getSectionContextMenuItems:Kt}}),ar=bt?(0,$.jsx)(`div`,{className:`px-row-x`,...ne.sidebarSection({collapsed:At.chats,heading:`Chats`}),children:(0,$.jsx)(Zd,{title:rr})}):null;return[rr,ir,ar]}function Row(){return(0,$.jsx)(L_,{conversationId:N,isAutomationRun:i,hasPendingChildApproval:c,isActive:u,forceLoadingIndicator:t&&l,className:s?`opacity-50`:void 0,rowContentClassName:Dc(t&&(D?`ml-10`:`ml-5`),g&&`pr-3 group-focus-within:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)] group-hover:[mask-image:linear-gradient(to_right,transparent_0,transparent_21px,black_26px)]`),envIconLocation:`end`,dataAttributes:ne.sidebarThreadRow({kind:`local`,title:H})})}function vy(){let C=(0,$.jsx)(`div`,{className:`min-w-0 flex-1`,children:(0,$.jsx)(cn,{triggerButton:(0,$.jsx)(Qd,{icon:b,label:x,onClick:yy,trailing:S,iconClassName:`icon-sm`})})});return C}let settingsLabel={id:`codex.profileFooter.signedInFallback`};";
+const projectGroupCollapseTargets =
+  "function ProjectGroup(){let shouldAnimateGroups=true,showProjectHoverCard=true,projectHeaderMenuKind=`project`,marker=`data-sidebar-project-kind`;return(0,$.jsx)(Q7l,{expanded:expanded,header:header,projectId:projectId,shouldAnimate:shouldAnimateGroups,children:children})}";
 const projectsSectionTargets =
-  "function Projects(){let u=false;return(0,$.jsx)(ProjectGroups,{label:`sidebarElectron.projectsNavLink`,maxGroups:u?void 0:5,showProjectHoverCard:true,showProjectPinAction:true,maxItems:11,maxThreads:5})}function GenericList(){return{maxGroups:G,maxItems:3,maxThreads:2}}";
+  "function Projects(){let u=false;return(0,$.jsx)(ProjectGroups,{label:`sidebarElectron.projectsNavLink`,maxGroups:u?void 0:5,showProjectHoverCard:true,showProjectPinAction:true,maxItems:11,maxThreads:5})}" +
+  projectGroupCollapseTargets +
+  "function GenericList(){return{maxGroups:G,maxItems:3,maxThreads:2}}";
 const usageRemainingTargets =
   "function n1l(e){let heading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.heading`,defaultMessage:`Usage remaining`,description:`Rate limit summary heading`}),resets=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.resetsAvailable`,defaultMessage:`# available resets`}),loading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.loading`,defaultMessage:`Loading usage…`,description:`Loading state for the rate limit summary submenu`}),k=(0,u7.jsx)(v,{LeftIcon:E,RightIcon:D,tooltipSide:S,children:O});let A=(0,u7.jsx)(V,{children:heading});return(0,u7.jsx)(y,{trigger:k,children:A})}";
 const usageRemainingCompilerShapeTargets =
@@ -207,6 +211,7 @@ test("writes patch report file paths relative to the recovered app root", () => 
       "webview/assets",
       "webview/assets/usage-remaining-fixture.js",
       "webview/assets/browser-downloads-feature-fixture.js",
+      "webview/assets/projects-section-fixture.js",
       "webview/assets/projects-section-fixture.js",
       ".vite/build/workspace-root-drop-handler-fixture.js",
       ".vite/build/browser-runtime-relocation-fixture.js",
@@ -510,7 +515,9 @@ test("raises only the outer sidebar project limit", () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.equal(
     fs.readFileSync(projectsPath, "utf8"),
-    projectsSectionTargets.replace("maxGroups:u?void 0:5", "maxGroups:u?void 0:9999"),
+    projectsSectionTargets
+      .replace("maxGroups:u?void 0:5", "maxGroups:u?void 0:9999")
+      .replace("shouldAnimate:shouldAnimateGroups", "shouldAnimate:!1"),
   );
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   const patch = report.patches.find((candidate) => candidate.name === "raise sidebar project limit");

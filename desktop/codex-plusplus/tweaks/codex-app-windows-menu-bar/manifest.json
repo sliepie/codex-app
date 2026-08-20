@@ -1,7 +1,7 @@
 {
   "id": "dev.sliepie.codex.windows-menu-bar",
   "name": "Codex app Windows menu bar",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "githubRepo": "sliepie/codex-app",
   "description": "Hides the Windows menu bar and compacts the app header layout.",
   "author": "sliepie",
