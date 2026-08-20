@@ -18,6 +18,8 @@ NEVER USE MAIN. ALWAYS CREATE A FEATURE BRANCH AND OPEN A PR.
 
 ONCE A PR EXISTS, ALWAYS PUSH ANY FOLLOW-UP COMMITS TO THAT PR BRANCH UNLESS I EXPLICITLY SAY NOT TO.
 
+Use the PR's GitHub Actions builds for build, package, release, native-module, and CI-equivalent validation. Reserve local builds for cases where the user explicitly requests local validation or no PR build can exercise the issue.
+
 NEVER USE codex OR codex/* AS A BRANCH NAME.
 
 NEVER TOUCH GENERATED .g.cs FILES.
