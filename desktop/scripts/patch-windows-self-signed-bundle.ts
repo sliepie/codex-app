@@ -53,10 +53,8 @@ const featureGateGroupMarkers = {
   pluginsMcpSkills: "codex-feature-gates-plugins-mcp-skills-enabled",
 } as const;
 const voiceDictationGateOverrides = [
-  { id: "1244621283", value: "!0" },
   { id: "4100906017", value: "!0" },
   { id: "620613358", value: "!0" },
-  { id: "1380537759", value: "!0" },
 ] as const;
 const browserComputerGateOverrides = [
   { id: "410262010", value: "!0" },
@@ -531,89 +529,89 @@ function findFunctionRanges(source: string): FunctionRange[] {
   return ranges;
 }
 
-function patchVoiceAvailabilityFunction(source: string): FeatureGateSourcePatchResult | undefined {
-  if (!source.includes("2380644311") || !source.includes("1697652030")) {
+function patchLatestVoiceDictationCapabilities(
+  source: string,
+): FeatureGateSourcePatchResult | undefined {
+  const composerMarker = "navigator?.mediaDevices?.getUserMedia";
+  const composerMarkerIndex = source.indexOf(composerMarker);
+  if (composerMarkerIndex === -1) {
     return undefined;
   }
 
-  const rolloutGatePattern = new RegExp(
-    String.raw`\b${identifierPattern}\(\s*\`2380644311\`\s*\)`,
+  const voiceAvailabilityPattern = new RegExp(
+    String.raw`(\bfunction (${identifierPattern})\(\)\{let ${identifierPattern}=vx\(\`2380644311\`\),${identifierPattern}=vx\(\`1697652030\`\);return)\s+${identifierPattern}&&!${identifierPattern}(\})`,
+    "g",
   );
-  const killSwitchPattern = new RegExp(
-    String.raw`\b${identifierPattern}\(\s*\`1697652030\`\s*\)`,
-  );
-  const availabilityPattern = new RegExp(
-    String.raw`\breturn\s+${identifierPattern}\s*&&\s*!\s*${identifierPattern}\b`,
-  );
-  const consumerPattern = new RegExp(
-    String.raw`\breturn\s+${identifierPattern}\s*&&\s*${identifierPattern}\s*&&\s*${identifierPattern}\s*&&\s*!\s*${identifierPattern}\b`,
-  );
-  const functionRanges = findFunctionRanges(source);
-  const matches = functionRanges.filter(
-    (range) =>
-      rolloutGatePattern.test(range.body) &&
-      killSwitchPattern.test(range.body) &&
-      availabilityPattern.test(range.body),
-  );
-
-  if (matches.length === 0) {
-    return undefined;
-  }
-  if (matches.length !== 1) {
+  const availabilityMatches = Array.from(source.matchAll(voiceAvailabilityPattern));
+  if (availabilityMatches.length !== 1) {
     throw new Error(
-      `Expected exactly one Voice availability function using gates 2380644311 and 1697652030, found ${matches.length}.`,
+      `Expected exactly one latest Voice availability function, found ${availabilityMatches.length}.`,
     );
   }
 
-  const match = matches[0];
-  if (!match) {
-    return undefined;
+  const availabilityMatch = availabilityMatches[0];
+  if (!availabilityMatch?.[2]) {
+    throw new Error("Unable to identify the latest Voice availability function.");
   }
 
-  const consumerMatches = functionRanges.filter(
-    (range) =>
-      range !== match &&
-      range.body.includes(`${match.name}(`) &&
-      consumerPattern.test(range.body),
+  const voiceConsumerPattern = new RegExp(
+    String.raw`(\bfunction ${identifierPattern}\(\)\{let ${identifierPattern}=${escapeRegExp(availabilityMatch[2])}\(\),${identifierPattern}=Y\(Y\(fv\)\?ov:av\),${identifierPattern}=Y\(xUt\),${identifierPattern}=Y\(Cnn\);return)\s+${identifierPattern}&&${identifierPattern}&&${identifierPattern}&&!${identifierPattern}(\})`,
+    "g",
   );
+  let patchedSource = source;
+
+  const arrowIndex = source.lastIndexOf("=>{", composerMarkerIndex);
+  if (arrowIndex === -1) {
+    throw new Error("Unable to locate the current dictation capability function.");
+  }
+
+  const bodyStart = arrowIndex + 3;
+  const bodyEnd = findJavaScriptBlockEnd(source, bodyStart);
+  if (bodyEnd === undefined) {
+    throw new Error("Unable to locate the end of the current dictation capability function.");
+  }
+
+  const body = source.slice(bodyStart, bodyEnd - 1);
+  const composerGatePattern = new RegExp(
+    String.raw`(${identifierPattern}\(wHt,\s*\`4100906017\`\)),\s*(${identifierPattern})=${identifierPattern}\(I_,\s*\`4100906017\`\)`,
+    "g",
+  );
+  const composerMatches = Array.from(body.matchAll(composerGatePattern));
+  if (composerMatches.length !== 1) {
+    throw new Error(
+      `Expected exactly one current dictation composer gate pair, found ${composerMatches.length}.`,
+    );
+  }
+
+  const globalDictationPattern = new RegExp(
+    String.raw`(\`global-dictation\`,)statsig:\[\`4100906017\`,\`1244621283\`\],(?=supportedClients:)`,
+    "g",
+  );
+  const globalDictationMatches = Array.from(source.matchAll(globalDictationPattern));
+  if (globalDictationMatches.length !== 1) {
+    throw new Error(
+      `Expected exactly one current global dictation Statsig gate list, found ${globalDictationMatches.length}.`,
+    );
+  }
+
+  const patchedBody = body.replace(composerGatePattern, "$1,$2=!0");
+  patchedSource =
+    patchedSource.slice(0, bodyStart) + patchedBody + patchedSource.slice(bodyEnd - 1);
+  patchedSource = patchedSource.replace(globalDictationPattern, "$1");
+  patchedSource = patchedSource.replace(voiceAvailabilityPattern, "$1!0$3");
+  const consumerMatches = Array.from(patchedSource.matchAll(voiceConsumerPattern));
   if (consumerMatches.length !== 1) {
     throw new Error(
-      `Expected exactly one four-condition Voice consumer using ${match.name}, found ${consumerMatches.length}.`,
+      `Expected exactly one latest Voice consumer, found ${consumerMatches.length}.`,
     );
   }
-
-  const consumer = consumerMatches[0];
-  if (!consumer) {
-    return undefined;
-  }
-
-  let patchedSource = source;
-  for (const target of [
-    { range: match, returnPattern: availabilityPattern },
-    { range: consumer, returnPattern: consumerPattern },
-  ].sort((left, right) => right.range.start - left.range.start)) {
-    const returnMatch = target.returnPattern.exec(target.range.body);
-    if (!returnMatch || returnMatch.index === undefined) {
-      throw new Error(`Unable to identify the ${target.range.name} Voice return expression.`);
-    }
-
-    const patchedBody =
-      target.range.body.slice(0, returnMatch.index) +
-      "return!0" +
-      target.range.body.slice(returnMatch.index + returnMatch[0].length);
-    const replacement =
-      `${target.range.asyncPrefix}function ${target.range.name}(${target.range.args}){${patchedBody}}`;
-    patchedSource =
-      patchedSource.slice(0, target.range.start) +
-      replacement +
-      patchedSource.slice(target.range.end);
-  }
+  patchedSource = patchedSource.replace(voiceConsumerPattern, "$1!0$2");
 
   return {
     source: patchedSource,
     status: "applied",
-    matcher: "voice-feature-functions",
-    matchedIds: ["2380644311", "1697652030"],
+    matcher: "latest-voice-dictation-capabilities",
+    matchedIds: ["2380644311", "1697652030", "4100906017", "1244621283"],
   };
 }
 
@@ -632,7 +630,7 @@ function patchFeatureGateCalls(
   const ids = overrides.map(({ id }) => escapeRegExp(id)).join("|");
   const overrideValues = new Map(overrides.map(({ id, value }) => [id, value]));
   const pattern = new RegExp(
-    String.raw`\b${identifierPattern}\(\s*(?:Iv\s*,\s*)?\`(${ids})\`\s*\)`,
+    String.raw`\b(?:${identifierPattern}\(\s*I_\s*,\s*|${identifierPattern}\(\s*)\`(${ids})\`\s*\)`,
     "g",
   );
   const matches = Array.from(source.matchAll(pattern));
@@ -726,7 +724,7 @@ function patchFeatureGateGroup(
 
     for (const { filePath, source } of sources) {
       let patchedSource = source;
-      const specialResult = specialPatcher?.(patchedSource);
+      const specialResult = hasExistingMarker ? undefined : specialPatcher?.(patchedSource);
       if (specialResult) {
         patchedSource = specialResult.source;
         specialResult.matchedIds.forEach((id) => matchedIds.add(id));
@@ -1352,9 +1350,10 @@ function patchVoiceDictationGates(recoveredRoot: string): PatchResult[] {
     [
       "2380644311",
       "1697652030",
+      "1244621283",
       ...voiceDictationGateOverrides.map(({ id }) => id),
     ],
-    patchVoiceAvailabilityFunction,
+    patchLatestVoiceDictationCapabilities,
   );
 }
 
