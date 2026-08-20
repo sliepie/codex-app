@@ -617,12 +617,120 @@ function patchVoiceAvailabilityFunction(source: string): FeatureGateSourcePatchR
   };
 }
 
+function patchCurrentVoiceDictationCapabilities(
+  source: string,
+): FeatureGateSourcePatchResult | undefined {
+  const composerMarker = "navigator?.mediaDevices?.getUserMedia";
+  const composerMarkerIndex = source.indexOf(composerMarker);
+  if (composerMarkerIndex === -1) {
+    return undefined;
+  }
+
+  const arrowIndex = source.lastIndexOf("=>{", composerMarkerIndex);
+  if (arrowIndex === -1) {
+    throw new Error("Unable to locate the current dictation capability function.");
+  }
+
+  const bodyStart = arrowIndex + 3;
+  const bodyEnd = findJavaScriptBlockEnd(source, bodyStart);
+  if (bodyEnd === undefined) {
+    throw new Error("Unable to locate the end of the current dictation capability function.");
+  }
+
+  const body = source.slice(bodyStart, bodyEnd - 1);
+  const composerGatePattern = new RegExp(
+    String.raw`(${identifierPattern}\(\s*${identifierPattern}\s*,\s*\`4100906017\`\s*\)),\s*(${identifierPattern})\s*=\s*${identifierPattern}\(\s*${identifierPattern}\s*,\s*\`4100906017\`\s*\)`,
+    "g",
+  );
+  const composerAppliedPattern = new RegExp(
+    String.raw`${identifierPattern}\(\s*${identifierPattern}\s*,\s*\`4100906017\`\s*\),\s*${identifierPattern}\s*=\s*!0`,
+  );
+  const composerMatches = Array.from(body.matchAll(composerGatePattern));
+  const composerAlreadyApplied = composerAppliedPattern.test(body);
+  if (composerMatches.length > 1 || (composerMatches.length === 0 && !composerAlreadyApplied)) {
+    throw new Error(
+      `Expected exactly one current dictation composer gate pair, found ${composerMatches.length}.`,
+    );
+  }
+
+  const globalDictationPattern = new RegExp(
+    String.raw`(\`global-dictation\`,)statsig:\[\`4100906017\`,\`1244621283\`\],(?=supportedClients:)`,
+    "g",
+  );
+  const globalDictationAppliedPattern = /\`global-dictation\`,supportedClients:/;
+  const globalDictationMatches = Array.from(source.matchAll(globalDictationPattern));
+  const globalDictationAlreadyApplied = globalDictationAppliedPattern.test(source);
+  if (
+    globalDictationMatches.length > 1 ||
+    (globalDictationMatches.length === 0 && !globalDictationAlreadyApplied)
+  ) {
+    throw new Error(
+      `Expected exactly one current global dictation Statsig gate list, found ${globalDictationMatches.length}.`,
+    );
+  }
+
+  let patchedSource = source;
+  if (composerMatches.length === 1) {
+    const patchedBody = body.replace(composerGatePattern, "$1,$2=!0");
+    patchedSource =
+      source.slice(0, bodyStart) + patchedBody + source.slice(bodyEnd - 1);
+  }
+  if (globalDictationMatches.length === 1) {
+    patchedSource = patchedSource.replace(globalDictationPattern, "$1");
+  }
+
+  return {
+    source: patchedSource,
+    status: "applied",
+    matcher: "current-voice-dictation-capabilities",
+    matchedIds: voiceDictationGateOverrides.map(({ id }) => id),
+  };
+}
+
+function patchVoiceAndDictationCapabilities(
+  source: string,
+): FeatureGateSourcePatchResult | undefined {
+  let patchedSource = source;
+  const matchedIds = new Set<string>();
+  const voiceResult = patchVoiceAvailabilityFunction(patchedSource);
+  if (voiceResult) {
+    patchedSource = voiceResult.source;
+    voiceResult.matchedIds.forEach((id) => matchedIds.add(id));
+  }
+
+  const currentResult = patchCurrentVoiceDictationCapabilities(patchedSource);
+  if (currentResult) {
+    patchedSource = currentResult.source;
+    currentResult.matchedIds.forEach((id) => matchedIds.add(id));
+  }
+
+  if (voiceResult === undefined && currentResult === undefined) {
+    return undefined;
+  }
+
+  return {
+    source: patchedSource,
+    status: "applied",
+    matcher: "voice-and-dictation-capabilities",
+    matchedIds: [...matchedIds],
+  };
+}
+
 type FeatureGateValueResolver = (
   id: string,
   callIndex: number,
   functionRanges: FunctionRange[],
   source: string,
 ) => "!0" | "!1";
+
+function findFeatureGateValueAccessor(source: string): string | undefined {
+  const match = source.match(
+    new RegExp(
+      String.raw`\b(${identifierPattern})=eo\(Q,${identifierPattern}=>!1,\{onMount:[\s\S]*?\.checkGate\(`,
+    ),
+  );
+  return match?.[1];
+}
 
 function patchFeatureGateCalls(
   source: string,
@@ -631,8 +739,12 @@ function patchFeatureGateCalls(
 ): FeatureGateSourcePatchResult | undefined {
   const ids = overrides.map(({ id }) => escapeRegExp(id)).join("|");
   const overrideValues = new Map(overrides.map(({ id, value }) => [id, value]));
+  const valueAccessor = findFeatureGateValueAccessor(source);
+  const valueAccessorPrefix = valueAccessor
+    ? String.raw`(?:${escapeRegExp(valueAccessor)}\s*,\s*)?`
+    : "";
   const pattern = new RegExp(
-    String.raw`\b${identifierPattern}\(\s*(?:Iv\s*,\s*)?\`(${ids})\`\s*\)`,
+    String.raw`\b${identifierPattern}\(\s*${valueAccessorPrefix}\`(${ids})\`\s*\)`,
     "g",
   );
   const matches = Array.from(source.matchAll(pattern));
@@ -1354,7 +1466,7 @@ function patchVoiceDictationGates(recoveredRoot: string): PatchResult[] {
       "1697652030",
       ...voiceDictationGateOverrides.map(({ id }) => id),
     ],
-    patchVoiceAvailabilityFunction,
+    patchVoiceAndDictationCapabilities,
   );
 }
 

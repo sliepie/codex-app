@@ -28,6 +28,9 @@ const usageRemainingCompilerShapeTargets =
   "function jn(e){let j;t[0]?(j=(0,Z.jsx)(Item,{LeftIcon:O,RightIcon:k,tooltipSide:C,children:A}),t[1]=j):j=t[1];let M;t[2]?(M=(0,Z.jsxs)(`div`,{className:`flex flex-col text-sm`,children:[(0,Z.jsx)(w,{id:`composer.mode.rateLimit.heading`,children:A}),(0,Z.jsx)(w,{id:`composer.mode.rateLimit.resetsAvailable`,children:A}),(0,Z.jsx)(w,{id:`composer.mode.rateLimit.loading`,children:A})]}),t[3]=M):M=t[3];return(0,Z.jsx)(Submenu,{trigger:j,children:M})}";
 const featureGateGroupTargets =
   "function voiceAvailability(){let rollout=jx(`2380644311`),killSwitch=jx(`1697652030`);return rollout&&!killSwitch}function voiceConsumer(){let available=voiceAvailability(),entitlement=readEntitlement(),permission=readPermission(),killSwitch=readKillSwitch();return available&&entitlement&&permission&&!killSwitch}const dictation=jx(`1244621283`),voiceMedia=jx(`4100906017`),overlay=jx(`620613358`),avatar=jx(`1380537759`);const browser=jx(`410262010`),external=jx(`410065390`),computer=jx(`1506311413`),browserSettings=jx(`1256703444`),browserExtra=jx(`4131705479`);const appGen=jx(`637432221`),appGenEndCard=jx(`3000193894`),appGenPage=jx(`476199071`),sites=jx(`1912312436`),siteTools=jx(`324493575`),siteResults=jx(`2196156952`);function remoteGates(){return checkGate(`1042620455`)||checkGate(`4114442250`)||checkGate(`2055603567`)&&!checkGate(`3936985709`)&&checkGate(`2296472986`)}function pluginGates(){let c=jx(`4218407052`);return{includeVerticalCatalog:!c,apps:checkGate(`403472035`),search:checkGate(`603443661`),mcp:checkGate(`3669474837`),skills:checkGate(`3413548395`),positive:checkGate(`4218407052`)}}";
+const currentVoiceDictationTargets =
+  "function voiceAvailability(){let rollout=vx(`2380644311`),killSwitch=vx(`1697652030`);return rollout&&!killSwitch}function voiceConsumer(){let available=voiceAvailability(),entitlement=Y(Y(fv)?ov:av),permission=Y(xUt),killSwitch=Y(Cnn);return available&&entitlement&&permission&&!killSwitch}const dictationComposer=Za(Q,({get:e})=>{if(!navigator?.mediaDevices?.getUserMedia||typeof MediaRecorder>`u`)return{isLoading:!1,isError:!1,isCapable:!1};let t=e(wHt,`4100906017`),n=e(I_,`4100906017`),{authLoading:r,authMethod:i}=e(mv),a=r||t;return{isLoading:a,isError:!1,isCapable:!a&&n&&i===`chatgpt`}});const capabilities={dictationGlobal:{accessPolicy:`global-dictation`,statsig:[`4100906017`,`1244621283`],supportedClients:[`electron`]}};" +
+  featureGateGroupTargets.slice(featureGateGroupTargets.indexOf("const browser="));
 const browserRuntimeRelocationTargets =
   "function tP({executableName:e,runtimeRoot:t}){let n=dP([`OpenAI`,`Codex`,`runtimes`,RN]),r=VN.get(t);if(r!=null){let n=(0,i.join)(r,`bin`,e);if(yP(n)&&pP((0,i.join)(r,`bin`,`node_modules`)))return n;VN.delete(t)}let a=[`manifest.json`,`bin/node.exe`,`bin/node_repl.exe`].map(e=>aP({destinationPath:n,executableName:e,sourcePath:(0,i.join)(t,e)})),o=oP(a).slice(0,16),s=(0,i.join)(n,o),l=(0,i.join)(s,`bin`,e);if(sP(s,a)&&pP((0,i.join)(s,`bin`,`node_modules`)))return uP({currentHash:o,destinationRoot:n,executableName:(0,i.join)(`bin`,e)}),VN.set(t,s),l;(0,c.existsSync)(s)&&hP({destinationPath:s,executableName:e,operation:`remove_destination`,sourcePath:t},()=>(0,c.rmSync)(s,{force:!0,recursive:!0})),hP({destinationPath:n,executableName:e,operation:`mkdir_destination`,sourcePath:t},()=>(0,c.mkdirSync)(n,{recursive:!0}));let u=hP({destinationPath:n,executableName:e,operation:`mkdir_staging`,sourcePath:t},()=>(0,c.mkdtempSync)((0,i.join)(n,`.staging-${o}-`)));try{hP({destinationPath:u,executableName:e,operation:`copy_directory`,sourcePath:t},()=>nP(t,u)),hP({destinationPath:u,executableName:e,operation:`rename_staging`,sourcePath:u},()=>(0,c.renameSync)(u,s))}catch(e){try{(0,c.rmSync)(u,{force:!0,recursive:!0})}catch{}if(sP(s,a)&&pP((0,i.join)(s,`bin`,`node_modules`)))return VN.set(t,s),l;throw e}return uP({currentHash:o,destinationRoot:n,executableName:(0,i.join)(`bin`,e)}),VN.set(t,s),l}";
 
@@ -258,6 +261,41 @@ test("enables the requested gate groups with polarity-aware replacements", () =>
     ],
   );
   assert.ok(report.patches.slice(1, 6).every((patch) => patch.status === "applied"));
+});
+
+test("enables the current Voice and dictation capability shape", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const gatePath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "feature-gate-groups-fixture.js",
+  );
+  fs.writeFileSync(gatePath, currentVoiceDictationTargets, "utf8");
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(gatePath, "utf8");
+  assert.match(bundle, /function voiceAvailability\(\)\{let rollout=vx\(`2380644311`\),killSwitch=vx\(`1697652030`\);return!0\}/);
+  assert.match(bundle, /function voiceConsumer\(\)\{let available=voiceAvailability\(\),entitlement=Y\(Y\(fv\)\?ov:av\),permission=Y\(xUt\),killSwitch=Y\(Cnn\);return!0\}/);
+  assert.match(bundle, /let t=e\(wHt,`4100906017`\),n=!0/);
+  assert.doesNotMatch(bundle, /`global-dictation`,statsig:/);
+
+  const patch = JSON.parse(fs.readFileSync(reportPath, "utf8")).patches.find(
+    (candidate) => candidate.name === "enable Voice and dictation gates",
+  );
+  assert.equal(patch?.status, "applied");
+
+  const firstBundle = bundle;
+  const second = runPatcher(recoveredRoot, reportPath);
+  assert.equal(second.status, 0, second.stderr || second.stdout);
+  assert.equal(fs.readFileSync(gatePath, "utf8"), firstBundle);
+  const secondPatch = JSON.parse(fs.readFileSync(reportPath, "utf8")).patches.find(
+    (candidate) => candidate.name === "enable Voice and dictation gates",
+  );
+  assert.equal(secondPatch?.status, "already-applied");
 });
 
 test("replaces ChatGPT renderer text without changing product identifiers or protocol values", () => {
