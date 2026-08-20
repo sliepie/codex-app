@@ -22,8 +22,9 @@ Use the PR's GitHub Actions builds for build, package, release, native-module, a
 
 ## Tests
 
-- Write tests only for durable, project-owned behavior or explicit external contracts. Each test must name the behavior it protects and use the smallest isolated fixture that proves it.
-- Keep upstream/minified-source compatibility checks in a small, explicitly named PR-build canary against the resolved or hydrated artifact. Treat copied bundle snapshots, generated names, incidental file ordering, and patch counts as implementation details rather than general regression contracts.
+- Write tests only for durable, project-owned behavior, deterministic algorithms, or explicit external contracts. Each test must name the behavior it protects and use the smallest isolated fixture that proves it.
+- Validate source-transformer compatibility against the resolved or hydrated upstream artifact through the PR's GitHub Actions hydrate/package path. Keep repository tests focused on deterministic helper behavior and packaged-artifact postconditions.
+- Keep copied upstream/minified source snapshots, generated names, incidental file ordering, and patch counts out of regression tests; they are implementation details rather than contracts.
 - Keep unrelated tests independent: an upstream shape change in one patch target must not make tests for other patch targets fail or become unreachable.
 - Preserve fail-closed tests for missing, ambiguous, or drifted targets, and assert semantic output, syntax, no-write-on-failure behavior, and idempotence where those are the contract.
 
