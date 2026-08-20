@@ -20,6 +20,13 @@ ONCE A PR EXISTS, ALWAYS PUSH ANY FOLLOW-UP COMMITS TO THAT PR BRANCH UNLESS I E
 
 Use the PR's GitHub Actions builds for build, package, release, native-module, and CI-equivalent validation. Reserve local builds for cases where the user explicitly requests local validation or no PR build can exercise the issue.
 
+## Tests
+
+- Write tests only for durable, project-owned behavior or explicit external contracts. Each test must name the behavior it protects and use the smallest isolated fixture that proves it.
+- Keep upstream/minified-source compatibility checks in a small, explicitly named PR-build canary against the resolved or hydrated artifact. Treat copied bundle snapshots, generated names, incidental file ordering, and patch counts as implementation details rather than general regression contracts.
+- Keep unrelated tests independent: an upstream shape change in one patch target must not make tests for other patch targets fail or become unreachable.
+- Preserve fail-closed tests for missing, ambiguous, or drifted targets, and assert semantic output, syntax, no-write-on-failure behavior, and idempotence where those are the contract.
+
 NEVER USE codex OR codex/* AS A BRANCH NAME.
 
 NEVER TOUCH GENERATED .g.cs FILES.
