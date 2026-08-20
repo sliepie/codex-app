@@ -27,13 +27,13 @@ const usageRemainingTargets =
 const usageRemainingCompilerShapeTargets =
   "function jn(e){let j;t[0]?(j=(0,Z.jsx)(Item,{LeftIcon:O,RightIcon:k,tooltipSide:C,children:A}),t[1]=j):j=t[1];let M;t[2]?(M=(0,Z.jsxs)(`div`,{className:`flex flex-col text-sm`,children:[(0,Z.jsx)(w,{id:`composer.mode.rateLimit.heading`,children:A}),(0,Z.jsx)(w,{id:`composer.mode.rateLimit.resetsAvailable`,children:A}),(0,Z.jsx)(w,{id:`composer.mode.rateLimit.loading`,children:A})]}),t[3]=M):M=t[3];return(0,Z.jsx)(Submenu,{trigger:j,children:M})}";
 const latestFeatureGateTargets =
-  "function i7s(){let e=vx(`2380644311`),t=vx(`1697652030`);return e&&!t}function o7s(){let e=i7s(),t=Y(Y(fv)?ov:av),n=Y(xUt),r=Y(Cnn);return e&&t&&n&&!r}" +
-  "const dictationComposer=Za(Q,({get:e})=>{if(!navigator?.mediaDevices?.getUserMedia||typeof MediaRecorder>`u`)return{isLoading:!1,isError:!1,isCapable:!1};let t=e(wHt,`4100906017`),n=e(I_,`4100906017`),{authLoading:r,authMethod:i}=e(mv),a=r||t;return{isLoading:a,isError:!1,isCapable:!a&&n&&i===`chatgpt`}});" +
+  "function $7s(){let e=px(`2380644311`),t=px(`1697652030`);return e&&!t}function t9s(){let e=$7s(),t=Y(Y(av)?$_:Q_),n=Y(OUt),r=Y(Onn);return e&&t&&n&&!r}" +
+  "const dictationComposer=Za(Q,({get:e})=>{if(!navigator?.mediaDevices?.getUserMedia||typeof MediaRecorder>`u`)return{isLoading:!1,isError:!1,isCapable:!1};let t=e(jHt,`4100906017`),n=e(k_,`4100906017`),{authLoading:r,authMethod:i}=e(sv),a=r||t;return{isLoading:a,isError:!1,isCapable:!a&&n&&i===`chatgpt`}});" +
   "const capabilities={dictationGlobal:{accessPolicy:`global-dictation`,statsig:[`4100906017`,`1244621283`],supportedClients:[`electron`]}};" +
   "function voiceOverlay(){let e=n(`620613358`);return e}" +
   "function browserGates(){let a=vx(`410262010`),b=vx(`410065390`),c=vx(`1506311413`),d=vx(`1256703444`),e=vx(`4131705479`);return a&&b&&c&&d&&e}" +
   "function appGenGates(){let a=vx(`637432221`),b=vx(`3000193894`),c=vx(`476199071`),d=N(`1912312436`),e=rt(`324493575`),f=je(`2196156952`);return a&&b&&c&&d&&e&&f}" +
-  "function remoteGates(){let a=vx(`1042620455`),b=vx(`4114442250`),c=e(I_,`2055603567`),d=n(I_,`3936985709`),f=t(I_,`2296472986`);return a&&b&&c&&!d&&f}" +
+  "function remoteGates(){let a=px(`1042620455`),b=px(`4114442250`),c=e(k_,`2055603567`),d=n(k_,`3936985709`),f=t(k_,`2296472986`);return a&&b&&c&&!d&&f}" +
   "function pluginsMcpSkills(){let a=e(I_,`403472035`),b=ra(`603443661`),c=e(I_,`3669474837`),d=er(I_,`3413548395`),f=vx(`4218407052`);return{includeVerticalCatalog:!f,apps:a,search:b,mcp:c,skills:d}}";
 const browserRuntimeRelocationTargets =
   "function tP({executableName:e,runtimeRoot:t}){let n=dP([`OpenAI`,`Codex`,`runtimes`,RN]),r=VN.get(t);if(r!=null){let n=(0,i.join)(r,`bin`,e);if(yP(n)&&pP((0,i.join)(r,`bin`,`node_modules`)))return n;VN.delete(t)}let a=[`manifest.json`,`bin/node.exe`,`bin/node_repl.exe`].map(e=>aP({destinationPath:n,executableName:e,sourcePath:(0,i.join)(t,e)})),o=oP(a).slice(0,16),s=(0,i.join)(n,o),l=(0,i.join)(s,`bin`,e);if(sP(s,a)&&pP((0,i.join)(s,`bin`,`node_modules`)))return uP({currentHash:o,destinationRoot:n,executableName:(0,i.join)(`bin`,e)}),VN.set(t,s),l;(0,c.existsSync)(s)&&hP({destinationPath:s,executableName:e,operation:`remove_destination`,sourcePath:t},()=>(0,c.rmSync)(s,{force:!0,recursive:!0})),hP({destinationPath:n,executableName:e,operation:`mkdir_destination`,sourcePath:t},()=>(0,c.mkdirSync)(n,{recursive:!0}));let u=hP({destinationPath:n,executableName:e,operation:`mkdir_staging`,sourcePath:t},()=>(0,c.mkdtempSync)((0,i.join)(n,`.staging-${o}-`)));try{hP({destinationPath:u,executableName:e,operation:`copy_directory`,sourcePath:t},()=>nP(t,u)),hP({destinationPath:u,executableName:e,operation:`rename_staging`,sourcePath:u},()=>(0,c.renameSync)(u,s))}catch(e){try{(0,c.rmSync)(u,{force:!0,recursive:!0})}catch{}if(sP(s,a)&&pP((0,i.join)(s,`bin`,`node_modules`)))return VN.set(t,s),l;throw e}return uP({currentHash:o,destinationRoot:n,executableName:(0,i.join)(`bin`,e)}),VN.set(t,s),l}";
@@ -241,14 +241,14 @@ test("enables the requested gate groups with polarity-aware replacements", () =>
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const bundle = fs.readFileSync(gatePath, "utf8");
-  assert.match(bundle, /function i7s\(\)\{let e=vx\(`2380644311`\),t=vx\(`1697652030`\);return!0\}/);
-  assert.match(bundle, /function o7s\(\)\{let e=i7s\(\),t=Y\(Y\(fv\)\?ov:av\),n=Y\(xUt\),r=Y\(Cnn\);return!0\}/);
+  assert.match(bundle, /function \$7s\(\)\{let e=px\(`2380644311`\),t=px\(`1697652030`\);return!0\}/);
+  assert.match(bundle, /function t9s\(\)\{let e=\$7s\(\),t=Y\(Y\(av\)\?\$_:Q_\),n=Y\(OUt\),r=Y\(Onn\);return!0\}/);
   assert.match(bundle, /function voiceOverlay\(\)\{let e=!0;return e\}/);
   assert.match(bundle, /function browserGates\(\)\{let a=!0,b=!0,c=!0,d=!0,e=!0;return a&&b&&c&&d&&e\}/);
   assert.match(bundle, /function appGenGates\(\)\{let a=!0,b=!0,c=!0,d=!0,e=!0,f=!0;return a&&b&&c&&d&&e&&f\}/);
   assert.match(bundle, /function remoteGates\(\)\{let a=!0,b=!0,c=!0,d=!1,f=!0;return a&&b&&c&&!d&&f\}/);
   assert.match(bundle, /function pluginsMcpSkills\(\)\{let a=!0,b=!0,c=!0,d=!0,f=!1;return\{includeVerticalCatalog:!f,apps:a,search:b,mcp:c,skills:d\}\}/);
-  assert.match(bundle, /let t=e\(wHt,`4100906017`\),n=!0/);
+  assert.match(bundle, /let t=e\(jHt,`4100906017`\),n=!0/);
   assert.doesNotMatch(bundle, /`global-dictation`,statsig:/);
   assert.match(bundle, /^\/\* codex-feature-gates-plugins-mcp-skills-enabled \*\//);
   assert.doesNotMatch(bundle, /(?:^|\n)codex-feature-gates-[a-z-]+\n/);

@@ -53,7 +53,6 @@ const featureGateGroupMarkers = {
   pluginsMcpSkills: "codex-feature-gates-plugins-mcp-skills-enabled",
 } as const;
 const voiceDictationGateOverrides = [
-  { id: "4100906017", value: "!0" },
   { id: "620613358", value: "!0" },
 ] as const;
 const browserComputerGateOverrides = [
@@ -539,7 +538,7 @@ function patchLatestVoiceDictationCapabilities(
   }
 
   const voiceAvailabilityPattern = new RegExp(
-    String.raw`(\bfunction (${identifierPattern})\(\)\{let ${identifierPattern}=vx\(\`2380644311\`\),${identifierPattern}=vx\(\`1697652030\`\);return)\s+${identifierPattern}&&!${identifierPattern}(\})`,
+    String.raw`(\bfunction (${identifierPattern})\(\)\{let ${identifierPattern}=${identifierPattern}\(\`2380644311\`\),${identifierPattern}=${identifierPattern}\(\`1697652030\`\);return)\s+${identifierPattern}&&!${identifierPattern}(\})`,
     "g",
   );
   const availabilityMatches = Array.from(source.matchAll(voiceAvailabilityPattern));
@@ -555,7 +554,7 @@ function patchLatestVoiceDictationCapabilities(
   }
 
   const voiceConsumerPattern = new RegExp(
-    String.raw`(\bfunction ${identifierPattern}\(\)\{let ${identifierPattern}=${escapeRegExp(availabilityMatch[2])}\(\),${identifierPattern}=Y\(Y\(fv\)\?ov:av\),${identifierPattern}=Y\(xUt\),${identifierPattern}=Y\(Cnn\);return)\s+${identifierPattern}&&${identifierPattern}&&${identifierPattern}&&!${identifierPattern}(\})`,
+    String.raw`(\bfunction ${identifierPattern}\(\)\{let ${identifierPattern}=${escapeRegExp(availabilityMatch[2])}\(\),[^;]+;return)\s+${identifierPattern}&&${identifierPattern}&&${identifierPattern}&&!${identifierPattern}(\})`,
     "g",
   );
   let patchedSource = source;
@@ -573,7 +572,7 @@ function patchLatestVoiceDictationCapabilities(
 
   const body = source.slice(bodyStart, bodyEnd - 1);
   const composerGatePattern = new RegExp(
-    String.raw`(${identifierPattern}\(wHt,\s*\`4100906017\`\)),\s*(${identifierPattern})=${identifierPattern}\(I_,\s*\`4100906017\`\)`,
+    String.raw`(${identifierPattern}\(${identifierPattern},\s*\`4100906017\`\)),\s*(${identifierPattern})=${identifierPattern}\(${identifierPattern},\s*\`4100906017\`\)`,
     "g",
   );
   const composerMatches = Array.from(body.matchAll(composerGatePattern));
@@ -630,7 +629,7 @@ function patchFeatureGateCalls(
   const ids = overrides.map(({ id }) => escapeRegExp(id)).join("|");
   const overrideValues = new Map(overrides.map(({ id, value }) => [id, value]));
   const pattern = new RegExp(
-    String.raw`\b(?:${identifierPattern}\(\s*I_\s*,\s*|${identifierPattern}\(\s*)\`(${ids})\`\s*\)`,
+    String.raw`\b(?:${identifierPattern}\(\s*${identifierPattern}\s*,\s*|${identifierPattern}\(\s*)\`(${ids})\`\s*\)`,
     "g",
   );
   const matches = Array.from(source.matchAll(pattern));
