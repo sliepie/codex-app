@@ -26,12 +26,12 @@ const projectsSectionTargets =
   "function Projects(){let u=false;return(0,$.jsx)(ProjectGroups,{label:`sidebarElectron.projectsNavLink`,maxGroups:u?void 0:5,showProjectHoverCard:true,showProjectPinAction:true,maxItems:11,maxThreads:5})}" +
   projectGroupCollapseTargets +
   "function GenericList(){return{maxGroups:G,maxItems:3,maxThreads:2}}";
-const realtimeVoiceFeatureGateTargets =
-  "function $ps(){let e=uh(`2380644311`),t=uh(`1697652030`);return e&&!t}var ems=n((()=>{gh()}));function tms(){let e=$ps(),t=J(iCn),n=J(zdr);return e&&t&&!n}";
 const usageRemainingTargets =
   "function n1l(e){let heading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.heading`,defaultMessage:`Usage remaining`,description:`Rate limit summary heading`}),resets=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.resetsAvailable`,defaultMessage:`# available resets`}),loading=(0,u7.jsx)(Z,{id:`composer.mode.rateLimit.loading`,defaultMessage:`Loading usage…`,description:`Loading state for the rate limit summary submenu`}),k=(0,u7.jsx)(v,{LeftIcon:E,RightIcon:D,tooltipSide:S,children:O});let A=(0,u7.jsx)(V,{children:heading});return(0,u7.jsx)(y,{trigger:k,children:A})}";
 const usageRemainingCompilerShapeTargets =
   "function jn(e){let j;t[0]?(j=(0,Z.jsx)(Item,{LeftIcon:O,RightIcon:k,tooltipSide:C,children:A}),t[1]=j):j=t[1];let M;t[2]?(M=(0,Z.jsxs)(`div`,{className:`flex flex-col text-sm`,children:[(0,Z.jsx)(w,{id:`composer.mode.rateLimit.heading`,children:A}),(0,Z.jsx)(w,{id:`composer.mode.rateLimit.resetsAvailable`,children:A}),(0,Z.jsx)(w,{id:`composer.mode.rateLimit.loading`,children:A})]}),t[3]=M):M=t[3];return(0,Z.jsx)(Submenu,{trigger:j,children:M})}";
+const featureGateGroupTargets =
+  "function voiceAvailability(){let rollout=jx(`2380644311`),killSwitch=jx(`1697652030`);return rollout&&!killSwitch}function voiceConsumer(){let available=voiceAvailability(),entitlement=readEntitlement(),permission=readPermission(),killSwitch=readKillSwitch();return available&&entitlement&&permission&&!killSwitch}const dictation=jx(`1244621283`),voiceMedia=jx(`4100906017`),overlay=jx(`620613358`),avatar=jx(`1380537759`);const browser=jx(`410262010`),external=jx(`410065390`),computer=jx(`1506311413`),browserSettings=jx(`1256703444`),browserExtra=jx(`4131705479`);const appGen=jx(`637432221`),appGenEndCard=jx(`3000193894`),appGenPage=jx(`476199071`),sites=jx(`1912312436`),siteTools=jx(`324493575`),siteResults=jx(`2196156952`);function remoteGates(){return checkGate(`1042620455`)||checkGate(`4114442250`)||checkGate(`2055603567`)&&!checkGate(`3936985709`)&&checkGate(`2296472986`)}function pluginGates(){let c=jx(`4218407052`);return{includeVerticalCatalog:!c,apps:checkGate(`403472035`),search:checkGate(`603443661`),mcp:checkGate(`3669474837`),skills:checkGate(`3413548395`),positive:checkGate(`4218407052`)}}";
 const browserRuntimeRelocationTargets =
   "function tP({executableName:e,runtimeRoot:t}){let n=dP([`OpenAI`,`Codex`,`runtimes`,RN]),r=VN.get(t);if(r!=null){let n=(0,i.join)(r,`bin`,e);if(yP(n)&&pP((0,i.join)(r,`bin`,`node_modules`)))return n;VN.delete(t)}let a=[`manifest.json`,`bin/node.exe`,`bin/node_repl.exe`].map(e=>aP({destinationPath:n,executableName:e,sourcePath:(0,i.join)(t,e)})),o=oP(a).slice(0,16),s=(0,i.join)(n,o),l=(0,i.join)(s,`bin`,e);if(sP(s,a)&&pP((0,i.join)(s,`bin`,`node_modules`)))return uP({currentHash:o,destinationRoot:n,executableName:(0,i.join)(`bin`,e)}),VN.set(t,s),l;(0,c.existsSync)(s)&&hP({destinationPath:s,executableName:e,operation:`remove_destination`,sourcePath:t},()=>(0,c.rmSync)(s,{force:!0,recursive:!0})),hP({destinationPath:n,executableName:e,operation:`mkdir_destination`,sourcePath:t},()=>(0,c.mkdirSync)(n,{recursive:!0}));let u=hP({destinationPath:n,executableName:e,operation:`mkdir_staging`,sourcePath:t},()=>(0,c.mkdtempSync)((0,i.join)(n,`.staging-${o}-`)));try{hP({destinationPath:u,executableName:e,operation:`copy_directory`,sourcePath:t},()=>nP(t,u)),hP({destinationPath:u,executableName:e,operation:`rename_staging`,sourcePath:u},()=>(0,c.renameSync)(u,s))}catch(e){try{(0,c.rmSync)(u,{force:!0,recursive:!0})}catch{}if(sP(s,a)&&pP((0,i.join)(s,`bin`,`node_modules`)))return VN.set(t,s),l;throw e}return uP({currentHash:o,destinationRoot:n,executableName:(0,i.join)(`bin`,e)}),VN.set(t,s),l}";
 
@@ -52,12 +52,12 @@ function createRecoveredFixture() {
     `${indexFeatureTargets}${sidebarPixelTargets}`,
   );
   writeFixture(
-    path.join(recoveredRoot, "webview", "assets", "realtime-voice-feature-gate-fixture.js"),
-    realtimeVoiceFeatureGateTargets,
-  );
-  writeFixture(
     path.join(recoveredRoot, "webview", "assets", "usage-remaining-fixture.js"),
     usageRemainingTargets,
+  );
+  writeFixture(
+    path.join(recoveredRoot, "webview", "assets", "feature-gate-groups-fixture.js"),
+    featureGateGroupTargets,
   );
   writeFixture(
     path.join(recoveredRoot, "webview", "assets", "browser-downloads-feature-fixture.js"),
@@ -204,8 +204,12 @@ test("writes patch report file paths relative to the recovered app root", () => 
     report.patches.map((patch) => patch.file),
     [
       "webview/assets",
+      "webview/assets",
+      "webview/assets",
+      "webview/assets",
+      "webview/assets",
+      "webview/assets",
       "webview/assets/usage-remaining-fixture.js",
-      "webview/assets/realtime-voice-feature-gate-fixture.js",
       "webview/assets/browser-downloads-feature-fixture.js",
       "webview/assets/projects-section-fixture.js",
       "webview/assets/projects-section-fixture.js",
@@ -219,6 +223,46 @@ test("writes patch report file paths relative to the recovered app root", () => 
   );
   assert.ok(report.patches.every((patch) => !path.isAbsolute(patch.file)));
   assert.ok(report.patches.every((patch) => !patch.file.includes("..")));
+});
+
+test("enables the requested gate groups with polarity-aware replacements", () => {
+  const recoveredRoot = createRecoveredFixture();
+  const gatePath = path.join(
+    recoveredRoot,
+    "webview",
+    "assets",
+    "feature-gate-groups-fixture.js",
+  );
+  const reportPath = path.join(recoveredRoot, "patch-report.json");
+
+  const result = runPatcher(recoveredRoot, reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const bundle = fs.readFileSync(gatePath, "utf8");
+  assert.match(bundle, /function voiceAvailability\(\)\{let rollout=jx\(`2380644311`\),killSwitch=jx\(`1697652030`\);return!0\}/);
+  assert.match(bundle, /function voiceConsumer\(\)\{let available=voiceAvailability\(\),entitlement=readEntitlement\(\),permission=readPermission\(\),killSwitch=readKillSwitch\(\);return!0\}/);
+  assert.match(bundle, /let c=!1;return\{includeVerticalCatalog:!c/);
+  assert.match(bundle, /positive:!0/);
+  assert.match(bundle, /^\/\* codex-feature-gates-plugins-mcp-skills-enabled \*\//);
+  assert.doesNotMatch(bundle, /(?:^|\n)codex-feature-gates-[a-z-]+\n/);
+  assert.doesNotMatch(bundle, /jx\(`1244621283`\)|checkGate\(`1042620455`\)/);
+  const syntaxCheck = spawnSync(process.execPath, ["--check", gatePath], {
+    encoding: "utf8",
+  });
+  assert.equal(syntaxCheck.status, 0, syntaxCheck.stderr || syntaxCheck.stdout);
+
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  assert.deepEqual(
+    report.patches.slice(1, 6).map((patch) => patch.name),
+    [
+      "enable Voice and dictation gates",
+      "enable Browser and computer-use gates",
+      "enable AppGen and Sites gates",
+      "enable Remote and connector gates",
+      "enable Plugins, MCP, and skills gates",
+    ],
+  );
+  assert.ok(report.patches.slice(1, 6).every((patch) => patch.status === "applied"));
 });
 
 test("replaces ChatGPT renderer text without changing product identifiers or protocol values", () => {
@@ -245,27 +289,6 @@ test("replaces ChatGPT renderer text without changing product identifiers or pro
   assert.equal(patch?.status, "applied");
   assert.equal(patch?.file, "webview/assets");
   assert.match(patch?.reason, /Replaced 2 product-name occurrence\(s\)/);
-});
-
-test("enables Codex Voice without runtime gates", () => {
-  const recoveredRoot = createRecoveredFixture();
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const bundle = fs.readFileSync(
-    path.join(recoveredRoot, "webview", "assets", "realtime-voice-feature-gate-fixture.js"),
-    "utf8",
-  );
-  assert.match(bundle, /function \$ps\(\)\{let e=uh\(`2380644311`\),t=uh\(`1697652030`\);return e&&!t\}var ems=n\(\(\(\)=>\{gh\(\)\}\)\);function tms\(\)\{let e=\$ps\(\),t=J\(iCn\),n=J\(zdr\);return!0\}/);
-  assert.doesNotMatch(bundle, /return e&&t&&!n/);
-
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  const patch = report.patches.find(
-    (candidate) => candidate.name === "enable Codex Voice rollout gate",
-  );
-  assert.equal(patch?.status, "applied");
 });
 
 test("keeps Usage remaining expanded in the rate-limit summary", () => {
@@ -367,74 +390,6 @@ test("preserves a compatible Usage remaining trigger handler", () => {
   const bundle = fs.readFileSync(usagePath, "utf8");
   assert.equal((bundle.match(/onSelect:evt=>evt\.preventDefault\(\)/g) ?? []).length, 1);
   assert.match(bundle, /children:A,isDefaultOpen:!0/);
-});
-
-test("accepts benign Codex Voice bundle formatting changes", () => {
-  const recoveredRoot = createRecoveredFixture();
-  const voiceGatePath = path.join(
-    recoveredRoot,
-    "webview",
-    "assets",
-    "realtime-voice-feature-gate-fixture.js",
-  );
-  fs.writeFileSync(
-    voiceGatePath,
-    "function $ps(){const e = uh( `2380644311` ), t = uh( `1697652030` ); return e && ! t }var ems = n((()=>{gh()}));function tms(){const e=$ps(),t=J(iCn),n=J(zdr);return e&&t&&!n}",
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s*!0/);
-});
-
-test("accepts Codex Voice minifier identifier changes", () => {
-  const recoveredRoot = createRecoveredFixture();
-  const voiceGatePath = path.join(
-    recoveredRoot,
-    "webview",
-    "assets",
-    "realtime-voice-feature-gate-fixture.js",
-  );
-  fs.writeFileSync(
-    voiceGatePath,
-    "function Xln(){let a=kh(`2380644311`),b=kh(`1697652030`);return a&&!b}var $9n=n((()=>{gh()}));function yer(){let a=Xln(),b=Y(jln),c=Y(zer);return a&&b&&!c}",
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s*!0/);
-});
-
-test("is idempotent after enabling Codex Voice without runtime gates", () => {
-  const recoveredRoot = createRecoveredFixture();
-  const voiceGatePath = path.join(
-    recoveredRoot,
-    "webview",
-    "assets",
-    "realtime-voice-feature-gate-fixture.js",
-  );
-  fs.writeFileSync(
-    voiceGatePath,
-    "function mts(){let e=kh(`2380644311`),t=kh(`1697652030`);return e&&!t}var $9n=n((()=>{gh()}));function nms(){let e=mts(),t=Y(Xln),n=Y(yer);return!0}",
-    "utf8",
-  );
-  const reportPath = path.join(recoveredRoot, "patch-report.json");
-
-  const result = runPatcher(recoveredRoot, reportPath);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(fs.readFileSync(voiceGatePath, "utf8"), /return\s*!0/);
-  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  const patch = report.patches.find(
-    (candidate) => candidate.name === "enable Codex Voice rollout gate",
-  );
-  assert.equal(patch?.status, "already-applied");
 });
 
 test("enables Browser downloads in the Electron bundle", () => {
@@ -850,7 +805,7 @@ test("patches non-feature self-signed Windows bundle changes", () => {
     /BrowserWindow\(\{icon:process\.platform===`win32`\?require\("node:path"\)\.join\(process\.resourcesPath,`icon\.ico`\):void 0,width:b/,
   );
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 12);
+  assert.equal(report.patches.length, 15);
   assert.ok(report.patches.every((patch) => patch.status === "applied"));
 });
 
@@ -1074,12 +1029,12 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
   const files = [
     path.join(recoveredRoot, "webview", "assets", "settings-page-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "index-fixture.js"),
+    path.join(recoveredRoot, "webview", "assets", "feature-gate-groups-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "usage-remaining-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "projects-section-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "composer-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "agent-settings-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "product-text-fixture.js"),
-    path.join(recoveredRoot, "webview", "assets", "realtime-voice-feature-gate-fixture.js"),
     path.join(recoveredRoot, "webview", "assets", "use-model-settings-fixture.js"),
     path.join(recoveredRoot, ".vite", "build", "workspace-root-drop-handler-fixture.js"),
     path.join(recoveredRoot, ".vite", "build", "browser-runtime-relocation-fixture.js"),
@@ -1094,6 +1049,6 @@ test("does not fail or rewrite when self-signed Windows patches run again", () =
     assert.equal(fs.readFileSync(file, "utf8"), before.get(file));
   }
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.patches.length, 12);
+  assert.equal(report.patches.length, 15);
   assert.ok(report.patches.every((patch) => patch.status === "already-applied"));
 });

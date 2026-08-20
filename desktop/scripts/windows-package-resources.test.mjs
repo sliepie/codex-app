@@ -449,7 +449,10 @@ test("generates Windows bundled plugin resources with Windows helper payloads", 
     "openai-bundled/plugins/browser/scripts/node_modules/classic-level.mjs",
   );
   assert.equal(fs.existsSync(browserClientRuntimeBridgePath), true);
-  assert.match(fs.readFileSync(browserClientRuntimeBridgePath, "utf8"), /ClassicLevel/);
+  assert.match(
+    fs.readFileSync(browserClientRuntimeBridgePath, "utf8"),
+    /\.\.\/\.\.\/node_modules\/classic-level\/index\.js/,
+  );
 
   fs.rmSync(browserClientRuntimeBridgePath);
   ensureBundledBrowserClientRuntimeBridge(
@@ -1008,7 +1011,6 @@ test("discovers native modules copied inside bundled plugin resources", () => {
       "openai-bundled",
       "plugins",
       "browser",
-      "scripts",
       "node_modules",
       "classic-level",
       "package.json",
@@ -1022,7 +1024,6 @@ test("discovers native modules copied inside bundled plugin resources", () => {
       "openai-bundled",
       "plugins",
       "browser",
-      "scripts",
       "node_modules",
       "classic-level",
       "prebuilds",
@@ -1077,11 +1078,11 @@ test("discovers native modules copied inside bundled plugin resources", () => {
 
   assert.equal(targets.length, 2);
   assert.equal(
-    targetsByPath.get("openai-bundled/plugins/browser/scripts/node_modules")?.runtime,
+    targetsByPath.get("openai-bundled/plugins/browser/node_modules")?.runtime,
     "node",
   );
   assert.deepEqual(
-    targetsByPath.get("openai-bundled/plugins/browser/scripts/node_modules")?.nativeModules,
+    targetsByPath.get("openai-bundled/plugins/browser/node_modules")?.nativeModules,
     [{ name: "classic-level", version: "3.0.0" }],
   );
   assert.equal(targetsByPath.has("openai-bundled/plugins/computer-use/node_modules"), false);
