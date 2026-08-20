@@ -186,6 +186,30 @@ test("feature-gate matching supports one- and two-argument calls with polarity",
   assert.deepEqual(result.matchedIds, ["one", "two"]);
 });
 
+test("feature-gate matching excludes member calls and preserves syntax", () => {
+  const source =
+    "const direct=read(" +
+    tick +
+    "direct" +
+    tick +
+    "),member=statsig.read(context," +
+    tick +
+    "member" +
+    tick +
+    ");";
+  const result = patchFeatureGateCalls(source, [
+    { id: "direct", value: "!0" },
+    { id: "member", value: "!1" },
+  ]);
+
+  assert.equal(
+    result.source,
+    "const direct=!0,member=statsig.read(context," + tick + "member" + tick + ");",
+  );
+  assert.deepEqual(result.matchedIds, ["direct"]);
+  assert.doesNotThrow(() => new Function(result.source));
+});
+
 test("keeps Mica enabled for inactive non-dark windows", () => {
   const source = [
     "function isDark(appearance){return appearance===" + tick + "dark" + tick + "}",
@@ -244,6 +268,9 @@ test("routes only the latest Windows ARM64 primary runtime manifest to GitHub", 
       tick +
       ")}",
   ].join("");
+  const evaluateOriginal = new Function(
+    source + ";return manifest(arguments[0],arguments[1],arguments[2]);",
+  );
   const patched = applyPatch(patchWindowsArm64PrimaryRuntimeManifestUrl(), source);
   const evaluate = new Function(patched + ";return manifest(arguments[0],arguments[1],arguments[2]);");
 
@@ -253,11 +280,11 @@ test("routes only the latest Windows ARM64 primary runtime manifest to GitHub", 
   );
   assert.equal(
     evaluate({ platform: "win32", arch: "x64" }, {}, "latest"),
-    "https://persistent.oaistatic.com/runtime/win32-x64/LATEST.json",
+    evaluateOriginal({ platform: "win32", arch: "x64" }, {}, "latest"),
   );
   assert.equal(
     evaluate({ platform: "win32", arch: "arm64" }, {}, "latest-alpha"),
-    "https://oaisidekickupdates.blob.core.windows.net/owl/runtime/alpha/latest/win32-arm64/LATEST.json",
+    evaluateOriginal({ platform: "win32", arch: "arm64" }, {}, "latest-alpha"),
   );
 });
 

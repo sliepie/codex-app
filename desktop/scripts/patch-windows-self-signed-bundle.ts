@@ -629,7 +629,7 @@ export function patchFeatureGateCalls(
   const ids = overrides.map(({ id }) => escapeRegExp(id)).join("|");
   const overrideValues = new Map(overrides.map(({ id, value }) => [id, value]));
   const pattern = new RegExp(
-    String.raw`\b(?:${identifierPattern}\(\s*${identifierPattern}\s*,\s*|${identifierPattern}\(\s*)\`(${ids})\`\s*\)`,
+    String.raw`(?<!\.)\b(?:${identifierPattern}\(\s*${identifierPattern}\s*,\s*|${identifierPattern}\(\s*)\`(${ids})\`\s*\)`,
     "g",
   );
   const matches = Array.from(source.matchAll(pattern));
