@@ -53,7 +53,6 @@ const featureGateGroupMarkers = {
   pluginsMcpSkills: "codex-feature-gates-plugins-mcp-skills-enabled",
 } as const;
 const voiceDictationGateOverrides = [
-  { id: "4100906017", value: "!0" },
   { id: "620613358", value: "!0" },
 ] as const;
 const browserComputerGateOverrides = [
@@ -152,7 +151,7 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function toReportPath(root: string, filePath: string): string {
+export function toReportPath(root: string, filePath: string): string {
   const resolvedRoot = path.resolve(root);
   const resolvedFile = path.resolve(filePath);
   const relative = path.relative(resolvedRoot, resolvedFile);
@@ -355,7 +354,7 @@ function alreadyAppliedPatch(evidence: string | RegExp): SourcePatcher {
   };
 }
 
-function patchWindowsArm64PrimaryRuntimeManifestUrl(): SourcePatcher {
+export function patchWindowsArm64PrimaryRuntimeManifestUrl(): SourcePatcher {
   return functionContainingAllPatch(
     ["latest-alpha", "latest", "oaisidekickupdates.blob.core.windows.net/owl"],
     windowsArm64PrimaryRuntimeManifestUrlPattern,
@@ -418,7 +417,7 @@ function findPrimaryRuntimeInstallerBundle(recoveredRoot: string): string | null
   return legacyMatches[0] ?? null;
 }
 
-function patchInactiveWindowsMicaBackdrop(): SourcePatcher {
+export function patchInactiveWindowsMicaBackdrop(): SourcePatcher {
   return (source) => {
     const matches = findFunctionRanges(source).filter((range) => {
       const argsMatch = range.args.match(
@@ -539,7 +538,7 @@ function patchLatestVoiceDictationCapabilities(
   }
 
   const voiceAvailabilityPattern = new RegExp(
-    String.raw`(\bfunction (${identifierPattern})\(\)\{let ${identifierPattern}=vx\(\`2380644311\`\),${identifierPattern}=vx\(\`1697652030\`\);return)\s+${identifierPattern}&&!${identifierPattern}(\})`,
+    String.raw`(\bfunction (${identifierPattern})\(\)\{let ${identifierPattern}=${identifierPattern}\(\`2380644311\`\),${identifierPattern}=${identifierPattern}\(\`1697652030\`\);return)\s+${identifierPattern}&&!${identifierPattern}(\})`,
     "g",
   );
   const availabilityMatches = Array.from(source.matchAll(voiceAvailabilityPattern));
@@ -555,7 +554,7 @@ function patchLatestVoiceDictationCapabilities(
   }
 
   const voiceConsumerPattern = new RegExp(
-    String.raw`(\bfunction ${identifierPattern}\(\)\{let ${identifierPattern}=${escapeRegExp(availabilityMatch[2])}\(\),${identifierPattern}=Y\(Y\(fv\)\?ov:av\),${identifierPattern}=Y\(xUt\),${identifierPattern}=Y\(Cnn\);return)\s+${identifierPattern}&&${identifierPattern}&&${identifierPattern}&&!${identifierPattern}(\})`,
+    String.raw`(\bfunction ${identifierPattern}\(\)\{let ${identifierPattern}=${escapeRegExp(availabilityMatch[2])}\(\),[^;]+;return)\s+${identifierPattern}&&${identifierPattern}&&${identifierPattern}&&!${identifierPattern}(\})`,
     "g",
   );
   let patchedSource = source;
@@ -573,7 +572,7 @@ function patchLatestVoiceDictationCapabilities(
 
   const body = source.slice(bodyStart, bodyEnd - 1);
   const composerGatePattern = new RegExp(
-    String.raw`(${identifierPattern}\(wHt,\s*\`4100906017\`\)),\s*(${identifierPattern})=${identifierPattern}\(I_,\s*\`4100906017\`\)`,
+    String.raw`(${identifierPattern}\(${identifierPattern},\s*\`4100906017\`\)),\s*(${identifierPattern})=${identifierPattern}\(${identifierPattern},\s*\`4100906017\`\)`,
     "g",
   );
   const composerMatches = Array.from(body.matchAll(composerGatePattern));
@@ -622,7 +621,7 @@ type FeatureGateValueResolver = (
   source: string,
 ) => "!0" | "!1";
 
-function patchFeatureGateCalls(
+export function patchFeatureGateCalls(
   source: string,
   overrides: readonly FeatureGateOverride[],
   resolveValue?: FeatureGateValueResolver,
@@ -630,7 +629,7 @@ function patchFeatureGateCalls(
   const ids = overrides.map(({ id }) => escapeRegExp(id)).join("|");
   const overrideValues = new Map(overrides.map(({ id, value }) => [id, value]));
   const pattern = new RegExp(
-    String.raw`\b(?:${identifierPattern}\(\s*I_\s*,\s*|${identifierPattern}\(\s*)\`(${ids})\`\s*\)`,
+    String.raw`(?<!\.)\b(?:${identifierPattern}\(\s*${identifierPattern}\s*,\s*|${identifierPattern}\(\s*)\`(${ids})\`\s*\)`,
     "g",
   );
   const matches = Array.from(source.matchAll(pattern));
@@ -1598,7 +1597,7 @@ function findWorkspaceRootDropHandlerBundle(
   return matches[0];
 }
 
-function patchWorkspaceRootDropHandler(): SourcePatcher {
+export function patchWorkspaceRootDropHandler(): SourcePatcher {
   return regexPatch(
     new RegExp(
       String.raw`\bfunction\s+(${identifierPattern})\(([^)]*)\)\{return\(0,(${identifierPattern})\.join\)\(process\.env\.LOCALAPPDATA\?\?\(0,\3\.join\)\(\(0,(${identifierPattern})\.homedir\)\(\),\`AppData\`,\`Local\`\),\.\.\.\2\)\}`,
@@ -1639,7 +1638,7 @@ function patchWorkspaceRootDropHandlerBundle(recoveredRoot: string): PatchResult
   ];
 }
 
-function patchBrowserRuntimeRelocation(): SourcePatcher {
+export function patchBrowserRuntimeRelocation(): SourcePatcher {
   return (source) => {
     const matches = findFunctionRanges(source).filter((range) => {
       const executableNameMatch = new RegExp(
@@ -1999,4 +1998,6 @@ function main(): void {
   }
 }
 
-main();
+if (require.main === module) {
+  main();
+}

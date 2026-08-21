@@ -18,6 +18,16 @@ NEVER USE MAIN. ALWAYS CREATE A FEATURE BRANCH AND OPEN A PR.
 
 ONCE A PR EXISTS, ALWAYS PUSH ANY FOLLOW-UP COMMITS TO THAT PR BRANCH UNLESS I EXPLICITLY SAY NOT TO.
 
+Use the PR's GitHub Actions builds for build, package, release, native-module, and CI-equivalent validation. Reserve local builds for cases where the user explicitly requests local validation or no PR build can exercise the issue.
+
+## Tests
+
+- Write tests only for durable, project-owned behavior, deterministic algorithms, or explicit external contracts. Each test must name the behavior it protects and use the smallest isolated fixture that proves it.
+- Validate source-transformer compatibility against the resolved or hydrated upstream artifact through the PR's GitHub Actions hydrate/package path. Keep repository tests focused on deterministic helper behavior and packaged-artifact postconditions.
+- Keep copied upstream/minified source snapshots, generated names, incidental file ordering, and patch counts out of regression tests; they are implementation details rather than contracts.
+- Keep unrelated tests independent: an upstream shape change in one patch target must not make tests for other patch targets fail or become unreachable.
+- Preserve fail-closed tests for missing, ambiguous, or drifted targets, and assert semantic output, syntax, no-write-on-failure behavior, and idempotence where those are the contract.
+
 NEVER USE codex OR codex/* AS A BRANCH NAME.
 
 NEVER TOUCH GENERATED .g.cs FILES.
