@@ -547,6 +547,19 @@ test("Windows ARM64 Resource binary policy lists Store-vendored helpers and x64 
   );
 });
 
+test("vendored node_repl helper exposes trusted browser RPC markers", () => {
+  const nodeRepl = fs.readFileSync(
+    path.join(desktopRoot, "resources", "cua_node", "bin", "node_repl.exe"),
+  );
+  for (const marker of [
+    "NODE_REPL_TRUSTED_SERVICES",
+    "NODE_REPL_TRUSTED_RPC_ENABLED",
+    "nodeRepl.rpc",
+  ]) {
+    assert.ok(nodeRepl.includes(Buffer.from(marker, "ascii")), `Missing node_repl marker: ${marker}`);
+  }
+});
+
 test("installs Tectonic Windows payload into bundled LaTeX plugin roots", () => {
   const resourcesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-tectonic-payload-"));
   const tectonicPath = path.join(resourcesRoot, "source", "tectonic.exe");
@@ -1652,6 +1665,7 @@ function createCodexPlusPlusLoaderFixture(t) {
   const originalMainPath = path.join(root, originalMain);
   const runtimeMainPath = path.join(root, "codex-plusplus", "runtime", "main.js");
   const appData = path.join(root, "AppData");
+  const codexHome = path.join(root, "CodexHome");
   const tracePath = path.join(root, "trace.txt");
 
   fs.mkdirSync(path.dirname(loaderPath), { recursive: true });
@@ -1669,7 +1683,7 @@ function createCodexPlusPlusLoaderFixture(t) {
     'require("node:fs").appendFileSync(process.env.CODEX_LOADER_TRACE, "runtime\\n");\n',
   );
 
-  return { root, loaderPath, appData, tracePath };
+  return { root, loaderPath, appData, codexHome, originalMainPath, tracePath };
 }
 
 function runCodexPlusPlusLoaderFixture(fixture) {
@@ -1678,6 +1692,7 @@ function runCodexPlusPlusLoaderFixture(fixture) {
     env: {
       ...process.env,
       APPDATA: fixture.appData,
+      CODEX_HOME: fixture.codexHome,
       CODEX_LOADER_TRACE: fixture.tracePath,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -1730,6 +1745,44 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
     "original",
     "runtime",
   ]);
+});
+
+test("Codex++ loader quarantines invalid sandbox ACL state before original Codex startup", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  const statePath = path.join(fixture.codexHome, ".sandbox", "deny_read_acl_state.json");
+  const invalidState = Buffer.alloc(22);
+  writeFixture(statePath, invalidState);
+  writeFixture(
+    fixture.originalMainPath,
+    [
+      'const fs = require("node:fs");',
+      'const path = require("node:path");',
+      'const statePath = path.join(process.env.CODEX_HOME, ".sandbox", "deny_read_acl_state.json");',
+      'fs.appendFileSync(process.env.CODEX_LOADER_TRACE, `${fs.existsSync(statePath) ? "state-present" : "state-quarantined"}\\n`);',
+    ].join("\n") + "\n",
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["state-quarantined", "runtime"]);
+  assert.equal(fs.existsSync(statePath), false);
+  const backupFiles = fs
+    .readdirSync(path.dirname(statePath))
+    .filter((name) => name.startsWith("deny_read_acl_state.json.invalid"));
+  assert.equal(backupFiles.length, 1);
+  assert.deepEqual(fs.readFileSync(path.join(path.dirname(statePath), backupFiles[0])), invalidState);
+});
+
+test("Codex++ loader leaves valid sandbox ACL state unchanged", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  const statePath = path.join(fixture.codexHome, ".sandbox", "deny_read_acl_state.json");
+  const validState = '{"version":1}\n';
+  writeFixture(statePath, validState);
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["original", "runtime"]);
+  assert.equal(fs.readFileSync(statePath, "utf8"), validState);
+  assert.deepEqual(
+    fs.readdirSync(path.dirname(statePath)),
+    ["deny_read_acl_state.json"],
+  );
 });
 
 test("Codex++ loader upgrades installed tweak directories when bundled version is newer", (t) => {
