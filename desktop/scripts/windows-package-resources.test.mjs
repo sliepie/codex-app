@@ -547,6 +547,19 @@ test("Windows ARM64 Resource binary policy lists Store-vendored helpers and x64 
   );
 });
 
+test("vendored node_repl helper exposes trusted browser RPC markers", () => {
+  const nodeRepl = fs.readFileSync(
+    path.join(desktopRoot, "resources", "cua_node", "bin", "node_repl.exe"),
+  );
+  for (const marker of [
+    "NODE_REPL_TRUSTED_SERVICES",
+    "NODE_REPL_TRUSTED_RPC_ENABLED",
+    "nodeRepl.rpc",
+  ]) {
+    assert.ok(nodeRepl.includes(Buffer.from(marker, "ascii")), `Missing node_repl marker: ${marker}`);
+  }
+});
+
 test("installs Tectonic Windows payload into bundled LaTeX plugin roots", () => {
   const resourcesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-tectonic-payload-"));
   const tectonicPath = path.join(resourcesRoot, "source", "tectonic.exe");
