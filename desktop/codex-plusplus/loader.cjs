@@ -22,10 +22,6 @@ function resolveUserRoot() {
   return path.join(appData, "codex-plusplus");
 }
 
-function resolveCodexHome() {
-  return process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
-}
-
 function readPackagedOriginalMain() {
   try {
     const packageJson = readJson(path.join(packagedRoot, "package.json"));
@@ -191,28 +187,6 @@ function moveInvalidConfigAside(error) {
   } catch (moveError) {
     log("codex-plusplus invalid config quarantine failed", moveError);
     return false;
-  }
-}
-
-function recoverInvalidSandboxAclState() {
-  const denyReadAclStatePath = path.join(
-    resolveCodexHome(),
-    ".sandbox",
-    "deny_read_acl_state.json",
-  );
-  if (!fs.existsSync(denyReadAclStatePath)) {
-    return;
-  }
-
-  try {
-    readJson(denyReadAclStatePath);
-  } catch (error) {
-    const backupPath = uniqueSiblingPath(denyReadAclStatePath, ".invalid");
-    fs.renameSync(denyReadAclStatePath, backupPath);
-    log(
-      "codex sandbox deny-read ACL state recovered",
-      String(error) + "; moved invalid state to " + backupPath,
-    );
   }
 }
 
@@ -483,7 +457,6 @@ function scheduleCodexPlusPlusIntegration() {
 
 process.env.CODEX_PLUSPLUS_USER_ROOT = userRoot;
 process.env.CODEX_PLUSPLUS_RUNTIME = runtimeDir;
-runStartupStep("codex sandbox deny-read ACL state recovery failed", recoverInvalidSandboxAclState);
 registerEarlyPreloadHooks();
 require(path.join(packagedRoot, originalMain));
 scheduleCodexPlusPlusIntegration();
