@@ -4,6 +4,7 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { registerChromeNativeHost } = require("./chrome-native-host.cjs");
 
 const fallbackOriginalMain = "recovered/app-asar-extracted/.vite/build/bootstrap.js";
 const packagedRoot = path.join(__dirname, "..");
@@ -458,5 +459,6 @@ function scheduleCodexPlusPlusIntegration() {
 process.env.CODEX_PLUSPLUS_USER_ROOT = userRoot;
 process.env.CODEX_PLUSPLUS_RUNTIME = runtimeDir;
 registerEarlyPreloadHooks();
+runStartupStep("Chrome native host registration failed", registerChromeNativeHost);
 require(path.join(packagedRoot, originalMain));
 scheduleCodexPlusPlusIntegration();

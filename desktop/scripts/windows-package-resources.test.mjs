@@ -63,6 +63,9 @@ const {
 } = require(
   path.join(desktopRoot, ".cache", "scripts", "patch-better-sqlite3-electron.js"),
 );
+const {
+  registerChromeNativeHost,
+} = require(path.join(desktopRoot, "codex-plusplus", "chrome-native-host.cjs"));
 
 function writeFixture(filePath, source) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -1441,6 +1444,7 @@ test("keeps generated plugin resources with Codex++ package integration", (t) =>
   assert.ok(config.packagerConfig.extraResource.includes("resources/native"));
   assert.ok(config.packagerConfig.extraResource.includes("resources/codex-code-mode-host.exe"));
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/loader.cjs"), false);
+  assert.equal(config.packagerConfig.ignore("/codex-plusplus/chrome-native-host.cjs"), false);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus-old/loader.cjs"), true);
   assert.equal(config.packagerConfig.ignore("/codex-plusplus/runtime/main.js"), false);
   assert.equal(config.packagerConfig.ignore("/package.json.bak"), true);
@@ -1581,6 +1585,7 @@ function runForgeAfterCopyExtraResources(config, buildPath) {
 function writeCodexPlusPlusPackageFiles(buildPath) {
   for (const relativePath of [
     "codex-plusplus/loader.cjs",
+    "codex-plusplus/chrome-native-host.cjs",
     "codex-plusplus/runtime/main.js",
     "codex-plusplus/runtime/preload.js",
     "codex-plusplus/LICENSE",
@@ -1665,10 +1670,15 @@ function createCodexPlusPlusLoaderFixture(t) {
   const originalMainPath = path.join(root, originalMain);
   const runtimeMainPath = path.join(root, "codex-plusplus", "runtime", "main.js");
   const appData = path.join(root, "AppData");
+  const localAppData = path.join(root, "LocalAppData");
   const tracePath = path.join(root, "trace.txt");
 
   fs.mkdirSync(path.dirname(loaderPath), { recursive: true });
   fs.copyFileSync(path.join(desktopRoot, "codex-plusplus", "loader.cjs"), loaderPath);
+  fs.copyFileSync(
+    path.join(desktopRoot, "codex-plusplus", "chrome-native-host.cjs"),
+    path.join(root, "codex-plusplus", "chrome-native-host.cjs"),
+  );
   writeFixture(
     path.join(root, "package.json"),
     JSON.stringify({ __codexpp: { originalMain } }, null, 2) + "\n",
@@ -1682,7 +1692,7 @@ function createCodexPlusPlusLoaderFixture(t) {
     'require("node:fs").appendFileSync(process.env.CODEX_LOADER_TRACE, "runtime\\n");\n',
   );
 
-  return { root, loaderPath, appData, tracePath };
+  return { root, loaderPath, appData, localAppData, tracePath };
 }
 
 function runCodexPlusPlusLoaderFixture(fixture) {
@@ -1691,6 +1701,7 @@ function runCodexPlusPlusLoaderFixture(fixture) {
     env: {
       ...process.env,
       APPDATA: fixture.appData,
+      LOCALAPPDATA: fixture.localAppData,
       CODEX_LOADER_TRACE: fixture.tracePath,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -1698,6 +1709,58 @@ function runCodexPlusPlusLoaderFixture(fixture) {
 
   return fs.readFileSync(fixture.tracePath, "utf8").trim().split(/\r?\n/);
 }
+
+test("repairs the Chrome native-host registration from the current manifest", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-chrome-native-host-"));
+  try {
+    const manifestPath = path.join(
+      root,
+      "LocalAppData",
+      "OpenAI",
+      "extension",
+      "com.openai.codexextension.json",
+    );
+    const hostPath = path.join(root, "plugins", "chrome", "extension-host.exe");
+    writeFixture(hostPath, "extension host\n");
+    writeFixture(
+      manifestPath,
+      JSON.stringify({
+        allowed_origins: ["chrome-extension://example/"],
+        description: "ChatGPT browser native messaging host",
+        name: "com.openai.codexextension",
+        path: hostPath,
+        type: "stdio",
+      }),
+    );
+
+    const registryCalls = [];
+    const result = registerChromeNativeHost({
+      manifestPath,
+      platform: "win32",
+      runRegistryCommand: (...args) => registryCalls.push(args),
+    });
+
+    assert.equal(result, "registered");
+    assert.deepEqual(registryCalls, [
+      [
+        "reg.exe",
+        [
+          "add",
+          "HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\com.openai.codexextension",
+          "/ve",
+          "/t",
+          "REG_SZ",
+          "/d",
+          manifestPath,
+          "/f",
+        ],
+        { stdio: "ignore", windowsHide: true },
+      ],
+    ]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("Codex++ loader starts original Codex before runtime integration", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);

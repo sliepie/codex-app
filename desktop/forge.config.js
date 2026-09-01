@@ -20,6 +20,7 @@ const requiredInstalledRuntimePackageNames = new Set(['tslib']);
 const codexPlusPlusMain = 'codex-plusplus/loader.cjs';
 const requiredCodexPlusPlusPackageFiles = [
   codexPlusPlusMain,
+  'codex-plusplus/chrome-native-host.cjs',
   'codex-plusplus/runtime/main.js',
   'codex-plusplus/runtime/preload.js',
   'codex-plusplus/LICENSE',
