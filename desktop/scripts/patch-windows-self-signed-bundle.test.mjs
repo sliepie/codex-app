@@ -211,7 +211,7 @@ test("feature-gate matching excludes member calls and preserves syntax", () => {
   assert.doesNotThrow(() => new Function(result.source));
 });
 
-test("matches the current Plugins, MCP, and skills gate set", () => {
+test("enables the current Plugins, MCP, and skills behavior", () => {
   const recoveredRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugins-mcp-skills-"));
   const assetsRoot = path.join(recoveredRoot, "webview", "assets");
   const assetPath = path.join(assetsRoot, "app.js");
@@ -223,6 +223,7 @@ test("matches the current Plugins, MCP, and skills gate set", () => {
       "const search=_O(`603443661`);",
       "const skills=read(`3413548395`);",
       "function marketplace(){let gate=_O(`4218407052`);return {includeVerticalCatalog:gate}}",
+      "module.exports={lifecycle,search,skills,marketplace:marketplace()};",
     ].join(""),
     "utf8",
   );
@@ -231,12 +232,19 @@ test("matches the current Plugins, MCP, and skills gate set", () => {
     const [result] = patchPluginsMcpSkillsGates(recoveredRoot);
     assert.equal(result.status, "applied");
     const patched = fs.readFileSync(assetPath, "utf8");
-    assert.match(patched, /codex-feature-gates-plugins-mcp-skills-enabled/);
-    assert.match(patched, /const lifecycle=!0/);
-    assert.match(patched, /const search=!0/);
-    assert.match(patched, /const skills=!0/);
-    assert.match(patched, /let gate=!1/);
-    assert.doesNotMatch(patched, /403472035|603443661|3669474837|3413548395|4218407052/);
+    const patchedModule = { exports: {} };
+    new Function("module", "exports", "_O", "read", patched)(
+      patchedModule,
+      patchedModule.exports,
+      () => false,
+      () => false,
+    );
+    assert.deepEqual(patchedModule.exports, {
+      lifecycle: true,
+      search: true,
+      skills: true,
+      marketplace: { includeVerticalCatalog: false },
+    });
   } finally {
     fs.rmSync(recoveredRoot, { recursive: true, force: true });
   }

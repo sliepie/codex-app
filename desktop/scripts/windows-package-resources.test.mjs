@@ -1745,7 +1745,7 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
   ]);
 });
 
-test("Codex++ loader supplies the Owl shell startup capability to stock Electron", (t) => {
+test("Codex++ loader runs the Owl shell startup contract on stock Electron", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   writeFixture(
     path.join(fixture.root, "node_modules", "electron", "index.js"),
@@ -1756,10 +1756,26 @@ test("Codex++ loader supplies the Owl shell startup capability to stock Electron
   );
   writeFixture(
     path.join(fixture.root, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
-    'const electron = require("electron"); const app = electron.app; const session = electron.session.fromPartition("app"); const browserWindow = electron.BrowserWindow; require("node:fs").appendFileSync(process.env.CODEX_LOADER_TRACE, [typeof app.showTaskManager, typeof app.setDebugChromePagesEnabled, typeof session.setPreferredLanguages, typeof browserWindow.isInputShapeSupported, typeof browserWindow.isSystemBackdropSupported].join(",") + "\\n");\n',
+    [
+      'const fs = require("node:fs");',
+      'const electron = require("electron");',
+      'const app = electron.app;',
+      'const session = electron.session.fromPartition("app");',
+      'const browserWindow = electron.BrowserWindow;',
+      "const results = [",
+      "  app.showTaskManager(),",
+      "  app.setDebugChromePagesEnabled(false),",
+      '  session.setPreferredLanguages(["en-US"]),',
+      "  browserWindow.isInputShapeSupported(),",
+      "  browserWindow.isSystemBackdropSupported(),",
+      "];",
+      'if (results[3] !== false || results[4] !== false) throw new Error("Unsupported capabilities must report false");',
+      'fs.appendFileSync(process.env.CODEX_LOADER_TRACE, "startup-ready\\n");',
+      "",
+    ].join("\n"),
   );
 
-  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["function,function,function,function,function", "runtime"]);
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["startup-ready", "runtime"]);
 });
 
 test("Codex++ loader upgrades installed tweak directories when bundled version is newer", (t) => {
