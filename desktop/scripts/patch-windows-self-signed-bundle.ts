@@ -80,7 +80,6 @@ const remoteConnectorsGateOverrides = [
 const pluginsMcpSkillsGateOverrides = [
   { id: "403472035", value: "!0" },
   { id: "603443661", value: "!0" },
-  { id: "3669474837", value: "!0" },
   { id: "3413548395", value: "!0" },
   { id: "4218407052", value: "!0" },
 ] as const;
@@ -1383,7 +1382,7 @@ function patchRemoteConnectorsGates(recoveredRoot: string): PatchResult[] {
   );
 }
 
-function patchPluginsMcpSkillsGates(recoveredRoot: string): PatchResult[] {
+export function patchPluginsMcpSkillsGates(recoveredRoot: string): PatchResult[] {
   return patchFeatureGateGroup(
     recoveredRoot,
     "enable Plugins, MCP, and skills gates",

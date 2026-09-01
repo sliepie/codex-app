@@ -434,6 +434,47 @@ function registerEarlyPreloadHooks() {
   }
 }
 
+function ensureOwlShellStartupCompatibility() {
+  let electron;
+  try {
+    electron = require("electron");
+  } catch {
+    return;
+  }
+
+  const app = electron && electron.app;
+  if (app) {
+    if (typeof app.showTaskManager !== "function") {
+      app.showTaskManager = () => {};
+    }
+    if (typeof app.setDebugChromePagesEnabled !== "function") {
+      app.setDebugChromePagesEnabled = () => {};
+    }
+  }
+
+  const session = electron && electron.session;
+  if (session && typeof session.fromPartition === "function") {
+    const fromPartition = session.fromPartition.bind(session);
+    session.fromPartition = (...args) => {
+      const createdSession = fromPartition(...args);
+      if (createdSession && typeof createdSession.setPreferredLanguages !== "function") {
+        createdSession.setPreferredLanguages = () => {};
+      }
+      return createdSession;
+    };
+  }
+
+  const browserWindow = electron && electron.BrowserWindow;
+  if (browserWindow) {
+    if (typeof browserWindow.isInputShapeSupported !== "function") {
+      browserWindow.isInputShapeSupported = () => false;
+    }
+    if (typeof browserWindow.isSystemBackdropSupported !== "function") {
+      browserWindow.isSystemBackdropSupported = () => false;
+    }
+  }
+}
+
 function startCodexPlusPlusIntegration() {
   runStartupStep("codex-plusplus user root setup failed", () => {
     fs.mkdirSync(userRoot, { recursive: true });
@@ -458,5 +499,6 @@ function scheduleCodexPlusPlusIntegration() {
 process.env.CODEX_PLUSPLUS_USER_ROOT = userRoot;
 process.env.CODEX_PLUSPLUS_RUNTIME = runtimeDir;
 registerEarlyPreloadHooks();
+ensureOwlShellStartupCompatibility();
 require(path.join(packagedRoot, originalMain));
 scheduleCodexPlusPlusIntegration();

@@ -16,6 +16,7 @@ const {
   patchBrowserRuntimeRelocation,
   patchFeatureGateCalls,
   patchInactiveWindowsMicaBackdrop,
+  patchPluginsMcpSkillsGates,
   patchWindowsArm64PrimaryRuntimeManifestUrl,
   patchWorkspaceRootDropHandler,
   toReportPath,
@@ -208,6 +209,45 @@ test("feature-gate matching excludes member calls and preserves syntax", () => {
   );
   assert.deepEqual(result.matchedIds, ["direct"]);
   assert.doesNotThrow(() => new Function(result.source));
+});
+
+test("enables the current Plugins, MCP, and skills behavior", () => {
+  const recoveredRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-plugins-mcp-skills-"));
+  const assetsRoot = path.join(recoveredRoot, "webview", "assets");
+  const assetPath = path.join(assetsRoot, "app.js");
+  fs.mkdirSync(assetsRoot, { recursive: true });
+  fs.writeFileSync(
+    assetPath,
+    [
+      "const lifecycle=_O(`403472035`);",
+      "const search=_O(`603443661`);",
+      "const skills=read(`3413548395`);",
+      "function marketplace(){let gate=_O(`4218407052`);return {includeVerticalCatalog:gate}}",
+      "module.exports={lifecycle,search,skills,marketplace:marketplace()};",
+    ].join(""),
+    "utf8",
+  );
+
+  try {
+    const [result] = patchPluginsMcpSkillsGates(recoveredRoot);
+    assert.equal(result.status, "applied");
+    const patched = fs.readFileSync(assetPath, "utf8");
+    const patchedModule = { exports: {} };
+    new Function("module", "exports", "_O", "read", patched)(
+      patchedModule,
+      patchedModule.exports,
+      () => false,
+      () => false,
+    );
+    assert.deepEqual(patchedModule.exports, {
+      lifecycle: true,
+      search: true,
+      skills: true,
+      marketplace: { includeVerticalCatalog: false },
+    });
+  } finally {
+    fs.rmSync(recoveredRoot, { recursive: true, force: true });
+  }
 });
 
 test("keeps Mica enabled for inactive non-dark windows", () => {

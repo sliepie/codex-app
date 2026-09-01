@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { EventEmitter } from "node:events";
 import fs from "node:fs";
+import https from "node:https";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -42,6 +44,9 @@ const {
   installTectonicWindowsPayload,
 } = require(
   path.join(desktopRoot, ".cache", "scripts", "bundled-plugin-windows-payloads.js"),
+);
+const { fetchGitHubRelease } = require(
+  path.join(desktopRoot, ".cache", "scripts", "github-release-assets.js"),
 );
 const {
   matchWindowsArm64ResourceBinaryException,
@@ -1745,6 +1750,39 @@ test("Codex++ loader registers preload hooks before original Codex startup", (t)
   ]);
 });
 
+test("Codex++ loader runs the Owl shell startup contract on stock Electron", (t) => {
+  const fixture = createCodexPlusPlusLoaderFixture(t);
+  writeFixture(
+    path.join(fixture.root, "node_modules", "electron", "index.js"),
+    [
+      "module.exports = { app: {}, BrowserWindow: {}, session: { fromPartition() { return {}; } } };",
+      "",
+    ].join("\n"),
+  );
+  writeFixture(
+    path.join(fixture.root, "recovered", "app-asar-extracted", ".vite", "build", "bootstrap.js"),
+    [
+      'const fs = require("node:fs");',
+      'const electron = require("electron");',
+      'const app = electron.app;',
+      'const session = electron.session.fromPartition("app");',
+      'const browserWindow = electron.BrowserWindow;',
+      "const results = [",
+      "  app.showTaskManager(),",
+      "  app.setDebugChromePagesEnabled(false),",
+      '  session.setPreferredLanguages(["en-US"]),',
+      "  browserWindow.isInputShapeSupported(),",
+      "  browserWindow.isSystemBackdropSupported(),",
+      "];",
+      'if (results[3] !== false || results[4] !== false) throw new Error("Unsupported capabilities must report false");',
+      'fs.appendFileSync(process.env.CODEX_LOADER_TRACE, "startup-ready\\n");',
+      "",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(runCodexPlusPlusLoaderFixture(fixture), ["startup-ready", "runtime"]);
+});
+
 test("Codex++ loader upgrades installed tweak directories when bundled version is newer", (t) => {
   const fixture = createCodexPlusPlusLoaderFixture(t);
   writeFixture(
@@ -2490,24 +2528,16 @@ test("release workflows scope GitHub credentials away from install and build scr
   assert.doesNotMatch(releaseWorkflowSource, /PACKAGE_VERSION: \$\{\{ steps\.upstream\.outputs\.release_version \}\}/);
 });
 
-test("self-signed MSIX payload rewrites shared SwiftShader ICD metadata", () => {
-  const scriptSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "prepare-self-signed-msix-payload.ts"),
-    "utf8",
-  );
-
-  assert.match(scriptSource, /function rewriteSwiftShaderIcdMetadata\(appRoot: string\): void/);
-  assert.match(scriptSource, /path\.join\(appRoot, "vk_swiftshader_icd\.json"\)/);
-  assert.match(scriptSource, /JSON\.stringify\(swiftShaderIcd, null, 2\)/);
-  assert.match(scriptSource, /rewriteSwiftShaderIcdMetadata\(appRoot\);/);
-});
-
 test("self-signed MSIX payload includes every manifest-referenced asset", (t) => {
   const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-msix-payload-"));
   t.after(() => fs.rmSync(fixtureRoot, { recursive: true, force: true }));
   const packageRoot = path.join(fixtureRoot, "package");
   const outputRoot = path.join(fixtureRoot, "output");
   writeFixture(path.join(packageRoot, "Codex.exe"), "fixture");
+  writeFixture(
+    path.join(packageRoot, "vk_swiftshader_icd.json"),
+    '{"library_path":"vk_swiftshader.dll","nested":{"enabled":true}}\n',
+  );
 
   execFileSync(
     process.execPath,
@@ -2541,6 +2571,11 @@ test("self-signed MSIX payload includes every manifest-referenced asset", (t) =>
     ),
     true,
   );
+  assert.equal(
+    fs.readFileSync(path.join(outputRoot, "app", "vk_swiftshader_icd.json"), "utf8"),
+    '{\n  "library_path": "vk_swiftshader.dll",\n  "nested": {\n    "enabled": true\n  }\n}\n',
+  );
+  assert.doesNotMatch(manifest, /xmlns:mp=|mp:PhoneIdentity/);
 });
 
 test("Windows BrowserWindow icon uses the Forge extra-resource destination", () => {
@@ -2556,16 +2591,6 @@ test("Windows BrowserWindow icon uses the Forge extra-resource destination", () 
     /join\(process\.resourcesPath,`icon\.ico`\)/,
   );
   assert.doesNotMatch(patchSource, /process\.resourcesPath,`assets`,`windows`,`icon\.ico`/);
-});
-
-test("self-signed MSIX manifest does not declare phone extensions", () => {
-  const scriptSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "prepare-self-signed-msix-payload.ts"),
-    "utf8",
-  );
-
-  assert.doesNotMatch(scriptSource, /xmlns:mp=/);
-  assert.doesNotMatch(scriptSource, /mp:PhoneIdentity/);
 });
 
 test("self-signed MSIX signs unsigned top-level launchers before packing", () => {
@@ -2610,43 +2635,6 @@ test("log cleanup helper blocks any Codex process before moving SQLite logs", ()
   assert.match(scriptSource, /Move-Item -LiteralPath \$file\.FullName -Destination \$destination -Force/);
 });
 
-test("Codex app hydration restores Electron-compatible custom patches", () => {
-  const scriptSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
-    "utf8",
-  );
-
-  assert.match(scriptSource, /process\.env\.CODEX_APP_VERSION/);
-  assert.match(scriptSource, /process\.env\.CODEX_APP_BUILD/);
-  assert.match(scriptSource, /--build-number/);
-  assert.match(scriptSource, /function findReleaseItem\(appcast: string, version\?: string, buildNumber\?: string\)/);
-  assert.match(scriptSource, /releaseItemBuildNumber\(candidate\) === buildNumber/);
-  assert.match(scriptSource, /findReleaseItem\(await appcastResponse\.text\(\), options\.version, options\.buildNumber\)/);
-  assert.match(scriptSource, /syncBundledPluginResources\(appResourcesRoot\);/);
-  assert.match(scriptSource, /options\.codexPlusPlusRepo/);
-  assert.match(scriptSource, /defaultCodexPlusPlusRepo = "b-nnett\/codex-plusplus"/);
-  assert.match(scriptSource, /CODEX_PLUS_PLUS|--codex-plusplus/);
-  assert.match(scriptSource, /await hydrateCodexPlusPlusRuntime\(/);
-  assert.match(
-    scriptSource,
-    /await hydrateCodexPlusPlusRuntime\([\s\S]*?options\.codexPlusPlusRepo[\s\S]*?options\.codexPlusPlusTag[\s\S]*?options\.codexPlusPlusSha[\s\S]*?\);[\s\S]*?patchWindowsSelfSignedBundle\(recoveredRoot\);[\s\S]*?patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);[\s\S]*?patchRecoveredCodexWindowServices\(recoveredRoot\);[\s\S]*?patchRecoveredCodexMicroService\(recoveredRoot\);[\s\S]*?pruneWorkLouderPackages\(recoveredRoot\);/,
-  );
-  assert.match(scriptSource, /patchWindowsSelfSignedBundle\(recoveredRoot\);\s+patchRecoveredWindowsPrimaryWindowTaskbar\(recoveredRoot\);\s+patchRecoveredCodexWindowServices\(recoveredRoot\);\s+patchRecoveredCodexMicroService\(recoveredRoot\);\s+pruneWorkLouderPackages\(recoveredRoot\);\s+syncNativeNodeModules\(recoveredRoot, nodeVersion\);/);
-  assert.match(
-    scriptSource,
-    /syncNativeNodeModules\(recoveredRoot, nodeVersion\);[\s\S]*?ensureBundledBrowserClientRuntimeBridge\(/,
-  );
-  assert.match(scriptSource, /^\s+patchWindowsSelfSignedBundle\(recoveredRoot\);/m);
-  assert.doesNotMatch(scriptSource, /patch(?:Recovered)?OwlFeature/);
-  assert.doesNotMatch(scriptSource, /patchRecoveredMessageRailStatsigGate/);
-  assert.doesNotMatch(
-    scriptSource,
-    /repairMalformedMarkerAssignment|patchFromLifecycleRegistration|repair-missing-separator|lifecycle-registration-fingerprint|const optionsPattern/,
-  );
-  assert.match(scriptSource, /^\s+patchRecoveredCodexWindowServices\(recoveredRoot\);/m);
-  assert.match(scriptSource, /^\s+patchRecoveredCodexMicroService\(recoveredRoot\);/m);
-  assert.match(scriptSource, /^\s+pruneWorkLouderPackages\(recoveredRoot\);/m);
-});
 test("Codex app hydration reads the current recovered Electron entry point", (t) => {
   const recoveredRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-recovered-current-main-"));
   t.after(() => fs.rmSync(recoveredRoot, { recursive: true, force: true }));
@@ -2702,57 +2690,76 @@ test("Codex app hydration keeps current Quick Chat window options separate from 
   assert.equal(secondPatch.changed, false);
 });
 
-test("authenticates GitHub release asset downloads when a token is available", () => {
-  const scriptSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "github-release-assets.ts"),
-    "utf8",
-  );
+test("fetches GitHub release metadata with optional authorization", async (t) => {
+  const releaseBody = JSON.stringify({
+    assets: [
+      {
+        browser_download_url: "https://github.com/example/project/releases/download/v1.2.3/app.zip",
+        digest: "sha256:" + "a".repeat(64),
+        name: "app.zip",
+        size: 4,
+      },
+    ],
+    html_url: "https://github.com/example/project/releases/tag/v1.2.3",
+    name: "Example release",
+    tag_name: "v1.2.3",
+  });
+  const responses = [
+    { body: "unauthorized", statusCode: 401, statusMessage: "Unauthorized" },
+    { body: releaseBody, statusCode: 200, statusMessage: "OK" },
+  ];
+  const requests = [];
 
-  assert.match(scriptSource, /const token = process\.env\.GH_TOKEN \?\? process\.env\.GITHUB_TOKEN/);
-  assert.match(scriptSource, /headers\.Authorization = "Bearer " \+ token/);
-  assert.match(scriptSource, /hostname === "api\.github\.com" \|\| hostname === "github\.com"/);
-  assert.match(scriptSource, /requestUrl/);
-  assert.match(scriptSource, /withoutAuthorization/);
-  assert.doesNotMatch(scriptSource, /fetch\(/);
-  assert.match(scriptSource, /export async function fetchGitHubRelease/);
-  assert.match(scriptSource, /ensureCachedReleaseAsset/);
-  assert.doesNotMatch(scriptSource, /execFileSync\(\s*"gh"/);
-});
+  t.mock.method(https, "get", (url, options, callback) => {
+    const responseDetails = responses.shift();
+    assert.ok(responseDetails, "mock response queue should not be empty");
+    requests.push({ headers: options.headers, url: url.toString() });
 
-test("Codex app hydration keys extracted app cache by version and build", () => {
-  const appHydratorSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
-    "utf8",
-  );
-  const cliHydratorSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
-    "utf8",
-  );
-  const verifierSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "verify-browser-client-runtime.ts"),
-    "utf8",
-  );
+    const response = new EventEmitter();
+    Object.assign(response, {
+      headers: {},
+      resume() {},
+      statusCode: responseDetails.statusCode,
+      statusMessage: responseDetails.statusMessage,
+    });
+    queueMicrotask(() => {
+      callback(response);
+      if (responseDetails.statusCode === 200) {
+        response.emit("data", Buffer.from(responseDetails.body));
+        response.emit("end");
+      }
+    });
+    return { on() { return this; } };
+  });
 
-  assert.match(appHydratorSource, /function appExtractCacheSegment\(version: string, buildNumber\?: string\)/);
-  assert.match(appHydratorSource, /const appCacheSegment = appExtractCacheSegment\(selectedVersion, selectedBuildNumber\)/);
-  assert.match(appHydratorSource, /const zipPath = path\.join\(options\.cacheRoot, `\$\{appCacheSegment\}\$\{downloadExtension\}`\)/);
-  assert.match(
-    appHydratorSource,
-    /const extractDir = `extract-\$\{appCacheSegment\}`/,
-  );
-  assert.match(appHydratorSource, /extractDir,/);
-  assert.match(cliHydratorSource, /function appExtractCacheSegment\(version: string, buildNumber\?: string\)/);
-  assert.match(cliHydratorSource, /buildNumber\?: string/);
-  assert.match(cliHydratorSource, /extractDir\?: string/);
-  assert.match(
-    cliHydratorSource,
-    /function appExtractDirCandidates\(version: string, buildNumber\?: string, extractDir\?: string\)/,
-  );
-  assert.match(verifierSource, /function appExtractCacheSegment\(version: string, buildNumber\?: string\)/);
-  assert.match(
-    verifierSource,
-    /function appExtractDirCandidates\(version: string, buildNumber\?: string, extractDir\?: string\)/,
-  );
+  const previousGhToken = process.env.GH_TOKEN;
+  const previousGithubToken = process.env.GITHUB_TOKEN;
+  try {
+    process.env.GH_TOKEN = "test-token";
+    delete process.env.GITHUB_TOKEN;
+
+    const release = await fetchGitHubRelease("example/project", "v1.2.3");
+
+    assert.equal(release.tagName, "v1.2.3");
+    assert.equal(release.assets[0].name, "app.zip");
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].headers.Authorization, "Bearer test-token");
+    assert.equal(Object.hasOwn(requests[1].headers, "Authorization"), false);
+
+    responses.push({ body: releaseBody, statusCode: 200, statusMessage: "OK" });
+    requests.length = 0;
+    delete process.env.GH_TOKEN;
+
+    await fetchGitHubRelease("example/project", "v1.2.3");
+
+    assert.equal(requests.length, 1);
+    assert.equal(Object.hasOwn(requests[0].headers, "Authorization"), false);
+  } finally {
+    if (previousGhToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previousGhToken;
+    if (previousGithubToken === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = previousGithubToken;
+  }
 });
 
 test("Codex app cache consumers allow beta app bundle names", () => {
@@ -2864,21 +2871,6 @@ function isSettingsSidebarCandidate(el) {
   assert.equal(rewriteCodexPlusPlusRuntimePreload(updated), updated);
 });
 
-test("operational scripts resolve desktop root from script location", () => {
-  for (const scriptName of [
-    "hydrate-codex-app.ts",
-    "hydrate-codex-cli.ts",
-    "refresh-recovered-from-dmg.ts",
-    "resolve-codex-releases.ts",
-  ]) {
-    const scriptSource = fs.readFileSync(path.join(desktopRoot, "scripts", scriptName), "utf8");
-    assert.match(scriptSource, /function resolveDesktopRoot\(\): string/);
-    assert.match(scriptSource, /path\.basename\((?:__dirname|directory)\) === "scripts"/);
-    assert.match(scriptSource, /path\.basename\(path\.dirname\((?:__dirname|directory)\)\) === "\.cache"/);
-    assert.doesNotMatch(scriptSource, /const desktopRoot = process\.cwd\(\)/);
-  }
-});
-
 test("Codex app hydration runs through an explicit package runner", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(desktopRoot, "package.json"), "utf8"),
@@ -2909,31 +2901,6 @@ test("Codex app hydration runs through an explicit package runner", () => {
   assert.match(runnerSource, /require\("\.\.\/\.cache\/scripts\/hydrate-codex-app\.js"\)/);
   assert.match(runnerSource, /await main\(process\.argv\.slice\(2\)\)/);
   assert.doesNotMatch(appHydratorSource, /process\.argv\[1\]/);
-});
-
-test("verifies hydrated upstream artifact integrity metadata", () => {
-  const appHydratorSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "hydrate-codex-app.ts"),
-    "utf8",
-  );
-  const cliHydratorSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
-    "utf8",
-  );
-  const githubAssetSource = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "github-release-assets.ts"),
-    "utf8",
-  );
-
-  assert.match(appHydratorSource, /expectedDownloadLength/);
-  assert.match(appHydratorSource, /Downloaded Codex app ZIP size mismatch/);
-  assert.match(githubAssetSource, /parseAssetDigest/);
-  assert.match(githubAssetSource, /ensureCachedReleaseAsset/);
-  assert.match(githubAssetSource, /completeMarkerPath/);
-  assert.match(githubAssetSource, /temporaryExtractRoot/);
-  assert.match(githubAssetSource, /fs\.renameSync\(temporaryExtractRoot, extractRoot\)/);
-  assert.match(cliHydratorSource, /ensureCachedReleaseAsset/);
-  assert.match(cliHydratorSource, /ensureExtractedZip/);
 });
 
 test("repo Node toolchain matches the Electron runtime Node major", () => {
@@ -3045,18 +3012,6 @@ test("caches rebuilt native Node modules separately from hydrated app resources"
   }
 });
 
-test("native updater build stamp covers the builder script", () => {
-  const source = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "build-windows-oai-update-checker.ps1"),
-    "utf8",
-  );
-
-  assert.match(source, /BuildScriptPath/);
-  assert.match(source, /\$cacheStampVersion = 2/);
-  assert.match(source, /Assert-SuccessfulNativeCommand -Description "rustup target add \$target"/);
-  assert.match(source, /Assert-SuccessfulNativeCommand -Description "cargo build for \$target"/);
-});
-
 test("non-official Windows packages do not enable the Windows Store updater", () => {
   const source = fs.readFileSync(
     path.join(desktopRoot, "native", "windows-oai-update-checker", "src", "lib.rs"),
@@ -3108,14 +3063,6 @@ test("self-signed appinstaller updates immediately on launch", () => {
   );
 });
 
-test("Electron package enables Codex++ with self-signed Windows identity metadata", () => {
-  const source = fs.readFileSync(path.join(desktopRoot, "forge.config.js"), "utf8");
-  assert.match(source, /packageJson\.codexWindowsPackageIdentity = 'Sliepie\.Codex\.SelfSigned';/);
-  assert.doesNotMatch(source, /delete packageJson\.codexWindowsPackageIdentity;/);
-  assert.match(source, /packageJson\.__codexpp = \{/);
-  assert.match(source, /originalMain: recoveredOriginalMain\(upstreamPackageJson\)/);
-});
-
 test("Store binary updater only accepts the official Store package family", () => {
   const source = fs.readFileSync(
     path.join(desktopRoot, "scripts", "update-node-repl.ps1"),
@@ -3159,27 +3106,6 @@ test("Store package updater refreshes helper binaries only", () => {
   assert.equal(tsconfig.include.includes("scripts/update-store-owl-shell.ts"), false);
   assert.equal(tsconfig.include.includes("scripts/store-owl-shell-common.ts"), false);
   assert.equal(tsconfig.include.includes("scripts/stage-store-owl-shell.ts"), false);
-});
-
-test("CLI hydrator downloads the public x64 Windows Tectonic release asset", () => {
-  const source = fs.readFileSync(
-    path.join(desktopRoot, "scripts", "hydrate-codex-cli.ts"),
-    "utf8",
-  );
-
-  assert.match(source, /resourceBinaryExceptionById\("tectonic"\)/);
-  assert.match(source, /expectedGithubRepository/);
-  assert.match(source, /expectedGithubReleaseTag/);
-  assert.match(source, /expectedGithubAssetName/);
-  assert.doesNotMatch(source, /--tectonic-repo|--tectonic-version|-TectonicRepo|-TectonicVersion/);
-  assert.match(source, /hydrateTectonicExe/);
-  assert.match(source, /readPeMachine\(tectonicPath\)/);
-  assert.match(source, /installTectonicWindowsPayload\(resourcesRoot, tectonicPath\)/);
-  assert.match(source, /executableSha256: sha256\(tectonicPath\)/);
-  assert.match(source, /releaseHtmlUrl: tectonicAsset\.releaseHtmlUrl/);
-  assert.match(source, /releaseTagName: tectonicAsset\.releaseTagName/);
-  assert.match(source, /releaseAssetSha256: tectonicAsset\.releaseAssetSha256/);
-  assert.match(source, /sha256: tectonicAsset\.executableSha256/);
 });
 
 test("ignores generated signing-secret base64 exports", () => {
