@@ -18,6 +18,7 @@ const {
   patchInactiveWindowsMicaBackdrop,
   patchPluginsMcpSkillsGates,
   patchWindowsArm64PrimaryRuntimeManifestUrl,
+  patchWindowsCuaRunAsInvoker,
   patchWorkspaceRootDropHandler,
   toReportPath,
 } = patcherModule;
@@ -268,6 +269,41 @@ test("keeps Mica enabled for inactive non-dark windows", () => {
 
   assert.equal(evaluate({ appearance: "light", isFocused: false, platform: "win32" }), false);
   assert.equal(evaluate({ appearance: "light", isFocused: false, platform: "darwin" }), true);
+});
+
+test("adds RunAsInvoker only to the Windows computer-use environment", () => {
+  const source = [
+    "function es({computerUse:s,runtimePaths:p}){",
+    "let S={...s&&p.platform===" + tick + "darwin" + tick + "?{[gi]:Qo}:{},[dee]:_};",
+    "return{extraEnv:S}}",
+  ].join("");
+  const patched = applyPatch(patchWindowsCuaRunAsInvoker(), source);
+  const evaluate = new Function(
+    [
+      "const gi=" + tick + "DARWIN_ENV" + tick + ";",
+      "const Qo=" + tick + "darwin-value" + tick + ";",
+      "const dee=" + tick + "BASE_ENV" + tick + ";",
+      "const _=" + tick + "base-value" + tick + ";",
+      patched + ";return es(arguments[0]);",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(
+    evaluate({ computerUse: true, runtimePaths: { platform: "win32" } }),
+    { extraEnv: { __COMPAT_LAYER: "RunAsInvoker", BASE_ENV: "base-value" } },
+  );
+  assert.deepEqual(
+    evaluate({ computerUse: false, runtimePaths: { platform: "win32" } }),
+    { extraEnv: { BASE_ENV: "base-value" } },
+  );
+  assert.deepEqual(
+    evaluate({ computerUse: true, runtimePaths: { platform: "darwin" } }),
+    { extraEnv: { DARWIN_ENV: "darwin-value", BASE_ENV: "base-value" } },
+  );
+
+  const repeated = patchWindowsCuaRunAsInvoker()(patched);
+  assert.ok(repeated);
+  assert.equal(repeated.status, "already-applied");
 });
 
 test("routes only the latest Windows ARM64 primary runtime manifest to GitHub", () => {

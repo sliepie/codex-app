@@ -29,6 +29,7 @@ const browserRuntimeRelocationMarkers = [
   "rename_staging",
 ];
 const browserRuntimeRelocationAppliedMarker = "codex-runtime-relocation-fallback";
+const windowsCuaRunAsInvokerAppliedMarker = "codex-windows-cua-run-as-invoker";
 const inactiveWindowsMicaBackdropAppliedPattern =
   /\bfunction\s+[A-Za-z_$][\w$]*\(\{appearance:([A-Za-z_$][\w$]*),isFocused:([A-Za-z_$][\w$]*),platform:([A-Za-z_$][\w$]*)\}\)\{return!\2&&![A-Za-z_$][\w$]*\(\1\)&&\3===`darwin`\}/;
 const windowsArm64PrimaryRuntimeManifestUrl =
@@ -485,6 +486,80 @@ export function patchInactiveWindowsMicaBackdrop(): SourcePatcher {
 
     return {
       source: source.slice(0, match.start) + replacement + source.slice(match.end),
+      status: "applied",
+      matcher: "semantic",
+    };
+  };
+}
+
+export function patchWindowsCuaRunAsInvoker(): SourcePatcher {
+  return (source) => {
+    const matches = findFunctionRanges(source).filter((range) => {
+      const computerUseMatch = new RegExp(
+        String.raw`\bcomputerUse\s*:\s*(${identifierPattern})\b`,
+      ).exec(range.args);
+      const runtimePathsMatch = new RegExp(
+        String.raw`\bruntimePaths\s*:\s*(${identifierPattern})\b`,
+      ).exec(range.args);
+      if (!computerUseMatch?.[1] || !runtimePathsMatch?.[1]) {
+        return false;
+      }
+
+      const darwinEnvironmentPattern = new RegExp(
+        String.raw`\.\.\.${escapeRegExp(computerUseMatch[1])}&&${escapeRegExp(runtimePathsMatch[1])}\.platform===\`darwin\`\?\{[^{}]*\}:\{\},`,
+      );
+      return darwinEnvironmentPattern.test(range.body);
+    });
+
+    if (matches.length === 0) {
+      return undefined;
+    }
+    if (matches.length !== 1) {
+      throw new Error(
+        `Expected exactly one Windows CUA environment builder, found ${matches.length}.`,
+      );
+    }
+
+    const match = matches[0];
+    if (match.body.includes(windowsCuaRunAsInvokerAppliedMarker)) {
+      return { source, status: "already-applied", matcher: "semantic" };
+    }
+
+    const computerUseMatch = new RegExp(
+      String.raw`\bcomputerUse\s*:\s*(${identifierPattern})\b`,
+    ).exec(match.args);
+    const runtimePathsMatch = new RegExp(
+      String.raw`\bruntimePaths\s*:\s*(${identifierPattern})\b`,
+    ).exec(match.args);
+    if (!computerUseMatch?.[1] || !runtimePathsMatch?.[1]) {
+      throw new Error("Unable to identify Windows CUA environment builder bindings.");
+    }
+
+    const darwinEnvironmentPattern = new RegExp(
+      String.raw`\.\.\.${escapeRegExp(computerUseMatch[1])}&&${escapeRegExp(runtimePathsMatch[1])}\.platform===\`darwin\`\?\{[^{}]*\}:\{\},`,
+      "g",
+    );
+    const targets = Array.from(match.body.matchAll(darwinEnvironmentPattern));
+    if (targets.length !== 1) {
+      throw new Error(
+        `Expected exactly one Windows CUA platform environment target, found ${targets.length}.`,
+      );
+    }
+
+    const target = targets[0];
+    const targetStart = target.index ?? 0;
+    const replacement =
+      `${target[0]}...${computerUseMatch[1]}&&${runtimePathsMatch[1]}.platform===\`win32\`?{__COMPAT_LAYER:\`RunAsInvoker\`}:{}/* ${windowsCuaRunAsInvokerAppliedMarker} */,`;
+    const body =
+      match.body.slice(0, targetStart) +
+      replacement +
+      match.body.slice(targetStart + target[0].length);
+
+    return {
+      source:
+        source.slice(0, match.start) +
+        `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}` +
+        source.slice(match.end),
       status: "applied",
       matcher: "semantic",
     };
@@ -1915,6 +1990,12 @@ function patchMainBundle(recoveredRoot: string): PatchResult[] {
       filePath,
       "set Windows title bar overlay height to 46px",
       [patchWindowsTitleBarOverlayHeight()],
+    ),
+    replaceWithPatchers(
+      recoveredRoot,
+      filePath,
+      "launch Windows CUA with elevation compatibility",
+      [patchWindowsCuaRunAsInvoker()],
     ),
   ];
 }
