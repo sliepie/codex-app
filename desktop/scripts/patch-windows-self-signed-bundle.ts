@@ -29,6 +29,7 @@ const browserRuntimeRelocationMarkers = [
   "rename_staging",
 ];
 const browserRuntimeRelocationAppliedMarker = "codex-runtime-relocation-fallback";
+const browserRuntimeModuleCacheOptionalMarker = "codex-runtime-module-cache-optional";
 const inactiveWindowsMicaBackdropAppliedPattern =
   /\bfunction\s+[A-Za-z_$][\w$]*\(\{appearance:([A-Za-z_$][\w$]*),isFocused:([A-Za-z_$][\w$]*),platform:([A-Za-z_$][\w$]*)\}\)\{return!\2&&![A-Za-z_$][\w$]*\(\1\)&&\3===`darwin`\}/;
 const windowsArm64PrimaryRuntimeManifestUrl =
@@ -1663,8 +1664,19 @@ export function patchBrowserRuntimeRelocation(): SourcePatcher {
     }
 
     const match = matches[0];
-    if (match.body.includes(browserRuntimeRelocationAppliedMarker)) {
-      return { source, status: "already-applied", matcher: "semantic" };
+    const fallbackAlreadyApplied = match.body.includes(browserRuntimeRelocationAppliedMarker);
+    if (fallbackAlreadyApplied) {
+      const body = removeBrowserRuntimeModuleCacheRequirements(match.body);
+      if (body === match.body) {
+        return { source, status: "already-applied", matcher: "semantic" };
+      }
+
+      const functionReplacement = `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}`;
+      return {
+        source: source.slice(0, match.start) + functionReplacement + source.slice(match.end),
+        status: "applied",
+        matcher: "semantic",
+      };
     }
 
     const executableNameMatch = new RegExp(
@@ -1740,7 +1752,9 @@ export function patchBrowserRuntimeRelocation(): SourcePatcher {
       match.body.slice(0, cleanupStart) +
       replacement +
       match.body.slice(cleanupStart + cleanupMatch[0].length);
-    const functionReplacement = `${match.asyncPrefix}function ${match.name}(${match.args}){${body}}`;
+    const patchedBody = removeBrowserRuntimeModuleCacheRequirements(body);
+
+    const functionReplacement = `${match.asyncPrefix}function ${match.name}(${match.args}){${patchedBody}}`;
 
     return {
       source: source.slice(0, match.start) + functionReplacement + source.slice(match.end),
@@ -1748,6 +1762,22 @@ export function patchBrowserRuntimeRelocation(): SourcePatcher {
       matcher: "semantic",
     };
   };
+}
+
+function removeBrowserRuntimeModuleCacheRequirements(source: string): string {
+  const pattern = new RegExp(
+    String.raw`&&${identifierPattern}\(\(0,${identifierPattern}\.join\)\(${identifierPattern},\s*\`bin\`,\s*\`node_modules\`\)\)`,
+    "g",
+  );
+  if (!pattern.test(source)) {
+    return source;
+  }
+
+  pattern.lastIndex = 0;
+  const patchedSource = source.replace(pattern, "");
+  return patchedSource.includes(browserRuntimeModuleCacheOptionalMarker)
+    ? patchedSource
+    : `${patchedSource}/* ${browserRuntimeModuleCacheOptionalMarker} */`;
 }
 
 function patchBrowserRuntimeRelocationBundle(recoveredRoot: string): PatchResult[] {
