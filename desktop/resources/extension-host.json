@@ -1,10 +1,10 @@
 {
   "productId": "9PLM9XGG6VKS",
   "packageName": "OpenAI.Codex",
-  "packageFullName": "OpenAI.Codex_26.820.7780.0_arm64__2p2nqsd0c76g0",
+  "packageFullName": "OpenAI.Codex_26.831.2377.0_arm64__2p2nqsd0c76g0",
   "packageFamilyName": "OpenAI.Codex_2p2nqsd0c76g0",
-  "packageVersion": "26.820.7780.0",
+  "packageVersion": "26.831.2377.0",
   "sourceRelativePath": "app/resources/plugins/openai-bundled/plugins/chrome/extension-host/windows/arm64/extension-host.exe",
   "architecture": "arm64",
-  "sha256": "01a3fe5263cd9fc289181f8fc58174221603d8112ed657938fc4684221a4c840"
+  "sha256": "1ec19fd728cd1a39b723e37e8321ee21f6d07065d83b670a88f40597016e031f"
 }
