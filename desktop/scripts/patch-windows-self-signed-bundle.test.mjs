@@ -72,11 +72,42 @@ function createBrowserRuntimeSource() {
       "bin" +
       tick +
       ",e);",
+    "if(r!=null){let n=(0,i.join)(r," +
+      tick +
+      "bin" +
+      tick +
+      ",e);if(nP(n)&&xP((0,i.join)(r," +
+      tick +
+      "bin" +
+      tick +
+      "," +
+      tick +
+      "node_modules" +
+      tick +
+      ")))return n;VN.delete(t)}",
+    "if(wP(s,a)&&xP((0,i.join)(s," +
+      tick +
+      "bin" +
+      tick +
+      "," +
+      tick +
+      "node_modules" +
+      tick +
+      ")))return VN.set(t,s),l;",
     "if((0,c.existsSync)(s)&&hP({destinationPath:s,executableName:e,operation:" +
       tick +
       "remove_destination" +
       tick +
       ",sourcePath:t},()=>(0,c.rmSync)(s,{force:!0,recursive:!0})))return l;",
+    "if(wP(s,a)&&xP((0,i.join)(s," +
+      tick +
+      "bin" +
+      tick +
+      "," +
+      tick +
+      "node_modules" +
+      tick +
+      ")))return VN.set(t,s),l;",
     "VN.set(t,s);return l}",
   ].join("");
 }
@@ -112,6 +143,9 @@ function createBrowserRuntimeHarness(bundle) {
       "const VN=new Map();",
       "function dP(parts){return pathModule.join(cacheRoot,...parts)}",
       "function oP(){return 'runtime-hash'}",
+      "const nP=target=>fsModule.existsSync(target);",
+      "const xP=target=>fsModule.existsSync(target)&&fsModule.statSync(target).isDirectory();",
+      "const wP=target=>fsModule.existsSync(pathModule.join(target,'bin','node.exe'));",
       "function hP(operation,callback){logs.push(operation.operation);return callback()}",
       bundle,
       "return {relocate:tP};",
@@ -328,7 +362,7 @@ test("routes only the latest Windows ARM64 primary runtime manifest to GitHub", 
   );
 });
 
-test("uses a collision-free Browser runtime destination when cleanup is locked", () => {
+test("uses a collision-free Browser runtime destination and reuses it without node_modules", () => {
   const patcher = patchBrowserRuntimeRelocation();
   const result = patcher(createBrowserRuntimeSource());
   assert.ok(result);
@@ -350,6 +384,8 @@ test("uses a collision-free Browser runtime destination when cleanup is locked",
 
   assert.equal(first, path.join(fallbackRoot, "bin", "node.exe"));
   assert.ok(harness.logs.includes("remove_destination"));
+  fs.mkdirSync(path.join(fallbackRoot, "bin"), { recursive: true });
+  fs.writeFileSync(path.join(fallbackRoot, "bin", "node.exe"), "runtime");
 
   harness.logs.length = 0;
   const second = harness.relocate({
